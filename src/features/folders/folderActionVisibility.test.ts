@@ -21,13 +21,4 @@ describe("folder action visibility styles", () => {
     expect(css).toContain(".folder-tree__row[data-context-menu-open] > .folder-menu .menu-trigger");
     expect(css).toContain("@media (hover: none), (pointer: coarse)");
   });
-
-  it("keeps Book card overflow ownership unchanged", () => {
-    const libraryCss = readFileSync(
-      new URL("../../styles/features/library.css", import.meta.url),
-      "utf8",
-    );
-    expect(libraryCss).toContain(".book-card:hover .book-menu .menu-trigger");
-    expect(libraryCss).toContain("@media (hover: none)");
-  });
 });

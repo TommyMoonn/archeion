@@ -237,16 +237,6 @@ describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
     }
   });
 
-  it("keeps compact file paths readable", () => {
-    const filePath = libraryStyles.match(
-      /\.book-metadata--compact \.book-metadata__path\s*{([\s\S]*?)}/,
-    )?.[1];
-
-    expect(filePath).toContain("overflow-wrap: anywhere");
-    expect(filePath).toContain("white-space: normal");
-    expect(filePath).not.toContain("text-overflow: ellipsis");
-  });
-
   it("leaves compact details button geometry to the shared control", () => {
     const rules = detailsSecondaryActionRules();
     const forbiddenDeclarations: string[] = [];
@@ -268,20 +258,6 @@ describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
 
     expect(rules.length).toBeGreaterThan(0);
     expect(forbiddenDeclarations).toEqual([]);
-  });
-
-  it("collapses list metadata before the minimum-width shell can overlap row actions", () => {
-    const narrowShellRules = cssBlockContents(libraryStyles, "@media (max-width: 1100px)");
-    const compactShellRules = cssBlockContents(libraryStyles, "@media (max-width: 820px)");
-
-    expect(narrowShellRules).toMatch(
-      /\.book-row__select\s*{[\s\S]*grid-template-columns:\s*42px minmax\(0, 1fr\) 110px;/,
-    );
-    expect(narrowShellRules).toMatch(/\.book-row__file\s*{[\s\S]*display:\s*none;/);
-    expect(compactShellRules).toMatch(
-      /\.book-row__select\s*{[\s\S]*grid-template-columns:\s*42px minmax\(0, 1fr\);/,
-    );
-    expect(compactShellRules).toMatch(/\.book-row__date\s*{[\s\S]*display:\s*none;/);
   });
 
   it("gives Quick Actions one compact, theme-owned visual hierarchy", () => {

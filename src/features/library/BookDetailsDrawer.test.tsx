@@ -171,9 +171,12 @@ describe("BookDetailsDrawer", () => {
   });
 
   it("merges location and file metadata into one compact File section", () => {
-    const markup = renderDetails();
+    const relativePath =
+      "Translated editions/Annotated collector releases/Volume_01_with_a_descriptive_archive_name.epub";
+    const markup = renderDetails({ ...book, relativePath });
 
-    expect(markup).toContain("Series/Arc/Volume_01.epub");
+    expect(markup).toContain(relativePath);
+    expect(markup).toContain(`title="${relativePath}"`);
     expect(markup).toContain('class="book-metadata__path"');
     expect(markup).toContain("2.0 MB");
     expect(markup).toContain("Reveal in folder");

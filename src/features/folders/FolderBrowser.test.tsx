@@ -168,4 +168,42 @@ describe("FolderBrowser", () => {
     expect(markup).toContain('data-import-drop-destination="Fiction"');
     expect(markup).toContain('data-import-drop-active="true"');
   });
+
+  it("keeps long folder content and its essential actions available", () => {
+    const name =
+      "Collected translations and archival editions with exceptionally descriptive names";
+    const relativePath = `Reference library/International editions/${name}`;
+    const folders: Folder[] = [
+      {
+        id: "folder-long-content",
+        name,
+        relativePath,
+        parentId: null,
+        parentPath: "Reference library/International editions",
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ];
+    const markup = renderToStaticMarkup(
+      <FolderBrowser
+        cardSize="medium"
+        canManageFolders
+        entries={entries(folders)}
+        isLoading={false}
+        onDelete={vi.fn()}
+        onMove={vi.fn()}
+        onOpen={vi.fn()}
+        onRename={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        sort="name"
+        view="list"
+      />,
+    );
+
+    expect(markup).toContain(name);
+    expect(markup).toContain(relativePath);
+    expect(markup).toContain(`aria-label="Rename ${name}"`);
+    expect(markup).toContain(`aria-label="Actions for ${name}"`);
+  });
 });

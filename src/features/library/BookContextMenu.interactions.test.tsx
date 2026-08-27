@@ -199,6 +199,46 @@ describe("book contextual invocation", () => {
     expect(document.activeElement).toBe(primary);
   });
 
+  it("keeps essential row actions accessible with long book metadata", () => {
+    const title =
+      "A comprehensively annotated history of imaginary libraries and their wandering readers";
+    const longBook = {
+      ...book,
+      fileName: "A_comprehensively_annotated_history_of_imaginary_libraries.epub",
+      originalTitle: title,
+    };
+    const handlers = callbacks();
+    const view = mount(
+      <BookList
+        {...handlers}
+        books={[longBook]}
+        canDelete
+        canManageFile
+        selectedBookIds={new Set()}
+        selectionMode={false}
+      />,
+    );
+
+    expect(view.querySelector(".book-row__identity")?.textContent).toContain(title);
+    expect(view.querySelector(".book-row__file")?.textContent).toBe(longBook.fileName);
+
+    const rename = view.querySelector<HTMLButtonElement>(`[aria-label="Rename file for ${title}"]`);
+    const favorite = view.querySelector<HTMLButtonElement>(
+      `[aria-label="Add ${title} to favorites"]`,
+    );
+    const actions = view.querySelector<HTMLButtonElement>(`[aria-label="Actions for ${title}"]`);
+
+    act(() => {
+      rename?.click();
+      favorite?.click();
+      actions?.click();
+    });
+
+    expect(handlers.onRenameFile).toHaveBeenCalledWith(longBook);
+    expect(handlers.onToggleFavorite).toHaveBeenCalledWith(longBook);
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+  });
+
   it("restores meaningful resource focus after a non-modal pointer action", () => {
     const handlers = callbacks();
     const view = mount(

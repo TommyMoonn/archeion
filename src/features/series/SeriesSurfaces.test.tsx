@@ -195,6 +195,38 @@ describe("series library surfaces", () => {
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ key: "star saga" }));
   });
 
+  it("keeps a truncated long series name complete in its open action", () => {
+    const displayName =
+      "The collected chronicles of astronomers who catalogued every imaginary constellation";
+    const entries = deriveSeriesEntries([
+      createBook({
+        id: "long-series-volume",
+        sourceMetadata: { series: displayName, volume: "1" },
+      }),
+    ]);
+    const onOpen = vi.fn();
+    const scope = mount(
+      <SeriesOverview
+        cardSize="medium"
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={onOpen}
+        onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query=""
+        sort="title"
+        view="grid"
+      />,
+    );
+    const open = scope.querySelector<HTMLButtonElement>(`[aria-label="Open ${displayName}"]`);
+
+    expect(open?.textContent).toContain(displayName);
+    act(() => open?.click());
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ displayName }));
+  });
+
   it("restores the logical series after returning from detail", () => {
     const entries = deriveSeriesEntries([
       ...seriesBooks(),
