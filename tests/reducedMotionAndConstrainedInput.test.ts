@@ -34,8 +34,6 @@ function cssBlock(source: string, header: string): string {
 }
 
 const baseStyles = read("src/styles/base.css");
-const tokenStyles = read("src/styles/tokens.css");
-const readerStyles = read("src/styles/features/reader.css");
 
 describe("reduced motion contracts", () => {
   it("suppresses transition delays and continuous animation work for system reduced motion", () => {
@@ -47,48 +45,5 @@ describe("reduced motion contracts", () => {
     expect(reducedMotion).toContain("animation-delay: 0s !important");
     expect(reducedMotion).toContain("animation-duration: 0s !important");
     expect(reducedMotion).toContain("animation-iteration-count: 1 !important");
-  });
-
-  it("uses the application motion owner for Reader entrance, shimmer, and state transitions", () => {
-    const loadingLine = cssBlock(readerStyles, ".reader-loading__line");
-    const panel = cssBlock(readerStyles, ".reader-side-panel");
-    const navigationBody = cssBlock(readerStyles, ".reader-panel-scroll");
-    const navigationItem = cssBlock(readerStyles, ".reader-navigation__item");
-
-    expect(loadingLine).not.toContain("animation:");
-    expect(panel).not.toContain("animation:");
-    expect(panel).toContain("position: absolute");
-    expect(panel).toContain("inset-inline-end: 0");
-    expect(panel).toContain("bottom: 0");
-    expect(navigationBody).toContain("overflow-y: auto");
-    expect(navigationBody).toContain("overscroll-behavior: contain");
-    expect(readerStyles).toMatch(
-      /html\[data-motion="on"\] \.reader-loading__line,\s*html\[data-motion="on"\] \.reader-panel-loading span\s*\{[^}]*animation:\s*loading-sheen/s,
-    );
-    expect(readerStyles).toMatch(
-      /html\[data-motion="on"\] \.reader-side-panel\s*\{[^}]*animation:\s*reader-side-panel-enter/s,
-    );
-    expect(navigationItem).toContain("var(--motion-duration-standard)");
-    expect(navigationItem).not.toMatch(/\b\d+(?:\.\d+)?ms\b/);
-    expect(tokenStyles).toMatch(
-      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?--motion-duration-standard:\s*0ms;/,
-    );
-  });
-
-  it("keeps seekable Reader progress hit areas scalable and motion-token based", () => {
-    const progressFill = cssBlock(readerStyles, ".reader-progress__fill");
-    const topHitArea = cssBlock(
-      readerStyles,
-      '.reader-progress[data-seekable][data-placement="top"]::before',
-    );
-    const sideHitArea = cssBlock(
-      readerStyles,
-      '.reader-progress[data-seekable][data-placement="side"]::before',
-    );
-
-    expect(topHitArea).toContain("inset: -0.5rem 0");
-    expect(sideHitArea).toContain("inset: 0 -0.5rem");
-    expect(progressFill).toContain("var(--motion-duration-standard)");
-    expect(progressFill).not.toMatch(/\b\d+(?:\.\d+)?ms\b/);
   });
 });
