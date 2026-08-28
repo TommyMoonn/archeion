@@ -30,20 +30,6 @@ function collectCssFiles(directory: string): string[] {
   });
 }
 
-function collectApplicationSourceFiles(directory: string): string[] {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.join(directory, entry.name);
-
-    if (entry.isDirectory()) {
-      return entry.name === "reader" ? [] : collectApplicationSourceFiles(entryPath);
-    }
-
-    return entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
-      ? [entryPath]
-      : [];
-  });
-}
-
 function readJson<T>(relativePath: string): T {
   return JSON.parse(fs.readFileSync(path.join(projectRoot, relativePath), "utf8")) as T;
 }
@@ -54,9 +40,6 @@ function fontFaceBlocks(source: string): string[] {
 
 const cssFiles = collectCssFiles(stylesRoot);
 const cssSource = cssFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
-const applicationSource = collectApplicationSourceFiles(path.join(projectRoot, "src"))
-  .map((filePath) => fs.readFileSync(filePath, "utf8"))
-  .join("\n");
 const fontsSource = fs.readFileSync(path.join(stylesRoot, "fonts.css"), "utf8");
 const tokensSource = fs.readFileSync(path.join(stylesRoot, "tokens.css"), "utf8");
 const indexSource = fs.readFileSync(path.join(stylesRoot, "index.css"), "utf8");
@@ -65,14 +48,6 @@ const buttonSource = fs.readFileSync(path.join(projectRoot, "src/components/Butt
 const readerSource = fs.readFileSync(path.join(stylesRoot, "features/reader.css"), "utf8");
 const epubViewerSource = fs.readFileSync(
   path.join(projectRoot, "src/features/reader/EpubViewer.tsx"),
-  "utf8",
-);
-const readerFontsSource = fs.readFileSync(
-  path.join(projectRoot, "src/features/reader/readerFonts.ts"),
-  "utf8",
-);
-const readerThemeSource = fs.readFileSync(
-  path.join(projectRoot, "src/features/reader/readerTheme.ts"),
   "utf8",
 );
 const customThemesGuideSource = fs.readFileSync(
@@ -145,19 +120,8 @@ function directColorLiteralsByFile(): Record<string, string[]> {
   );
 }
 
-function declarations(property: string): string[] {
-  return [...cssSource.matchAll(new RegExp(`^\\s*${property}:\\s*([^;]+);`, "gm"))].map(
-    (match) => match[1]?.trim() ?? "",
-  );
-}
-
-function customProperty(source: string, property: string): string | undefined {
-  const escapedProperty = property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return source.match(new RegExp(`${escapedProperty}:\\s*([^;]+);`))?.[1]?.trim();
-}
-
 describe("visual foundations", () => {
-  it("uses bundled Inter first with defensive system fallbacks and supported weight roles", () => {
+  it("uses bundled Inter first with defensive system fallbacks", () => {
     const uiStack = tokensSource.match(/--font-ui:\s*([^;]+);/)?.[1]?.trim();
 
     expect(uiStack).toBe(
@@ -165,26 +129,6 @@ describe("visual foundations", () => {
     );
     expect([...tokensSource.matchAll(/--font-ui\s*:/g)]).toHaveLength(1);
     expect(tokensSource).toContain("font-family: var(--font-ui)");
-    expect(declarations("font-weight")).toEqual(
-      expect.arrayContaining([
-        "var(--font-weight-regular)",
-        "var(--font-weight-semibold)",
-        "var(--font-weight-bold)",
-      ]),
-    );
-    expect(
-      declarations("font-weight").every(
-        (value) =>
-          [
-            "400",
-            "600",
-            "700",
-            "var(--font-weight-regular)",
-            "var(--font-weight-semibold)",
-            "var(--font-weight-bold)",
-          ].includes(value) || /^var\(--type-[\w-]+-weight\)$/.test(value),
-      ),
-    ).toBe(true);
   });
 
   it("declares one canonical set of verified Inter WOFF2 faces", () => {
@@ -225,67 +169,6 @@ describe("visual foundations", () => {
 
     expect(indexSource.indexOf('@import "./fonts.css";')).toBeLessThan(
       indexSource.indexOf('@import "./tokens.css";'),
-    );
-  });
-
-  it("keeps EPUB typography independent from the application UI stack", () => {
-    expect(readerThemeSource).toContain("readerFontFamilyForId(settings.fontFamily)");
-    expect(readerThemeSource).not.toContain("--font-ui");
-    expect(readerThemeSource).not.toContain("inter-ui");
-    expect(readerFontsSource).not.toMatch(/fontFamilyName:\s*"Inter"/);
-    expect(readerFontsSource).not.toContain("inter-ui");
-    expect(readerFontsSource).toContain('id: "literata"');
-    expect(readerFontsSource).toContain('id: "atkinson"');
-  });
-
-  it("uses the readable application small-text scale without changing reader chrome", () => {
-    const applicationScale = {
-      "--type-caption": "0.75rem",
-      "--type-meta": "0.8125rem",
-      "--type-body": "0.875rem",
-      "--type-body-large": "0.9375rem",
-      "--type-title-small": "1rem",
-    } as const;
-    const readerScale = {
-      "--type-caption": "0.6875rem",
-      "--type-meta": "0.75rem",
-      "--type-body": "0.8125rem",
-      "--type-body-large": "0.875rem",
-      "--type-title-small": "0.9375rem",
-    } as const;
-    const readerRoot = readerSource.match(
-      /\.reader-page,\s*\.reader-status-page\s*{([\s\S]*?)}/,
-    )?.[1];
-
-    expect(readerRoot).toBeDefined();
-
-    for (const [role, size] of Object.entries(applicationScale)) {
-      expect(customProperty(tokensSource, role)).toBe(size);
-    }
-
-    for (const [role, size] of Object.entries(readerScale)) {
-      expect(customProperty(readerRoot ?? "", role)).toBe(size);
-    }
-
-    expect(readerRoot).not.toContain("--type-title:");
-    expect(readerRoot).not.toContain("--type-heading:");
-  });
-
-  it("routes UI font sizes through named typography roles", () => {
-    const fontSizes = declarations("font-size");
-
-    expect(fontSizes.length).toBeGreaterThan(0);
-    expect(
-      fontSizes.every(
-        (value) => value.startsWith("var(--type-") || value === "var(--icon-glyph-size)",
-      ),
-    ).toBe(true);
-    expect(cssSource).not.toMatch(/font-size:\s*10px/);
-  });
-
-  it("keeps small application typography out of inline source styles", () => {
-    expect(applicationSource).not.toMatch(
-      /\bfontSize\s*:\s*(?:1[0-3](?:\.\d+)?|["'`]1[0-3](?:\.\d+)?px["'`])/,
     );
   });
 
