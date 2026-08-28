@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-08-27
+
+Archeion 1.4.2 moves About into a compact standalone window that can remain open independently of the Library.
+
+### Changed
+
+- About now opens in its own window from the existing Library sidebar entry without replacing the active Library view. Reopening About focuses the existing window, while Website, Documentation, and Source code links remain available there.
+
 ## [1.4.1] - 2026-08-26
 
 Archeion 1.4.1 refines dictionary discovery and definition reading, and makes search controls more consistent across the application.
@@ -497,7 +505,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.2...HEAD
+[1.4.2]: https://github.com/TommyMoonn/archeion/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/TommyMoonn/archeion/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/TommyMoonn/archeion/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/TommyMoonn/archeion/compare/v1.2.0...v1.3.0
