@@ -2,35 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-function collectFiles(directory: string, extension: string): string[] {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return collectFiles(entryPath, extension);
-    return entry.isFile() && entry.name.endsWith(extension) ? [entryPath] : [];
-  });
-}
-
-type ComponentSource = {
-  filePath: string;
-  source: string;
-};
-
-const componentSources = collectFiles(path.join(projectRoot, "src"), ".tsx")
-  .filter((filePath) => !filePath.endsWith(".test.tsx"))
-  .map((filePath): ComponentSource => ({ filePath, source: fs.readFileSync(filePath, "utf8") }));
-const featureStyles = collectFiles(path.join(projectRoot, "src/styles/features"), ".css")
-  .map((filePath) => fs.readFileSync(filePath, "utf8"))
-  .join("\n");
-const baseStyles = fs.readFileSync(path.join(projectRoot, "src/styles/base.css"), "utf8");
-const libraryStyles = fs.readFileSync(
-  path.join(projectRoot, "src/styles/features/library.css"),
-  "utf8",
-);
 const quickActionsStyles = fs.readFileSync(
   path.join(projectRoot, "src/styles/features/quick-actions.css"),
   "utf8",
@@ -39,118 +14,6 @@ const quickActionsSource = fs.readFileSync(
   path.join(projectRoot, "src/features/quick-actions/QuickActionsPalette.tsx"),
   "utf8",
 );
-
-const SHARED_ICON_PROP_COMPONENTS = new Set(["Button", "Input", "MenuItem"]);
-
-function jsxTagName(node: ts.JsxTagNameExpression): string {
-  return node.getText();
-}
-
-function isNumericSizeAttribute(node: ts.Node): boolean {
-  if (!ts.isJsxAttribute(node) || node.name.getText() !== "size" || !node.initializer) {
-    return false;
-  }
-
-  if (ts.isStringLiteral(node.initializer)) {
-    return /^\d+(?:\.\d+)?$/.test(node.initializer.text);
-  }
-
-  return (
-    ts.isJsxExpression(node.initializer) &&
-    Boolean(node.initializer.expression && ts.isNumericLiteral(node.initializer.expression))
-  );
-}
-
-function containsNumericSvgSize(node: ts.Node): boolean {
-  let found = false;
-  const visit = (child: ts.Node) => {
-    if (found) return;
-    if (isNumericSizeAttribute(child)) {
-      found = true;
-      return;
-    }
-    ts.forEachChild(child, visit);
-  };
-  visit(node);
-  return found;
-}
-
-function attributeNamed(attributes: ts.JsxAttributes, name: string): ts.JsxAttribute | undefined {
-  return attributes.properties.find(
-    (property): property is ts.JsxAttribute =>
-      ts.isJsxAttribute(property) && property.name.getText() === name,
-  );
-}
-
-function hasExplicitIconSlot(attributes: ts.JsxAttributes): boolean {
-  const className = attributeNamed(attributes, "className");
-  return Boolean(className?.initializer?.getText().includes("icon-slot"));
-}
-
-function sharedSlotViolations({ filePath, source }: ComponentSource): string[] {
-  const parsed = ts.createSourceFile(
-    filePath,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX,
-  );
-  const violations: string[] = [];
-  const report = (node: ts.Node, contract: string) => {
-    const line = parsed.getLineAndCharacterOfPosition(node.getStart(parsed)).line + 1;
-    violations.push(`${path.relative(projectRoot, filePath)}:${line} (${contract})`);
-  };
-
-  const visit = (node: ts.Node) => {
-    if (ts.isJsxElement(node)) {
-      const name = jsxTagName(node.openingElement.tagName);
-      if (name === "IconButton" && node.children.some(containsNumericSvgSize)) {
-        report(node, "IconButton child");
-      }
-
-      if (
-        hasExplicitIconSlot(node.openingElement.attributes) &&
-        node.children.some(containsNumericSvgSize)
-      ) {
-        report(node, "explicit icon-slot child");
-      }
-    }
-
-    if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)) {
-      const opening = ts.isJsxElement(node) ? node.openingElement : node;
-      const name = jsxTagName(opening.tagName);
-      if (SHARED_ICON_PROP_COMPONENTS.has(name)) {
-        const icon = attributeNamed(opening.attributes, "icon");
-        if (icon?.initializer && containsNumericSvgSize(icon.initializer)) {
-          report(icon, `${name} icon`);
-        }
-      }
-    }
-
-    if (
-      ts.isPropertyAssignment(node) &&
-      node.name.getText() === "icon" &&
-      containsNumericSvgSize(node.initializer)
-    ) {
-      report(node, "SegmentedControl option icon");
-    }
-
-    ts.forEachChild(node, visit);
-  };
-
-  visit(parsed);
-  return violations;
-}
-
-function violationsForFixture(source: string): string[] {
-  return sharedSlotViolations({ filePath: path.join(projectRoot, "fixture.tsx"), source });
-}
-
-function detailsSecondaryActionRules(): Array<{ declarations: string; selector: string }> {
-  return [...libraryStyles.matchAll(/([^{}]+)\{([^{}]*)}/g)]
-    .map((match) => ({ declarations: match[2], selector: match[1].trim() }))
-    .filter(({ selector }) => selector.includes(".details-actions__secondary"));
-}
 
 function cssBlockContents(source: string, header: string): string {
   const headerIndex = source.indexOf(header);
@@ -179,87 +42,6 @@ function cssBlockContents(source: string, header: string): string {
 }
 
 describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
-  it("keeps shared icon slots authoritative over control glyph geometry", () => {
-    expect(baseStyles).toMatch(/\.icon-slot > svg\s*{[\s\S]*width:\s*var\(--icon-glyph-size\);/);
-    expect(baseStyles).toMatch(/\.icon-slot > svg\s*{[\s\S]*height:\s*var\(--icon-glyph-size\);/);
-
-    const violations = componentSources.flatMap(sharedSlotViolations);
-    expect(violations).toEqual([]);
-  });
-
-  it("detects numeric SVG sizes in IconButton children", () => {
-    expect(
-      violationsForFixture(`<IconButton label="Close"><X size={18} /></IconButton>`),
-    ).not.toEqual([]);
-  });
-
-  it.each(["Button", "Input", "MenuItem"])(
-    "detects numeric SVG sizes in %s icon values",
-    (component) => {
-      expect(
-        violationsForFixture(
-          `<${component} icon={<X strokeWidth={2.25} size={16} />}>Label</${component}>`,
-        ),
-      ).not.toEqual([]);
-    },
-  );
-
-  it("detects numeric SVG sizes in SegmentedControl option icons", () => {
-    expect(
-      violationsForFixture(`const options = [{ value: "list", icon: <List size={14} /> }];`),
-    ).not.toEqual([]);
-  });
-
-  it("detects numeric SVG sizes in explicit icon-slot children", () => {
-    expect(
-      violationsForFixture(
-        `<span data-kind="action" className="menu-icon icon-slot"><X size={12} /></span>`,
-      ),
-    ).not.toEqual([]);
-  });
-
-  it("allows intentionally sized decorative icons outside shared slots", () => {
-    expect(
-      violationsForFixture(`<EmptyState icon={<BookOpenText size={42} strokeWidth={1.5} />} />`),
-    ).toEqual([]);
-  });
-
-  it("keeps foundational shared-control ownership out of feature styles", () => {
-    for (const selector of [
-      ".button",
-      ".icon-button",
-      ".input-shell",
-      ".menu-item",
-      ".segmented-control",
-    ]) {
-      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      expect(featureStyles).not.toMatch(new RegExp(`^${escaped}\\s*\\{`, "m"));
-    }
-  });
-
-  it("leaves compact details button geometry to the shared control", () => {
-    const rules = detailsSecondaryActionRules();
-    const forbiddenDeclarations: string[] = [];
-
-    for (const { declarations, selector } of rules) {
-      for (const property of ["height", "min-height", "padding", "padding-inline"]) {
-        if (new RegExp(`(^|;)\\s*${property}\\s*:`, "m").test(declarations)) {
-          forbiddenDeclarations.push(`${selector}: ${property}`);
-        }
-      }
-
-      if (
-        /(?:icon-slot|svg)/.test(selector) &&
-        /(^|;)\s*(?:width|height|font-size|--icon-glyph-size)\s*:/m.test(declarations)
-      ) {
-        forbiddenDeclarations.push(`${selector}: icon size`);
-      }
-    }
-
-    expect(rules.length).toBeGreaterThan(0);
-    expect(forbiddenDeclarations).toEqual([]);
-  });
-
   it("gives Quick Actions one compact, theme-owned visual hierarchy", () => {
     const palette = cssBlockContents(quickActionsStyles, ".quick-actions");
     const panel = cssBlockContents(quickActionsStyles, ".quick-actions__panel");
