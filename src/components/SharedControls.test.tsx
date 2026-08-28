@@ -39,29 +39,40 @@ afterEach(() => {
 });
 
 describe("shared control geometry", () => {
-  it("publishes semantic size and busy states without changing labels", () => {
-    const markup = renderToStaticMarkup(
-      <>
-        <Button busy size="compact">
-          Save changes
-        </Button>
-        <IconButton disabled disabledReason="Finish saving first" label="Close" size="prominent">
-          <span>×</span>
-        </IconButton>
-        <Input label="Search" size="standard" />
-        <SegmentedControl
-          label="View"
-          onChange={() => undefined}
-          options={[{ label: "Grid", value: "grid" }]}
-          size="standard"
-          value="grid"
-        />
-        <Toggle checked label="Enabled" onChange={() => undefined} size="compact" />
-      </>,
+  it("publishes semantic size, busy, and checked states without changing labels", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    activeRoot = createRoot(container);
+    act(() => {
+      activeRoot?.render(
+        <>
+          <Button busy size="compact">
+            Save changes
+          </Button>
+          <IconButton disabled disabledReason="Finish saving first" label="Close" size="prominent">
+            <span>×</span>
+          </IconButton>
+          <Input label="Search" size="standard" />
+          <SegmentedControl
+            label="View"
+            onChange={() => undefined}
+            options={[{ label: "Grid", value: "grid" }]}
+            size="standard"
+            value="grid"
+          />
+          <Toggle checked label="Enabled" onChange={() => undefined} size="compact" />
+        </>,
+      );
+    });
+    const markup = container.innerHTML;
+    const toggle = container.querySelector<HTMLButtonElement>(
+      'button[role="switch"][aria-label="Enabled"]',
     );
 
     expect(markup).toContain("button--compact");
     expect(markup).toContain('aria-busy="true"');
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute("aria-checked")).toBe("true");
     expect(markup).toContain("Save changes");
     expect(markup).toContain("icon-button--prominent");
     expect(markup).not.toContain('title="Finish saving first"');
