@@ -7,15 +7,18 @@
 </p>
 
 <p align="center">
-  <a href="https://tommymoonn.github.io/archeion/">Website</a>
-  ·
-  <a href="#download-archeion">Download</a>
-  ·
-  <a href="#features">Features</a>
-  ·
-  <a href="#local-first-by-design">Design</a>
-  ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://tommymoonn.github.io/archeion/">
+    <img src="https://img.shields.io/badge/Website-Visit-blue?style=flat" alt="Website">
+  </a>
+  <a href="https://github.com/TommyMoonn/archeion/releases/latest">
+    <img src="https://img.shields.io/badge/Download-Windows-blue?style=flat&logo=windows11&logoColor=white" alt="Download">
+  </a>
+  <a href="https://github.com/TommyMoonn/archeion/releases">
+    <img src="https://img.shields.io/badge/Releases-GitHub-blue?style=flat&logo=github&logoColor=white" alt="Releases">
+  </a>
+  <a href="CHANGELOG.md">
+    <img src="https://img.shields.io/badge/Changelog-History-blue?style=flat&logo=git&logoColor=white" alt="Changelog">
+  </a>
 </p>
 
 <p align="center">
