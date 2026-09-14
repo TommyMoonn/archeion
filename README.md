@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/archeion-wordmark.png" alt="Archeion" width="256" />
+  <img src="docs/assets/archeion-wordmark.png" alt="Archeion" width="256">
 </p>
 
 <p align="center">
@@ -7,22 +7,18 @@
 </p>
 
 <p align="center">
-  <a href="https://tommymoonn.github.io/archeion/">
-    <img src="https://img.shields.io/badge/Website-Visit-blue?style=flat" alt="Website">
-  </a>
-  <a href="https://github.com/TommyMoonn/archeion/releases/latest">
-    <img src="https://img.shields.io/badge/Download-Windows-blue?style=flat&logo=windows11&logoColor=white" alt="Download">
-  </a>
-  <a href="https://github.com/TommyMoonn/archeion/releases">
-    <img src="https://img.shields.io/badge/Releases-GitHub-blue?style=flat&logo=github&logoColor=white" alt="Releases">
-  </a>
-  <a href="CHANGELOG.md">
-    <img src="https://img.shields.io/badge/Changelog-History-blue?style=flat&logo=git&logoColor=white" alt="Changelog">
-  </a>
+  <a href="https://tommymoonn.github.io/archeion/"><img src="https://img.shields.io/badge/Website-Visit-238636?style=flat" alt="Website"></a>
+  <a href="https://github.com/TommyMoonn/archeion/releases/latest"><img src="https://img.shields.io/badge/Download-Windows-0969da?style=flat&logo=windows11&logoColor=white" alt="Download for Windows"></a>
+  <a href="https://github.com/TommyMoonn/archeion/releases"><img src="https://img.shields.io/badge/Releases-GitHub-57606a?style=flat&logo=github&logoColor=white" alt="GitHub Releases"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-History-b45309?style=flat&logo=git&logoColor=white" alt="Changelog"></a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/archeion-preview.png" alt="Archeion library and reader preview" width="900" />
+  <img
+    src="docs/assets/archeion-preview.png"
+    alt="Archeion library and reader preview"
+    width="900"
+  >
 </p>
 
 ---
