@@ -1,11 +1,42 @@
+# Version control
 .git
+
+# Dependencies
 node_modules
+
+# Build output
 dist
+dist-ssr
 target
 src-tauri/target
+artifacts
+
+# Generated output
+src-tauri/gen/schemas
+coverage
+
+# Tooling caches
+.vite
+*.tsbuildinfo
+.eslintcache
+__pycache__
+*.py[cod]
+
+# Local environment
+.env
+.env.*
+
+# Agent/local working data
+.agent-work
+.scratch
+.dev/chatgpt/bundles
+
+# Large dictionary development artifacts
+.project/dictionaries/source-archives
+.project/dictionaries/english-catalog-*
+
+# Temporary/system files
 .DS_Store
 *.log
 *.tmp
 *.zip
-.dev/chatgpt/bundles
-.scratch
