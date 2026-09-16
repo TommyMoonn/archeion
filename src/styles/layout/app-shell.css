@@ -469,7 +469,7 @@ html[data-density="compact"] .nav-item {
   min-width: 0;
   margin-inline-start: 4px;
   overflow: hidden;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-meta);
   text-overflow: ellipsis;
   white-space: nowrap;

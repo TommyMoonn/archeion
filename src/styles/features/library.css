@@ -298,7 +298,7 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 }
 
 .continue-reading__heading span {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 
@@ -1168,7 +1168,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .metadata-reference dt {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
 }
@@ -1360,7 +1360,7 @@ html[data-motion="on"] .details-drawer[open] {
 .bulk-metadata-field__toggle small {
   grid-column: 2;
   overflow: hidden;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1406,7 +1406,7 @@ html[data-motion="on"] .details-drawer[open] {
 .bulk-metadata-field > p,
 .bulk-metadata-editor__notice {
   margin: 0;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   line-height: 1.4;
 }
@@ -1463,7 +1463,7 @@ html[data-motion="on"] .details-drawer[open] {
 
 .bulk-metadata-preview__book > div:first-child span {
   flex: none;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 
@@ -1487,7 +1487,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .bulk-metadata-preview__book dt {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 
@@ -1599,7 +1599,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .metadata-writeback__changes-header span {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
 }
@@ -1645,7 +1645,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .metadata-writeback__field span {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
 }
@@ -1858,7 +1858,7 @@ html[data-motion="on"] .details-drawer[open] {
 .cover-writeback__book small,
 .cover-writeback__preview-column > span,
 .cover-writeback__framing > span {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.02em;
@@ -1946,7 +1946,7 @@ html[data-motion="on"] .details-drawer[open] {
   justify-items: center;
   gap: 9px;
   padding: 20px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   text-align: center;
 }
@@ -2001,7 +2001,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .cover-writeback__details dt {
-  color: var(--muted-soft);
+  color: var(--muted);
 }
 
 .cover-writeback__details dd {
@@ -2214,7 +2214,7 @@ html[data-motion="on"] .library-feedback__token {
 
 .library-result-count {
   min-width: 56px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   text-align: start;
@@ -2326,7 +2326,7 @@ html[data-motion="on"] .library-feedback__token {
 
 .duplicate-group__identity dt {
   margin-bottom: 4px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   text-align: end;
 }
@@ -2432,7 +2432,7 @@ html[data-motion="on"] .library-feedback__token {
 
 .duplicate-member__metadata dt {
   margin-bottom: 4px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 
@@ -2671,7 +2671,7 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .epub-issues-book__identity > span {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-family: var(--font-mono);
   font-size: var(--type-caption);
 }
@@ -2810,7 +2810,7 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .epub-issue-detail__context dt {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 

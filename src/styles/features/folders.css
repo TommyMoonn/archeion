@@ -1,7 +1,7 @@
 .folder-placeholder {
   margin-top: 9px;
   padding: 0 11px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-body);
 }
 
@@ -296,12 +296,12 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-browser__copy small {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 
 .folder-browser__count {
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

@@ -68,6 +68,49 @@ describe("theme contrast diagnostics", () => {
     );
   });
 
+  it("assigns readable secondary text normal-text thresholds on its owned surfaces", () => {
+    const diagnostics = themeContrastDiagnostics(
+      resolveBuiltInAppTheme("dark"),
+      resolveBuiltInReaderTheme("light"),
+    );
+    const appMuted = diagnostics.filter(({ foregroundPath }) => foregroundPath === "$.app.muted");
+
+    expect(appMuted.map(({ backgroundPath }) => backgroundPath)).toEqual([
+      "$.app.canvas",
+      "$.app.canvasDeep",
+      "$.app.surface",
+      "$.app.surfaceRaised",
+      "$.app.surfaceHover",
+      "$.app.frame",
+      "$.app.sidebar",
+      "$.app.main",
+      "$.app.mainRaised",
+    ]);
+    expect(appMuted.every(({ minimumRatio }) => minimumRatio === 4.5)).toBe(true);
+    expect(appMuted.every(({ minimumApcaLc }) => minimumApcaLc === 60)).toBe(true);
+
+    expect(
+      diagnostics.find(({ foregroundPath }) => foregroundPath === "$.reader.muted"),
+    ).toMatchObject({ minimumRatio: 4.5, minimumApcaLc: 60 });
+  });
+
+  it("keeps graphical roles on their non-text contrast thresholds", () => {
+    const diagnostics = themeContrastDiagnostics(resolveBuiltInAppTheme("dark"));
+
+    expect(
+      diagnostics.find(
+        ({ foregroundPath, backgroundPath }) =>
+          foregroundPath === "$.app.accent" && backgroundPath === "$.app.main",
+      ),
+    ).toMatchObject({ minimumRatio: 3, minimumApcaLc: 60 });
+    expect(
+      diagnostics.find(
+        ({ foregroundPath, backgroundPath }) =>
+          foregroundPath === "$.app.focus" && backgroundPath === "$.app.canvas",
+      ),
+    ).toMatchObject({ minimumRatio: 3, minimumApcaLc: 30 });
+  });
+
   it("keeps APCA diagnostic when a custom pair passes the formal WCAG contract", () => {
     const app = resolveAppTheme("dark", { muted: "#929096" });
     const muted = themeContrastDiagnostics(app).find(
@@ -78,7 +121,7 @@ describe("theme contrast diagnostics", () => {
       meetsApca: false,
       meetsWcag: true,
       minimumApcaLc: 60,
-      minimumRatio: 3,
+      minimumRatio: 4.5,
     });
     expect(themeContrastWarnings(app)).toEqual([]);
   });

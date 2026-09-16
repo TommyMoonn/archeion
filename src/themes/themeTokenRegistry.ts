@@ -49,10 +49,13 @@ export const appThemePublicTokenRegistry = defineTokenRegistry({
   },
   text: { cssVariable: "--text", description: "Primary body text." },
   textStrong: { cssVariable: "--text-strong", description: "Headings and emphasized text." },
-  muted: { cssVariable: "--muted", description: "Secondary labels and metadata." },
+  muted: {
+    cssVariable: "--muted",
+    description: "Readable secondary labels, captions, metadata, and helper copy.",
+  },
   mutedSoft: {
     cssVariable: "--muted-soft",
-    description: "De-emphasized text and inactive affordances.",
+    description: "Inactive and decorative non-text affordances.",
   },
   accent: { cssVariable: "--accent", description: "Primary interactive accent." },
   accentStrong: {
@@ -136,7 +139,10 @@ export const readerThemePublicTokenRegistry = defineTokenRegistry({
   line: { cssVariable: "--reader-line", description: "Reader borders and separators." },
   text: { cssVariable: "--reader-text", description: "Reader body text." },
   strong: { cssVariable: "--reader-strong", description: "Reader headings and strong text." },
-  muted: { cssVariable: "--reader-muted", description: "Reader metadata and secondary text." },
+  muted: {
+    cssVariable: "--reader-muted",
+    description: "Readable Reader metadata and secondary text.",
+  },
   focus: { cssVariable: "--reader-focus", description: "Reader focus indicators." },
   danger: { cssVariable: "--reader-danger", description: "Reader errors and destructive actions." },
   link: { cssVariable: "--reader-link", description: "Links inside EPUB content." },

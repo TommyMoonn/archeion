@@ -150,7 +150,7 @@
 }
 
 .series-card__copy .series-card__status {
-  color: var(--muted-soft);
+  color: var(--muted);
 }
 
 .series-card__open > svg {
@@ -317,7 +317,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 5px 8px;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.04em;

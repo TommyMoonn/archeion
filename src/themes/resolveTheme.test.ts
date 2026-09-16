@@ -171,11 +171,11 @@ describe("theme resolution", () => {
 
   it("derives Reader quotation and visited-link roles perceptually", () => {
     expect(resolveBuiltInReaderTheme("dark").tokens).toMatchObject({
-      quotation: "#939197",
+      quotation: "#959398",
       visitedLink: "#c0d8e8",
     });
     expect(resolveBuiltInReaderTheme("light").tokens).toMatchObject({
-      quotation: "#8e8a85",
+      quotation: "#89857f",
       visitedLink: "#2b4b63",
     });
     expect(resolveBuiltInReaderTheme("sepia").tokens).toMatchObject({
@@ -206,6 +206,27 @@ describe("theme resolution", () => {
       ]),
     );
     expect(Object.isFrozen(resolved.contrastWarnings)).toBe(true);
+  });
+
+  it("deterministically reports invalid readable secondary text contrast", () => {
+    const manifest = validatedManifest({ app: { muted: "#6f6d73" } });
+    const firstWarnings = resolveTheme(manifest).contrastWarnings;
+    const secondWarnings = resolveTheme(manifest).contrastWarnings;
+    const mutedWarnings = firstWarnings.filter(
+      ({ foregroundPath }) => foregroundPath === "$.app.muted",
+    );
+
+    expect(mutedWarnings.length).toBeGreaterThan(0);
+    expect(mutedWarnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          backgroundPath: "$.app.main",
+          foregroundPath: "$.app.muted",
+          minimumRatio: 4.5,
+        }),
+      ]),
+    );
+    expect(secondWarnings).toEqual(firstWarnings);
   });
 
   it("checks focus contrast against application and reader interaction surfaces", () => {

@@ -29,10 +29,29 @@ export type ThemeContrastDiagnostic = Readonly<{
   ratio: number;
 }>;
 
+const APP_READABLE_SECONDARY_BACKGROUNDS = [
+  "canvas",
+  "canvasDeep",
+  "surface",
+  "surfaceRaised",
+  "surfaceHover",
+  "frame",
+  "sidebar",
+  "main",
+  "mainRaised",
+] as const satisfies readonly AppThemePublicToken[];
+
 const APP_CONTRAST_PAIRS: readonly AppContrastPair[] = Object.freeze([
   { foreground: "text", background: "main", minimumRatio: 4.5, minimumApcaLc: 75 },
   { foreground: "textStrong", background: "main", minimumRatio: 4.5, minimumApcaLc: 60 },
-  { foreground: "muted", background: "main", minimumRatio: 3, minimumApcaLc: 60 },
+  ...APP_READABLE_SECONDARY_BACKGROUNDS.map((background) =>
+    Object.freeze({
+      foreground: "muted" as const,
+      background,
+      minimumRatio: 4.5,
+      minimumApcaLc: 60,
+    }),
+  ),
   { foreground: "accent", background: "main", minimumRatio: 3, minimumApcaLc: 60 },
   { foreground: "focus", background: "canvas", minimumRatio: 3, minimumApcaLc: 30 },
   { foreground: "focus", background: "canvasDeep", minimumRatio: 3, minimumApcaLc: 30 },
@@ -52,7 +71,7 @@ const APP_CONTRAST_PAIRS: readonly AppContrastPair[] = Object.freeze([
 const READER_CONTRAST_PAIRS: readonly ReaderContrastPair[] = Object.freeze([
   { foreground: "text", background: "background", minimumRatio: 4.5, minimumApcaLc: 75 },
   { foreground: "strong", background: "background", minimumRatio: 4.5, minimumApcaLc: 60 },
-  { foreground: "muted", background: "background", minimumRatio: 3, minimumApcaLc: 60 },
+  { foreground: "muted", background: "background", minimumRatio: 4.5, minimumApcaLc: 60 },
   { foreground: "link", background: "background", minimumRatio: 4.5, minimumApcaLc: 75 },
   { foreground: "focus", background: "background", minimumRatio: 3, minimumApcaLc: 30 },
   { foreground: "focus", background: "surface", minimumRatio: 3, minimumApcaLc: 30 },

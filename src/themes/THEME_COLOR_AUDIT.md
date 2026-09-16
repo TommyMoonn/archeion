@@ -1,6 +1,6 @@
 # Theme color audit
 
-This inventory records the Phase 0.9.0.30 built-in palette and the version 1 theme
+This inventory records the Phase 1.4.3.1 built-in palette and the version 1 theme
 contract. Built-in and custom theme manifests continue to use hexadecimal sRGB colors.
 Derived application and Reader colors are calculated through the internal OKLCH utility.
 
@@ -31,29 +31,31 @@ Derived application and Reader colors are calculated through the internal OKLCH 
 
 ## Built-in audit
 
-The audit covers application body and strong text, muted labels, accent, focus on every
-owned surface, status colors, Reader text, muted text, links, focus, danger, selection,
-and code surfaces. Translucent pairs are composited over their actual built-in canvas
-before measurement.
+The audit covers application body and strong text, readable muted labels on every owned
+surface, accent, focus on every owned surface, status colors, Reader text, readable muted
+text, links, focus, danger, selection, and code surfaces. Translucent pairs are composited
+over their actual built-in canvas before measurement.
 
 | Appearance        | Lowest audited WCAG ratio | Lowest audited absolute APCA Lc | Result                                             |
 | ----------------- | ------------------------: | ------------------------------: | -------------------------------------------------- |
 | Application Dark  |                      5.26 |                           41.25 | Every pair meets its assigned text or UI threshold |
 | Application Light |                      4.42 |                           63.37 | Every pair meets its assigned text or UI threshold |
 | Reader Dark       |                      6.67 |                           49.02 | Every pair meets its assigned text or UI threshold |
-| Reader Light      |                      4.28 |                           63.65 | Every pair meets its assigned text or UI threshold |
+| Reader Light      |                      4.44 |                           63.65 | Every pair meets its assigned text or UI threshold |
 | Reader Sepia      |                      4.27 |                           57.85 | Every pair meets its assigned text or UI threshold |
 
 The lowest values above can belong to UI roles with 3:1 WCAG and Lc 30 thresholds, so
 they must not be compared to the body-text thresholds in isolation. The executable
 diagnostics retain each pair's assigned threshold.
 
-The audit initially found pairs that passed the established WCAG requirement but missed
-the phase's additional APCA diagnostic target. Dark muted text was raised, Reader links
-were strengthened, and Reader selection backgrounds were adjusted. The resulting
-built-ins have no WCAG/APCA disagreement for the audited pairs. A regression fixture
-retains a deliberate custom-theme disagreement to prove that APCA remains diagnostic
-while WCAG continues to own compatibility warnings.
+The Phase 1.4.3.1 audit raised readable secondary text from the graphical 3:1 WCAG
+threshold to the normal-text 4.5:1 threshold while retaining the APCA Lc 60 target for
+compact labels and captions. Application muted text is checked against every owned
+application surface, and Reader muted text is checked against the Reader background.
+Inactive icons, placeholder artwork, and scrollbar thumbs remain on the separate
+`mutedSoft` non-text role. A regression fixture retains a deliberate custom-theme
+WCAG/APCA disagreement to prove that APCA remains diagnostic while WCAG continues to own
+compatibility warnings.
 
 ## Semantic decisions
 
@@ -63,6 +65,8 @@ while WCAG continues to own compatibility warnings.
 - Selected and active surfaces derive from accent at different opacity levels. Ordinary
   hover remains a neutral surface role.
 - Danger remains an error-family alias and is not used decoratively.
+- Readable secondary copy uses `muted`; `mutedSoft` is limited to inactive and decorative
+  non-text affordances.
 - Disabled colors remain muted-derived and do not borrow accent.
 - Reader Dark, Light, and Sepia preserve independent surface hierarchies while sharing
   the same semantic role contract.

@@ -96,7 +96,7 @@
 }
 
 .form-field input::placeholder {
-  color: var(--muted-soft);
+  color: var(--muted);
 }
 
 .form-field :where(input, select, textarea)[aria-invalid="true"],
