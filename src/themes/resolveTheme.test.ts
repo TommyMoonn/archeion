@@ -175,11 +175,11 @@ describe("theme resolution", () => {
       visitedLink: "#c0d8e8",
     });
     expect(resolveBuiltInReaderTheme("light").tokens).toMatchObject({
-      quotation: "#89857f",
+      quotation: "#86827c",
       visitedLink: "#2b4b63",
     });
     expect(resolveBuiltInReaderTheme("sepia").tokens).toMatchObject({
-      quotation: "#8c7963",
+      quotation: "#85735e",
       visitedLink: "#554029",
     });
   });
@@ -227,6 +227,45 @@ describe("theme resolution", () => {
       ]),
     );
     expect(secondWarnings).toEqual(firstWarnings);
+  });
+
+  it("reports Reader secondary text that fails only on the Reader surface", () => {
+    const manifest = validatedManifest({
+      reader: { base: "light", muted: "#706c67" },
+    });
+    const firstResolved = resolveTheme(manifest);
+    const secondResolved = resolveTheme(manifest);
+    const reader = firstResolved.reader;
+    if (!reader) throw new Error("Expected a resolved Reader theme");
+
+    expect(
+      themeColorContrastRatio(
+        reader.publicTokens.muted,
+        reader.publicTokens.background,
+        "#ffffff",
+        "light",
+      ),
+    ).toBeGreaterThanOrEqual(4.5);
+    expect(
+      themeColorContrastRatio(
+        reader.publicTokens.muted,
+        reader.publicTokens.surface,
+        reader.publicTokens.background,
+        "light",
+      ),
+    ).toBeLessThan(4.5);
+
+    const mutedWarnings = firstResolved.contrastWarnings.filter(
+      ({ foregroundPath }) => foregroundPath === "$.reader.muted",
+    );
+    expect(mutedWarnings).toEqual([
+      expect.objectContaining({
+        backgroundPath: "$.reader.surface",
+        foregroundPath: "$.reader.muted",
+        minimumRatio: 4.5,
+      }),
+    ]);
+    expect(secondResolved.contrastWarnings).toEqual(firstResolved.contrastWarnings);
   });
 
   it("checks focus contrast against application and reader interaction surfaces", () => {

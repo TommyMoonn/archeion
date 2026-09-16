@@ -51,11 +51,13 @@ diagnostics retain each pair's assigned threshold.
 The Phase 1.4.3.1 audit raised readable secondary text from the graphical 3:1 WCAG
 threshold to the normal-text 4.5:1 threshold while retaining the APCA Lc 60 target for
 compact labels and captions. Application muted text is checked against every owned
-application surface, and Reader muted text is checked against the Reader background.
-Inactive icons, placeholder artwork, and scrollbar thumbs remain on the separate
-`mutedSoft` non-text role. A regression fixture retains a deliberate custom-theme
-WCAG/APCA disagreement to prove that APCA remains diagnostic while WCAG continues to own
-compatibility warnings.
+application surface. Reader muted text is checked against both the Reader page background
+and the control and panel surface where readable search, navigation, and annotation copy
+appears. Reader Light now reaches 4.56:1 and Lc 64.67 on its surface; Reader Sepia reaches
+4.65:1 and Lc 60.25. Inactive icons, placeholder artwork, and scrollbar thumbs remain on
+the separate `mutedSoft` non-text role. A regression fixture retains a deliberate
+custom-theme WCAG/APCA disagreement to prove that APCA remains diagnostic while WCAG
+continues to own compatibility warnings.
 
 ## Semantic decisions
 

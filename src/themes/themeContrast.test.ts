@@ -89,13 +89,22 @@ describe("theme contrast diagnostics", () => {
     expect(appMuted.every(({ minimumRatio }) => minimumRatio === 4.5)).toBe(true);
     expect(appMuted.every(({ minimumApcaLc }) => minimumApcaLc === 60)).toBe(true);
 
-    expect(
-      diagnostics.find(({ foregroundPath }) => foregroundPath === "$.reader.muted"),
-    ).toMatchObject({ minimumRatio: 4.5, minimumApcaLc: 60 });
+    const readerMuted = diagnostics.filter(
+      ({ foregroundPath }) => foregroundPath === "$.reader.muted",
+    );
+    expect(readerMuted.map(({ backgroundPath }) => backgroundPath)).toEqual([
+      "$.reader.background",
+      "$.reader.surface",
+    ]);
+    expect(readerMuted.every(({ minimumRatio }) => minimumRatio === 4.5)).toBe(true);
+    expect(readerMuted.every(({ minimumApcaLc }) => minimumApcaLc === 60)).toBe(true);
   });
 
   it("keeps graphical roles on their non-text contrast thresholds", () => {
-    const diagnostics = themeContrastDiagnostics(resolveBuiltInAppTheme("dark"));
+    const diagnostics = themeContrastDiagnostics(
+      resolveBuiltInAppTheme("dark"),
+      resolveBuiltInReaderTheme("light"),
+    );
 
     expect(
       diagnostics.find(
@@ -107,6 +116,12 @@ describe("theme contrast diagnostics", () => {
       diagnostics.find(
         ({ foregroundPath, backgroundPath }) =>
           foregroundPath === "$.app.focus" && backgroundPath === "$.app.canvas",
+      ),
+    ).toMatchObject({ minimumRatio: 3, minimumApcaLc: 30 });
+    expect(
+      diagnostics.find(
+        ({ foregroundPath, backgroundPath }) =>
+          foregroundPath === "$.reader.focus" && backgroundPath === "$.reader.surface",
       ),
     ).toMatchObject({ minimumRatio: 3, minimumApcaLc: 30 });
   });

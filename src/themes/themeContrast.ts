@@ -72,6 +72,7 @@ const READER_CONTRAST_PAIRS: readonly ReaderContrastPair[] = Object.freeze([
   { foreground: "text", background: "background", minimumRatio: 4.5, minimumApcaLc: 75 },
   { foreground: "strong", background: "background", minimumRatio: 4.5, minimumApcaLc: 60 },
   { foreground: "muted", background: "background", minimumRatio: 4.5, minimumApcaLc: 60 },
+  { foreground: "muted", background: "surface", minimumRatio: 4.5, minimumApcaLc: 60 },
   { foreground: "link", background: "background", minimumRatio: 4.5, minimumApcaLc: 75 },
   { foreground: "focus", background: "background", minimumRatio: 3, minimumApcaLc: 30 },
   { foreground: "focus", background: "surface", minimumRatio: 3, minimumApcaLc: 30 },
