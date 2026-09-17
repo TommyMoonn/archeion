@@ -380,6 +380,8 @@ describe("LibrarySidebar", () => {
     expect(markup).toContain("archive-switcher__current menu-item menu-item--trailing-icon");
     expect(markup).toContain("archive-switcher__menu menu-popover");
     expect(markup).toContain("menu-trigger menu-trigger--disclosure");
+    expect(markup).not.toContain('role="menu"');
+    expect(markup).not.toContain('role="menuitem"');
   });
 
   it("keeps the folder heading outside the scrollable folder list", () => {

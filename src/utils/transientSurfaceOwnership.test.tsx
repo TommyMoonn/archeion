@@ -33,7 +33,7 @@ describe("transient surface ownership", () => {
     registerTransientSurface({ element: surface("first"), kind: "reader-panel", onDismiss: first });
     registerTransientSurface({
       element: surface("second"),
-      kind: "details-menu",
+      kind: "details-disclosure",
       onDismiss: second,
     });
     const event = new KeyboardEvent("keydown", {
@@ -55,7 +55,7 @@ describe("transient surface ownership", () => {
     const onDismiss = vi.fn();
     registerTransientSurface({
       element: surface("menu"),
-      kind: "details-menu",
+      kind: "details-disclosure",
       onDismiss,
     });
     const event = new KeyboardEvent("keydown", { cancelable: true, key: "Escape" });
@@ -103,7 +103,7 @@ describe("transient surface ownership", () => {
     registerTransientSurface({
       dismissOnOutsidePointer: true,
       element: surface("first"),
-      kind: "details-menu",
+      kind: "details-disclosure",
       onDismiss: first,
     });
     registerTransientSurface({
@@ -127,7 +127,7 @@ describe("transient surface ownership", () => {
     const modalDismiss = vi.fn();
     registerTransientSurface({
       element: surface("menu"),
-      kind: "details-menu",
+      kind: "details-disclosure",
       onDismiss: menuDismiss,
     });
     registerTransientSurface({
@@ -188,11 +188,11 @@ describe("transient surface ownership", () => {
     const element = surface("menu");
     const unregister = registerTransientSurface({
       element,
-      kind: "details-menu",
+      kind: "details-disclosure",
       onDismiss: vi.fn(),
     });
 
-    expect(element.dataset.applicationTransient).toBe("details-menu");
+    expect(element.dataset.applicationTransient).toBe("details-disclosure");
     unregister();
 
     expect(element.hasAttribute("data-application-transient")).toBe(false);
@@ -204,7 +204,7 @@ describe("transient surface ownership", () => {
     const removeListener = vi.spyOn(window, "removeEventListener");
     const unregisterFirst = registerTransientSurface({
       element: surface("first"),
-      kind: "details-menu",
+      kind: "details-disclosure",
       onDismiss: vi.fn(),
     });
     const unregisterSecond = registerTransientSurface({

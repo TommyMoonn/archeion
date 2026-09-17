@@ -304,55 +304,21 @@ describe("ReaderAnnotationsPanel", () => {
     expect(onExport).toHaveBeenCalledWith("json");
   });
 
-  it("supports wrapped keyboard navigation inside the export menu", () => {
+  it("exposes export actions as a native disclosure with ordinary buttons", () => {
     const rendered = renderPanel();
     const exportTrigger = rendered.container.querySelector<HTMLElement>(
       'summary[aria-label="Export annotations"]',
     )!;
-    const markdown = textButton(rendered.container, "Export Markdown");
-    const json = textButton(rendered.container, "Export JSON");
+    const exportDetails = exportTrigger.closest("details")!;
+
+    expect(exportTrigger.getAttribute("aria-haspopup")).toBeNull();
+    expect(exportDetails.querySelector('[role="menu"]')).toBeNull();
+    expect(exportDetails.querySelector('[role="menuitem"]')).toBeNull();
 
     pointerClick(exportTrigger);
-    markdown.focus();
-    act(() =>
-      markdown.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowUp" }),
-      ),
-    );
-    expect(document.activeElement).toBe(json);
-
-    act(() =>
-      json.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Home" }),
-      ),
-    );
-    expect(document.activeElement).toBe(markdown);
-  });
-
-  it("opens the conditional-role export menu with Arrow keys and focuses an edge item", () => {
-    const rendered = renderPanel();
-    const exportTrigger = rendered.container.querySelector<HTMLElement>(
-      'summary[aria-label="Export annotations"]',
-    )!;
-    const markdown = textButton(rendered.container, "Export Markdown");
-    const json = textButton(rendered.container, "Export JSON");
-
-    act(() => {
-      exportTrigger.focus();
-      exportTrigger.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
-      );
-    });
-    expect(document.activeElement).toBe(markdown);
-
-    act(() => {
-      exportTrigger.click();
-      exportTrigger.focus();
-      exportTrigger.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowUp" }),
-      );
-    });
-    expect(document.activeElement).toBe(json);
+    expect(exportDetails.open).toBe(true);
+    expect(textButton(rendered.container, "Export Markdown").type).toBe("button");
+    expect(textButton(rendered.container, "Export JSON").type).toBe("button");
   });
 
   it("keeps export failure visible and retries the same format", async () => {

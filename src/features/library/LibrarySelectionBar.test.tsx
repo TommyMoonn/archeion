@@ -142,6 +142,27 @@ describe("LibrarySelectionBar", () => {
     expect(onAction).toHaveBeenCalledWith("annotations-json");
   });
 
+  it("exposes overflow actions as a native disclosure with ordinary buttons", () => {
+    const session = renderSelectionBar();
+    activeRoot = session.root;
+    const trigger = session.container.querySelector<HTMLElement>(
+      'summary[aria-label="More bulk actions"]',
+    )!;
+    const details = trigger.closest("details")!;
+
+    expect(trigger.getAttribute("aria-haspopup")).toBeNull();
+    expect(details.querySelector('[role="menu"]')).toBeNull();
+    expect(details.querySelector('[role="menuitem"]')).toBeNull();
+
+    act(() => trigger.click());
+    expect(details.open).toBe(true);
+    expect(
+      Array.from(details.querySelectorAll<HTMLButtonElement>("button")).map(
+        (action) => action.textContent,
+      ),
+    ).toContain("Edit metadata");
+  });
+
   it("uses the search-like surface treatment and ghost hover tokens", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
 

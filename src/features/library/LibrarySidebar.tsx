@@ -32,7 +32,7 @@ import {
 
 import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
-import { MenuItem } from "../../components/MenuItem";
+import { ActionListButton } from "../../components/MenuItem";
 import { Tooltip } from "../../components/Tooltip";
 import type { KnownArchive } from "../../types/archive";
 import type { ReadonlyFolder } from "../../types/folder";
@@ -357,12 +357,10 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               <span className="archive-switcher__trigger-label">{activeArchive.displayName}</span>
             </summary>
           </CollapsedSidebarTooltip>
-          <div className="archive-switcher__menu menu-popover" role="menu">
+          <div className="archive-switcher__menu menu-popover">
             <div
               aria-current="true"
-              aria-disabled="true"
               className="archive-switcher__current menu-item menu-item--trailing-icon"
-              role="menuitem"
             >
               <span className="menu-item__label">{activeArchive.displayName}</span>
               <span aria-hidden="true" className="icon-slot icon-slot--compact">
@@ -373,22 +371,22 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               .filter((archive) => archive.id !== activeArchive.id)
               .slice(0, 5)
               .map((archive) => (
-                <MenuItem
+                <ActionListButton
                   className="archive-switcher__archive"
                   key={archive.id}
                   onClick={() => switchArchive(archive)}
                 >
                   {archive.displayName}
-                </MenuItem>
+                </ActionListButton>
               ))}
             <div className="archive-switcher__divider" role="separator" />
-            <MenuItem
+            <ActionListButton
               className="archive-switcher__manage"
               icon={<Archive aria-hidden="true" />}
               onClick={manageArchives}
             >
               Manage archives
-            </MenuItem>
+            </ActionListButton>
           </div>
         </details>
         <IconButton

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useState } from "react";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
@@ -11,56 +11,19 @@ function DetailsHarness({ label = "Actions", open = true }: { label?: string; op
   return (
     <details open={open} ref={detailsRef}>
       <summary>{label}</summary>
-      <div role="menu">
-        <button role="menuitem" type="button">
-          Rename
-        </button>
-        <button disabled role="menuitem" type="button">
+      <div>
+        <button type="button">Rename</button>
+        <button disabled type="button">
           Unavailable
         </button>
-        <button role="menuitem" type="button">
-          Delete
-        </button>
+        <button type="button">Delete</button>
       </div>
-    </details>
-  );
-}
-
-function ConditionalMenuHarness() {
-  const { detailsRef } = useDismissibleDetails();
-  const [open, setOpen] = useState(false);
-  return (
-    <details onToggle={(event) => setOpen(event.currentTarget.open)} ref={detailsRef}>
-      <summary aria-haspopup="menu">Export annotations</summary>
-      <div role={open ? "menu" : undefined}>
-        <button role="menuitem" type="button">
-          Export Markdown
-        </button>
-        <button aria-disabled="true" role="menuitem" type="button">
-          Unavailable
-        </button>
-        <button role="menuitem" type="button">
-          Export JSON
-        </button>
-      </div>
-    </details>
-  );
-}
-
-function DialogDetailsHarness() {
-  const { detailsRef } = useDismissibleDetails();
-  return (
-    <details ref={detailsRef}>
-      <summary aria-haspopup="dialog">Open dialog</summary>
-      <button role="menuitem" type="button">
-        Dialog action
-      </button>
     </details>
   );
 }
 
 describe("useDismissibleDetails", () => {
-  it("opens and traverses menu items with Arrow, Home, and End keys", () => {
+  it("leaves disclosure activation and button traversal to native semantics", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -68,87 +31,23 @@ describe("useDismissibleDetails", () => {
 
     const details = container.querySelector("details")!;
     const summary = container.querySelector("summary")!;
-    const items = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
-    act(() => {
-      summary.focus();
-      summary.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
-    });
-    expect(details.open).toBe(true);
-    expect(document.activeElement).toBe(items[0]);
-
-    act(() => {
-      items[0]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
-    });
-    expect(document.activeElement).toBe(items[2]);
-
-    act(() => {
-      items[2]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" }));
-    });
-    expect(document.activeElement).toBe(items[0]);
-
-    act(() => {
-      items[0]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
-    });
-    expect(document.activeElement).toBe(items[2]);
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it("opens a conditional-role menu with ArrowDown and focuses its first enabled item", () => {
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    act(() => root.render(<ConditionalMenuHarness />));
-    const summary = container.querySelector("summary")!;
-    const first = container.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
-
+    const items = Array.from(container.querySelectorAll<HTMLButtonElement>("button"));
     act(() => {
       summary.focus();
       summary.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
     });
 
-    expect(container.querySelector("details")?.open).toBe(true);
-    expect(document.activeElement).toBe(first);
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it("opens a conditional-role menu with ArrowUp and focuses its last enabled item", () => {
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    act(() => root.render(<ConditionalMenuHarness />));
-    const summary = container.querySelector("summary")!;
-    const items = container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
-
-    act(() => {
-      summary.focus();
-      summary.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowUp" }));
-    });
-
-    expect(document.activeElement).toBe(items[2]);
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it("does not give dialog-style details menu traversal", () => {
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    act(() => root.render(<DialogDetailsHarness />));
-    const summary = container.querySelector("summary")!;
-    act(() => {
-      summary.focus();
-      summary.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
-    });
-
-    expect(container.querySelector("details")?.open).toBe(false);
+    expect(details.open).toBe(false);
     expect(document.activeElement).toBe(summary);
+    expect(items.every((item) => item.getAttribute("role") === null)).toBe(true);
+
+    act(() => summary.click());
+    expect(details.open).toBe(true);
     act(() => root.unmount());
     container.remove();
   });
 
-  it("gives Escape to only the topmost open details menu", () => {
+  it("gives Escape to only the topmost open disclosure", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -163,8 +62,8 @@ describe("useDismissibleDetails", () => {
 
     const details = Array.from(container.querySelectorAll("details"));
     const secondDetails = details[1];
-    if (!secondDetails) throw new Error("Second details menu was not rendered.");
-    const secondItem = secondDetails.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+    if (!secondDetails) throw new Error("Second disclosure was not rendered.");
+    const secondItem = secondDetails.querySelector<HTMLButtonElement>("button")!;
     act(() => {
       secondItem.focus();
       secondItem.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));

@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, type RefObject } from "react";
 export type TransientSurfaceKind =
   | "app-dialog"
   | "context-menu"
-  | "details-menu"
+  | "details-disclosure"
   | "drawer"
   | "inline-editor"
   | "popover"

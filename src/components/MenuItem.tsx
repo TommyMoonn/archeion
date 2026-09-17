@@ -1,13 +1,17 @@
 import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from "react";
 
-type MenuItemProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
+type ActionListButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "role"> & {
   children: ReactNode;
   danger?: boolean;
   disabledReason?: string;
   icon?: ReactNode;
 };
 
-export function MenuItem({
+type StyledActionButtonProps = ActionListButtonProps & {
+  role?: "menuitem";
+};
+
+function StyledActionButton({
   children,
   className = "",
   danger = false,
@@ -17,8 +21,9 @@ export function MenuItem({
   onClick,
   title,
   type = "button",
+  role,
   ...props
-}: MenuItemProps) {
+}: StyledActionButtonProps) {
   const reasonId = useId();
   const hasDisabledReason = disabled && Boolean(disabledReason);
 
@@ -39,7 +44,7 @@ export function MenuItem({
         className={`menu-item${danger ? " menu-item--danger" : ""}${icon ? "" : " menu-item--no-icon"} ${className}`.trim()}
         disabled={disabled && !hasDisabledReason}
         onClick={handleClick}
-        role="menuitem"
+        role={role}
         type={type}
         title={title}
         {...props}
@@ -58,4 +63,12 @@ export function MenuItem({
       ) : null}
     </>
   );
+}
+
+export function ActionListButton(props: ActionListButtonProps) {
+  return <StyledActionButton {...props} />;
+}
+
+export function MenuItem(props: ActionListButtonProps) {
+  return <StyledActionButton {...props} role="menuitem" />;
 }

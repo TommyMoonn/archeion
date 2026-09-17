@@ -13,7 +13,7 @@ import {
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import { MenuItem } from "../../components/MenuItem";
+import { ActionListButton } from "../../components/MenuItem";
 import { Tooltip } from "../../components/Tooltip";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 
@@ -134,57 +134,57 @@ export function LibrarySelectionBar({
                 </span>
               </summary>
             </Tooltip>
-            <div className="menu-popover" role="menu">
-              <MenuItem
+            <div className="menu-popover">
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<NotebookPen />}
                 onClick={() => runOverflowAction("edit-metadata")}
               >
                 Edit metadata
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<Heart />}
                 onClick={() => runOverflowAction("unfavorite")}
               >
                 Remove favorites
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<RefreshCw />}
                 onClick={() => runOverflowAction("metadata")}
               >
                 Re-extract metadata
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<ImageOff />}
                 onClick={() => runOverflowAction("covers")}
               >
                 Regenerate covers
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<FolderOpen />}
                 onClick={() => runOverflowAction("export")}
               >
                 Export EPUBs
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<Download />}
                 onClick={() => runOverflowAction("annotations-markdown")}
               >
                 Annotations (Markdown)
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 disabled={busy || selectedCount === 0}
                 icon={<Download />}
                 onClick={() => runOverflowAction("annotations-json")}
               >
                 Annotations (JSON)
-              </MenuItem>
-              <MenuItem
+              </ActionListButton>
+              <ActionListButton
                 className="danger"
                 danger
                 disabled={busy || selectedCount === 0}
@@ -192,7 +192,7 @@ export function LibrarySelectionBar({
                 onClick={() => runOverflowAction("delete")}
               >
                 Delete to Recycle Bin
-              </MenuItem>
+              </ActionListButton>
             </div>
           </details>
         </div>

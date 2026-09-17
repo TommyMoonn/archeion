@@ -13,7 +13,7 @@ import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
-import { MenuItem } from "../../components/MenuItem";
+import { ActionListButton } from "../../components/MenuItem";
 import { Tooltip } from "../../components/Tooltip";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
@@ -89,7 +89,6 @@ export function ReaderAnnotationsPanel({
   const deferredQuery = useDeferredValue(query);
   const [sort, setSort] = useState<ReaderAnnotationSort>("book-order");
   const [renderLimit, setRenderLimit] = useState(READER_ANNOTATION_RENDER_BATCH);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   const listModel = useMemo(
     () =>
@@ -163,7 +162,6 @@ export function ReaderAnnotationsPanel({
 
   function closeExportMenu(options: { restoreFocus?: boolean } = {}) {
     closeExportDetails(options);
-    setExportMenuOpen(false);
   }
 
   function resetListTransientState() {
@@ -194,31 +192,27 @@ export function ReaderAnnotationsPanel({
       closeLabel="Close annotations"
       eyebrow="Reading"
       headerActions={
-        <details
-          className="reader-annotations__export-menu"
-          onToggle={(event) => setExportMenuOpen(event.currentTarget.open)}
-          ref={exportMenuRef}
-        >
+        <details className="reader-annotations__export-menu" ref={exportMenuRef}>
           <Tooltip content="Export annotations">
-            <summary aria-haspopup="menu" aria-label="Export annotations" className="menu-trigger">
+            <summary aria-label="Export annotations" className="menu-trigger">
               <span aria-hidden="true" className="icon-slot icon-slot--compact">
                 <Download />
               </span>
             </summary>
           </Tooltip>
-          <div className="menu-popover" role={exportMenuOpen ? "menu" : undefined}>
-            <MenuItem
+          <div className="menu-popover">
+            <ActionListButton
               disabled={actions.exportState?.status === "exporting"}
               onClick={() => void exportAnnotations("markdown")}
             >
               Export Markdown
-            </MenuItem>
-            <MenuItem
+            </ActionListButton>
+            <ActionListButton
               disabled={actions.exportState?.status === "exporting"}
               onClick={() => void exportAnnotations("json")}
             >
               Export JSON
-            </MenuItem>
+            </ActionListButton>
           </div>
         </details>
       }

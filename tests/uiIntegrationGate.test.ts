@@ -65,7 +65,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
   it("uses the shared menu contract for the archive switcher and recurring action menus", () => {
     expect(sidebarSource).toContain('className="menu-trigger menu-trigger--disclosure"');
     expect(sidebarSource).toContain('className="archive-switcher__menu menu-popover"');
-    expect(sidebarSource).toContain("<MenuItem");
+    expect(sidebarSource).toContain("<ActionListButton");
     expect(sidebarSource).not.toContain('<button className="archive-switcher__archive"');
     expect(sidebarSource).not.toContain('<button className="archive-switcher__manage"');
 
