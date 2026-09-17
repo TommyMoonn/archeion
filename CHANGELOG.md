@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-09-17
+
+Archeion 1.4.3 improves readability, keeps long book and file details contained, and makes application actions and failures clearer to assistive technology.
+
+### Changed
+
+- Increased secondary-text contrast across built-in application and Reader themes while preserving the distinction from primary text.
+- Made long dialog headings, book titles, authors, filenames, and metadata preview values wrap within constrained application surfaces instead of overflowing or being clipped.
+
+### Fixed
+
+- Corrected Library and Reader action semantics so disclosure lists and multi-selection controls no longer announce unsupported menu or toolbar keyboard behavior.
+- Made failed bulk metadata updates visible and announced without moving focus away from the current control.
+
 ## [1.4.2] - 2026-08-27
 
 Archeion 1.4.2 moves About into a compact standalone window that can remain open independently of the Library.
@@ -505,7 +519,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/TommyMoonn/archeion/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/TommyMoonn/archeion/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/TommyMoonn/archeion/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/TommyMoonn/archeion/compare/v1.3.0...v1.4.0
