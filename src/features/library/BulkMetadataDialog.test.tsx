@@ -205,6 +205,53 @@ describe("BulkMetadataDialog", () => {
     expect(onApply).not.toHaveBeenCalled();
   });
 
+  it("announces apply failures without moving focus and clears the error on retry success", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onApply = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("The EPUB could not be updated."))
+      .mockResolvedValueOnce(undefined);
+    const onClose = vi.fn();
+    act(() => {
+      root?.render(
+        <BulkMetadataDialog
+          books={[createBook("One", "First"), createBook("Two", "Second")]}
+          onApply={onApply}
+          onClose={onClose}
+        />,
+      );
+    });
+
+    const seriesToggle = container.querySelector<HTMLInputElement>(
+      '.bulk-metadata-field input[type="checkbox"]',
+    )!;
+    const seriesInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New series"]',
+    )!;
+    act(() => {
+      seriesToggle.click();
+      setInputValue(seriesInput, "Shared Series");
+    });
+    act(() => button(container, "Review changes").click());
+
+    const update = button(container, "Update 2 EPUBs");
+    update.focus();
+    await act(async () => update.click());
+
+    const alert = container.querySelector<HTMLElement>('[role="alert"]');
+    expect(alert?.textContent).toBe("The EPUB could not be updated.");
+    expect(alert?.classList.contains("form-error")).toBe(true);
+    expect(document.activeElement).toBe(update);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await act(async () => update.click());
+
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("confirms before discarding actual field intent", () => {
     const container = document.createElement("div");
     document.body.append(container);
