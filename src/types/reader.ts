@@ -2,6 +2,13 @@ export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderProgressPlacement = "top" | "side";
 export type ReaderMode = "paged" | "continuous";
+export const readerReadingWidthOptions = [
+  { label: "Narrow", value: "narrow" },
+  { label: "Comfortable", value: "comfortable" },
+  { label: "Wide", value: "wide" },
+  { label: "Full", value: "full" },
+] as const;
+export type ReaderReadingWidth = (typeof readerReadingWidthOptions)[number]["value"];
 
 export type ReaderFontFamily = "serif" | "sans" | "system" | "literata" | "atkinson";
 
@@ -42,7 +49,7 @@ export type ReaderSettings = {
   fontSize: number;
   fontFamily: ReaderFontFamily;
   lineHeight: number;
-  margin: number;
+  readingWidth: ReaderReadingWidth;
   theme: ReaderTheme;
   progressPlacement: ReaderProgressPlacement;
   mode: ReaderMode;
@@ -52,7 +59,7 @@ export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
   fontSize: 18,
   fontFamily: "serif",
   lineHeight: 1.6,
-  margin: 48,
+  readingWidth: "comfortable",
   theme: "dark",
   progressPlacement: "top",
   mode: "paged",
@@ -70,7 +77,9 @@ export function normalizeReaderSettings(settings?: ReaderSettingsInput): ReaderS
       2,
       defaultReaderSettings.lineHeight,
     ),
-    margin: numberInRangeOrDefault(settings?.margin, 24, 72, defaultReaderSettings.margin),
+    readingWidth: isReaderReadingWidth(settings?.readingWidth)
+      ? settings.readingWidth
+      : defaultReaderSettings.readingWidth,
     theme: isReaderTheme(settings?.theme) ? settings.theme : defaultReaderSettings.theme,
     progressPlacement: isReaderProgressPlacement(settings?.progressPlacement)
       ? settings.progressPlacement
@@ -81,6 +90,10 @@ export function normalizeReaderSettings(settings?: ReaderSettingsInput): ReaderS
 
 function isReaderMode(value: unknown): value is ReaderMode {
   return value === "paged" || value === "continuous";
+}
+
+function isReaderReadingWidth(value: unknown): value is ReaderReadingWidth {
+  return readerReadingWidthOptions.some((option) => option.value === value);
 }
 
 function numberInRangeOrDefault(

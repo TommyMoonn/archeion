@@ -61,7 +61,7 @@
       "fontSize": 18.0,
       "fontFamily": "serif",
       "lineHeight": 1.6,
-      "margin": 48.0,
+      "readingWidth": "comfortable",
       "theme": "dark",
       "progressPlacement": "top",
       "mode": "paged"
@@ -193,7 +193,7 @@
           "fontSize": 22.0,
           "fontFamily": "literata",
           "lineHeight": 1.8,
-          "margin": 64.0,
+          "readingWidth": "wide",
           "theme": "sepia",
           "progressPlacement": "side",
           "mode": "continuous"
@@ -287,7 +287,7 @@
           "fontSize": 22.0,
           "fontFamily": "literata",
           "lineHeight": 1.8,
-          "margin": 64.0,
+          "readingWidth": "wide",
           "theme": "sepia",
           "progressPlacement": "side",
           "mode": "continuous"
@@ -434,7 +434,7 @@
           "fontSize": 200.0,
           "fontFamily": "unknown",
           "lineHeight": 0.5,
-          "margin": -10.0,
+          "readingWidth": "unsupported",
           "theme": "paper",
           "progressPlacement": "bottom",
           "mode": "scroll"
@@ -483,7 +483,7 @@
           "fontSize": "22",
           "fontFamily": "atkinson",
           "lineHeight": null,
-          "margin": 56.0,
+          "readingWidth": "full",
           "theme": true,
           "progressPlacement": "side",
           "mode": "continuous"
@@ -547,7 +547,7 @@
           "fontSize": 18.0,
           "fontFamily": "atkinson",
           "lineHeight": 1.6,
-          "margin": 56.0,
+          "readingWidth": "full",
           "theme": "dark",
           "progressPlacement": "side",
           "mode": "continuous"

@@ -272,7 +272,7 @@ function readerSettingsEqual(left: ReaderSettings, right: ReaderSettings): boole
     left.fontFamily === right.fontFamily &&
     left.fontSize === right.fontSize &&
     left.lineHeight === right.lineHeight &&
-    left.margin === right.margin &&
+    left.readingWidth === right.readingWidth &&
     left.mode === right.mode &&
     left.progressPlacement === right.progressPlacement &&
     left.theme === right.theme

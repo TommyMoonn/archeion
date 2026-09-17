@@ -7,7 +7,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type CSSProperties,
 } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
@@ -682,11 +681,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           aria-label="Previous page"
           className="epub-viewer__click-zone epub-viewer__click-zone--previous"
           onClick={() => handleClickZone("backward")}
-          style={
-            {
-              "--reader-page-turn-zone-width": `${Math.max(0, Math.min(settings.margin, 88))}px`,
-            } as CSSProperties
-          }
           tabIndex={-1}
           type="button"
         >
@@ -703,11 +697,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           aria-label="Next page"
           className="epub-viewer__click-zone epub-viewer__click-zone--next"
           onClick={() => handleClickZone("forward")}
-          style={
-            {
-              "--reader-page-turn-zone-width": `${Math.max(0, Math.min(settings.margin, 88))}px`,
-            } as CSSProperties
-          }
           tabIndex={-1}
           type="button"
         >
@@ -832,7 +821,6 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.readerTheme === next.readerTheme &&
     previous.publicationLayoutCapability === next.publicationLayoutCapability &&
     previous.sessionIdentity === next.sessionIdentity &&
-    previous.settings.margin === next.settings.margin &&
     previous.settings.mode === next.settings.mode
   );
 }

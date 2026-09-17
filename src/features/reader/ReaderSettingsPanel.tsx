@@ -5,7 +5,11 @@ import { AppSelect } from "../../components/AppSelect";
 import { readerTypefaceOptions } from "./readerFonts";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type { ReaderProgressPlacement, ReaderSettings } from "../../types/reader";
+import {
+  readerReadingWidthOptions,
+  type ReaderProgressPlacement,
+  type ReaderSettings,
+} from "../../types/reader";
 import type { ReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { ReaderThemeSelect } from "../themes/ReaderThemeSelect";
@@ -31,12 +35,6 @@ const lineHeights = [
   { label: "Normal", value: "1.6" },
   { label: "Relaxed", value: "1.8" },
   { label: "Airy", value: "2" },
-];
-
-const margins = [
-  { label: "Narrow", value: "24" },
-  { label: "Medium", value: "48" },
-  { label: "Wide", value: "72" },
 ];
 
 const progressPlacements: Array<{
@@ -194,10 +192,10 @@ export function ReaderSettingsPanel({
               <SegmentedControl
                 className="reader-control"
                 label="Reader page width"
-                onChange={(margin) => update({ margin: Number(margin) })}
-                options={margins}
+                onChange={(readingWidth) => update({ readingWidth })}
+                options={[...readerReadingWidthOptions]}
                 size="standard"
-                value={String(settings.margin)}
+                value={settings.readingWidth}
               />
             </ReaderSetting>
           </>

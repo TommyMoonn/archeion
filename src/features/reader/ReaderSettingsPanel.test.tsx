@@ -195,6 +195,41 @@ describe("ReaderSettingsPanel", () => {
     ]);
   });
 
+  it("offers reading widths in increasing order and commits the semantic value", () => {
+    const host = createContainer();
+    const onSettingsCommit = vi.fn();
+
+    act(() => {
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          onClose={vi.fn()}
+          onSettingsCommit={onSettingsCommit}
+        />,
+      );
+    });
+
+    const widthGroup = [...host.querySelectorAll<HTMLElement>('[role="radiogroup"]')].find(
+      (group) => group.getAttribute("aria-label") === "Reader page width",
+    )!;
+    const options = [...widthGroup.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Narrow",
+      "Comfortable",
+      "Wide",
+      "Full",
+    ]);
+    expect(options[1]?.getAttribute("aria-checked")).toBe("true");
+
+    act(() => options[2]?.click());
+
+    expect(onSettingsCommit).toHaveBeenCalledWith({
+      ...defaultReaderSettings,
+      readingWidth: "wide",
+    });
+  });
+
   it("omits unsafe controls for fixed-layout publications and explains the limitation", () => {
     const host = createContainer();
 

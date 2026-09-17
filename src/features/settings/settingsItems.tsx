@@ -6,7 +6,7 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
 import type { CollectionCardSize, FolderSort, LibrarySort, SeriesSort } from "../../types/library";
 import { LIBRARY_SMART_VIEW_DEFINITIONS, LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
-import type { ReaderSettings } from "../../types/reader";
+import { readerReadingWidthOptions, type ReaderSettings } from "../../types/reader";
 import {
   archiveImportConflictOptions,
   archiveImportModeOptions,
@@ -500,22 +500,23 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "reader",
   },
   {
-    description: "Adjusts page padding inside the reader.",
-    id: "reader.page-margin",
-    label: "Page margin",
+    description: "Sets the maximum readable line length for reflowable books.",
+    id: "reader.page-width",
+    label: "Page width",
     render: (context) => (
-      <SettingsSliderRow
-        description="Adjusts page padding inside the reader."
-        label="Page margin"
-        max={72}
-        min={24}
-        onChange={(margin) => updateReader(context, { margin })}
-        step={8}
-        suffix="px"
-        value={context.reader.margin}
-      />
+      <StandardSettingsRow
+        description="Sets the maximum readable line length for reflowable books."
+        label="Page width"
+      >
+        <SegmentedControl
+          label="Default reader page width"
+          onChange={(readingWidth) => updateReader(context, { readingWidth })}
+          options={[...readerReadingWidthOptions]}
+          value={context.reader.readingWidth}
+        />
+      </StandardSettingsRow>
     ),
-    searchTerms: ["margin", "padding"],
+    searchTerms: ["width", "measure", "line length"],
     sectionId: "reader",
   },
   ...appearanceSettingsItems,

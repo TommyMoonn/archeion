@@ -958,10 +958,16 @@ describe("EpubViewer navigation lifecycle", () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     session.book.packaging.metadata.layout = "pre-paginated";
     epubModuleMock.openBook.mockReturnValue(session.book);
+    const settings = {
+      ...defaultReaderSettings,
+      mode: "continuous" as const,
+      readingWidth: "full" as const,
+    };
     const props = {
       ...defaultViewerProps(new Blob(["fixed-layout-book"])),
+      contentTheme: createReaderContentTheme(settings, resolveBuiltInReaderTheme("dark").tokens),
       publicationLayoutCapability: "fixed-layout" as const,
-      settings: { ...defaultReaderSettings, mode: "continuous" as const },
+      settings,
     };
     const { container } = await renderViewer(props);
     await waitForActiveRendition(session);
@@ -2256,7 +2262,6 @@ describe("EpubViewer navigation lifecycle", () => {
     const props = {
       ...defaultViewerProps(new Blob(["book-one"])),
       highlights: [renderedHighlight],
-      settings: { ...defaultReaderSettings, margin: 24 },
     };
     const { container } = await renderViewer(props);
     await waitForActiveRendition(session);
@@ -2294,7 +2299,7 @@ describe("EpubViewer navigation lifecycle", () => {
 
     const zones = container.querySelectorAll<HTMLElement>(".epub-viewer__click-zone");
     expect(zones).toHaveLength(2);
-    expect(zones[0]?.style.getPropertyValue("--reader-page-turn-zone-width")).toBe("24px");
+    expect(zones[0]?.style.getPropertyValue("--reader-page-turn-zone-width")).toBe("");
   });
 
   it("activates rendered highlights in continuous mode without page-turn zones", async () => {

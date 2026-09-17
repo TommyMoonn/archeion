@@ -119,8 +119,8 @@ pub struct ReaderSettings {
     pub font_family: String,
     #[serde(default = "default_reader_line_height")]
     pub line_height: f64,
-    #[serde(default = "default_reader_margin")]
-    pub margin: f64,
+    #[serde(default = "default_reader_reading_width")]
+    pub reading_width: String,
     #[serde(default = "default_reader_theme")]
     pub theme: String,
     #[serde(default = "default_reader_progress_placement")]
@@ -333,8 +333,8 @@ fn default_reader_font_size() -> f64 {
 fn default_reader_line_height() -> f64 {
     1.6
 }
-fn default_reader_margin() -> f64 {
-    48.0
+fn default_reader_reading_width() -> String {
+    "comfortable".to_string()
 }
 fn default_reader_mode() -> String {
     "paged".to_string()
@@ -896,13 +896,10 @@ fn normalize_reader_settings(settings: Option<&Map<String, Value>>) -> ReaderSet
             2.0,
             default_reader_line_height(),
         ),
-        margin: number_in_range_or_default(
-            settings
-                .and_then(|value| number_field(value, "margin"))
-                .unwrap_or_else(default_reader_margin),
-            24.0,
-            72.0,
-            default_reader_margin(),
+        reading_width: normalize_setting(
+            settings.and_then(|value| string_field(value, "readingWidth")),
+            &["narrow", "comfortable", "wide", "full"],
+            "comfortable",
         ),
         theme: normalize_setting(
             settings.and_then(|value| string_field(value, "theme")),
@@ -1149,7 +1146,7 @@ impl Default for ReaderSettings {
             font_size: default_reader_font_size(),
             font_family: default_reader_font_family(),
             line_height: default_reader_line_height(),
-            margin: default_reader_margin(),
+            reading_width: default_reader_reading_width(),
             theme: default_reader_theme(),
             progress_placement: default_reader_progress_placement(),
             mode: default_reader_mode(),
@@ -1678,11 +1675,12 @@ mod tests {
     };
 
     use super::{
-        build_service_after_theme_migration, migrate_global_theme_selections, read_settings,
-        write_settings, write_theme_migration_receipt, AppPreferences, AppSettingsMutation,
-        AppSettingsService, AppThemeSelection, AppearanceSettings, KeyboardBinding,
-        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings, ReaderSettings,
-        ReaderThemeSelection, THEME_MIGRATION_RECEIPT_FILE,
+        build_service_after_theme_migration, migrate_global_theme_selections,
+        normalize_reader_settings, read_settings, write_settings, write_theme_migration_receipt,
+        AppPreferences, AppSettingsMutation, AppSettingsService, AppThemeSelection,
+        AppearanceSettings, KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride,
+        LibrarySmartViewSettings, ReaderSettings, ReaderThemeSelection,
+        THEME_MIGRATION_RECEIPT_FILE,
     };
 
     fn merge_expected(base: &mut Value, patch: &Value) {
@@ -2451,7 +2449,29 @@ mod tests {
         assert_eq!(density.preferences.density, "comfortable");
         assert_eq!(reader.revision, 2);
         assert_eq!(reader.preferences.reader, ReaderSettings::default());
+        let serialized_reader = serde_json::to_value(&reader.preferences.reader)
+            .expect("reader settings should serialize");
+        assert_eq!(serialized_reader["readingWidth"], "comfortable");
+        assert!(serialized_reader.get("margin").is_none());
         std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn reader_width_uses_semantic_values_without_numeric_margin_compatibility() {
+        let legacy = serde_json::json!({ "margin": 24 });
+        let legacy_reader = normalize_reader_settings(legacy.as_object());
+        assert_eq!(legacy_reader.reading_width, "comfortable");
+
+        let supported = serde_json::json!({ "readingWidth": "wide" });
+        let supported_reader = normalize_reader_settings(supported.as_object());
+        assert_eq!(supported_reader.reading_width, "wide");
+
+        let invalid = serde_json::json!({ "readingWidth": "72px", "margin": 72 });
+        let invalid_reader = normalize_reader_settings(invalid.as_object());
+        assert_eq!(invalid_reader.reading_width, "comfortable");
+
+        let serialized = serde_json::to_value(invalid_reader).expect("reader should serialize");
+        assert!(serialized.get("margin").is_none());
     }
 
     #[test]

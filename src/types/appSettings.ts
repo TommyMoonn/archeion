@@ -12,7 +12,7 @@ import {
   DEFAULT_FOLDERS_COLLECTION_PREFERENCES,
   DEFAULT_SERIES_COLLECTION_PREFERENCES,
 } from "./library";
-import type { ReaderSettings } from "./reader";
+import { defaultReaderSettings, type ReaderSettings } from "./reader";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
 
 export type InterfaceDensity = "comfortable" | "compact";
@@ -116,15 +116,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     smartViews: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
   }),
   navigation: null,
-  reader: Object.freeze({
-    fontSize: 18,
-    fontFamily: "serif",
-    lineHeight: 1.6,
-    margin: 48,
-    theme: "dark",
-    progressPlacement: "top",
-    mode: "paged",
-  }),
+  reader: defaultReaderSettings,
   readerTheme: Object.freeze({ kind: "builtin", id: "dark" }),
   rememberWindowState: false,
   restoreLastReader: false,

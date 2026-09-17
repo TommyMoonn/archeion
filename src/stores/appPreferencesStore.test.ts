@@ -658,6 +658,7 @@ describe("app preferences", () => {
       reader: {
         fontSize: 18,
         progressPlacement: "top",
+        readingWidth: "comfortable",
       },
       import: {
         defaultConflictAction: "keepBoth",
@@ -678,7 +679,7 @@ describe("app preferences", () => {
         startupBehavior: "unknown",
         windowFrameStyle: "custom",
         library: { viewMode: "columns", sortBy: "folder" },
-        reader: { fontSize: Number.NaN, progressPlacement: "bottom" },
+        reader: { fontSize: Number.NaN, margin: 24, progressPlacement: "bottom" },
         import: { defaultMode: "link", defaultConflictAction: "merge" },
       }),
     ).toMatchObject({
@@ -698,6 +699,7 @@ describe("app preferences", () => {
       reader: {
         fontSize: 18,
         progressPlacement: "top",
+        readingWidth: "comfortable",
       },
       import: {
         defaultConflictAction: "keepBoth",
@@ -744,7 +746,7 @@ describe("app preferences", () => {
           fontSize: 22,
           fontFamily: "sans",
           lineHeight: 1.8,
-          margin: 64,
+          readingWidth: "wide",
           theme: "sepia",
           progressPlacement: "side",
           mode: "continuous",
@@ -802,7 +804,7 @@ describe("app preferences", () => {
         fontSize: 22,
         fontFamily: "sans",
         lineHeight: 1.8,
-        margin: 64,
+        readingWidth: "wide",
         theme: "sepia",
         progressPlacement: "side",
         mode: "continuous",
@@ -967,6 +969,16 @@ describe("app preferences", () => {
         },
       }).reader.fontFamily,
     ).toBe("atkinson");
+  });
+
+  it("uses the semantic reading width without mapping retired numeric margins", () => {
+    expect(normalizeAppPreferences({ reader: { readingWidth: "narrow" } }).reader).toMatchObject({
+      readingWidth: "narrow",
+    });
+    const normalizedLegacy = normalizeAppPreferences({ reader: { margin: 72 } });
+
+    expect(normalizedLegacy.reader.readingWidth).toBe("comfortable");
+    expect(normalizedLegacy.reader).not.toHaveProperty("margin");
   });
 
   it("normalizes remembered navigation and window geometry", () => {
