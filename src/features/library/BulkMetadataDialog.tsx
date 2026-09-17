@@ -182,7 +182,7 @@ export function BulkMetadataDialog({
                 key={book.id}
               >
                 <div>
-                  <strong>{bookTitle(book)}</strong>
+                  <strong className="constrained-user-content">{bookTitle(book)}</strong>
                   {book.isFileMissing ? (
                     <span className="bulk-metadata-preview__unavailable">
                       <CircleAlert aria-hidden="true" size={14} /> File unavailable
@@ -199,11 +199,17 @@ export function BulkMetadataDialog({
                       <div key={change.field}>
                         <dt>{change.label}</dt>
                         <dd>
-                          <span data-multiline={change.field === "subjects" || undefined}>
+                          <span
+                            className="constrained-user-content"
+                            data-multiline={change.field === "subjects" || undefined}
+                          >
                             {change.from}
                           </span>
                           <span aria-hidden="true">→</span>
-                          <strong data-multiline={change.field === "subjects" || undefined}>
+                          <strong
+                            className="constrained-user-content"
+                            data-multiline={change.field === "subjects" || undefined}
+                          >
                             {change.to}
                           </strong>
                         </dd>

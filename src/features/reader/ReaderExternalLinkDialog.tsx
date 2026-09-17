@@ -73,7 +73,7 @@ export function ReaderExternalLinkDialog({
       onPointerDown={modal.onPointerDown}
     >
       <div className="dialog__panel">
-        <div className="dialog__copy">
+        <div className="dialog__copy constrained-user-content">
           <h2 id="reader-external-link-title">Open external link?</h2>
           <p id="reader-external-link-description">
             This EPUB wants to open <strong>{host}</strong> in your browser.

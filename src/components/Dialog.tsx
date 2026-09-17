@@ -45,7 +45,7 @@ export function Dialog({
       onPointerDown={modal.onPointerDown}
     >
       <div className="dialog__panel">
-        <div className="dialog__copy">
+        <div className="dialog__copy constrained-user-content">
           <h2 id={titleId}>{title}</h2>
           {description ? <p id={descriptionId}>{description}</p> : null}
         </div>

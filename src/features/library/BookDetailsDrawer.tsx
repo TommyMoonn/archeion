@@ -141,7 +141,7 @@ export function BookDetailsDrawer({
               </IconButton>
             ) : null}
           </div>
-          <div className="details-drawer__title">
+          <div className="details-drawer__title constrained-user-content">
             <h2 id="book-details-title">{title}</h2>
             {author ? <p>{author}</p> : null}
             {progressDetails.hasSavedPosition ? (

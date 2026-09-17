@@ -193,13 +193,15 @@ export function AddEpubDialog({
           type="button"
         >
           <Files aria-hidden="true" size={20} />
-          <span>{selectedLabel}</span>
+          <span className="constrained-user-content">{selectedLabel}</span>
         </button>
 
         {sourcePaths.length > 1 ? (
           <ul className="add-epub-dialog__files" aria-label="Selected EPUB files">
             {sourcePaths.slice(0, 5).map((path) => (
-              <li key={path}>{getFileNameFromPath(path)}</li>
+              <li className="constrained-user-content" key={path}>
+                {getFileNameFromPath(path)}
+              </li>
             ))}
             {sourcePaths.length > 5 ? <li>{sourcePaths.length - 5} more</li> : null}
           </ul>

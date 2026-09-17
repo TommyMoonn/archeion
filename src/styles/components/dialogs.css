@@ -43,10 +43,15 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   letter-spacing: var(--type-dialog-title-letter-spacing);
 }
 
+.constrained-user-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .dialog__copy {
   display: grid;
   gap: 10px;
-  min-width: 0;
 }
 
 .dialog__copy p {
