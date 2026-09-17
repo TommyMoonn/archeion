@@ -23,7 +23,7 @@ liblzma = { version = "0.4.7", default-features = false, features = ["static"] }
 image = { version = "=0.25.10", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 percent-encoding = "2"
-quick-xml = "0.41"
+quick-xml = "0.42"
 reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "stream"] }
 notify = "8.2"
 rusqlite = { version = "0.40.1", default-features = false, features = ["bundled"] }
