@@ -90,6 +90,24 @@ describe("LibrarySelectionBar", () => {
     ).toBe(true);
   });
 
+  it("exposes a labeled action group with independently focusable controls", () => {
+    const session = renderSelectionBar();
+    activeRoot = session.root;
+    const group = session.container.querySelector<HTMLElement>(
+      '[role="group"][aria-label="Book selection actions"]',
+    );
+
+    expect(group).not.toBeNull();
+    expect(session.container.querySelector('[role="toolbar"]')).toBeNull();
+
+    const controls = Array.from(group!.querySelectorAll<HTMLElement>("button, summary"));
+    expect(controls.length).toBeGreaterThan(1);
+    for (const control of controls) {
+      act(() => control.focus());
+      expect(document.activeElement).toBe(control);
+    }
+  });
+
   it("uses a larger strong selection icon and exposes tooltips for icon actions", () => {
     const session = renderSelectionBar();
     activeRoot = session.root;

@@ -72,7 +72,7 @@ export function LibrarySelectionBar({
   }
 
   return (
-    <div className="library-selection-bar" role="toolbar" aria-label="Book selection actions">
+    <div className="library-selection-bar" role="group" aria-label="Book selection actions">
       <div className="library-selection-bar__primary">
         <div className="library-selection-bar__status" aria-live="polite">
           <SquareCheckBig
