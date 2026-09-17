@@ -44,7 +44,7 @@ import type { ReaderSeekMapState } from "./readerSeekMap";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
-import type { ReaderSessionIdentity } from "./readerSession";
+import type { ReaderPublicationLayoutCapability, ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import { useReaderSideSurfaceDismissRequest } from "./readerSideSurfaceDismissal";
 import { ReaderSearchMatchEmphasis } from "./readerSearchMatchEmphasis";
@@ -108,6 +108,10 @@ type EpubViewerProps = {
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
   onPublicationSearchChange?: (state: ReaderPublicationSearchControllerState) => void;
+  onPublicationLayoutCapability: (
+    identity: ReaderSessionIdentity,
+    capability: ReaderPublicationLayoutCapability,
+  ) => void;
   onSeekMapChange?: (state: ReaderSeekMapState) => void;
   onReady: (identity: ReaderSessionIdentity) => void;
   readerTheme: ResolvedReaderTheme;
@@ -135,6 +139,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onNavigationChange,
     onNavigationHistoryChange,
     onPublicationSearchChange,
+    onPublicationLayoutCapability,
     onSeekMapChange,
     onReady,
     readerTheme,
@@ -173,6 +178,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onError: () => undefined,
     onLocationChange: () => undefined,
     onNavigationChange: () => undefined,
+    onPublicationLayoutCapability: () => undefined,
     onReady: () => undefined,
     onRelocated: () => undefined,
     onRendered: () => undefined,
@@ -349,6 +355,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onError,
       onLocationChange,
       onNavigationChange: (navigation) => onNavigationChange?.(navigation),
+      onPublicationLayoutCapability,
       onReady,
       onRelocated: () => {
         dismiss(false);
@@ -399,6 +406,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onError,
     onLocationChange,
     onNavigationChange,
+    onPublicationLayoutCapability,
     onReady,
     prepareDocument,
     handlePublicationSearchRuntimeEnding,
@@ -812,6 +820,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onRecolorHighlight === next.onRecolorHighlight &&
     previous.onRemoveHighlight === next.onRemoveHighlight &&
     previous.onNavigationChange === next.onNavigationChange &&
+    previous.onPublicationLayoutCapability === next.onPublicationLayoutCapability &&
     previous.onPublicationSearchChange === next.onPublicationSearchChange &&
     previous.onSeekMapChange === next.onSeekMapChange &&
     previous.onReady === next.onReady &&

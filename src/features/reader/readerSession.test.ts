@@ -4,11 +4,26 @@ import {
   createReaderSessionController,
   createReaderSessionKey,
   createReaderSessionLifecycle,
+  resolveReaderPublicationLayoutCapability,
   transitionReaderSession,
   type ReaderSessionIdentity,
   type ReaderSessionLifecycle,
   type ReaderSessionTransition,
 } from "./readerSession";
+
+describe("publication layout capability", () => {
+  it.each([
+    ["reflowable", "reflowable"],
+    [" pre-paginated ", "fixed-layout"],
+    ["PRE-PAGINATED", "fixed-layout"],
+    ["", "reflowable"],
+    [undefined, "reflowable"],
+    ["fixed", "reflowable"],
+    [{ layout: "pre-paginated" }, "reflowable"],
+  ] as const)("resolves %j metadata as %s", (metadataLayout, expected) => {
+    expect(resolveReaderPublicationLayoutCapability(metadataLayout)).toBe(expected);
+  });
+});
 
 describe("reader session keys", () => {
   it("keys reader route sessions by book and start mode only", () => {
@@ -236,6 +251,20 @@ describe("reader session lifecycle", () => {
 });
 
 describe("reader session controller", () => {
+  it("publishes one capability for the owned session and rejects stale or conflicting updates", () => {
+    const controller = createReaderSessionController("book-1");
+    const sessionIdentity = identity(controller.getSnapshot().lifecycle);
+    const staleIdentity = identity(createReaderSessionController("book-1").getSnapshot().lifecycle);
+
+    expect(controller.sourceAcquired(sessionIdentity)).toBe(true);
+    expect(controller.setPublicationLayoutCapability(sessionIdentity, "fixed-layout")).toBe(true);
+    expect(controller.getSnapshot().publicationLayoutCapability).toBe("fixed-layout");
+    expect(controller.setPublicationLayoutCapability(sessionIdentity, "fixed-layout")).toBe(true);
+    expect(controller.setPublicationLayoutCapability(sessionIdentity, "reflowable")).toBe(false);
+    expect(controller.setPublicationLayoutCapability(staleIdentity, "reflowable")).toBe(false);
+    expect(controller.getSnapshot().publicationLayoutCapability).toBe("fixed-layout");
+  });
+
   it("retires a failed attempt before retry publishes a fresh identity", () => {
     const controller = createReaderSessionController("book-1");
     const failedIdentity = identity(controller.getSnapshot().lifecycle);
@@ -243,6 +272,7 @@ describe("reader session controller", () => {
     controller.subscribe(() => order.push("publish"));
 
     expect(controller.sourceAcquired(failedIdentity)).toBe(true);
+    expect(controller.setPublicationLayoutCapability(failedIdentity, "fixed-layout")).toBe(true);
     expect(controller.fail(failedIdentity, "epub-open-failed")).toBe(true);
     order.length = 0;
 
@@ -262,6 +292,7 @@ describe("reader session controller", () => {
     expect(controller.getSnapshot()).toMatchObject({
       failure: null,
       lifecycle: { identity: recoveryIdentity, phase: "recovering" },
+      publicationLayoutCapability: null,
     });
   });
 

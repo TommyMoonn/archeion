@@ -1088,6 +1088,7 @@ export function ReaderPage() {
             onNavigationChange={setNavigationState}
             onNavigationHistoryChange={setNavigationHistory}
             onPublicationSearchChange={setPublicationSearchState}
+            onPublicationLayoutCapability={readerSessionController.setPublicationLayoutCapability}
             onSeekMapChange={handleSeekMapChange}
             onReady={handleReady}
             readerTheme={readerTheme}

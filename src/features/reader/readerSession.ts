@@ -1,5 +1,16 @@
 export type ReaderStartMode = "resume" | "beginning";
 
+export type ReaderPublicationLayoutCapability = "fixed-layout" | "reflowable";
+
+export function resolveReaderPublicationLayoutCapability(
+  metadataLayout: unknown,
+): ReaderPublicationLayoutCapability {
+  return typeof metadataLayout === "string" &&
+    metadataLayout.trim().toLowerCase() === "pre-paginated"
+    ? "fixed-layout"
+    : "reflowable";
+}
+
 export type ReaderSessionPhase =
   "idle" | "acquiring" | "starting" | "ready" | "recovering" | "closing" | "failed" | "closed";
 
@@ -54,6 +65,7 @@ export type ReaderSessionFailure = Readonly<{
 export type ReaderSessionSnapshot = Readonly<{
   failure: ReaderSessionFailure | null;
   lifecycle: ReaderSessionLifecycle;
+  publicationLayoutCapability: ReaderPublicationLayoutCapability | null;
 }>;
 
 export type ReaderSessionController = Readonly<{
@@ -66,6 +78,10 @@ export type ReaderSessionController = Readonly<{
     retireFailedAttempt: () => void,
     adoptRecoveryIdentity: (identity: ReaderSessionIdentity) => boolean,
   ) => ReaderSessionIdentity | null;
+  setPublicationLayoutCapability: (
+    identity: ReaderSessionIdentity,
+    capability: ReaderPublicationLayoutCapability,
+  ) => boolean;
   sourceAcquired: (identity: ReaderSessionIdentity) => boolean;
   subscribe: (listener: () => void) => () => void;
 }>;
@@ -199,14 +215,16 @@ export function createReaderSessionController(bookId: string | null): ReaderSess
   let snapshot: ReaderSessionSnapshot = Object.freeze({
     failure: null,
     lifecycle: initialLifecycle,
+    publicationLayoutCapability: null,
   });
   const listeners = new Set<() => void>();
 
   const publish = (
     lifecycle: ReaderSessionLifecycle,
     failure: ReaderSessionFailure | null,
+    publicationLayoutCapability = snapshot.publicationLayoutCapability,
   ): void => {
-    snapshot = Object.freeze({ failure, lifecycle });
+    snapshot = Object.freeze({ failure, lifecycle, publicationLayoutCapability });
     for (const listener of listeners) listener();
   };
 
@@ -257,8 +275,17 @@ export function createReaderSessionController(bookId: string | null): ReaderSess
       });
       if (transition.kind !== "accepted" || !transition.state.identity) return null;
       if (!adoptRecoveryIdentity(transition.state.identity)) return null;
-      publish(transition.state, null);
+      publish(transition.state, null, null);
       return transition.state.identity;
+    },
+    setPublicationLayoutCapability(identity, capability) {
+      if (snapshot.lifecycle.identity !== identity || snapshot.lifecycle.phase !== "starting") {
+        return false;
+      }
+      if (snapshot.publicationLayoutCapability === capability) return true;
+      if (snapshot.publicationLayoutCapability !== null) return false;
+      publish(snapshot.lifecycle, snapshot.failure, capability);
+      return true;
     },
     sourceAcquired(identity) {
       return accept({ identity, type: "source-acquired" }, null);

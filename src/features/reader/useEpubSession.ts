@@ -45,7 +45,11 @@ import {
 import type { EpubContent } from "./readerContentDocumentRegistry";
 import type { ReaderNavigationIntent } from "./readerNavigation";
 import type { ReaderFileLease, ReaderSourceHandoff } from "./readerFileLease";
-import type { ReaderSessionIdentity } from "./readerSession";
+import {
+  resolveReaderPublicationLayoutCapability,
+  type ReaderPublicationLayoutCapability,
+  type ReaderSessionIdentity,
+} from "./readerSession";
 import {
   createEpubSessionInteractionAccess,
   type EpubSessionInteractionAccess,
@@ -58,6 +62,7 @@ type EpubSessionSnapshot = {
   book: EpubBook;
   generation: number;
   interactions: EpubSessionInteractionAccess;
+  publicationLayoutCapability: ReaderPublicationLayoutCapability;
   publicationSearch: ReaderPublicationSearchService;
   rendition: Rendition;
   seekMap: ReaderSeekMap;
@@ -69,6 +74,10 @@ export type EpubSessionBridge = {
   onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
   onLocationChange: (relocation: ReaderRelocation) => void;
   onNavigationChange: (navigation: ReaderNavigationState) => void;
+  onPublicationLayoutCapability: (
+    identity: ReaderSessionIdentity,
+    capability: ReaderPublicationLayoutCapability,
+  ) => void;
   onReady: (identity: ReaderSessionIdentity) => void;
   onRelocated: () => void;
   onRendered: (section: unknown, view: unknown) => void;
@@ -189,6 +198,7 @@ export type EpubSessionFacade = {
   getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
   getRelocation: () => ReaderRelocation | null;
   getNavigationState: () => ReaderNavigationState;
+  getPublicationLayoutCapability: () => ReaderPublicationLayoutCapability | null;
   getSeekMapState: () => ReaderSeekMapState;
   isLoading: boolean;
   navigateBack: () => Promise<boolean>;
@@ -531,6 +541,9 @@ export function useEpubSession({
             allowScriptedContent: false,
           }),
         );
+        const publicationLayoutCapability = resolveReaderPublicationLayoutCapability(
+          book.packaging.metadata.layout,
+        );
         const interactions = createEpubSessionInteractionAccess(book, rendition);
         const publicationSearch = createReaderPublicationSearchService({
           book,
@@ -542,6 +555,7 @@ export function useEpubSession({
           book,
           generation,
           interactions,
+          publicationLayoutCapability,
           publicationSearch,
           rendition,
           seekMap,
@@ -595,6 +609,10 @@ export function useEpubSession({
           },
         );
         bridgeRef.current?.onSessionCreated(interactions);
+        bridgeRef.current?.onPublicationLayoutCapability(
+          sessionIdentity,
+          publicationLayoutCapability,
+        );
         rendition.on("rendered", owner.onRendered);
         rendition.on("relocated", owner.onRelocated);
         rendition.on("selected", owner.onSelected);
@@ -697,6 +715,10 @@ export function useEpubSession({
     () => navigationControllerRef.current?.getState() ?? createLoadingReaderNavigationState(),
     [],
   );
+  const getPublicationLayoutCapability = useCallback(
+    () => sessionRef.current?.publicationLayoutCapability ?? null,
+    [],
+  );
   const getSeekMapState = useCallback(
     () => sessionRef.current?.seekMap.getState() ?? PENDING_READER_SEEK_MAP_STATE,
     [],
@@ -718,6 +740,7 @@ export function useEpubSession({
     getNavigationHistorySnapshot,
     getRelocation,
     getNavigationState,
+    getPublicationLayoutCapability,
     getSeekMapState,
     isLoading: settledSessionKey !== sessionKey,
     navigateBack,

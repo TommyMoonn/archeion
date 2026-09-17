@@ -175,6 +175,7 @@ function createBookSession(chapterId: string, chapterHref: string) {
     }),
     open,
     packaging: {
+      metadata: { layout: "" },
       navPath: "nav.xhtml",
       spine: [{}],
     },
@@ -356,6 +357,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
     onNavigationHistoryChange: vi.fn(),
+    onPublicationLayoutCapability: vi.fn(),
     onPublicationSearchChange: vi.fn(),
     onReady: vi.fn(),
     readerTheme,

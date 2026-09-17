@@ -194,6 +194,7 @@ function createBookSession(
     }),
     opened: options.opened ?? Promise.resolve(),
     packaging: {
+      metadata: { layout: "" },
       spine: [{}],
     },
     renderTo: vi.fn(() => rendition),
@@ -218,6 +219,7 @@ function createBridge(overrides: Partial<EpubSessionBridge> = {}): EpubSessionBr
     onError: vi.fn(),
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn(),
+    onPublicationLayoutCapability: vi.fn(),
     onReady: vi.fn(),
     onRelocated: vi.fn(),
     onRendered: vi.fn(),
@@ -413,6 +415,11 @@ describe("useEpubSession lifecycle", () => {
 
     expect(session.rendition.display).toHaveBeenCalledWith("epubcfi(/6/2!/4/2:4)");
     expect(bridge.onSessionCreated).toHaveBeenCalledTimes(1);
+    expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledOnce();
+    expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledWith(
+      expect.any(Object),
+      "reflowable",
+    );
     expect(session.book.on).toHaveBeenCalledTimes(1);
     expect(session.book.on).toHaveBeenCalledWith("openFailed", expect.any(Function));
     expect(session.book.off).toHaveBeenCalledTimes(1);
@@ -441,6 +448,35 @@ describe("useEpubSession lifecycle", () => {
     expect(session.book.off).toHaveBeenCalledTimes(1);
   });
 
+  it("classifies fixed layout once from package metadata and keeps it stable for the session", async () => {
+    const session = createBookSession();
+    session.book.packaging.metadata.layout = " pre-paginated ";
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["fixed-layout-book"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledOnce();
+    expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledWith(
+      expect.any(Object),
+      "fixed-layout",
+    );
+    expect(facadeRef.current?.getPublicationLayoutCapability()).toBe("fixed-layout");
+
+    session.book.packaging.metadata.layout = "reflowable";
+    expect(facadeRef.current?.getPublicationLayoutCapability()).toBe("fixed-layout");
+    expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledOnce();
+  });
+
   it("returns narrow navigation, location, document, and teardown capabilities", async () => {
     const session = createBookSession();
     const bridge = createBridge();
@@ -464,6 +500,7 @@ describe("useEpubSession lifecycle", () => {
         getNavigationHistorySnapshot: expect.any(Function),
         getRelocation: expect.any(Function),
         getNavigationState: expect.any(Function),
+        getPublicationLayoutCapability: expect.any(Function),
         getSeekMapState: expect.any(Function),
         navigateBack: expect.any(Function),
         navigateForward: expect.any(Function),
