@@ -4,14 +4,6 @@ import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
-const READER_CONTENT_BLOCK_INSET_PX = 64;
-const READER_CONTENT_INLINE_GUTTER = "clamp(16px, 3vw, 32px)";
-const READER_READING_MEASURES = {
-  narrow: "58ch",
-  comfortable: "72ch",
-  wide: "90ch",
-  full: "none",
-} as const;
 const READER_RUNNING_TEXT_SELECTOR =
   "article, aside, main, section, nav, header, footer, div, p, ol, ul, li, dl, dt, dd, blockquote, figcaption, address, td, th";
 const READER_INLINE_TEXT_SELECTOR = "span, em, strong, b, i, u, s, mark, q, cite, abbr, time, font";
@@ -55,13 +47,7 @@ export function readerThemeForSettings(
       background: `${palette.background} !important`,
       "font-family": `${fontFamily} !important`,
       "font-size": `${settings.fontSize}px !important`,
-      "inline-size": "auto !important",
       "line-height": `${settings.lineHeight} !important`,
-      "margin-inline": "auto !important",
-      "max-inline-size": `${READER_READING_MEASURES[settings.readingWidth]} !important`,
-      "min-inline-size": "0 !important",
-      "padding-block": `${READER_CONTENT_BLOCK_INSET_PX}px !important`,
-      "padding-inline": `${READER_CONTENT_INLINE_GUTTER} !important`,
     },
     [READER_RUNNING_TEXT_SELECTOR]: {
       color: `${palette.text} !important`,

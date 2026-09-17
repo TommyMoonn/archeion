@@ -102,7 +102,7 @@ describe("continuous reader scrolling", () => {
 });
 
 describe("readerThemeForSettings", () => {
-  it("maps typography and spacing settings into EPUB theme rules", () => {
+  it("maps typography and palette settings without taking ownership of rendition geometry", () => {
     const theme = readerThemeForSettings(
       {
         ...defaultReaderSettings,
@@ -117,88 +117,23 @@ describe("readerThemeForSettings", () => {
     expect(theme.body).toMatchObject({
       "font-size": "22px !important",
       "line-height": "1.8 !important",
-      "padding-block": "64px !important",
-      "padding-inline": "clamp(16px, 3vw, 32px) !important",
-      "margin-inline": "auto !important",
-      "max-inline-size": "90ch !important",
       background: "#eee5d2 !important",
     });
-    const bodyRules = theme.body as Record<string, string | undefined>;
-
-    expect(bodyRules.padding).toBeUndefined();
-    expect(bodyRules.margin).toBeUndefined();
-    expect(bodyRules.overflow).toBeUndefined();
     expect(theme.body["font-family"]).toContain("Segoe UI");
-  });
 
-  it("maps semantic reading widths to centered character-relative measures", () => {
-    const widths = ["narrow", "comfortable", "wide", "full"] as const;
-    const themes = widths.map((readingWidth) =>
-      readerThemeForSettings({ ...defaultReaderSettings, readingWidth }, readerPalette()),
-    );
-
-    expect(themes.map((theme) => theme.body["max-inline-size"])).toEqual([
-      "58ch !important",
-      "72ch !important",
-      "90ch !important",
-      "none !important",
-    ]);
-    const cappedMeasures = themes
-      .slice(0, 3)
-      .map((theme) => Number.parseInt(theme.body["max-inline-size"], 10));
-    expect(
-      cappedMeasures.every((measure, index) => index === 0 || measure > cappedMeasures[index - 1]!),
-    ).toBe(true);
-    for (const theme of themes) {
-      expect(theme.body["margin-inline"]).toBe("auto !important");
-      expect(theme.body["padding-inline"]).toBe("clamp(16px, 3vw, 32px) !important");
+    for (const geometryProperty of [
+      "width",
+      "inline-size",
+      "max-inline-size",
+      "margin-inline",
+      "padding",
+      "padding-block",
+      "padding-inline",
+      "column-width",
+      "column-gap",
+    ]) {
+      expect(theme.body[geometryProperty]).toBeUndefined();
     }
-  });
-
-  it("keeps the selected reading measure character-relative across typography changes", () => {
-    const serif = readerThemeForSettings(
-      { ...defaultReaderSettings, fontFamily: "serif", fontSize: 16, readingWidth: "comfortable" },
-      readerPalette(),
-    );
-    const sans = readerThemeForSettings(
-      { ...defaultReaderSettings, fontFamily: "sans", fontSize: 24, readingWidth: "comfortable" },
-      readerPalette(),
-    );
-
-    expect(serif.body["max-inline-size"]).toBe("72ch !important");
-    expect(sans.body["max-inline-size"]).toBe("72ch !important");
-    expect(serif.body["font-family"]).not.toBe(sans.body["font-family"]);
-    expect(serif.body["font-size"]).not.toBe(sans.body["font-size"]);
-  });
-
-  it("renders capped and full reading widths with the same safe gutter", () => {
-    const frame = document.createElement("iframe");
-    document.body.appendChild(frame);
-    const chapter = frame.contentDocument!;
-    const view = frame.contentWindow!;
-
-    installThemeRules(
-      chapter,
-      readerThemeForSettings(
-        { ...defaultReaderSettings, readingWidth: "comfortable" },
-        readerPalette(),
-      ),
-    );
-
-    const cappedStyle = view.getComputedStyle(chapter.body);
-    expect(cappedStyle.maxInlineSize).toBe("72ch");
-    expect(cappedStyle.getPropertyValue("margin-inline")).toBe("auto");
-    expect(cappedStyle.getPropertyValue("padding-inline")).toBe("clamp(16px, 3vw, 32px)");
-
-    installThemeRules(
-      chapter,
-      readerThemeForSettings({ ...defaultReaderSettings, readingWidth: "full" }, readerPalette()),
-    );
-
-    const fullStyle = view.getComputedStyle(chapter.body);
-    expect(fullStyle.maxInlineSize).toBe("none");
-    expect(fullStyle.getPropertyValue("padding-inline")).toBe("clamp(16px, 3vw, 32px)");
-    frame.remove();
   });
 
   it("wins nested publisher readability conflicts without flattening semantics", () => {
@@ -339,8 +274,8 @@ describe("readerThemeForSettings", () => {
 
     expect(contentTheme.name).toBe("archeion-reader");
     expect(contentTheme.rules.body["font-size"]).toBe("20px !important");
-    expect(contentTheme.rules.body["padding-block"]).toBe("64px !important");
-    expect(contentTheme.rules.body["max-inline-size"]).toBe("58ch !important");
+    expect(contentTheme.rules.body["max-inline-size"]).toBeUndefined();
+    expect(contentTheme.rules.body["padding-inline"]).toBeUndefined();
     expect(contentTheme.fontFaceCss).toContain('font-family: "Literata"');
   });
 

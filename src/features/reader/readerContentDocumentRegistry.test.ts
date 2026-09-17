@@ -312,6 +312,23 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(style?.textContent).toContain('font-family: "Atkinson Hyperlegible"');
   });
 
+  it("applies the current reflowable layout when a later iframe document mounts", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout({ mode: "paged", readingWidth: "narrow" }, null);
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    chapter.body.style.width = "2200px";
+    chapter.body.style.columnWidth = "700px";
+    const renditionGeometry = chapter.body.getAttribute("style");
+
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+
+    expect(chapter.body.getAttribute("style")).toBe(renditionGeometry);
+    const style = chapter.getElementById("archeion-reader-reflowable-layout");
+    expect(style?.dataset.readerMode).toBe("paged");
+    expect(style?.textContent).toContain("max-inline-size: 58ch !important");
+  });
+
   it("applies the current content theme when a later iframe document mounts", () => {
     const registry = new ReaderContentDocumentRegistry();
     registry.applyTheme(

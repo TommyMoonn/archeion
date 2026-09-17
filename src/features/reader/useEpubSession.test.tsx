@@ -479,6 +479,7 @@ describe("useEpubSession lifecycle", () => {
 
     facadeRef.current?.applyContentTheme(
       createReaderContentTheme(defaultReaderSettings, resolveBuiltInReaderTheme("dark").tokens),
+      defaultReaderSettings.readingWidth,
       null,
     );
     expect(session.rendition.themes.register).not.toHaveBeenCalled();
@@ -852,6 +853,54 @@ describe("useEpubSession lifecycle", () => {
     expect(facadeRef.current?.documents.has(oldDocument)).toBe(false);
   });
 
+  it("preserves epub.js paginated body geometry while applying and updating Reader measure", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-a"),
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    const chapter = document.implementation.createHTMLDocument("chapter");
+    chapter.body.innerHTML = "<main><p>Reader content</p></main>";
+    chapter.body.style.width = "2400px";
+    chapter.body.style.height = "760px";
+    chapter.body.style.paddingInline = "24px";
+    chapter.body.style.columnWidth = "760px";
+    chapter.body.style.columnGap = "40px";
+    const renditionGeometry = chapter.body.getAttribute("style");
+
+    const contentTheme = createReaderContentTheme(
+      defaultReaderSettings,
+      resolveBuiltInReaderTheme("dark").tokens,
+    );
+    facadeRef.current?.applyContentTheme(contentTheme, "comfortable", null);
+    session.rendition.contentCallbacks[0]?.({ document: chapter });
+
+    expect(chapter.body.getAttribute("style")).toBe(renditionGeometry);
+    const layoutStyle = chapter.getElementById("archeion-reader-reflowable-layout");
+    expect(layoutStyle?.dataset.readerMode).toBe("paged");
+    expect(layoutStyle?.textContent).toContain("max-inline-size: 72ch !important");
+
+    facadeRef.current?.applyContentTheme(contentTheme, "wide", null);
+
+    expect(chapter.body.getAttribute("style")).toBe(renditionGeometry);
+    expect(layoutStyle?.textContent).toContain("max-inline-size: 90ch !important");
+    expect(session.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ flow: "paginated", manager: "default", spread: "none" }),
+    );
+  });
+
   it("applies Reader appearance only to the active replacement rendition", async () => {
     const sessionA = createBookSession();
     const sessionB = createBookSession();
@@ -874,7 +923,7 @@ describe("useEpubSession lifecycle", () => {
     );
     await waitForReady(sessionA, bridge);
 
-    facadeRef.current?.applyContentTheme(darkContent, null);
+    facadeRef.current?.applyContentTheme(darkContent, defaultReaderSettings.readingWidth, null);
     expect(sessionA.rendition.themes.register).toHaveBeenCalledOnce();
 
     await rerenderHarness(
@@ -888,7 +937,7 @@ describe("useEpubSession lifecycle", () => {
       facadeRef,
     );
     await waitForReady(sessionB, bridge);
-    facadeRef.current?.applyContentTheme(sepiaContent, null);
+    facadeRef.current?.applyContentTheme(sepiaContent, defaultReaderSettings.readingWidth, null);
 
     expect(sessionA.rendition.themes.register).toHaveBeenCalledOnce();
     expect(sessionB.rendition.themes.register).toHaveBeenLastCalledWith(

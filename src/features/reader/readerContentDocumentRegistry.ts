@@ -3,6 +3,7 @@ import type { Rendition } from "epubjs";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
 import { applyReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
+import { applyReaderReflowableLayout, type ReaderReflowableLayout } from "./readerReflowableLayout";
 
 export type EpubContent = {
   document?: Document;
@@ -69,6 +70,7 @@ export class ReaderContentDocumentRegistry {
   private documents = new Map<Document, RegisteredDocument>();
   private options: ReaderContentDocumentRegistryOptions = {};
   private theme: ReaderContentTheme | null = null;
+  private layout: ReaderReflowableLayout | null = null;
 
   updateOptions(options: ReaderContentDocumentRegistryOptions): void {
     this.options = options;
@@ -84,6 +86,7 @@ export class ReaderContentDocumentRegistry {
     }
 
     if (this.theme) applyReaderContentTheme(null, this.theme, [document]);
+    if (this.layout) applyReaderReflowableLayout(document, this.layout);
     const window = contentWindow(document, content?.window);
     const wheelOptions: AddEventListenerOptions = { capture: true, passive: false };
     const keyOptions: AddEventListenerOptions = { capture: true };
@@ -185,6 +188,20 @@ export class ReaderContentDocumentRegistry {
     applyReaderContentTheme(rendition, theme, [...this.documents.keys(), ...mountedDocuments]);
   }
 
+  applyLayout(layout: ReaderReflowableLayout, container: HTMLElement | null): void {
+    this.layout = layout;
+    const mountedDocuments = Array.from(
+      container?.querySelectorAll("iframe") ?? [],
+      (frame) => frame.contentDocument,
+    );
+    const documents = new Set(
+      [...this.documents.keys(), ...mountedDocuments].filter((document): document is Document =>
+        Boolean(document),
+      ),
+    );
+    for (const document of documents) applyReaderReflowableLayout(document, layout);
+  }
+
   remove(document: Document): boolean {
     const registered = this.documents.get(document);
     if (!registered) return false;
@@ -274,6 +291,10 @@ export class ReaderContentDocumentSessionOwner {
     container: HTMLElement | null,
   ) {
     this.activeRegistry?.applyTheme(rendition, theme, container);
+  }
+
+  applyLayout(layout: ReaderReflowableLayout, container: HTMLElement | null): void {
+    this.activeRegistry?.applyLayout(layout, container);
   }
 
   bindMounted(container: HTMLElement | null): void {

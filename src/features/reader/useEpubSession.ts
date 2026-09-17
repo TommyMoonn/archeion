@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
 
-import type { ReaderNavigationState } from "../../types/reader";
+import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
 import { measurePerformance, measurePerformanceAsync } from "../../utils/measurePerformance";
 import { snapshotReaderRelocation, type ReaderRelocation } from "./readerLocation";
 import {
@@ -193,7 +193,11 @@ export type UseEpubSessionOptions = {
 };
 
 export type EpubSessionFacade = {
-  applyContentTheme: (theme: ReaderContentTheme, container: HTMLElement | null) => void;
+  applyContentTheme: (
+    theme: ReaderContentTheme,
+    readingWidth: ReaderSettings["readingWidth"],
+    container: HTMLElement | null,
+  ) => void;
   documents: ReaderContentDocumentAccess;
   getInteractionSession: () => EpubSessionInteractionAccess | null;
   getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
@@ -728,11 +732,16 @@ export function useEpubSession({
     [],
   );
   const applyContentTheme = useCallback(
-    (theme: ReaderContentTheme, container: HTMLElement | null) => {
+    (
+      theme: ReaderContentTheme,
+      readingWidth: ReaderSettings["readingWidth"],
+      container: HTMLElement | null,
+    ) => {
       if (sessionRef.current?.publicationLayoutCapability !== "reflowable") return;
       documentSessions.applyTheme(sessionRef.current?.rendition ?? null, theme, container);
+      documentSessions.applyLayout({ mode, readingWidth }, container);
     },
-    [documentSessions],
+    [documentSessions, mode],
   );
   const getInteractionSession = useCallback(() => sessionRef.current?.interactions ?? null, []);
   const getRelocation = useCallback(() => relocationRef.current, []);

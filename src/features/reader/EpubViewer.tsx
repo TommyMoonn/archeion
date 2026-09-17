@@ -381,7 +381,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         annotations.setSession(session.annotations);
         searchMatchEmphasis.setSession(session.annotations);
         handlePublicationSearchRuntimeReady();
-        applyContentTheme(contentTheme, containerRef.current);
+        applyContentTheme(contentTheme, settings.readingWidth, containerRef.current);
       },
       onSessionEnding: (reason) => {
         if (reason === "replacement") handlePublicationSearchRuntimeEnding();
@@ -418,6 +418,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     resetContentActionSession,
     resetHighlightSession,
     searchMatchEmphasis,
+    settings.readingWidth,
   ]);
 
   const handleWheel = useCallback(
@@ -511,10 +512,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   ]);
 
   useEffect(() => {
-    applyContentTheme(contentTheme, containerRef.current);
+    applyContentTheme(contentTheme, settings.readingWidth, containerRef.current);
     dismiss(false);
     dismissDictionaryLookup();
-  }, [applyContentTheme, contentTheme, dismiss, dismissDictionaryLookup]);
+  }, [applyContentTheme, contentTheme, dismiss, dismissDictionaryLookup, settings.readingWidth]);
 
   useEffect(() => {
     onNavigationChange?.(getNavigationState());
