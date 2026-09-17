@@ -17,6 +17,19 @@ import {
 const readerPalette = (base: "dark" | "light" | "sepia" = "dark") =>
   resolveBuiltInReaderTheme(base).tokens;
 
+function installThemeRules(chapter: Document, rules: ReturnType<typeof readerThemeForSettings>) {
+  const style = chapter.createElement("style");
+  style.textContent = Object.entries(rules)
+    .map(
+      ([selector, declarations]) =>
+        `${selector} { ${Object.entries(declarations)
+          .map(([property, value]) => `${property}: ${value};`)
+          .join(" ")} }`,
+    )
+    .join("\n");
+  chapter.head.appendChild(style);
+}
+
 describe("continuous reader scrolling", () => {
   it("forwards iframe wheel input to the parent rendition scroller", () => {
     const scroller = document.createElement("div");
@@ -107,8 +120,6 @@ describe("readerThemeForSettings", () => {
       "padding-block": "64px !important",
       "padding-inline": "72px !important",
       background: "#eee5d2 !important",
-      "overflow-x": "hidden !important",
-      "overscroll-behavior": "contain !important",
     });
     const bodyRules = theme.body as Record<string, string | undefined>;
     const narrowerTheme = readerThemeForSettings(
@@ -116,30 +127,97 @@ describe("readerThemeForSettings", () => {
       readerPalette("sepia"),
     );
 
-    expect(theme.html["overscroll-behavior"]).toBe("contain !important");
     expect(narrowerTheme.body["padding-inline"]).toBe("28px !important");
     expect(narrowerTheme.body["padding-block"]).toBe(theme.body["padding-block"]);
     expect(bodyRules.padding).toBeUndefined();
     expect(bodyRules.margin).toBeUndefined();
     expect(bodyRules["max-width"]).toBeUndefined();
     expect(bodyRules.overflow).toBeUndefined();
-    expect(theme["body, body *"]["font-family"]).toContain("Segoe UI");
+    expect(theme.body["font-family"]).toContain("Segoe UI");
   });
 
-  it("suppresses publication CSS motion in rendered reading content", () => {
+  it("wins nested publisher readability conflicts without flattening semantics", () => {
+    const frame = document.createElement("iframe");
+    document.body.appendChild(frame);
+    const chapter = frame.contentDocument!;
+    chapter.head.innerHTML = `<style>
+      .chapter { color: #111111; font-family: Papyrus; font-size: 11px; line-height: 0.8; }
+      .chapter .aside p { color: #181818; font-family: fantasy; line-height: 0.7; }
+      .chapter .aside p span { color: #202020; font-family: cursive; line-height: 0.6; }
+      h1 { font-size: 2.4rem; margin-block: 2rem 1rem; }
+      h2 { font-size: 1.6rem; margin-block: 1.5rem 0.75rem; }
+    </style>`;
+    chapter.body.innerHTML = `<article class="chapter">
+      <h1 id="heading-one">Chapter title</h1>
+      <h2 id="heading-two">Section title</h2>
+      <div class="aside"><p id="paragraph">Text <span id="nested">nested</span>
+        <em id="emphasis">emphasis</em> <strong id="strong">strong</strong>
+        <i id="italic">italic</i> <b id="bold">bold</b></p></div>
+    </article>`;
+
+    const palette = readerPalette("dark");
+    const theme = readerThemeForSettings(
+      { ...defaultReaderSettings, fontFamily: "atkinson", fontSize: 21, lineHeight: 1.9 },
+      palette,
+    );
+    installThemeRules(chapter, theme);
+
+    const view = frame.contentWindow!;
+    const nested = view.getComputedStyle(chapter.getElementById("nested")!);
+    const paragraph = view.getComputedStyle(chapter.getElementById("paragraph")!);
+    const headingOne = view.getComputedStyle(chapter.getElementById("heading-one")!);
+    const headingTwo = view.getComputedStyle(chapter.getElementById("heading-two")!);
+
+    expect(nested.color).toBe("inherit");
+    expect(nested.fontFamily).toBe("inherit");
+    expect(nested.lineHeight).toBe("inherit");
+    expect(paragraph.color).toBe(palette.text);
+    expect(paragraph.fontFamily).toContain("Atkinson Hyperlegible");
+    expect(paragraph.fontSize).toBe("21px");
+    expect(paragraph.lineHeight).toBe("1.9");
+    expect(theme["h1, h2, h3, h4, h5, h6"]["font-size"]).toBeUndefined();
+    expect(chapter.styleSheets[0]?.cssRules[3]?.cssText).toContain("font-size: 2.4rem");
+    expect(chapter.styleSheets[0]?.cssRules[4]?.cssText).toContain("font-size: 1.6rem");
+    expect(headingOne.lineHeight).toBe("1.9");
+    expect(headingTwo.lineHeight).toBe("1.9");
+    expect(chapter.getElementById("heading-one")!.getAttribute("style")).toBeNull();
+    expect(chapter.getElementById("emphasis")!.tagName).toBe("EM");
+    expect(chapter.getElementById("italic")!.tagName).toBe("I");
+    expect(chapter.getElementById("strong")!.tagName).toBe("STRONG");
+    expect(chapter.getElementById("bold")!.tagName).toBe("B");
+    expect(JSON.stringify(theme)).not.toMatch(/font-style|font-weight/);
+
+    frame.remove();
+  });
+
+  it("leaves publisher structure, media, and non-owned presentation intact", () => {
+    const chapter = document.implementation.createHTMLDocument("Structured chapter");
+    chapter.body.innerHTML = `<section id="section" style="margin-block: 3rem; border-left: 4px solid red">
+      <table id="table" style="border-collapse: separate; width: 42rem">
+        <tbody><tr><td id="cell" style="padding: 13px">Cell</td></tr></tbody>
+      </table>
+      <img id="image" src="cover.png" alt="Cover" style="float: inline-end; width: 640px; height: 480px">
+      <pre id="pre" style="white-space: pre; overflow-wrap: normal">preserved</pre>
+    </section>`;
+
+    const publicationStyles = Array.from(chapter.querySelectorAll<HTMLElement>("[style]"), (node) =>
+      node.getAttribute("style"),
+    );
     const theme = readerThemeForSettings(defaultReaderSettings, readerPalette());
 
-    expect(theme.html["scroll-behavior"]).toBe("auto !important");
-    expect(theme.body["scroll-behavior"]).toBe("auto !important");
-    const contentMotionRules = Object.entries(theme).find(([selector]) =>
-      selector.includes("body *::before"),
-    )?.[1];
+    installThemeRules(chapter, theme);
 
-    expect(contentMotionRules).toMatchObject({
-      animation: "none !important",
-      "scroll-behavior": "auto !important",
-      transition: "none !important",
-    });
+    expect(
+      Array.from(chapter.querySelectorAll<HTMLElement>("[style]"), (node) =>
+        node.getAttribute("style"),
+      ),
+    ).toEqual(publicationStyles);
+    expect(Object.keys(theme)).not.toEqual(
+      expect.arrayContaining(["img, svg, video, canvas", "table, pre", "*, *::before, *::after"]),
+    );
+    expect(JSON.stringify(theme)).not.toMatch(
+      /max-width|object-fit|white-space|overflow-wrap|box-sizing/,
+    );
   });
 
   it("maps bundled Literata into reader theme output", () => {
@@ -148,7 +226,7 @@ describe("readerThemeForSettings", () => {
       readerPalette(),
     );
 
-    expect(theme["body, body *"]["font-family"]).toContain("Literata");
+    expect(theme.body["font-family"]).toContain("Literata");
     expect(
       readerFontFaceCssForSettings({
         ...defaultReaderSettings,
@@ -163,7 +241,7 @@ describe("readerThemeForSettings", () => {
       readerPalette(),
     );
 
-    expect(theme["body, body *"]["font-family"]).toContain("Atkinson Hyperlegible");
+    expect(theme.body["font-family"]).toContain("Atkinson Hyperlegible");
     expect(
       readerFontFaceCssForSettings({
         ...defaultReaderSettings,
@@ -291,10 +369,10 @@ describe("readerThemeForSettings", () => {
       readerPalette(),
     );
 
-    expect(theme["body, body *"]["font-family"]).toBe(
+    expect(theme.body["font-family"]).toBe(
       '"Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif !important',
     );
-    expect(theme.body["font-family" as keyof typeof theme.body]).toBeUndefined();
+    expect(Object.keys(theme)).not.toContain("body, body *");
   });
 
   it("compares only EPUB-content reader settings for viewer memoization", () => {
@@ -322,6 +400,6 @@ describe("readerThemeForSettings", () => {
       readerPalette(),
     );
 
-    expect(theme["body, body *"]["font-family"]).toContain("Iowan Old Style");
+    expect(theme.body["font-family"]).toContain("Iowan Old Style");
   });
 });

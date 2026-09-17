@@ -311,4 +311,24 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(chapter.getElementById("archeion-reader-font-faces")).toBe(style);
     expect(style?.textContent).toContain('font-family: "Atkinson Hyperlegible"');
   });
+
+  it("applies the current content theme when a later iframe document mounts", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyTheme(
+      null,
+      createReaderContentTheme(
+        { ...defaultReaderSettings, fontFamily: "literata" },
+        resolveBuiltInReaderTheme("dark").tokens,
+      ),
+      null,
+    );
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+
+    expect(chapter.getElementById("archeion-reader-font-faces")?.textContent).toContain(
+      'font-family: "Literata"',
+    );
+  });
 });
