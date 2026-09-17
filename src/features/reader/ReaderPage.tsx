@@ -92,6 +92,7 @@ import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
 import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
+import { readerModeForPublication } from "./readerSettingsCapabilities";
 
 const INITIAL_PUBLICATION_SEARCH_STATE: ReaderPublicationSearchControllerState = Object.freeze({
   error: null,
@@ -165,6 +166,10 @@ export function ReaderPage() {
   const readerSessionLifecycle = readerSessionSnapshot.lifecycle;
   const readerSessionFailure = readerSessionSnapshot.failure;
   const readerSessionIdentity = readerSessionLifecycle.identity;
+  const publicationMode = readerModeForPublication(
+    settings.mode,
+    readerSessionSnapshot.publicationLayoutCapability,
+  );
   const [progressController] = useState(() =>
     book && readerSessionIdentity
       ? createReaderProgressController({
@@ -665,7 +670,7 @@ export function ReaderPage() {
     ];
 
     const pagedReaderCommands: QuickActionRegistration[] =
-      settings.mode === "continuous"
+      publicationMode === "continuous"
         ? []
         : [
             {
@@ -731,7 +736,7 @@ export function ReaderPage() {
     navigationState.pageReferences.length,
     navigationState.status,
     returnToOrigin,
-    settings.mode,
+    publicationMode,
     sideSurface,
     toggleAnnotations,
     toggleCurrentBookmark,
@@ -1091,6 +1096,7 @@ export function ReaderPage() {
             onPublicationLayoutCapability={readerSessionController.setPublicationLayoutCapability}
             onSeekMapChange={handleSeekMapChange}
             onReady={handleReady}
+            publicationLayoutCapability={readerSessionSnapshot.publicationLayoutCapability}
             readerTheme={readerTheme}
             sessionIdentity={readerSessionIdentity}
             settings={settings}
@@ -1201,6 +1207,7 @@ export function ReaderPage() {
 
             {settingsOpen ? (
               <ReaderSettingsPanel
+                layoutCapability={readerSessionSnapshot.publicationLayoutCapability}
                 onClose={closeSettings}
                 onReaderThemeCommit={changeReaderTheme}
                 onReaderThemeOpen={() => void themeCatalog.refresh()}

@@ -10,8 +10,11 @@ import type { ReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { ReaderThemeSelect } from "../themes/ReaderThemeSelect";
 import { ReaderSidePanel } from "./ReaderSidePanel";
+import type { ReaderPublicationLayoutCapability } from "./readerSession";
+import { readerControlCapabilities } from "./readerSettingsCapabilities";
 
 type ReaderSettingsPanelProps = {
+  layoutCapability: ReaderPublicationLayoutCapability | null;
   onClose: () => void;
   onReaderThemeCommit: (selection: ReaderThemeSelection) => void;
   onReaderThemeOpen: () => void;
@@ -71,6 +74,7 @@ function ReaderSetting({
 }
 
 export function ReaderSettingsPanel({
+  layoutCapability,
   onClose,
   onReaderThemeCommit,
   onReaderThemeOpen,
@@ -83,6 +87,7 @@ export function ReaderSettingsPanel({
 }: ReaderSettingsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const capabilities = readerControlCapabilities(layoutCapability);
 
   useEffect(() => {
     closeButtonRef.current?.focus({ preventScroll: true });
@@ -104,91 +109,112 @@ export function ReaderSettingsPanel({
       title="Appearance"
     >
       <div className="reader-settings__body">
-        <ReaderSetting label="Reading mode">
-          <SegmentedControl
-            className="reader-control"
-            label="Reader mode"
-            onChange={(mode) => update({ mode })}
-            options={[...readerModes]}
-            size="standard"
-            value={settings.mode}
-          />
-        </ReaderSetting>
+        {layoutCapability === "fixed-layout" ? (
+          <p className="reader-settings__capability-note">
+            This fixed-layout book keeps its publisher-designed pages. Typeface, text size, line
+            spacing, page width, theme, and reading mode are unavailable.
+          </p>
+        ) : layoutCapability === null ? (
+          <p className="reader-settings__capability-note">
+            Book appearance controls will be available after the book opens.
+          </p>
+        ) : null}
 
-        <ReaderSetting label="Reader theme">
-          <ReaderThemeSelect
-            entries={readerThemeEntries}
-            onChange={onReaderThemeCommit}
-            onOpen={onReaderThemeOpen}
-            selection={readerThemeSelection}
-          />
-        </ReaderSetting>
+        {capabilities.readingMode ? (
+          <ReaderSetting label="Reading mode">
+            <SegmentedControl
+              className="reader-control"
+              label="Reader mode"
+              onChange={(mode) => update({ mode })}
+              options={[...readerModes]}
+              size="standard"
+              value={settings.mode}
+            />
+          </ReaderSetting>
+        ) : null}
 
-        <ReaderSetting label="Typeface">
-          <AppSelect
-            ariaLabel="Reader typeface"
-            id="reader-font-family"
-            onChange={(fontFamily) => update({ fontFamily })}
-            options={readerTypefaceOptions}
-            size="standard"
-            value={settings.fontFamily}
-          />
-        </ReaderSetting>
+        {capabilities.readerTheme ? (
+          <ReaderSetting label="Reader theme">
+            <ReaderThemeSelect
+              entries={readerThemeEntries}
+              onChange={onReaderThemeCommit}
+              onOpen={onReaderThemeOpen}
+              selection={readerThemeSelection}
+            />
+          </ReaderSetting>
+        ) : null}
 
-        <ReaderSetting className="reader-setting--inline" label="Text size">
-          <div className="reader-stepper">
-            <IconButton
-              disabled={settings.fontSize <= 14}
-              label="Decrease text size"
-              onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
-              size="compact"
-            >
-              <Minus aria-hidden="true" />
-            </IconButton>
-            <output aria-live="polite">{settings.fontSize}px</output>
-            <IconButton
-              disabled={settings.fontSize >= 28}
-              label="Increase text size"
-              onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
-              size="compact"
-            >
-              <Plus aria-hidden="true" />
-            </IconButton>
-          </div>
-        </ReaderSetting>
+        {capabilities.contentAppearance ? (
+          <>
+            <ReaderSetting label="Typeface">
+              <AppSelect
+                ariaLabel="Reader typeface"
+                id="reader-font-family"
+                onChange={(fontFamily) => update({ fontFamily })}
+                options={readerTypefaceOptions}
+                size="standard"
+                value={settings.fontFamily}
+              />
+            </ReaderSetting>
 
-        <ReaderSetting label="Line spacing">
-          <SegmentedControl
-            className="reader-control"
-            label="Reader line spacing"
-            onChange={(lineHeight) => update({ lineHeight: Number(lineHeight) })}
-            options={lineHeights}
-            size="standard"
-            value={String(settings.lineHeight)}
-          />
-        </ReaderSetting>
+            <ReaderSetting className="reader-setting--inline" label="Text size">
+              <div className="reader-stepper">
+                <IconButton
+                  disabled={settings.fontSize <= 14}
+                  label="Decrease text size"
+                  onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
+                  size="compact"
+                >
+                  <Minus aria-hidden="true" />
+                </IconButton>
+                <output aria-live="polite">{settings.fontSize}px</output>
+                <IconButton
+                  disabled={settings.fontSize >= 28}
+                  label="Increase text size"
+                  onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
+                  size="compact"
+                >
+                  <Plus aria-hidden="true" />
+                </IconButton>
+              </div>
+            </ReaderSetting>
 
-        <ReaderSetting label="Page width">
-          <SegmentedControl
-            className="reader-control"
-            label="Reader page width"
-            onChange={(margin) => update({ margin: Number(margin) })}
-            options={margins}
-            size="standard"
-            value={String(settings.margin)}
-          />
-        </ReaderSetting>
+            <ReaderSetting label="Line spacing">
+              <SegmentedControl
+                className="reader-control"
+                label="Reader line spacing"
+                onChange={(lineHeight) => update({ lineHeight: Number(lineHeight) })}
+                options={lineHeights}
+                size="standard"
+                value={String(settings.lineHeight)}
+              />
+            </ReaderSetting>
 
-        <ReaderSetting label="Progress bar">
-          <SegmentedControl
-            className="reader-control"
-            label="Reader progress bar placement"
-            onChange={(progressPlacement) => update({ progressPlacement })}
-            options={progressPlacements}
-            size="standard"
-            value={settings.progressPlacement}
-          />
-        </ReaderSetting>
+            <ReaderSetting label="Page width">
+              <SegmentedControl
+                className="reader-control"
+                label="Reader page width"
+                onChange={(margin) => update({ margin: Number(margin) })}
+                options={margins}
+                size="standard"
+                value={String(settings.margin)}
+              />
+            </ReaderSetting>
+          </>
+        ) : null}
+
+        {capabilities.progressPlacement ? (
+          <ReaderSetting label="Progress bar">
+            <SegmentedControl
+              className="reader-control"
+              label="Reader progress bar placement"
+              onChange={(progressPlacement) => update({ progressPlacement })}
+              options={progressPlacements}
+              size="standard"
+              value={settings.progressPlacement}
+            />
+          </ReaderSetting>
+        ) : null}
 
         <p
           aria-live="polite"

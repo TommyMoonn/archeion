@@ -15,7 +15,11 @@ import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annota
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
 import { createReaderFileLease } from "./readerFileLease";
-import { createReaderSessionLifecycle, transitionReaderSession } from "./readerSession";
+import {
+  createReaderSessionLifecycle,
+  transitionReaderSession,
+  type ReaderPublicationLayoutCapability,
+} from "./readerSession";
 import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
 import { createReaderContentTheme } from "./readerTheme";
@@ -360,6 +364,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onPublicationLayoutCapability: vi.fn(),
     onPublicationSearchChange: vi.fn(),
     onReady: vi.fn(),
+    publicationLayoutCapability: "reflowable" as ReaderPublicationLayoutCapability,
     readerTheme,
     sessionIdentity,
     settings: defaultReaderSettings,
@@ -947,6 +952,28 @@ describe("EpubViewer navigation lifecycle", () => {
       "continuous",
     );
     expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(0);
+  });
+
+  it("keeps fixed-layout publications paged and leaves publisher content unthemed", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    session.book.packaging.metadata.layout = "pre-paginated";
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["fixed-layout-book"])),
+      publicationLayoutCapability: "fixed-layout" as const,
+      settings: { ...defaultReaderSettings, mode: "continuous" as const },
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+
+    expect(session.renderTo).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ flow: "paginated", manager: "default" }),
+    );
+    expect(container.querySelector(".epub-viewer")?.getAttribute("data-reader-mode")).toBe("paged");
+    expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(2);
+    expect(session.rendition.themes.register).not.toHaveBeenCalled();
+    expect(session.rendition.themes.select).not.toHaveBeenCalled();
   });
 
   it("retains paged wheel navigation on earlier chapter documents as new chapters mount", async () => {

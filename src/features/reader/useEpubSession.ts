@@ -50,6 +50,7 @@ import {
   type ReaderPublicationLayoutCapability,
   type ReaderSessionIdentity,
 } from "./readerSession";
+import { readerModeForPublication } from "./readerSettingsCapabilities";
 import {
   createEpubSessionInteractionAccess,
   type EpubSessionInteractionAccess,
@@ -531,18 +532,19 @@ export function useEpubSession({
           return;
         }
 
+        const publicationLayoutCapability = resolveReaderPublicationLayoutCapability(
+          book.packaging.metadata.layout,
+        );
+        const publicationMode = readerModeForPublication(mode, publicationLayoutCapability);
         const rendition = measurePerformance("archeion:reader-rendition-create", () =>
           book!.renderTo(containerRef.current!, {
             width: "100%",
             height: "100%",
-            flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
-            manager: mode === "continuous" ? "continuous" : "default",
+            flow: publicationMode === "continuous" ? "scrolled-continuous" : "paginated",
+            manager: publicationMode === "continuous" ? "continuous" : "default",
             spread: "none",
             allowScriptedContent: false,
           }),
-        );
-        const publicationLayoutCapability = resolveReaderPublicationLayoutCapability(
-          book.packaging.metadata.layout,
         );
         const interactions = createEpubSessionInteractionAccess(book, rendition);
         const publicationSearch = createReaderPublicationSearchService({
@@ -619,7 +621,9 @@ export function useEpubSession({
 
         await (rendition as RenditionWithManager).started;
         if (!ownsSession(session)) return;
-        if (mode === "continuous") stabilizeContinuousRendition(rendition as RenditionWithManager);
+        if (publicationMode === "continuous") {
+          stabilizeContinuousRendition(rendition as RenditionWithManager);
+        }
 
         await measurePerformanceAsync("archeion:reader-first-location-display", async () => {
           try {
@@ -725,6 +729,7 @@ export function useEpubSession({
   );
   const applyContentTheme = useCallback(
     (theme: ReaderContentTheme, container: HTMLElement | null) => {
+      if (sessionRef.current?.publicationLayoutCapability !== "reflowable") return;
       documentSessions.applyTheme(sessionRef.current?.rendition ?? null, theme, container);
     },
     [documentSessions],

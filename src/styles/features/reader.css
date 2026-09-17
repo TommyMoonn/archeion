@@ -962,6 +962,15 @@ html[data-motion="on"] .reader-side-panel {
   padding: 0 var(--reader-panel-inset) 18px;
 }
 
+.reader-settings__capability-note {
+  margin: 0;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--reader-line);
+  color: var(--reader-muted);
+  font-size: var(--type-caption);
+  line-height: 1.5;
+}
+
 .reader-setting {
   display: grid;
   gap: 9px;

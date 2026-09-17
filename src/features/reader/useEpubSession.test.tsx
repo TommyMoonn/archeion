@@ -459,11 +459,16 @@ describe("useEpubSession lifecycle", () => {
       {
         bridgeRef: createBridgeRef(bridge),
         fileLease: leaseFor(new Blob(["fixed-layout-book"])),
-        mode: "paged",
+        mode: "continuous",
       },
       facadeRef,
     );
     await waitForReady(session, bridge);
+
+    expect(session.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ flow: "paginated", manager: "default" }),
+    );
 
     expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledOnce();
     expect(bridge.onPublicationLayoutCapability).toHaveBeenCalledWith(
@@ -471,6 +476,13 @@ describe("useEpubSession lifecycle", () => {
       "fixed-layout",
     );
     expect(facadeRef.current?.getPublicationLayoutCapability()).toBe("fixed-layout");
+
+    facadeRef.current?.applyContentTheme(
+      createReaderContentTheme(defaultReaderSettings, resolveBuiltInReaderTheme("dark").tokens),
+      null,
+    );
+    expect(session.rendition.themes.register).not.toHaveBeenCalled();
+    expect(session.rendition.themes.select).not.toHaveBeenCalled();
 
     session.book.packaging.metadata.layout = "reflowable";
     expect(facadeRef.current?.getPublicationLayoutCapability()).toBe("fixed-layout");

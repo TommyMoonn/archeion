@@ -82,6 +82,7 @@ vi.mock("./EpubViewer", async () => {
         onLocationChange,
         onNavigationChange,
         onNavigationHistoryChange,
+        onPublicationLayoutCapability,
         onPublicationSearchChange,
         onSeekMapChange,
         onReady,
@@ -97,6 +98,10 @@ vi.mock("./EpubViewer", async () => {
         }) => void;
         onNavigationChange: (navigation: typeof navigationState) => void;
         onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
+        onPublicationLayoutCapability: (
+          identity: ReaderSessionIdentity,
+          capability: "fixed-layout" | "reflowable",
+        ) => void;
         onPublicationSearchChange?: (state: ReaderPublicationSearchControllerState) => void;
         onSeekMapChange?: (state: ReaderSeekMapState) => void;
         onReady: (identity: ReaderSessionIdentity) => void;
@@ -128,6 +133,7 @@ vi.mock("./EpubViewer", async () => {
         onLocationChange,
         onNavigationChange,
         onNavigationHistoryChange,
+        onPublicationLayoutCapability,
         onPublicationSearchChange,
         onSeekMapChange,
         onReady,
@@ -176,6 +182,7 @@ vi.mock("./EpubViewer", async () => {
       React.useEffect(() => {
         const callbacks = initialCallbacks.current;
         callbacks.onNavigationChange(navigationState);
+        callbacks.onPublicationLayoutCapability(callbacks.sessionIdentity, "reflowable");
         const initialLocation = {
           atEnd: false,
           atStart: false,

@@ -15,6 +15,7 @@ import {
 import type { AppCommand } from "../commands/appCommands";
 import { resolveKeyboardCommand } from "../commands/commandResolver";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
+import type { ReaderPublicationLayoutCapability } from "./readerSession";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 
@@ -24,6 +25,7 @@ let container: HTMLDivElement | null = null;
 const keyboardPreferences: KeyboardPreferences = { shortcuts: {} };
 
 const basePanelProps = {
+  layoutCapability: "reflowable" as ReaderPublicationLayoutCapability,
   onReaderThemeCommit: vi.fn(),
   onReaderThemeOpen: vi.fn(),
   onSettingsCommit: vi.fn(),
@@ -71,6 +73,12 @@ function renderPanel(persistenceFailed = false) {
   });
 
   return { container: host, onClose, onReaderThemeCommit };
+}
+
+function settingLabels(host: HTMLElement): string[] {
+  return [...host.querySelectorAll<HTMLElement>(".reader-setting__label")].map(
+    (label) => label.textContent?.trim() ?? "",
+  );
 }
 
 function ControlledPanel({ onClose }: { onClose: () => void }) {
@@ -173,6 +181,78 @@ function keyboardEvent(target: Element): KeyboardEvent {
 }
 
 describe("ReaderSettingsPanel", () => {
+  it("keeps the full current control set for reflowable publications", () => {
+    const rendered = renderPanel();
+
+    expect(settingLabels(rendered.container)).toEqual([
+      "Reading mode",
+      "Reader theme",
+      "Typeface",
+      "Text size",
+      "Line spacing",
+      "Page width",
+      "Progress bar",
+    ]);
+  });
+
+  it("omits unsafe controls for fixed-layout publications and explains the limitation", () => {
+    const host = createContainer();
+
+    act(() => {
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          layoutCapability="fixed-layout"
+          onClose={vi.fn()}
+        />,
+      );
+    });
+
+    expect(settingLabels(host)).toEqual(["Progress bar"]);
+    expect(host.textContent).toContain("This fixed-layout book keeps its publisher-designed pages");
+    expect(host.textContent).toContain(
+      "Typeface, text size, line spacing, page width, theme, and reading mode are unavailable",
+    );
+    expect(host.querySelector('[aria-label="Reader typeface"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Reader theme"]')).toBeNull();
+  });
+
+  it("restores reflowable controls without changing stored preferences", () => {
+    const host = createContainer();
+    const onSettingsCommit = vi.fn();
+    const settings = {
+      ...defaultReaderSettings,
+      fontSize: 22,
+      mode: "continuous" as const,
+    };
+    const render = (layoutCapability: ReaderPublicationLayoutCapability) => {
+      act(() => {
+        root?.render(
+          <ReaderSettingsPanel
+            {...basePanelProps}
+            layoutCapability={layoutCapability}
+            onClose={vi.fn()}
+            onSettingsCommit={onSettingsCommit}
+            settings={settings}
+          />,
+        );
+      });
+    };
+
+    render("fixed-layout");
+    expect(host.textContent).not.toContain("22px");
+    expect(onSettingsCommit).not.toHaveBeenCalled();
+
+    render("reflowable");
+    expect(host.textContent).toContain("22px");
+    expect(
+      [...host.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent === "Continuous")
+        ?.getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(onSettingsCommit).not.toHaveBeenCalled();
+  });
+
   it("focuses the close control when the panel opens", () => {
     const rendered = renderPanel();
     const close = rendered.container.querySelector<HTMLButtonElement>(

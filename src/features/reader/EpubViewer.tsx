@@ -45,6 +45,7 @@ import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
 import type { ReaderPublicationLayoutCapability, ReaderSessionIdentity } from "./readerSession";
+import { readerModeForPublication } from "./readerSettingsCapabilities";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import { useReaderSideSurfaceDismissRequest } from "./readerSideSurfaceDismissal";
 import { ReaderSearchMatchEmphasis } from "./readerSearchMatchEmphasis";
@@ -91,6 +92,7 @@ type EpubViewerProps = {
   fileLease: ReaderFileLease;
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
+  publicationLayoutCapability: ReaderPublicationLayoutCapability | null;
   onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
   onHighlightInteractionClear?: () => void;
   onHighlightInteractionError?: (message: string) => void;
@@ -125,6 +127,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     fileLease,
     highlights = [],
     initialCfi,
+    publicationLayoutCapability,
     onError,
     onHighlightAnchorInvalid,
     onHighlightInteractionClear,
@@ -148,6 +151,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   },
   ref,
 ) {
+  const publicationMode = readerModeForPublication(settings.mode, publicationLayoutCapability);
   const viewerRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -421,7 +425,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     (event: WheelEvent) => {
       if (shouldIgnoreReaderWheelEvent(event)) return;
 
-      if (settings.mode === "continuous") {
+      if (publicationMode === "continuous") {
         forwardContinuousWheel(
           event,
           containerRef.current?.querySelector<HTMLElement>(".epub-container") ?? null,
@@ -448,7 +452,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       lastWheelTurnAtRef.current = now;
       void turn(intent);
     },
-    [settings.mode, turn],
+    [publicationMode, turn],
   );
 
   const handleRegisteredDocumentRemoved = useCallback(
@@ -669,11 +673,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     <div
       ref={viewerRef}
       className="epub-viewer"
-      data-reader-mode={settings.mode}
+      data-reader-mode={publicationMode}
       data-reader-theme={readerTheme.base}
     >
       <div ref={containerRef} className="epub-viewer__stage" />
-      {settings.mode === "paged" ? (
+      {publicationMode === "paged" ? (
         <button
           aria-label="Previous page"
           className="epub-viewer__click-zone epub-viewer__click-zone--previous"
@@ -694,7 +698,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           </span>
         </button>
       ) : null}
-      {settings.mode === "paged" ? (
+      {publicationMode === "paged" ? (
         <button
           aria-label="Next page"
           className="epub-viewer__click-zone epub-viewer__click-zone--next"
@@ -826,6 +830,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onReady === next.onReady &&
     previous.contentTheme === next.contentTheme &&
     previous.readerTheme === next.readerTheme &&
+    previous.publicationLayoutCapability === next.publicationLayoutCapability &&
     previous.sessionIdentity === next.sessionIdentity &&
     previous.settings.margin === next.settings.margin &&
     previous.settings.mode === next.settings.mode
