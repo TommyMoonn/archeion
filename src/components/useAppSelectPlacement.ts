@@ -3,6 +3,8 @@ import { useLayoutEffect, useState, type RefObject } from "react";
 import {
   APP_SELECT_MIN_WIDTH,
   calculateAppSelectPlacement,
+  convertAppSelectPlacementToFixedCoordinateSpace,
+  getAppSelectFixedCoordinateSpace,
   type AppSelectPlacement,
 } from "./appSelectPlacement";
 
@@ -68,13 +70,25 @@ export function useAppSelectPlacement({
     const measure = () => {
       const triggerRect = trigger.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
-      const borderHeight = Math.max(0, menuRect.height - menu.clientHeight);
-      const next = calculateAppSelectPlacement({
-        intendedMenuHeight: menu.scrollHeight + borderHeight,
-        intendedMenuWidth: Math.max(APP_SELECT_MIN_WIDTH, triggerRect.width),
+      const coordinateSpace = getAppSelectFixedCoordinateSpace(menu);
+      const borderHeight = Math.max(
+        0,
+        menuRect.height / coordinateSpace.scaleY - menu.clientHeight,
+      );
+      const intendedMenuHeight = (menu.scrollHeight + borderHeight) * coordinateSpace.scaleY;
+      const intendedMenuWidth =
+        Math.max(APP_SELECT_MIN_WIDTH, triggerRect.width / coordinateSpace.scaleX) *
+        coordinateSpace.scaleX;
+      const viewportPlacement = calculateAppSelectPlacement({
+        intendedMenuHeight,
+        intendedMenuWidth,
         trigger: triggerRect,
         viewport: currentViewport(),
       });
+      const next = convertAppSelectPlacementToFixedCoordinateSpace(
+        viewportPlacement,
+        coordinateSpace,
+      );
       setPlacement((current) => (samePlacement(current, next) ? current : next));
     };
 
@@ -94,6 +108,8 @@ export function useAppSelectPlacement({
         : new ResizeObserver(() => scheduleMeasurement());
     resizeObserver?.observe(trigger);
     resizeObserver?.observe(menu);
+    const coordinateSpace = getAppSelectFixedCoordinateSpace(menu);
+    if (coordinateSpace.element) resizeObserver?.observe(coordinateSpace.element);
 
     const visualViewport = window.visualViewport;
     window.addEventListener("resize", scheduleMeasurement);

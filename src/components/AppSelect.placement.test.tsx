@@ -34,6 +34,7 @@ const initialOptions: Array<AppSelectOption<string>> = [
 
 let activeRoot: Root | null = null;
 let geometryReads = 0;
+let triggerBounds = rect(280, 350, 120, 36);
 
 function renderSelect(options = initialOptions, panel?: HTMLElement, value = "title") {
   const container = panel ?? document.createElement("div");
@@ -60,8 +61,12 @@ beforeEach(() => {
     this: HTMLElement,
   ) {
     geometryReads += 1;
-    if (this.classList.contains("app-select__trigger")) return rect(280, 350, 120, 36);
-    if (this.classList.contains("app-select__menu")) return rect(280, 194, 188, 82);
+    if (this.classList.contains("app-select__trigger")) return triggerBounds;
+    if (this.classList.contains("reader-side-panel")) return rect(120, 40, 380, 360);
+    if (this.classList.contains("app-select__menu")) {
+      const scale = this.closest<HTMLElement>("[style*='scale(0.5)']") ? 0.5 : 1;
+      return rect(280, 194, 188 * scale, 82 * scale);
+    }
     if (this.classList.contains("app-select__option")) {
       const menu = this.parentElement as HTMLElement;
       const index = Array.from(menu.children).indexOf(this);
@@ -86,6 +91,7 @@ afterEach(() => {
   activeRoot = null;
   document.body.innerHTML = "";
   geometryReads = 0;
+  triggerBounds = rect(280, 350, 120, 36);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -104,6 +110,153 @@ describe("AppSelect anchored placement", () => {
     expect(menu.style.width).toBe("188px");
     expect(menu.style.maxHeight).toBe("336px");
     expect(menu.style.visibility).toBe("visible");
+  });
+
+  it("positions Reader theme and Typeface menus in a backdrop-filter containing block", () => {
+    const panel = document.createElement("div");
+    panel.className = "reader-side-panel";
+    panel.style.backdropFilter = "blur(10px)";
+    Object.defineProperty(panel, "clientLeft", { configurable: true, value: 1 });
+    document.body.append(panel);
+    activeRoot = createRoot(panel);
+    act(() => {
+      activeRoot?.render(
+        <>
+          <AppSelect
+            ariaLabel="Reader theme"
+            onChange={vi.fn()}
+            options={initialOptions}
+            value="title"
+          />
+          <AppSelect
+            ariaLabel="Reader typeface"
+            onChange={vi.fn()}
+            options={initialOptions}
+            value="title"
+          />
+        </>,
+      );
+    });
+
+    for (const label of ["Reader theme", "Reader typeface"]) {
+      const trigger = panel.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!;
+      act(() => trigger.click());
+
+      const menu = panel.querySelector<HTMLElement>(".app-select__menu")!;
+      expect(menu.style.left).toBe("159px");
+      expect(menu.style.top).toBe("132px");
+      expect(menu.style.width).toBe("188px");
+      expect(menu.style.maxHeight).toBe("336px");
+
+      act(() => trigger.click());
+    }
+  });
+
+  it("stops fixed-coordinate conversion at an active modal dialog boundary", () => {
+    const outer = document.createElement("div");
+    outer.style.transform = "translateX(40px)";
+    Object.defineProperties(outer, {
+      offsetHeight: { configurable: true, value: 400 },
+      offsetWidth: { configurable: true, value: 500 },
+    });
+    outer.getBoundingClientRect = () => rect(40, 20, 500, 400);
+
+    const dialog = document.createElement("dialog");
+    const originalMatches = dialog.matches.bind(dialog);
+    vi.spyOn(dialog, "matches").mockImplementation((selector) =>
+      selector === ":modal" ? true : originalMatches(selector),
+    );
+    const panel = document.createElement("div");
+    dialog.append(panel);
+    outer.append(dialog);
+    document.body.append(outer);
+
+    triggerBounds = rect(100, 80, 120, 36);
+    const container = renderSelect(initialOptions, panel);
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+
+    act(() => trigger.click());
+
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(dialog.contains(menu)).toBe(true);
+    expect(menu.style.left).toBe("100px");
+    expect(menu.style.top).toBe("122px");
+    expect(menu.style.width).toBe("188px");
+  });
+
+  it("uses a nearer fixed containing block inside an active modal dialog", () => {
+    const outer = document.createElement("div");
+    outer.style.transform = "translateX(40px)";
+    const dialog = document.createElement("dialog");
+    const originalMatches = dialog.matches.bind(dialog);
+    vi.spyOn(dialog, "matches").mockImplementation((selector) =>
+      selector === ":modal" ? true : originalMatches(selector),
+    );
+    const panel = document.createElement("div");
+    panel.style.transform = "scale(0.5)";
+    Object.defineProperties(panel, {
+      clientLeft: { configurable: true, value: 2 },
+      clientTop: { configurable: true, value: 2 },
+      offsetHeight: { configurable: true, value: 300 },
+      offsetWidth: { configurable: true, value: 400 },
+    });
+    panel.getBoundingClientRect = () => rect(50, 30, 200, 150);
+    dialog.append(panel);
+    outer.append(dialog);
+    document.body.append(outer);
+
+    triggerBounds = rect(100, 80, 120, 36);
+    const container = renderSelect(initialOptions, panel);
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+
+    act(() => trigger.click());
+
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(dialog.contains(menu)).toBe(true);
+    expect(menu.style.left).toBe("98px");
+    expect(menu.style.top).toBe("182px");
+    expect(menu.style.width).toBe("240px");
+  });
+
+  it("converts viewport placement through an axis-aligned transformed containing block", () => {
+    const panel = document.createElement("div");
+    panel.style.transform = "scale(0.5)";
+    Object.defineProperties(panel, {
+      clientLeft: { configurable: true, value: 2 },
+      clientTop: { configurable: true, value: 2 },
+      offsetHeight: { configurable: true, value: 300 },
+      offsetWidth: { configurable: true, value: 400 },
+    });
+    panel.getBoundingClientRect = () => rect(50, 30, 200, 150);
+    document.body.append(panel);
+    triggerBounds = rect(100, 80, 120, 36);
+    const container = renderSelect(initialOptions, panel);
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+
+    act(() => trigger.click());
+
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(menu.dataset.placement).toBe("below");
+    expect(menu.style.left).toBe("98px");
+    expect(menu.style.top).toBe("182px");
+    expect(menu.style.width).toBe("240px");
+    expect(menu.style.maxHeight).toBe("540px");
+  });
+
+  it("repositions when a scroll-driven trigger movement changes its viewport coordinates", async () => {
+    const container = renderSelect();
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+    act(() => trigger.click());
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(menu.style.top).toBe("172px");
+
+    triggerBounds = rect(180, 120, 120, 36);
+    container.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await nextFrame();
+
+    expect(menu.style.left).toBe("180px");
+    expect(menu.style.top).toBe("162px");
+    expect(menu.dataset.placement).toBe("below");
   });
 
   it("scrolls only the listbox as keyboard navigation moves the active option", () => {
@@ -202,6 +355,58 @@ describe("AppSelect anchored placement", () => {
     window.dispatchEvent(new Event("resize"));
     await nextFrame();
     expect(geometryReads).toBe(0);
+  });
+
+  it("reclamps the menu after a narrow-window reflow", async () => {
+    const container = renderSelect();
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+    act(() => trigger.click());
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(menu.style.left).toBe("280px");
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 320 });
+    window.dispatchEvent(new Event("resize"));
+    await nextFrame();
+
+    expect(menu.style.left).toBe("124px");
+    expect(menu.style.width).toBe("188px");
+  });
+
+  it("updates placement when the visual viewport changes", async () => {
+    const visualViewport = Object.assign(new EventTarget(), {
+      height: 400,
+      offsetLeft: 50,
+      offsetTop: 100,
+      onresize: null,
+      onscroll: null,
+      pageLeft: 50,
+      pageTop: 100,
+      scale: 1.5,
+      width: 300,
+    }) as VisualViewport;
+    vi.stubGlobal("visualViewport", visualViewport);
+    triggerBounds = rect(330, 200, 80, 36);
+    const container = renderSelect();
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+
+    act(() => trigger.click());
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(menu.style.left).toBe("154px");
+    expect(menu.style.top).toBe("242px");
+
+    Object.defineProperties(visualViewport, {
+      height: { configurable: true, value: 400 },
+      offsetLeft: { configurable: true, value: 0 },
+      offsetTop: { configurable: true, value: 0 },
+      width: { configurable: true, value: 500 },
+    });
+    visualViewport.dispatchEvent(new Event("resize"));
+    await nextFrame();
+
+    expect(menu.dataset.placement).toBe("above");
+    expect(menu.style.left).toBe("304px");
+    expect(menu.style.top).toBe("22px");
+    expect(menu.style.maxHeight).toBe("186px");
   });
 
   it("recalculates when option content changes while open", () => {

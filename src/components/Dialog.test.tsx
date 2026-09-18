@@ -27,16 +27,20 @@ function renderDialog(closeOnBackdropClick = true) {
 }
 
 describe("Dialog backdrop dismissal", () => {
-  it("keeps an open select menu inside the native dialog subtree", () => {
+  it("keeps an open select menu inside a modal dialog under an outer transform", () => {
+    const transformedAncestor = document.createElement("div");
+    transformedAncestor.style.transform = "translateX(40px)";
     const container = document.createElement("div");
-    document.body.append(container);
+    transformedAncestor.append(container);
+    document.body.append(transformedAncestor);
     const root = createRoot(container);
+    const onChange = vi.fn();
     act(() => {
       root.render(
         <Dialog onClose={vi.fn()} title="Select test">
           <AppSelect
             ariaLabel="Choose value"
-            onChange={vi.fn()}
+            onChange={onChange}
             options={[
               { label: "First", value: "first" },
               { label: "Second", value: "second" },
@@ -47,14 +51,30 @@ describe("Dialog backdrop dismissal", () => {
       );
     });
     const dialog = container.querySelector("dialog")!;
+    const originalMatches = dialog.matches.bind(dialog);
+    vi.spyOn(dialog, "matches").mockImplementation((selector) =>
+      selector === ":modal" ? true : originalMatches(selector),
+    );
     const panel = container.querySelector<HTMLElement>(".dialog__panel")!;
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
     panel.scrollTop = 32;
 
-    act(() => container.querySelector<HTMLButtonElement>(".app-select__trigger")?.click());
+    act(() => trigger.click());
 
-    const menu = container.querySelector(".app-select__menu")!;
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
     expect(dialog.contains(menu)).toBe(true);
+    expect(menu.style.visibility).toBe("visible");
     expect(panel.scrollTop).toBe(32);
+
+    const second = Array.from(
+      menu.querySelectorAll<HTMLButtonElement>('button[role="option"]'),
+    ).find((option) => option.textContent?.includes("Second"))!;
+    act(() => second.click());
+
+    expect(onChange).toHaveBeenCalledWith("second");
+    expect(container.querySelector(".app-select__menu")).toBeNull();
+    expect(panel.scrollTop).toBe(32);
+    expect(document.activeElement).toBe(trigger);
     act(() => root.unmount());
   });
 
