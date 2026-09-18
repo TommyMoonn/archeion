@@ -1,5 +1,9 @@
 import type { ReaderMode, ReaderReadingWidth } from "../../types/reader";
 import type { ReaderStageSize } from "./readerContinuousScroll";
+import {
+  applyReaderReflowableMedia,
+  READER_REFLOWABLE_MEDIA_FLOW_SELECTOR,
+} from "./readerReflowableMedia";
 
 const READER_REFLOWABLE_LAYOUT_STYLE_ID = "archeion-reader-reflowable-layout";
 const READER_CONTENT_BLOCK_INSET_PX = 64;
@@ -21,6 +25,8 @@ export function applyReaderReflowableLayout(
   layout: ReaderReflowableLayout,
 ): void {
   if (!document?.head) return;
+
+  applyReaderReflowableMedia(document, layout);
 
   const existingStyle = document.getElementById(READER_REFLOWABLE_LAYOUT_STYLE_ID);
   const style = existingStyle ?? document.createElement("style");
@@ -67,7 +73,7 @@ html:root > body {
   padding-inline: ${READER_CONTENT_INLINE_GUTTER} !important;
 }
 
-body > :not(script):not(style):not(link) {
+body > :not(script):not(style):not(link):not(${READER_REFLOWABLE_MEDIA_FLOW_SELECTOR}) {
   box-sizing: border-box;
   inline-size: 100% !important;
   max-inline-size: ${measure} !important;
@@ -84,7 +90,7 @@ body > p[data-archeion-running-prose=""] {
   }
 
   return `
-body > :not(script):not(style):not(link) {
+body > :not(script):not(style):not(link):not(${READER_REFLOWABLE_MEDIA_FLOW_SELECTOR}) {
   box-sizing: border-box;
   inline-size: calc(100% - (2 * ${READER_CONTENT_INLINE_GUTTER})) !important;
   max-inline-size: ${measure} !important;

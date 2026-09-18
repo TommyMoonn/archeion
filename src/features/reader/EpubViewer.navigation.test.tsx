@@ -980,6 +980,22 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(2);
     expect(session.rendition.themes.register).not.toHaveBeenCalled();
     expect(session.rendition.themes.select).not.toHaveBeenCalled();
+
+    const fixedChapter = document.implementation.createHTMLDocument("fixed layout chapter");
+    fixedChapter.body.innerHTML = `<div id="fixed-flow" style="height: 100vh">
+      <svg id="fixed-plate" viewBox="0 0 1600 1200" aria-label="Plate"></svg>
+    </div>`;
+    session.rendition.emitContentMock({ document: fixedChapter });
+
+    expect(fixedChapter.getElementById("archeion-reader-reflowable-media")).toBeNull();
+    expect(
+      fixedChapter.getElementById("fixed-plate")?.hasAttribute("data-archeion-media-fit"),
+    ).toBe(false);
+    expect(
+      fixedChapter
+        .getElementById("fixed-flow")
+        ?.hasAttribute("data-archeion-media-force-flow-block-fit"),
+    ).toBe(false);
   });
 
   it("retains paged wheel navigation on earlier chapter documents as new chapters mount", async () => {

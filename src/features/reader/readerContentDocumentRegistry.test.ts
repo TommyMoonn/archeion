@@ -352,6 +352,73 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(layout?.textContent).toContain("--archeion-reader-stage-height: 760px");
   });
 
+  it("applies current continuous media bounds to later documents and updates them on stage resize", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      {
+        mode: "continuous",
+        readingWidth: "comfortable",
+        stageSize: { height: 720, width: 960 },
+      },
+      null,
+    );
+    registry.applyLayoutStageSize({ height: 760, width: 1180 }, null);
+
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    chapter.head.innerHTML = `<style>
+      .plate { width: 1600px !important; max-width: none !important; max-height: none !important; }
+    </style>`;
+    chapter.body.innerHTML = `<img id="plate" class="plate" src="plate.jpg" alt="Plate">`;
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+
+    const plate = chapter.getElementById("plate")!;
+    expect(plate.hasAttribute("data-archeion-media-fit")).toBe(true);
+    expect(frame.contentWindow!.getComputedStyle(plate).maxBlockSize).toBe("608px");
+
+    registry.applyLayoutStageSize({ height: 640, width: 1000 }, null);
+
+    expect(frame.contentWindow!.getComputedStyle(plate).maxBlockSize).toBe("512px");
+    expect(plate.getAttribute("style")).toBeNull();
+  });
+
+  it("keeps a media-only first continuous document finite while later documents mount normally", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      {
+        mode: "continuous",
+        readingWidth: "full",
+        stageSize: { height: 760, width: 1180 },
+      },
+      null,
+    );
+
+    const coverFrame = mountedFrame();
+    const coverChapter = coverFrame.contentDocument!;
+    coverChapter.body.innerHTML = `
+      <div id="cover-flow" style="height: 100vh; margin: 0; padding: 0;">
+        <svg id="cover" height="100%" viewBox="0 0 2867 4096" width="100%">
+          <image width="2867" height="4096" href="cover.jpg" />
+        </svg>
+      </div>
+    `;
+    registry.bind({ document: coverChapter, window: coverFrame.contentWindow! });
+
+    const flow = coverChapter.getElementById("cover-flow")!;
+    expect(flow.hasAttribute("data-archeion-media-force-flow-block-fit")).toBe(true);
+    expect(coverFrame.contentWindow!.getComputedStyle(flow).maxBlockSize).toBe("608px");
+
+    const textFrame = mountedFrame();
+    const textChapter = textFrame.contentDocument!;
+    textChapter.body.innerHTML = `<main><p>Following chapter prose.</p></main>`;
+    registry.bind({ document: textChapter, window: textFrame.contentWindow! });
+
+    expect(registry.list()).toEqual([coverChapter, textChapter]);
+    expect(
+      textChapter.getElementById("archeion-reader-reflowable-layout")?.dataset.readerMode,
+    ).toBe("continuous");
+  });
+
   it("applies the current content theme when a later iframe document mounts", () => {
     const registry = new ReaderContentDocumentRegistry();
     registry.applyTheme(
