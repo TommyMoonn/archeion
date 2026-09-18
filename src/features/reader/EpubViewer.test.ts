@@ -6,6 +6,7 @@ import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
 import { readerTypefaceOptions } from "./readerFonts";
+import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
   applyReaderContentTheme,
   createReaderContentTheme,
@@ -218,6 +219,129 @@ describe("readerThemeForSettings", () => {
     expect(JSON.stringify(theme)).not.toMatch(
       /max-width|object-fit|white-space|overflow-wrap|box-sizing/,
     );
+  });
+
+  it("normalizes ordinary paragraph starts without flattening structural prose", () => {
+    const frame = document.createElement("iframe");
+    document.body.appendChild(frame);
+    const chapter = frame.contentDocument!;
+    chapter.head.innerHTML = `<style>
+      .body-copy { text-indent: 2em !important; margin-left: 36px !important; margin-right: 20px !important; }
+      blockquote .body-copy { text-indent: 3em !important; margin-left: 52px !important; }
+      .verse .body-copy { text-indent: 4em !important; margin-left: 68px !important; }
+    </style>`;
+    chapter.body.innerHTML = `<main>
+      <p id="plain-a" class="body-copy">First ordinary paragraph.</p>
+      <div><p id="plain-b" class="body-copy">Second ordinary paragraph.</p></div>
+      <ul><li><p id="list" class="body-copy">List paragraph.</p></li></ul>
+      <blockquote><p id="quote" class="body-copy">Quoted paragraph.</p></blockquote>
+      <table><tbody><tr><td><p id="cell" class="body-copy">Cell paragraph.</p></td></tr></tbody></table>
+      <figure>
+        <p id="figure" class="body-copy">Figure text.</p>
+        <figcaption><p id="caption" class="body-copy">Caption paragraph.</p></figcaption>
+      </figure>
+      <dl><dd><p id="definition" class="body-copy">Definition paragraph.</p></dd></dl>
+      <div class="verse"><p id="verse" class="body-copy">Verse line.</p></div>
+      <div epub:type="poem"><p id="poem" class="body-copy">Poem line.</p></div>
+      <p id="media" class="body-copy">
+        <img id="image" src="illustration.png" alt="" style="margin-left: 44px; width: 640px">
+      </p>
+    </main>`;
+
+    const contentTheme = createReaderContentTheme(defaultReaderSettings, readerPalette());
+    installThemeRules(chapter, contentTheme.rules);
+    applyReaderContentTheme(null, contentTheme, [chapter]);
+
+    const view = frame.contentWindow!;
+    for (const id of ["plain-a", "plain-b"]) {
+      const style = view.getComputedStyle(chapter.getElementById(id)!);
+      expect(Number.parseFloat(style.textIndent)).toBe(0);
+      expect(Number.parseFloat(style.marginInlineStart)).toBe(0);
+      expect(Number.parseFloat(style.marginInlineEnd)).toBe(0);
+    }
+
+    for (const id of [
+      "list",
+      "quote",
+      "cell",
+      "figure",
+      "caption",
+      "definition",
+      "verse",
+      "poem",
+      "media",
+    ]) {
+      const element = chapter.getElementById(id)!;
+      expect(element.hasAttribute("data-archeion-running-prose")).toBe(false);
+      expect(Number.parseFloat(view.getComputedStyle(element).textIndent)).toBeGreaterThan(0);
+    }
+    expect(chapter.getElementById("image")!.getAttribute("style")).toContain("margin-left: 44px");
+
+    frame.remove();
+  });
+
+  it.each([
+    ["narrow", "58ch"],
+    ["comfortable", "72ch"],
+    ["wide", "90ch"],
+    ["full", "none"],
+  ] as const)(
+    "keeps direct-body running prose centered by the paged %s measure",
+    (readingWidth, measure) => {
+      const frame = document.createElement("iframe");
+      document.body.appendChild(frame);
+      const chapter = frame.contentDocument!;
+      chapter.head.innerHTML = `<style>
+        body > .body-copy {
+          text-indent: 2em !important;
+          margin-inline-start: 44px !important;
+          margin-inline-end: 28px !important;
+        }
+      </style>`;
+      chapter.body.innerHTML = `
+        <p id="direct-a" class="body-copy">First direct-body paragraph.</p>
+        <p id="direct-b" class="body-copy">Second direct-body paragraph.</p>
+      `;
+
+      const contentTheme = createReaderContentTheme(
+        { ...defaultReaderSettings, readingWidth },
+        readerPalette(),
+      );
+      installThemeRules(chapter, contentTheme.rules);
+      applyReaderContentTheme(null, contentTheme, [chapter]);
+      applyReaderReflowableLayout(chapter, { mode: "paged", readingWidth });
+
+      const view = frame.contentWindow!;
+      for (const id of ["direct-a", "direct-b"]) {
+        const paragraph = chapter.getElementById(id)!;
+        const style = view.getComputedStyle(paragraph);
+        expect(paragraph.hasAttribute("data-archeion-running-prose")).toBe(true);
+        expect(Number.parseFloat(style.textIndent)).toBe(0);
+        expect(style.marginInlineStart).toBe("auto");
+        expect(style.marginInlineEnd).toBe("auto");
+        expect(style.maxInlineSize).toBe(measure);
+      }
+
+      frame.remove();
+    },
+  );
+
+  it("keeps prose alignment independent from the semantic reading-width preset", () => {
+    for (const readingWidth of ["narrow", "comfortable", "wide", "full"] as const) {
+      const theme = readerThemeForSettings(
+        { ...defaultReaderSettings, readingWidth },
+        readerPalette(),
+      );
+      const proseRule = theme['p[data-archeion-running-prose=""]'];
+
+      expect(proseRule).toEqual({
+        "margin-inline-end": "0 !important",
+        "margin-inline-start": "0 !important",
+        "text-indent": "0 !important",
+      });
+      expect(theme.body["max-inline-size"]).toBeUndefined();
+      expect(theme.body["padding-inline"]).toBeUndefined();
+    }
   });
 
   it("maps bundled Literata into reader theme output", () => {

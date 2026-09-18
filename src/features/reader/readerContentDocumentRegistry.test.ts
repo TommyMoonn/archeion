@@ -341,11 +341,21 @@ describe("ReaderContentDocumentRegistry", () => {
     );
     const frame = mountedFrame();
     const chapter = frame.contentDocument!;
+    chapter.body.innerHTML = `<main>
+      <p id="ordinary">Ordinary prose</p>
+      <blockquote><p id="quote">Quoted prose</p></blockquote>
+    </main>`;
 
     registry.bind({ document: chapter, window: frame.contentWindow! });
 
     expect(chapter.getElementById("archeion-reader-font-faces")?.textContent).toContain(
       'font-family: "Literata"',
+    );
+    expect(chapter.getElementById("ordinary")?.hasAttribute("data-archeion-running-prose")).toBe(
+      true,
+    );
+    expect(chapter.getElementById("quote")?.hasAttribute("data-archeion-running-prose")).toBe(
+      false,
     );
   });
 });

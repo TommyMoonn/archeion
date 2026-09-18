@@ -55,5 +55,10 @@ body > :not(script):not(style):not(link) {
   max-inline-size: ${measure} !important;
   margin-inline: auto !important;
 }
+
+body > p[data-archeion-running-prose=""] {
+  margin-inline-start: auto !important;
+  margin-inline-end: auto !important;
+}
 `.trim();
 }

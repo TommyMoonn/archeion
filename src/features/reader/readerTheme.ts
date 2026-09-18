@@ -4,6 +4,13 @@ import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
+const READER_RUNNING_PROSE_ATTRIBUTE = "data-archeion-running-prose";
+const READER_RUNNING_PROSE_SELECTOR = `p[${READER_RUNNING_PROSE_ATTRIBUTE}=""]`;
+const READER_STRUCTURAL_PROSE_ANCESTOR_SELECTOR =
+  "aside, nav, header, footer, ol, ul, li, blockquote, table, caption, thead, tbody, tfoot, tr, td, th, figure, figcaption, dl, dt, dd, pre, address, details, summary";
+const READER_MEDIA_SELECTOR = "img, picture, svg, video, audio, canvas, object, embed, iframe";
+const READER_STRUCTURED_PROSE_HINT =
+  /(?:^|[\s_-])(?:poem|poetry|verse|stanza|epigraph|lyrics?)(?:$|[\s_-])/i;
 const READER_RUNNING_TEXT_SELECTOR =
   "article, aside, main, section, nav, header, footer, div, p, ol, ul, li, dl, dt, dd, blockquote, figcaption, address, td, th";
 const READER_INLINE_TEXT_SELECTOR = "span, em, strong, b, i, u, s, mark, q, cite, abbr, time, font";
@@ -60,6 +67,11 @@ export function readerThemeForSettings(
       "font-family": `${fontFamily} !important`,
       "line-height": `${settings.lineHeight} !important`,
     },
+    [READER_RUNNING_PROSE_SELECTOR]: {
+      "margin-inline-end": "0 !important",
+      "margin-inline-start": "0 !important",
+      "text-indent": "0 !important",
+    },
     [READER_INLINE_TEXT_SELECTOR]: {
       color: "inherit !important",
       "font-family": "inherit !important",
@@ -111,8 +123,36 @@ export function applyReaderContentTheme(
   );
 
   for (const document of uniqueDocuments) {
+    classifyReaderRunningProse(document);
     applyReaderFontFaces(document, theme.fontFaceCss);
   }
+}
+
+function classifyReaderRunningProse(document: Document): void {
+  for (const paragraph of document.querySelectorAll("p")) {
+    paragraph.toggleAttribute(READER_RUNNING_PROSE_ATTRIBUTE, isReaderRunningProse(paragraph));
+  }
+}
+
+function isReaderRunningProse(paragraph: Element): boolean {
+  if (paragraph.closest(READER_STRUCTURAL_PROSE_ANCESTOR_SELECTOR)) return false;
+  if (paragraph.querySelector(READER_MEDIA_SELECTOR)) return false;
+
+  for (
+    let element: Element | null = paragraph;
+    element && element !== paragraph.ownerDocument.documentElement;
+    element = element.parentElement
+  ) {
+    const semanticHint = [
+      element.id,
+      element.getAttribute("class") ?? "",
+      element.getAttribute("epub:type") ?? "",
+      element.getAttribute("role") ?? "",
+    ].join(" ");
+    if (READER_STRUCTURED_PROSE_HINT.test(semanticHint)) return false;
+  }
+
+  return true;
 }
 
 function applyReaderFontFaces(document: Document | null, fontFaceCss: string | undefined) {
