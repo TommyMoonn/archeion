@@ -20,7 +20,11 @@ import {
   shouldIgnoreReaderWheelEvent,
   type ReaderNavigationIntent,
 } from "./readerNavigation";
-import { forwardContinuousWheel } from "./readerContinuousScroll";
+import {
+  forwardContinuousWheel,
+  observeReaderStageSize,
+  type ReaderStageSize,
+} from "./readerContinuousScroll";
 import type { ReaderContentTheme } from "./readerTheme";
 import { IconButton } from "../../components/IconButton";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
@@ -158,6 +162,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
   const wheelDeltaRef = useRef(0);
   const illustrationWasOpenRef = useRef(false);
+  const [stageSize, setStageSize] = useState<ReaderStageSize | null>(null);
   const dismissTopmostSurface = useReaderSideSurfaceDismissRequest();
   const clearReaderWheelGesture = useCallback(() => {
     wheelDeltaRef.current = 0;
@@ -215,7 +220,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     initialCfi,
     mode: settings.mode,
     sessionIdentity,
+    stageSize,
   });
+
+  useLayoutEffect(() => {
+    const stage = containerRef.current;
+    return stage ? observeReaderStageSize(stage, setStageSize) : undefined;
+  }, []);
 
   useEffect(() => {
     if (!onNavigationHistoryChange) return undefined;

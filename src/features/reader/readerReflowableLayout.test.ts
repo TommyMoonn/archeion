@@ -41,16 +41,21 @@ describe("reader reflowable layout", () => {
     expect(css).toContain("clamp(16px, 3vw, 32px)");
   });
 
-  it("keeps the previous body-based measure only for continuous mode", () => {
+  it("keeps the continuous viewport full-width and moves the measure to publication flow", () => {
     const chapter = document.implementation.createHTMLDocument("continuous chapter");
 
-    applyReaderReflowableLayout(chapter, { mode: "continuous", readingWidth: "comfortable" });
+    applyReaderReflowableLayout(chapter, {
+      mode: "continuous",
+      readingWidth: "comfortable",
+      stageSize: { height: 720, width: 1080 },
+    });
 
     const style = chapter.getElementById("archeion-reader-reflowable-layout");
     expect(style?.dataset.readerMode).toBe("continuous");
-    expect(style?.textContent).toContain("body {");
     expect(style?.textContent).toContain("max-inline-size: 72ch !important");
     expect(style?.textContent).toContain("padding-inline: clamp(16px, 3vw, 32px) !important");
+    expect(style?.textContent).toContain("--archeion-reader-stage-width: 1080px");
+    expect(style?.textContent).toContain("--archeion-reader-stage-height: 720px");
   });
 
   it("never takes ownership of epub.js paginated body geometry", () => {

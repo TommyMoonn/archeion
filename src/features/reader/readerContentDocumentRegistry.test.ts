@@ -329,6 +329,29 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(style?.textContent).toContain("max-inline-size: 58ch !important");
   });
 
+  it("updates and retains continuous Reader-stage metrics for later mounted documents", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      {
+        mode: "continuous",
+        readingWidth: "comfortable",
+        stageSize: { height: 720, width: 960 },
+      },
+      null,
+    );
+    registry.applyLayoutStageSize({ height: 760, width: 1180 }, null);
+
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+
+    const layout = chapter.getElementById("archeion-reader-reflowable-layout");
+    expect(layout?.dataset.readerMode).toBe("continuous");
+    expect(layout?.dataset.readerWidth).toBe("comfortable");
+    expect(layout?.textContent).toContain("--archeion-reader-stage-width: 1180px");
+    expect(layout?.textContent).toContain("--archeion-reader-stage-height: 760px");
+  });
+
   it("applies the current content theme when a later iframe document mounts", () => {
     const registry = new ReaderContentDocumentRegistry();
     registry.applyTheme(

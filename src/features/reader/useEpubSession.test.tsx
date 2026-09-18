@@ -52,6 +52,7 @@ type MockRendition = Rendition & {
   next: ReturnType<typeof vi.fn>;
   off: ReturnType<typeof vi.fn>;
   prev: ReturnType<typeof vi.fn>;
+  resize: ReturnType<typeof vi.fn>;
   started: Promise<void>;
   themes: {
     register: ReturnType<typeof vi.fn>;
@@ -144,6 +145,7 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
       eventCallbacks.set(event, registrations);
     }),
     prev: vi.fn(async () => undefined),
+    resize: vi.fn(),
     started,
     themes: {
       register: vi.fn(),
@@ -897,8 +899,277 @@ describe("useEpubSession lifecycle", () => {
     expect(layoutStyle?.textContent).toContain("max-inline-size: 90ch !important");
     expect(session.book.renderTo).toHaveBeenCalledWith(
       expect.any(HTMLElement),
-      expect.objectContaining({ flow: "paginated", manager: "default", spread: "none" }),
+      expect.objectContaining({
+        flow: "paginated",
+        height: "100%",
+        manager: "default",
+        spread: "none",
+        width: "100%",
+      }),
     );
+  });
+
+  it("initializes continuous sizing without resizing before the first published location", async () => {
+    const firstDisplay = deferred<void>();
+    const session = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["book-a"]));
+    const sessionIdentity = createSessionIdentity("book-a");
+    let firstViewVisible = false;
+    let hasUsableLocation = false;
+    session.rendition.display.mockImplementationOnce(async () => {
+      firstViewVisible = true;
+      await firstDisplay.promise;
+    });
+    session.rendition.resize.mockImplementation(() => {
+      firstViewVisible = hasUsableLocation;
+    });
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+
+    await act(async () => {
+      await vi.waitFor(() => expect(session.rendition.display).toHaveBeenCalledOnce());
+    });
+    expect(session.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({
+        flow: "scrolled-continuous",
+        height: 720,
+        manager: "continuous",
+        width: 960,
+      }),
+    );
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+    expect(bridge.onReady).not.toHaveBeenCalled();
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 760, width: 1180 },
+      },
+      facadeRef,
+    );
+
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+    expect(epubModuleMock.openBook).toHaveBeenCalledOnce();
+
+    await act(async () => firstDisplay.resolve());
+    await waitForReady(session, bridge);
+
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+    expect(firstViewVisible).toBe(true);
+    expect(bridge.onDisplayed).toHaveBeenCalledOnce();
+    expect(bridge.onReady).toHaveBeenCalledOnce();
+
+    hasUsableLocation = true;
+    act(() => emitStaleEvent(session, "relocated", relocation()));
+
+    expect(session.rendition.resize).toHaveBeenCalledOnce();
+    expect(session.rendition.resize).toHaveBeenCalledWith(1180, 760);
+    expect(firstViewVisible).toBe(true);
+    expect(epubModuleMock.openBook).toHaveBeenCalledOnce();
+  });
+
+  it("keeps continuous view geometry synchronized to the Reader stage without recreating the session", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["book-a"]));
+    const sessionIdentity = createSessionIdentity("book-a");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    expect(session.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ height: 720, width: 960 }),
+    );
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+    expect(session.book.renderTo).toHaveBeenCalledTimes(1);
+
+    act(() => emitStaleEvent(session, "relocated", relocation()));
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+
+    const contentTheme = createReaderContentTheme(
+      defaultReaderSettings,
+      resolveBuiltInReaderTheme("dark").tokens,
+    );
+    facadeRef.current?.applyContentTheme(contentTheme, "comfortable", null);
+    const firstChapter = document.implementation.createHTMLDocument("continuous chapter one");
+    session.rendition.contentCallbacks[0]?.({ document: firstChapter });
+
+    expect(
+      firstChapter.documentElement.style.getPropertyValue("--archeion-reader-stage-width"),
+    ).toBe("");
+    expect(firstChapter.getElementById("archeion-reader-reflowable-layout")?.textContent).toContain(
+      "--archeion-reader-stage-width: 960px",
+    );
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 760, width: 1180 },
+      },
+      facadeRef,
+    );
+
+    expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
+    expect(session.book.renderTo).toHaveBeenCalledTimes(1);
+    expect(session.rendition.resize).toHaveBeenCalledTimes(1);
+    expect(session.rendition.resize).toHaveBeenLastCalledWith(1180, 760);
+    expect(firstChapter.getElementById("archeion-reader-reflowable-layout")?.textContent).toContain(
+      "--archeion-reader-stage-width: 1180px",
+    );
+
+    const lateChapter = document.implementation.createHTMLDocument("continuous chapter two");
+    session.rendition.contentCallbacks[0]?.({ document: lateChapter });
+    const lateLayout = lateChapter.getElementById("archeion-reader-reflowable-layout");
+    expect(lateLayout?.dataset.readerMode).toBe("continuous");
+    expect(lateLayout?.dataset.readerWidth).toBe("comfortable");
+    expect(lateLayout?.textContent).toContain("max-inline-size: 72ch !important");
+    expect(lateLayout?.textContent).toContain("--archeion-reader-stage-width: 1180px");
+  });
+
+  it("does not apply continuous stage sizing to fixed-layout publications", async () => {
+    const session = createBookSession();
+    session.book.packaging.metadata.layout = "pre-paginated";
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["fixed-layout-book"])),
+        mode: "continuous",
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    expect(session.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ flow: "paginated", manager: "default" }),
+    );
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+  });
+
+  it("does not carry continuous stage sizing across repeated mode replacements", async () => {
+    const continuousA = createBookSession();
+    const paged = createBookSession();
+    const continuousB = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["book-a"]));
+    const sessionIdentity = createSessionIdentity("book-a");
+    epubModuleMock.openBook
+      .mockReturnValueOnce(continuousA.book)
+      .mockReturnValueOnce(paged.book)
+      .mockReturnValueOnce(continuousB.book);
+
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+    await waitForReady(continuousA, bridge);
+
+    expect(continuousA.rendition.resize).not.toHaveBeenCalled();
+    act(() => emitStaleEvent(continuousA, "relocated", relocation("epubcfi(/continuous-a)")));
+    expect(continuousA.rendition.resize).not.toHaveBeenCalled();
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity,
+        stageSize: { height: 740, width: 1100 },
+      },
+      facadeRef,
+    );
+    await waitForReady(paged, bridge);
+
+    expect(continuousA.rendition.resize).not.toHaveBeenCalled();
+    expect(paged.rendition.resize).not.toHaveBeenCalled();
+    expect(paged.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ flow: "paginated", manager: "default" }),
+    );
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 760, width: 1180 },
+      },
+      facadeRef,
+    );
+    await waitForReady(continuousB, bridge);
+
+    expect(continuousA.rendition.resize).not.toHaveBeenCalled();
+    expect(paged.rendition.resize).not.toHaveBeenCalled();
+    expect(continuousB.rendition.resize).not.toHaveBeenCalled();
+
+    act(() => emitStaleEvent(continuousB, "relocated", relocation("epubcfi(/continuous-b)")));
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 800, width: 1240 },
+      },
+      facadeRef,
+    );
+
+    expect(continuousA.rendition.resize).not.toHaveBeenCalled();
+    expect(paged.rendition.resize).not.toHaveBeenCalled();
+    expect(continuousB.rendition.resize).toHaveBeenCalledOnce();
+    expect(continuousB.rendition.resize).toHaveBeenLastCalledWith(1240, 800);
   });
 
   it("applies Reader appearance only to the active replacement rendition", async () => {

@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
-import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
+import {
+  forwardContinuousWheel,
+  observeReaderStageSize,
+  stabilizeContinuousRendition,
+  syncContinuousRenditionStageSize,
+} from "./readerContinuousScroll";
 import { readerTypefaceOptions } from "./readerFonts";
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
@@ -79,8 +84,9 @@ describe("continuous reader scrolling", () => {
     const display = vi.fn(async () => undefined);
     const show = vi.fn();
     const originalCounter = vi.fn();
+    const originalCheck = vi.fn(async () => manager.counter({ heightDelta: 400 }));
     const manager = {
-      check: vi.fn(async () => manager.counter({ heightDelta: 400 })),
+      check: originalCheck,
       counter: originalCounter,
       request: vi.fn(),
       update: originalUpdate,
@@ -98,7 +104,68 @@ describe("continuous reader scrolling", () => {
     expect(originalUpdate).not.toHaveBeenCalled();
     expect(display).toHaveBeenCalledWith(manager.request);
     expect(show).toHaveBeenCalledTimes(1);
-    expect(originalCounter).toHaveBeenCalledTimes(1);
+    expect(manager.check).not.toBe(originalCheck);
+    expect(manager.counter).not.toBe(originalCounter);
+    expect(originalCounter).toHaveBeenCalledOnce();
+    expect(originalCounter).toHaveBeenCalledWith({ heightDelta: 400 });
+  });
+
+  it("synchronizes the rendition through epub.js resize instead of patching view DOM", () => {
+    const resize = vi.fn();
+    const rendition = { resize } as unknown as Parameters<
+      typeof syncContinuousRenditionStageSize
+    >[0];
+
+    syncContinuousRenditionStageSize(rendition, { height: 720, width: 1080 });
+
+    expect(resize).toHaveBeenCalledOnce();
+    expect(resize).toHaveBeenCalledWith(1080, 720);
+  });
+
+  it("observes one deduplicated, non-zero Reader-stage size", () => {
+    const stage = document.createElement("div");
+    let rect = new DOMRect(0, 0, 960, 720);
+    stage.getBoundingClientRect = vi.fn(() => rect);
+    const observed: Array<{ height: number; width: number }> = [];
+    const observerCallbacks: ResizeObserverCallback[] = [];
+    const disconnect = vi.fn();
+    const observe = vi.fn();
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+
+    class ResizeObserverMock {
+      constructor(callback: ResizeObserverCallback) {
+        observerCallbacks.push(callback);
+      }
+      disconnect = disconnect;
+      observe = observe;
+      unobserve = vi.fn();
+    }
+
+    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+    try {
+      const stop = observeReaderStageSize(stage, (size) => observed.push(size));
+      expect(observed).toEqual([{ height: 720, width: 960 }]);
+      expect(observe).toHaveBeenCalledWith(stage);
+
+      observerCallbacks[0]?.([], {} as ResizeObserver);
+      expect(observed).toHaveLength(1);
+
+      rect = new DOMRect(0, 0, 1180, 760);
+      observerCallbacks[0]?.([], {} as ResizeObserver);
+      expect(observed).toEqual([
+        { height: 720, width: 960 },
+        { height: 760, width: 1180 },
+      ]);
+
+      rect = new DOMRect(0, 0, 0, 0);
+      observerCallbacks[0]?.([], {} as ResizeObserver);
+      expect(observed).toHaveLength(2);
+
+      stop();
+      expect(disconnect).toHaveBeenCalledOnce();
+    } finally {
+      globalThis.ResizeObserver = OriginalResizeObserver;
+    }
   });
 });
 
@@ -321,6 +388,80 @@ describe("readerThemeForSettings", () => {
         expect(style.marginInlineEnd).toBe("auto");
         expect(style.maxInlineSize).toBe(measure);
       }
+
+      frame.remove();
+    },
+  );
+
+  it.each([
+    ["narrow", "58ch"],
+    ["comfortable", "72ch"],
+    ["wide", "90ch"],
+    ["full", "none"],
+  ] as const)(
+    "keeps continuous %s measure centered while neutralizing hostile root/body geometry",
+    (readingWidth, measure) => {
+      const frame = document.createElement("iframe");
+      document.body.appendChild(frame);
+      const chapter = frame.contentDocument!;
+      chapter.head.innerHTML = `<style>
+        html {
+          width: 420px !important;
+          max-width: 420px !important;
+          margin-inline: 96px !important;
+          padding-inline: 80px !important;
+        }
+        body {
+          width: 360px !important;
+          max-width: 360px !important;
+          margin-inline: 72px !important;
+          padding-inline: 64px !important;
+        }
+        body > main {
+          width: 280px !important;
+          margin-inline-start: 120px !important;
+          margin-inline-end: 44px !important;
+        }
+      </style>`;
+      chapter.body.innerHTML = `<main id="chapter-flow">
+        <p id="continuous-copy">Reader content</p>
+        <figure><img id="wide-media" style="width: 1200px !important; max-width: none !important" /></figure>
+      </main>`;
+
+      const contentTheme = createReaderContentTheme(
+        { ...defaultReaderSettings, readingWidth },
+        readerPalette(),
+      );
+      installThemeRules(chapter, contentTheme.rules);
+      applyReaderContentTheme(null, contentTheme, [chapter]);
+      applyReaderReflowableLayout(chapter, {
+        mode: "continuous",
+        readingWidth,
+        stageSize: { height: 760, width: 1180 },
+      });
+
+      const view = frame.contentWindow!;
+      const rootStyle = view.getComputedStyle(chapter.documentElement);
+      const bodyStyle = view.getComputedStyle(chapter.body);
+      const flowStyle = view.getComputedStyle(chapter.getElementById("chapter-flow")!);
+
+      expect(rootStyle.inlineSize).toBe("100%");
+      expect(rootStyle.maxInlineSize).toBe("none");
+      expect(Number.parseFloat(rootStyle.marginLeft)).toBe(0);
+      expect(Number.parseFloat(rootStyle.marginRight)).toBe(0);
+      expect(bodyStyle.inlineSize).toBe("100%");
+      expect(bodyStyle.maxInlineSize).toBe("none");
+      expect(Number.parseFloat(bodyStyle.marginLeft)).toBe(0);
+      expect(Number.parseFloat(bodyStyle.marginRight)).toBe(0);
+      expect(flowStyle.inlineSize).toBe("100%");
+      expect(flowStyle.maxInlineSize).toBe(measure);
+      expect(flowStyle.marginInlineStart).toBe("auto");
+      expect(flowStyle.marginInlineEnd).toBe("auto");
+      expect(rootStyle.getPropertyValue("--archeion-reader-stage-width").trim()).toBe("1180px");
+      expect(rootStyle.getPropertyValue("--archeion-reader-stage-height").trim()).toBe("760px");
+      expect(chapter.getElementById("wide-media")?.getAttribute("style")).toContain(
+        "width: 1200px",
+      );
 
       frame.remove();
     },

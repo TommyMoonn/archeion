@@ -1,4 +1,5 @@
 import type { ReaderMode, ReaderReadingWidth } from "../../types/reader";
+import type { ReaderStageSize } from "./readerContinuousScroll";
 
 const READER_REFLOWABLE_LAYOUT_STYLE_ID = "archeion-reader-reflowable-layout";
 const READER_CONTENT_BLOCK_INSET_PX = 64;
@@ -12,6 +13,7 @@ const READER_READING_MEASURES: Record<Exclude<ReaderReadingWidth, "full">, strin
 export type ReaderReflowableLayout = Readonly<{
   mode: ReaderMode;
   readingWidth: ReaderReadingWidth;
+  stageSize?: ReaderStageSize | null;
 }>;
 
 export function applyReaderReflowableLayout(
@@ -35,15 +37,48 @@ function readerReflowableLayoutCss(layout: ReaderReflowableLayout): string {
     layout.readingWidth === "full" ? "none" : READER_READING_MEASURES[layout.readingWidth];
 
   if (layout.mode === "continuous") {
+    const stageMetrics = layout.stageSize
+      ? `
+  --archeion-reader-stage-width: ${layout.stageSize.width}px;
+  --archeion-reader-stage-height: ${layout.stageSize.height}px;`
+      : "";
+
     return `
-body {
+:root {${stageMetrics}
   box-sizing: border-box;
-  inline-size: auto !important;
-  max-inline-size: ${measure} !important;
-  margin-inline: auto !important;
+  inline-size: 100% !important;
+  max-inline-size: none !important;
   min-inline-size: 0 !important;
+  margin: 0 !important;
+  margin-block: 0 !important;
+  margin-inline: 0 !important;
+  padding: 0 !important;
+}
+
+html:root > body {
+  box-sizing: border-box;
+  inline-size: 100% !important;
+  max-inline-size: none !important;
+  min-inline-size: 0 !important;
+  margin: 0 !important;
+  margin-block: 0 !important;
+  margin-inline: 0 !important;
   padding-block: ${READER_CONTENT_BLOCK_INSET_PX}px !important;
   padding-inline: ${READER_CONTENT_INLINE_GUTTER} !important;
+}
+
+body > :not(script):not(style):not(link) {
+  box-sizing: border-box;
+  inline-size: 100% !important;
+  max-inline-size: ${measure} !important;
+  margin-inline: auto !important;
+  margin-inline-start: auto !important;
+  margin-inline-end: auto !important;
+}
+
+body > p[data-archeion-running-prose=""] {
+  margin-inline-start: auto !important;
+  margin-inline-end: auto !important;
 }
 `.trim();
   }

@@ -3,6 +3,7 @@ import type { Rendition } from "epubjs";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
 import { applyReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
+import type { ReaderStageSize } from "./readerContinuousScroll";
 import { applyReaderReflowableLayout, type ReaderReflowableLayout } from "./readerReflowableLayout";
 
 export type EpubContent = {
@@ -202,6 +203,11 @@ export class ReaderContentDocumentRegistry {
     for (const document of documents) applyReaderReflowableLayout(document, layout);
   }
 
+  applyLayoutStageSize(stageSize: ReaderStageSize, container: HTMLElement | null): void {
+    if (this.layout?.mode !== "continuous") return;
+    this.applyLayout({ ...this.layout, stageSize }, container);
+  }
+
   remove(document: Document): boolean {
     const registered = this.documents.get(document);
     if (!registered) return false;
@@ -295,6 +301,10 @@ export class ReaderContentDocumentSessionOwner {
 
   applyLayout(layout: ReaderReflowableLayout, container: HTMLElement | null): void {
     this.activeRegistry?.applyLayout(layout, container);
+  }
+
+  applyLayoutStageSize(stageSize: ReaderStageSize, container: HTMLElement | null): void {
+    this.activeRegistry?.applyLayoutStageSize(stageSize, container);
   }
 
   bindMounted(container: HTMLElement | null): void {
