@@ -11,12 +11,15 @@ import {
 } from "./epubContentActions";
 import type { ResolvedEpubFootnote } from "./epubFootnoteResolver";
 import {
+  illustrationAccessibilityForElement,
   illustrationElementFromTarget,
+  type EpubIllustrationAccessibility,
   type ResolvedEpubIllustration,
 } from "./epubIllustrationResolver";
 import {
   hasPublisherIllustrationInteractionOwner,
   READER_ILLUSTRATION_TRIGGER_ATTRIBUTE,
+  READER_ILLUSTRATION_TRIGGER_LABEL,
 } from "./readerIllustrationTrigger";
 import {
   contentActionAnchorForElement,
@@ -107,6 +110,7 @@ export function useEpubContentActionController({
   const footnoteRef = useRef<ReaderFootnoteState | null>(null);
   const externalRef = useRef<ReaderExternalLinkState | null>(null);
   const illustrationRef = useRef<ReaderIllustrationState | null>(null);
+  const readerGeneratedIllustrationTriggerLabelsRef = useRef(new WeakSet<Element>());
   const [footnote, setFootnoteState] = useState<ReaderFootnoteState | null>(null);
   const [external, setExternalState] = useState<ReaderExternalLinkState | null>(null);
   const [illustration, setIllustrationState] = useState<ReaderIllustrationState | null>(null);
@@ -326,6 +330,7 @@ export function useEpubContentActionController({
     (
       action: Extract<EpubContentAction, { kind: "illustration" }>,
       anchor: ReaderContentActionAnchor,
+      accessibility?: EpubIllustrationAccessibility,
     ) => {
       const session = getContentSession();
       if (!session) return;
@@ -354,7 +359,10 @@ export function useEpubContentActionController({
           });
           return;
         }
-        setIllustration({ anchor, loading: false, resource: resolution.value });
+        const resource = accessibility
+          ? Object.freeze({ ...resolution.value, accessibility })
+          : resolution.value;
+        setIllustration({ anchor, loading: false, resource });
       });
     },
     [
@@ -372,6 +380,7 @@ export function useEpubContentActionController({
       action: Exclude<EpubContentAction, { kind: "unsupported" }>,
       anchor: ReaderContentActionAnchor,
       currentDocument: Readonly<{ document: Document; href: string }> | null,
+      illustrationAccessibility?: EpubIllustrationAccessibility,
     ) => {
       switch (action.kind) {
         case "external":
@@ -390,7 +399,7 @@ export function useEpubContentActionController({
           }
           return;
         case "illustration":
-          openIllustration(action, anchor);
+          openIllustration(action, anchor, illustrationAccessibility);
       }
     },
     [
@@ -411,11 +420,20 @@ export function useEpubContentActionController({
       const target = session.illustrationTargetForElement(element, currentDocumentHref);
       const focusTarget = illustrationFocusTarget(element);
       const anchor = focusTarget ? contentActionAnchorForElement(focusTarget) : null;
-      if (!target || !anchor) return false;
-      routeAction({ kind: "illustration", target }, anchor, {
-        document: context.document,
-        href: currentDocumentHref,
-      });
+      if (!target || !focusTarget || !anchor) return false;
+      routeAction(
+        { kind: "illustration", target },
+        anchor,
+        {
+          document: context.document,
+          href: currentDocumentHref,
+        },
+        illustrationAccessibilityForElement(element, {
+          readerGeneratedTriggerLabel:
+            readerGeneratedIllustrationTriggerLabelsRef.current.has(focusTarget) &&
+            focusTarget.getAttribute("aria-label") === READER_ILLUSTRATION_TRIGGER_LABEL,
+        }),
+      );
       return true;
     },
     [getContentSession, routeAction],
@@ -470,10 +488,17 @@ export function useEpubContentActionController({
         return true;
       }
 
-      routeAction(action, anchor, {
-        document: context.document,
-        href: currentDocumentHref,
-      });
+      const sourceIllustration =
+        action.kind === "illustration" ? illustrationElementFromTarget(target) : null;
+      routeAction(
+        action,
+        anchor,
+        {
+          document: context.document,
+          href: currentDocumentHref,
+        },
+        sourceIllustration ? illustrationAccessibilityForElement(sourceIllustration) : undefined,
+      );
       return true;
     },
     [activateIllustrationElement, dismissFootnote, routeAction, setExternal, setIllustration],
@@ -537,7 +562,8 @@ export function useEpubContentActionController({
           focusTarget.setAttribute("role", "button");
         }
         if (!focusTarget.hasAttribute("aria-label")) {
-          focusTarget.setAttribute("aria-label", "Open illustration");
+          focusTarget.setAttribute("aria-label", READER_ILLUSTRATION_TRIGGER_LABEL);
+          readerGeneratedIllustrationTriggerLabelsRef.current.add(focusTarget);
         }
       }
     },

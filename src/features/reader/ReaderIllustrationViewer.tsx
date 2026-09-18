@@ -139,7 +139,7 @@ function ReaderIllustrationViewerInstance({
             ) : null}
             {resource ? (
               <img
-                alt="EPUB illustration"
+                alt={resource.accessibility?.alternativeText}
                 draggable={false}
                 src={resource.url}
                 style={interaction.imageStyle}

@@ -446,6 +446,38 @@ describe("useEpubContentActionController", () => {
     expect(harness.latest().illustration?.resource?.url).toBe("blob:plate");
   });
 
+  it("carries source image accessibility metadata into the resolved illustration", async () => {
+    resolveEpubIllustration.mockResolvedValue({
+      kind: "resolved",
+      value: {
+        blob: new Blob([new Uint8Array(1024)], { type: "image/jpeg" }),
+        byteLength: 1024,
+        height: 1200,
+        href: "Images/plate.jpg",
+        mediaType: "image/jpeg",
+        release: vi.fn(),
+        url: "blob:plate",
+        width: 1600,
+      },
+    } satisfies EpubIllustrationResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter } = linkedDocument("chapter-2.xhtml");
+    const image = chapter.createElement("img");
+    image.setAttribute("src", "../Images/plate.jpg");
+    image.setAttribute("alt", "Publisher plate description");
+    chapter.body.append(image);
+    const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
+
+    act(() => harness.latest().prepareDocument(context));
+    act(() => expect(harness.latest().handleContentClick(clickFrom(image), context)).toBe(true));
+    await act(async () => Promise.resolve());
+
+    expect(harness.latest().illustration?.resource?.accessibility).toEqual({
+      alternativeText: "Publisher plate description",
+    });
+  });
+
   it("activates an SVG image reference from its prepared keyboard focus host", async () => {
     resolveEpubIllustration.mockResolvedValue({
       kind: "resolved",
@@ -464,9 +496,13 @@ describe("useEpubContentActionController", () => {
     const harness = renderController(activeSession);
     const { document: chapter } = linkedDocument("chapter-2.xhtml");
     const svg = chapter.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const title = chapter.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.id = "plate-title";
+    title.textContent = "Publisher SVG plate description";
     const image = chapter.createElementNS("http://www.w3.org/2000/svg", "image");
     image.setAttribute("href", "../Images/plate.png");
-    svg.append(image);
+    svg.setAttribute("aria-labelledby", "plate-title");
+    svg.append(title, image);
     chapter.body.append(svg);
     const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
 
@@ -486,6 +522,110 @@ describe("useEpubContentActionController", () => {
       expect.any(AbortSignal),
     );
     expect(harness.latest().illustration?.resource?.url).toBe("blob:svg-plate");
+    expect(harness.latest().illustration?.resource?.accessibility).toEqual({
+      alternativeText: "Publisher SVG plate description",
+    });
+  });
+
+  it("preserves a publisher SVG aria-label that matches the Reader trigger label", async () => {
+    resolveEpubIllustration.mockResolvedValue({
+      kind: "resolved",
+      value: {
+        blob: new Blob([new Uint8Array(256)], { type: "image/png" }),
+        byteLength: 256,
+        height: 480,
+        href: "Images/plate.png",
+        mediaType: "image/png",
+        release: vi.fn(),
+        url: "blob:publisher-svg-label",
+        width: 640,
+      },
+    } satisfies EpubIllustrationResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter } = linkedDocument("chapter-2.xhtml");
+    const svg = chapter.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const image = chapter.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", "../Images/plate.png");
+    svg.setAttribute("aria-label", "Open illustration");
+    svg.append(image);
+    chapter.body.append(svg);
+    const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
+
+    act(() => harness.latest().prepareDocument(context));
+    act(() => expect(harness.latest().handleContentClick(clickFrom(svg), context)).toBe(true));
+    await act(async () => Promise.resolve());
+
+    expect(harness.latest().illustration?.resource?.accessibility).toEqual({
+      alternativeText: "Open illustration",
+    });
+  });
+
+  it("preserves a publisher SVG aria-label when publication markup contains the marker-shaped attribute", async () => {
+    resolveEpubIllustration.mockResolvedValue({
+      kind: "resolved",
+      value: {
+        blob: new Blob([new Uint8Array(256)], { type: "image/png" }),
+        byteLength: 256,
+        height: 480,
+        href: "Images/plate.png",
+        mediaType: "image/png",
+        release: vi.fn(),
+        url: "blob:publisher-svg-marker-collision",
+        width: 640,
+      },
+    } satisfies EpubIllustrationResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter } = linkedDocument("chapter-2.xhtml");
+    const svg = chapter.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const image = chapter.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", "../Images/plate.png");
+    svg.setAttribute("aria-label", "Publisher authored description");
+    svg.setAttribute("data-reader-illustration-trigger-label", "");
+    svg.append(image);
+    chapter.body.append(svg);
+    const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
+
+    act(() => harness.latest().prepareDocument(context));
+    act(() => expect(harness.latest().handleContentClick(clickFrom(svg), context)).toBe(true));
+    await act(async () => Promise.resolve());
+
+    expect(harness.latest().illustration?.resource?.accessibility).toEqual({
+      alternativeText: "Publisher authored description",
+    });
+  });
+
+  it("does not expose a Reader-injected SVG trigger label as illustration metadata", async () => {
+    resolveEpubIllustration.mockResolvedValue({
+      kind: "resolved",
+      value: {
+        blob: new Blob([new Uint8Array(256)], { type: "image/png" }),
+        byteLength: 256,
+        height: 480,
+        href: "Images/plate.png",
+        mediaType: "image/png",
+        release: vi.fn(),
+        url: "blob:reader-svg-label",
+        width: 640,
+      },
+    } satisfies EpubIllustrationResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter } = linkedDocument("chapter-2.xhtml");
+    const svg = chapter.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const image = chapter.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", "../Images/plate.png");
+    svg.append(image);
+    chapter.body.append(svg);
+    const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
+
+    act(() => harness.latest().prepareDocument(context));
+    expect(svg.getAttribute("aria-label")).toBe("Open illustration");
+    act(() => expect(harness.latest().handleContentClick(clickFrom(svg), context)).toBe(true));
+    await act(async () => Promise.resolve());
+
+    expect(harness.latest().illustration?.resource?.accessibility).toBeUndefined();
   });
 
   it("marks standalone triggers without replacing publisher accessibility values", () => {

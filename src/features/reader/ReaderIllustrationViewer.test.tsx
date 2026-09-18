@@ -147,6 +147,30 @@ describe("ReaderIllustrationViewer", () => {
     expect(container.querySelector("output")?.textContent).toBe("Fit · 47%");
   });
 
+  it("keeps source accessibility descriptions separate from viewer instructions", () => {
+    renderViewer({
+      resource: Object.freeze({
+        ...resource,
+        accessibility: { alternativeText: "Meaningful description" },
+      }),
+    });
+
+    const image = container.querySelector("img")!;
+    expect(image.getAttribute("alt")).toBe("Meaningful description");
+    expect(viewport().getAttribute("aria-label")).not.toBe("Meaningful description");
+
+    renderViewer({
+      resource: Object.freeze({
+        ...resource,
+        accessibility: { alternativeText: "" },
+      }),
+    });
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe("");
+
+    renderViewer({ resource });
+    expect(container.querySelector("img")?.hasAttribute("alt")).toBe(false);
+  });
+
   it("shows Save image only for a resolved resource and delegates operation state", () => {
     const onSaveImage = vi.fn();
     renderViewer({ onSaveImage });

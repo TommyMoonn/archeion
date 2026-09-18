@@ -24,7 +24,12 @@ type IllustrationBookAdapter = EpubBook & {
 
 export type EpubIllustrationDimensions = Readonly<{ height: number; width: number }>;
 
+export type EpubIllustrationAccessibility = Readonly<{
+  alternativeText: string;
+}>;
+
 export type ResolvedEpubIllustration = Readonly<{
+  accessibility?: EpubIllustrationAccessibility;
   blob: Blob;
   byteLength: number;
   height: number;
@@ -134,6 +139,25 @@ export async function resolveEpubIllustration(
   }
 }
 
+export function illustrationAccessibilityForElement(
+  element: Element,
+  options: Readonly<{ readerGeneratedTriggerLabel?: boolean }> = {},
+): EpubIllustrationAccessibility | undefined {
+  const name = element.localName.toLowerCase();
+  if (name === "img") {
+    if (!element.hasAttribute("alt")) return undefined;
+    return Object.freeze({ alternativeText: element.getAttribute("alt") ?? "" });
+  }
+  if (name !== "image") return undefined;
+
+  const svg = element.closest("svg");
+  if (!svg) return undefined;
+  const accessibleName = svgAccessibleName(svg, options.readerGeneratedTriggerLabel === true);
+  return accessibleName === undefined
+    ? undefined
+    : Object.freeze({ alternativeText: accessibleName });
+}
+
 export function illustrationTargetForElement(
   book: EpubBook,
   element: Element,
@@ -161,6 +185,32 @@ export function illustrationElementFromTarget(target: Element | null): Element |
   const illustration = target?.closest("img, image") ?? null;
   if (illustration) return illustration;
   return target?.localName.toLowerCase() === "svg" ? target.querySelector("image") : null;
+}
+
+function svgAccessibleName(svg: Element, readerGeneratedTriggerLabel: boolean): string | undefined {
+  const labelledBy = svg.getAttribute("aria-labelledby")?.trim();
+  if (labelledBy) {
+    const parts = labelledBy
+      .split(/\s+/)
+      .map((id) => svg.ownerDocument.getElementById(id))
+      .filter((candidate): candidate is HTMLElement => candidate !== null)
+      .map((candidate) => normalizedAccessibleText(candidate.textContent))
+      .filter((text): text is string => text !== undefined);
+    if (parts.length > 0) return parts.join(" ");
+  }
+
+  if (!readerGeneratedTriggerLabel) {
+    const ariaLabel = normalizedAccessibleText(svg.getAttribute("aria-label"));
+    if (ariaLabel) return ariaLabel;
+  }
+
+  const title = Array.from(svg.children).find((child) => child.localName.toLowerCase() === "title");
+  return normalizedAccessibleText(title?.textContent ?? null);
+}
+
+function normalizedAccessibleText(value: string | null): string | undefined {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  return normalized || undefined;
 }
 
 function illustrationSource(element: Element): string | null {

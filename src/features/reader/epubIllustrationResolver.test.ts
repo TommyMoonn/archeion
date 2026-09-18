@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   EPUB_ILLUSTRATION_MAX_BYTES,
   EPUB_ILLUSTRATION_MAX_DIMENSION,
+  illustrationAccessibilityForElement,
   illustrationTargetForElement,
   resolveEpubIllustration,
   type EpubIllustrationResolverDependencies,
@@ -80,6 +81,70 @@ describe("epubIllustrationResolver", () => {
     resolution.value.release();
     resolution.value.release();
     expect(owner.revokeObjectUrl).toHaveBeenCalledOnce();
+  });
+
+  it("preserves HTML image alt semantics without inventing missing descriptions", () => {
+    const described = document.createElement("img");
+    described.setAttribute("alt", "Meaningful description");
+    const decorative = document.createElement("img");
+    decorative.setAttribute("alt", "");
+    const missing = document.createElement("img");
+
+    expect(illustrationAccessibilityForElement(described)).toEqual({
+      alternativeText: "Meaningful description",
+    });
+    expect(illustrationAccessibilityForElement(decorative)).toEqual({ alternativeText: "" });
+    expect(illustrationAccessibilityForElement(missing)).toBeUndefined();
+  });
+
+  it("preserves supported SVG accessible naming metadata for SVG image references", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.id = "plate-title";
+    title.textContent = "Publisher diagram title";
+    const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", "../Images/plate.png");
+    svg.setAttribute("aria-labelledby", "plate-title");
+    svg.append(title, image);
+
+    expect(illustrationAccessibilityForElement(image)).toEqual({
+      alternativeText: "Publisher diagram title",
+    });
+
+    svg.removeAttribute("aria-labelledby");
+    svg.setAttribute("aria-label", "Publisher map label");
+    expect(illustrationAccessibilityForElement(image)).toEqual({
+      alternativeText: "Publisher map label",
+    });
+
+    svg.setAttribute("data-reader-illustration-trigger", "");
+    svg.setAttribute("aria-label", "Open illustration");
+    expect(
+      illustrationAccessibilityForElement(image, { readerGeneratedTriggerLabel: true }),
+    ).toEqual({
+      alternativeText: "Publisher diagram title",
+    });
+  });
+
+  it("prefers SVG aria-labelledby over a lower-precedence aria-label", () => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const description = document.createElementNS("http://www.w3.org/2000/svg", "desc");
+    description.id = "publisher-title";
+    description.textContent = "Labelled-by description";
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = "Direct title fallback";
+    const image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+    image.setAttribute("href", "../Images/plate.png");
+    svg.setAttribute("aria-labelledby", "publisher-title");
+    svg.setAttribute("aria-label", "Lower-precedence label");
+    svg.append(description, title, image);
+    document.body.append(svg);
+
+    expect(illustrationAccessibilityForElement(image)).toEqual({
+      alternativeText: "Labelled-by description",
+    });
+
+    svg.remove();
   });
 
   it("derives img and SVG image references relative to the active content document", () => {
