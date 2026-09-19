@@ -1,5 +1,5 @@
 import type { ReaderMode } from "../../types/reader";
-import type { ReaderStageSize } from "./readerContinuousScroll";
+import type { ReaderStageSize } from "./readerStageGeometry";
 
 const READER_REFLOWABLE_MEDIA_STYLE_ID = "archeion-reader-reflowable-media";
 const READER_MEDIA_FIT_ATTRIBUTE = "data-archeion-media-fit";

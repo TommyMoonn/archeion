@@ -522,6 +522,51 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("tracks the rendered Reader toolbar height as the host safe-area clearance", async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const resizeCallbacks: ResizeObserverCallback[] = [];
+    let toolbarHeight = 68;
+
+    class ResizeObserverMock {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+      disconnect = vi.fn();
+      observe = vi.fn();
+      unobserve = vi.fn();
+    }
+
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains("reader-toolbar")) {
+        return new DOMRect(0, 0, 1200, toolbarHeight);
+      }
+      return new DOMRect();
+    });
+    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
+    try {
+      const rendered = await renderReader();
+      const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+      const toolbar = rendered.container.querySelector<HTMLElement>(".reader-toolbar")!;
+
+      expect(reader.style.getPropertyValue("--reader-toolbar-height")).toBe("68px");
+      expect(reader.getAttribute("data-toolbar-expanded")).toBe("true");
+
+      toolbarHeight = 74;
+      act(() => resizeCallbacks[0]?.([], {} as ResizeObserver));
+      expect(reader.style.getPropertyValue("--reader-toolbar-height")).toBe("74px");
+
+      toolbarHeight = 52;
+      act(() => resizeCallbacks[0]?.([], {} as ResizeObserver));
+      expect(reader.style.getPropertyValue("--reader-toolbar-height")).toBe("52px");
+      expect(toolbar).toBeInstanceOf(HTMLElement);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
   it.each(["paged", "continuous"] as const)(
     "opens Contents without changing %s Reader geometry or position",
     async (mode) => {

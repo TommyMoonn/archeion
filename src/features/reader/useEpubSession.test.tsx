@@ -47,7 +47,11 @@ type Deferred<T> = {
 
 type MockRendition = Rendition & {
   contentCallbacks: Array<(content: EpubContent) => void>;
+  currentLocation: ReturnType<typeof vi.fn>;
   display: ReturnType<typeof vi.fn>;
+  epubcfi: {
+    compare: ReturnType<typeof vi.fn>;
+  };
   eventCallbacks: Map<string, Array<(...args: unknown[]) => void>>;
   next: ReturnType<typeof vi.fn>;
   off: ReturnType<typeof vi.fn>;
@@ -123,7 +127,11 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
   const contentCallbacks: Array<(content: EpubContent) => void> = [];
   const rendition = {
     contentCallbacks,
+    currentLocation: vi.fn(() => undefined),
     display: vi.fn(async () => undefined),
+    epubcfi: {
+      compare: vi.fn((left: string, right: string) => left.localeCompare(right)),
+    },
     eventCallbacks,
     hooks: {
       content: {
@@ -291,12 +299,12 @@ function emitStaleEvent(session: MockBookSession, event: string, ...args: unknow
   }
 }
 
-function relocation(cfi = "epubcfi(/6/2!/4/2:4)"): Location {
+function relocation(cfi = "epubcfi(/6/2!/4/2:4)", endCfi = "epubcfi(/6/2!/4/2:8)"): Location {
   return {
     atEnd: false,
     atStart: false,
     end: {
-      cfi: "epubcfi(/6/2!/4/2:8)",
+      cfi: endCfi,
       displayed: { page: 1, total: 2 },
       href: "Text/chapter.xhtml",
       index: 0,
@@ -909,6 +917,184 @@ describe("useEpubSession lifecycle", () => {
     );
   });
 
+  it("resizes the active paged rendition when Reader stage height changes without recreating the session", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["book-a"]));
+    const sessionIdentity = createSessionIdentity("book-a");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity,
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    expect(session.book.renderTo).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ height: 720, width: 960 }),
+    );
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+    const initialDisplayCount = session.rendition.display.mock.calls.length;
+    const logicalCfi = "epubcfi(/6/2!/4/2:4)";
+
+    act(() => emitStaleEvent(session, "relocated", relocation(logicalCfi)));
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(logicalCfi);
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity,
+        stageSize: { height: 668, width: 960 },
+      },
+      facadeRef,
+    );
+
+    expect(epubModuleMock.openBook).toHaveBeenCalledOnce();
+    expect(session.book.renderTo).toHaveBeenCalledOnce();
+    expect(session.rendition.resize).toHaveBeenCalledOnce();
+    expect(session.rendition.resize).toHaveBeenLastCalledWith(960, 668, logicalCfi);
+    expect(session.rendition.display).toHaveBeenCalledTimes(initialDisplayCount);
+
+    const historyBeforeRelayout = facadeRef.current!.getNavigationHistorySnapshot();
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/4:4)"));
+    expect(session.rendition.display).toHaveBeenLastCalledWith(logicalCfi);
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual(historyBeforeRelayout);
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(logicalCfi);
+    expect(bridge.onLocationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cfi: logicalCfi }),
+    );
+    act(() => emitStaleEvent(session, "relocated", relocation(logicalCfi)));
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity,
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+
+    expect(session.rendition.resize).toHaveBeenCalledTimes(2);
+    expect(session.rendition.resize).toHaveBeenLastCalledWith(960, 720, logicalCfi);
+    expect(session.rendition.display).toHaveBeenCalledTimes(initialDisplayCount + 1);
+
+    act(() => emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/6:6)")));
+    expect(session.rendition.display).toHaveBeenLastCalledWith(logicalCfi);
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(logicalCfi);
+    act(() => emitStaleEvent(session, "relocated", relocation(logicalCfi)));
+
+    const userNavigationCfi = "epubcfi(/6/2!/4/8:8)";
+    act(() => emitStaleEvent(session, "relocated", relocation(userNavigationCfi)));
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(userNavigationCfi);
+  });
+
+  it("preserves the visually advanced Paged location when stage resize races its delayed turn report", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["paged-turn-resize-race"]));
+    const sessionIdentity = createSessionIdentity("paged-turn-resize-race");
+    const chapterStart = relocation("epubcfi(/6/12!/4/2:4)");
+    const laterPage = relocation("epubcfi(/6/12!/4/18:6)");
+    const delayedTurnReport = deferred<void>();
+    let visibleLocation = chapterStart;
+    session.rendition.currentLocation.mockImplementation(() => visibleLocation);
+    session.rendition.next.mockImplementation(async () => {
+      visibleLocation = laterPage;
+      void delayedTurnReport.promise.then(() => {
+        emitStaleEvent(session, "relocated", laterPage);
+      });
+    });
+    epubModuleMock.openBook.mockReturnValue(session.book);
+
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity,
+        stageSize: { height: 720, width: 960 },
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    act(() => emitStaleEvent(session, "relocated", chapterStart));
+    const historyBeforeTurn = facadeRef.current!.getNavigationHistorySnapshot();
+    await act(async () => {
+      await facadeRef.current?.turn("forward");
+    });
+    expect(visibleLocation.start.cfi).toBe(laterPage.start.cfi);
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(chapterStart.start.cfi);
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity,
+        stageSize: { height: 668, width: 960 },
+      },
+      facadeRef,
+    );
+
+    expect(session.rendition.resize).not.toHaveBeenCalled();
+
+    await act(async () => {
+      delayedTurnReport.resolve();
+      await delayedTurnReport.promise;
+    });
+
+    expect(session.rendition.resize).toHaveBeenLastCalledWith(960, 668, laterPage.start.cfi);
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(laterPage.start.cfi);
+    expect(bridge.onLocationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cfi: laterPage.start.cfi }),
+    );
+    expect(bridge.onRelocated).toHaveBeenCalledTimes(2);
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual(historyBeforeTurn);
+
+    const resizeRedisplayLocation = relocation("epubcfi(/6/12!/4/16:2)", "epubcfi(/6/12!/4/17:8)");
+    act(() => emitStaleEvent(session, "relocated", resizeRedisplayLocation));
+    expect(session.rendition.display).toHaveBeenLastCalledWith(laterPage.start.cfi);
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(laterPage.start.cfi);
+    expect(bridge.onLocationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cfi: laterPage.start.cfi }),
+    );
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual(historyBeforeTurn);
+
+    const restoredPage = relocation("epubcfi(/6/12!/4/16:2)", "epubcfi(/6/12!/4/20:8)");
+    act(() => emitStaleEvent(session, "relocated", restoredPage));
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(laterPage.start.cfi);
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual(historyBeforeTurn);
+
+    const laterNavigation = relocation("epubcfi(/6/12!/4/24:2)");
+    await act(async () => {
+      expect(await facadeRef.current?.navigateToLocation(laterNavigation.start.cfi)).toBe(true);
+    });
+    act(() => emitStaleEvent(session, "relocated", laterNavigation));
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(laterNavigation.start.cfi);
+    expect(bridge.onLocationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cfi: laterNavigation.start.cfi }),
+    );
+  });
+
   it("initializes continuous sizing without resizing before the first published location", async () => {
     const firstDisplay = deferred<void>();
     const session = createBookSession();
@@ -981,7 +1167,7 @@ describe("useEpubSession lifecycle", () => {
     act(() => emitStaleEvent(session, "relocated", relocation()));
 
     expect(session.rendition.resize).toHaveBeenCalledOnce();
-    expect(session.rendition.resize).toHaveBeenCalledWith(1180, 760);
+    expect(session.rendition.resize).toHaveBeenCalledWith(1180, 760, "epubcfi(/6/2!/4/2:4)");
     expect(firstViewVisible).toBe(true);
     expect(epubModuleMock.openBook).toHaveBeenCalledOnce();
   });
@@ -1014,8 +1200,10 @@ describe("useEpubSession lifecycle", () => {
     expect(session.rendition.resize).not.toHaveBeenCalled();
     expect(session.book.renderTo).toHaveBeenCalledTimes(1);
 
-    act(() => emitStaleEvent(session, "relocated", relocation()));
+    const logicalCfi = "epubcfi(/6/2!/4/8:8)";
+    act(() => emitStaleEvent(session, "relocated", relocation(logicalCfi)));
     expect(session.rendition.resize).not.toHaveBeenCalled();
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(logicalCfi);
 
     const contentTheme = createReaderContentTheme(
       defaultReaderSettings,
@@ -1047,9 +1235,15 @@ describe("useEpubSession lifecycle", () => {
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
     expect(session.book.renderTo).toHaveBeenCalledTimes(1);
     expect(session.rendition.resize).toHaveBeenCalledTimes(1);
-    expect(session.rendition.resize).toHaveBeenLastCalledWith(1180, 760);
+    expect(session.rendition.resize).toHaveBeenLastCalledWith(1180, 760, logicalCfi);
     expect(firstChapter.getElementById("archeion-reader-reflowable-layout")?.textContent).toContain(
       "--archeion-reader-stage-width: 1180px",
+    );
+
+    act(() => emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/12:12)")));
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe(logicalCfi);
+    expect(bridge.onLocationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cfi: logicalCfi }),
     );
 
     const lateChapter = document.implementation.createHTMLDocument("continuous chapter two");
@@ -1061,18 +1255,22 @@ describe("useEpubSession lifecycle", () => {
     expect(lateLayout?.textContent).toContain("--archeion-reader-stage-width: 1180px");
   });
 
-  it("does not apply continuous stage sizing to fixed-layout publications", async () => {
+  it("resizes fixed-layout paged renditions to the Reader stage without reflowable document layout", async () => {
     const session = createBookSession();
     session.book.packaging.metadata.layout = "pre-paginated";
     const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
     const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["fixed-layout-book"]));
+    const sessionIdentity = createSessionIdentity("fixed-layout-book");
     epubModuleMock.openBook.mockReturnValue(session.book);
 
-    await renderHarness(
+    const { root } = await renderHarness(
       {
-        bridgeRef: createBridgeRef(bridge),
-        fileLease: leaseFor(new Blob(["fixed-layout-book"])),
+        bridgeRef,
+        fileLease,
         mode: "continuous",
+        sessionIdentity,
         stageSize: { height: 720, width: 960 },
       },
       facadeRef,
@@ -1081,9 +1279,33 @@ describe("useEpubSession lifecycle", () => {
 
     expect(session.book.renderTo).toHaveBeenCalledWith(
       expect.any(HTMLElement),
-      expect.objectContaining({ flow: "paginated", manager: "default" }),
+      expect.objectContaining({
+        flow: "paginated",
+        height: 720,
+        manager: "default",
+        width: 960,
+      }),
     );
-    expect(session.rendition.resize).not.toHaveBeenCalled();
+
+    const fixedLayoutDocument = document.implementation.createHTMLDocument("fixed layout");
+    session.rendition.contentCallbacks[0]?.({ document: fixedLayoutDocument });
+    expect(fixedLayoutDocument.getElementById("archeion-reader-reflowable-layout")).toBeNull();
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity,
+        stageSize: { height: 668, width: 960 },
+      },
+      facadeRef,
+    );
+
+    expect(session.rendition.resize).toHaveBeenCalledOnce();
+    expect(session.rendition.resize).toHaveBeenLastCalledWith(960, 668);
+    expect(fixedLayoutDocument.getElementById("archeion-reader-reflowable-layout")).toBeNull();
   });
 
   it("does not carry continuous stage sizing across repeated mode replacements", async () => {
@@ -1169,7 +1391,11 @@ describe("useEpubSession lifecycle", () => {
     expect(continuousA.rendition.resize).not.toHaveBeenCalled();
     expect(paged.rendition.resize).not.toHaveBeenCalled();
     expect(continuousB.rendition.resize).toHaveBeenCalledOnce();
-    expect(continuousB.rendition.resize).toHaveBeenLastCalledWith(1240, 800);
+    expect(continuousB.rendition.resize).toHaveBeenLastCalledWith(
+      1240,
+      800,
+      "epubcfi(/continuous-b)",
+    );
   });
 
   it("applies Reader appearance only to the active replacement rendition", async () => {

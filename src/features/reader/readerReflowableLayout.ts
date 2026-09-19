@@ -1,5 +1,5 @@
 import type { ReaderMode, ReaderReadingWidth } from "../../types/reader";
-import type { ReaderStageSize } from "./readerContinuousScroll";
+import type { ReaderStageSize } from "./readerStageGeometry";
 import {
   applyReaderReflowableMedia,
   READER_REFLOWABLE_MEDIA_FLOW_SELECTOR,

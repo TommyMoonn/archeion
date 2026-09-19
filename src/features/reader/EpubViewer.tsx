@@ -20,11 +20,8 @@ import {
   shouldIgnoreReaderWheelEvent,
   type ReaderNavigationIntent,
 } from "./readerNavigation";
-import {
-  forwardContinuousWheel,
-  observeReaderStageSize,
-  type ReaderStageSize,
-} from "./readerContinuousScroll";
+import { forwardContinuousWheel } from "./readerContinuousScroll";
+import { observeReaderStageSize, type ReaderStageSize } from "./readerStageGeometry";
 import type { ReaderContentTheme } from "./readerTheme";
 import { IconButton } from "../../components/IconButton";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";

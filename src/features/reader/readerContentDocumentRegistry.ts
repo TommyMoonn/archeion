@@ -3,7 +3,7 @@ import type { Rendition } from "epubjs";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
 import { applyReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
-import type { ReaderStageSize } from "./readerContinuousScroll";
+import type { ReaderStageSize } from "./readerStageGeometry";
 import { applyReaderReflowableLayout, type ReaderReflowableLayout } from "./readerReflowableLayout";
 
 export type EpubContent = {

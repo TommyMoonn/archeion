@@ -144,6 +144,7 @@ export function ReaderPage() {
   const libraryPreferences = useLibraryPreferences();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const readerMainRef = useRef<HTMLElement>(null);
+  const readerToolbarRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
@@ -339,6 +340,31 @@ export function ReaderPage() {
     settle: settleReaderLeave,
   });
   const toolbarVisibility = useReaderToolbarVisibility();
+
+  useLayoutEffect(() => {
+    const readerPage = readerMainRef.current;
+    const toolbar = readerToolbarRef.current;
+    if (!readerPage || !toolbar) return;
+
+    let lastHeight = 0;
+    const syncToolbarHeight = () => {
+      const height = Math.ceil(toolbar.getBoundingClientRect().height);
+      if (!Number.isFinite(height) || height <= 0 || height === lastHeight) return;
+      lastHeight = height;
+      readerPage.style.setProperty("--reader-toolbar-height", `${height}px`);
+    };
+
+    syncToolbarHeight();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(syncToolbarHeight);
+      observer.observe(toolbar);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", syncToolbarHeight);
+    return () => window.removeEventListener("resize", syncToolbarHeight);
+  }, [readerSessionFailure, readerSessionLifecycle.phase, readerSource.status]);
   const activateToolbarVisibility = toolbarVisibility.activate;
   const deactivateToolbarVisibility = toolbarVisibility.deactivate;
   const sideSurfaces = useReaderSideSurface<ReaderNoteTarget>({
@@ -1022,6 +1048,7 @@ export function ReaderPage() {
             nextChapterDisabled={!chapterSequence.nextChapterId}
             previousChapterDisabled={!chapterSequence.previousChapterId}
             title={title}
+            toolbarRef={readerToolbarRef}
             searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
             searchButtonRef={searchButtonRef}
             searchOpen={searchOpen}

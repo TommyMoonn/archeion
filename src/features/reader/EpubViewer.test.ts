@@ -4,12 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
-import {
-  forwardContinuousWheel,
-  observeReaderStageSize,
-  stabilizeContinuousRendition,
-  syncContinuousRenditionStageSize,
-} from "./readerContinuousScroll";
+import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
 import { readerTypefaceOptions } from "./readerFonts";
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
@@ -108,64 +103,6 @@ describe("continuous reader scrolling", () => {
     expect(manager.counter).not.toBe(originalCounter);
     expect(originalCounter).toHaveBeenCalledOnce();
     expect(originalCounter).toHaveBeenCalledWith({ heightDelta: 400 });
-  });
-
-  it("synchronizes the rendition through epub.js resize instead of patching view DOM", () => {
-    const resize = vi.fn();
-    const rendition = { resize } as unknown as Parameters<
-      typeof syncContinuousRenditionStageSize
-    >[0];
-
-    syncContinuousRenditionStageSize(rendition, { height: 720, width: 1080 });
-
-    expect(resize).toHaveBeenCalledOnce();
-    expect(resize).toHaveBeenCalledWith(1080, 720);
-  });
-
-  it("observes one deduplicated, non-zero Reader-stage size", () => {
-    const stage = document.createElement("div");
-    let rect = new DOMRect(0, 0, 960, 720);
-    stage.getBoundingClientRect = vi.fn(() => rect);
-    const observed: Array<{ height: number; width: number }> = [];
-    const observerCallbacks: ResizeObserverCallback[] = [];
-    const disconnect = vi.fn();
-    const observe = vi.fn();
-    const OriginalResizeObserver = globalThis.ResizeObserver;
-
-    class ResizeObserverMock {
-      constructor(callback: ResizeObserverCallback) {
-        observerCallbacks.push(callback);
-      }
-      disconnect = disconnect;
-      observe = observe;
-      unobserve = vi.fn();
-    }
-
-    globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
-    try {
-      const stop = observeReaderStageSize(stage, (size) => observed.push(size));
-      expect(observed).toEqual([{ height: 720, width: 960 }]);
-      expect(observe).toHaveBeenCalledWith(stage);
-
-      observerCallbacks[0]?.([], {} as ResizeObserver);
-      expect(observed).toHaveLength(1);
-
-      rect = new DOMRect(0, 0, 1180, 760);
-      observerCallbacks[0]?.([], {} as ResizeObserver);
-      expect(observed).toEqual([
-        { height: 720, width: 960 },
-        { height: 760, width: 1180 },
-      ]);
-
-      rect = new DOMRect(0, 0, 0, 0);
-      observerCallbacks[0]?.([], {} as ResizeObserver);
-      expect(observed).toHaveLength(2);
-
-      stop();
-      expect(disconnect).toHaveBeenCalledOnce();
-    } finally {
-      globalThis.ResizeObserver = OriginalResizeObserver;
-    }
   });
 });
 

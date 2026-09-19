@@ -52,6 +52,7 @@ type ReaderToolbarProps = {
   searchAriaKeyShortcuts?: string;
   settingsAriaKeyShortcuts?: string;
   navigationAriaKeyShortcuts?: string;
+  toolbarRef?: Ref<HTMLElement>;
   searchButtonRef?: Ref<HTMLButtonElement>;
   settingsButtonRef?: Ref<HTMLButtonElement>;
   navigationButtonRef?: Ref<HTMLButtonElement>;
@@ -93,6 +94,7 @@ export function ReaderToolbar({
   title,
   searchAriaKeyShortcuts,
   settingsAriaKeyShortcuts,
+  toolbarRef,
   navigationAriaKeyShortcuts,
   searchButtonRef,
   settingsButtonRef,
@@ -108,7 +110,7 @@ export function ReaderToolbar({
   const statusLabel = progressSaveFailed ? `Not saved · ${positionLabel}` : positionLabel;
 
   return (
-    <header className="reader-toolbar" id={READER_TOOLBAR_ID}>
+    <header className="reader-toolbar" id={READER_TOOLBAR_ID} ref={toolbarRef}>
       <button
         aria-label={backLabel}
         className="reader-toolbar__back"
