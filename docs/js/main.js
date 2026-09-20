@@ -571,13 +571,17 @@
     return match ? { key: match[1], quote: match[2].trim() } : null;
   };
 
-  const closeHighlightPalette = () => {
+  const closeHighlightPalette = ({ restoreFocus = false } = {}) => {
     if (!(highlightPalette instanceof HTMLElement)) return;
+    const invokingTarget = readerPageCopy?.querySelector(".is-palette-target");
     highlightPalette.hidden = true;
     readerPageCopy?.querySelectorAll(".is-palette-target").forEach((target) => {
       target.classList.remove("is-palette-target");
       target.removeAttribute("aria-expanded");
     });
+    if (restoreFocus && invokingTarget instanceof HTMLElement && invokingTarget.isConnected) {
+      invokingTarget.focus({ preventScroll: true });
+    }
   };
 
   const closeReaderPanels = ({ restoreFocus = false } = {}) => {
@@ -762,8 +766,12 @@
     target.setAttribute("aria-expanded", "true");
     const annotation = highlights.get(activeAnnotationKey);
     highlightColorButtons.forEach((button) => {
-      const checked = button.dataset.highlightColor === (annotation?.color || "none");
-      button.setAttribute("aria-checked", String(checked));
+      const color = button.dataset.highlightColor;
+      if (color && Object.hasOwn(highlightColors, color)) {
+        button.setAttribute("aria-pressed", String(color === annotation?.color));
+      } else {
+        button.removeAttribute("aria-pressed");
+      }
     });
     if (noteActionButton instanceof HTMLButtonElement) {
       const label = annotation?.note
@@ -775,6 +783,13 @@
       noteActionButton.title = label;
     }
     positionHighlightPalette(target);
+    const selectedColorButton = highlightColorButtons.find(
+      (button) => button.getAttribute("aria-pressed") === "true",
+    );
+    const firstColorButton = highlightColorButtons.find(
+      (button) => button.dataset.highlightColor !== "none",
+    );
+    (selectedColorButton || firstColorButton)?.focus();
     annotationHint?.setAttribute("hidden", "");
     announceAnnotation("Choose a highlight color or add a note.");
   };
@@ -861,7 +876,7 @@
       }
       hydrateReaderAnnotations();
       renderAnnotationsPanel();
-      closeHighlightPalette();
+      closeHighlightPalette({ restoreFocus: true });
     });
   });
 
@@ -964,7 +979,7 @@
       if (!(target instanceof Node)) return;
       if (highlightPalette.contains(target)) return;
       if (target instanceof Element && target.closest("[data-reader-annotatable]")) return;
-      closeHighlightPalette();
+      closeHighlightPalette({ restoreFocus: highlightPalette.contains(document.activeElement) });
     },
     true,
   );
@@ -972,7 +987,7 @@
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (highlightPalette instanceof HTMLElement && !highlightPalette.hidden) {
-      closeHighlightPalette();
+      closeHighlightPalette({ restoreFocus: true });
       return;
     }
     if (notePanel instanceof HTMLElement && !notePanel.hidden) {

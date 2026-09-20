@@ -1579,7 +1579,7 @@ svg {
 
 .reader-highlight-palette > button:hover,
 .reader-highlight-palette > button:focus-visible,
-.reader-highlight-palette > button[aria-checked="true"] {
+.reader-highlight-palette > button[aria-pressed="true"] {
   outline: 0;
   border-color: var(--demo-strong);
 }
