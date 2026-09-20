@@ -23,11 +23,50 @@
     },
   };
 
-  function setNav(open) {
-    body.classList.toggle("nav-open", open);
-    navOpen?.setAttribute("aria-expanded", String(open));
-    if (navBackdrop) navBackdrop.hidden = !open;
+  const mobileNavigation = window.matchMedia("(max-width: 780px)");
+
+  function setNavBackgroundInert(inert) {
+    for (const element of body.children) {
+      if (element === sidebar || element === navBackdrop) continue;
+      element.inert = inert;
+    }
   }
+
+  function setNav(open, restoreFocus = true) {
+    const isOpen = mobileNavigation.matches && open;
+
+    if (isOpen) {
+      if (sidebar) sidebar.inert = false;
+      body.classList.add("nav-open");
+      navOpen?.setAttribute("aria-expanded", "true");
+      if (navBackdrop) navBackdrop.hidden = false;
+      setNavBackgroundInert(true);
+      navClose?.focus();
+      return;
+    }
+
+    setNavBackgroundInert(false);
+    body.classList.remove("nav-open");
+    navOpen?.setAttribute("aria-expanded", "false");
+    if (navBackdrop) navBackdrop.hidden = true;
+    if (sidebar) sidebar.inert = mobileNavigation.matches;
+    if (restoreFocus && mobileNavigation.matches) navOpen?.focus();
+  }
+
+  function syncNavMode() {
+    const activeElement = document.activeElement;
+    const focusWasInSidebar = Boolean(sidebar?.contains(activeElement));
+    const focusWasOnOpener = activeElement === navOpen;
+
+    setNav(false, mobileNavigation.matches && focusWasInSidebar);
+
+    if (!mobileNavigation.matches && (focusWasInSidebar || focusWasOnOpener)) {
+      sidebar?.querySelector('a[aria-current="page"], a')?.focus();
+    }
+  }
+
+  syncNavMode();
+  mobileNavigation.addEventListener("change", syncNavMode);
 
   navOpen?.addEventListener("click", () => setNav(true));
   navClose?.addEventListener("click", () => setNav(false));
@@ -115,7 +154,11 @@
   });
 
   window.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      event.key.toLowerCase() === "k" &&
+      !body.classList.contains("nav-open")
+    ) {
       event.preventDefault();
       openSearch();
     }
