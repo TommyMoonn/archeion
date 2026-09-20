@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -88,6 +91,16 @@ function previewPosition(progress: HTMLElement, selector: string) {
 }
 
 describe("ReaderProgressBar", () => {
+  it("keeps the progress handle flat without changing its geometry", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/reader.css"), "utf8");
+    const handleRule = styles.match(/\.reader-progress__handle\s*\{([^}]*)\}/s)?.[1] ?? "";
+
+    expect(handleRule).toContain("width: 0.6rem");
+    expect(handleRule).toContain("height: 0.6rem");
+    expect(handleRule).toContain("border: 2px solid var(--reader-bg)");
+    expect(handleRule).not.toContain("box-shadow");
+  });
+
   it("keeps pending or unavailable progress noninteractive", () => {
     const { onSeek, progress } = renderProgress({ seekable: false });
     mockProgressRect(progress);

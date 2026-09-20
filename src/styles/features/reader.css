@@ -290,7 +290,6 @@ html[data-motion="on"] .reader-toolbar__back:active {
   border: 2px solid var(--reader-bg);
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--reader-bg) 72%, transparent);
   pointer-events: none;
 }
 

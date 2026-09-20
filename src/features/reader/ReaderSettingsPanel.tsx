@@ -214,16 +214,11 @@ export function ReaderSettingsPanel({
           </ReaderSetting>
         ) : null}
 
-        <p
-          aria-live="polite"
-          className="reader-settings__status"
-          data-error={persistenceFailed || Boolean(readerThemeCatalogError) || undefined}
-          role={persistenceFailed || readerThemeCatalogError ? "alert" : "status"}
-        >
-          {persistenceFailed
-            ? "Settings could not be saved"
-            : (readerThemeCatalogError ?? "Saved automatically")}
-        </p>
+        {persistenceFailed || readerThemeCatalogError ? (
+          <p aria-live="polite" className="reader-settings__status" data-error role="alert">
+            {persistenceFailed ? "Settings could not be saved" : readerThemeCatalogError}
+          </p>
+        ) : null}
       </div>
     </ReaderSidePanel>
   );

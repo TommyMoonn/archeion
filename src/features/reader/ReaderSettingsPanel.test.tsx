@@ -299,9 +299,14 @@ describe("ReaderSettingsPanel", () => {
       "Appearance",
     );
     expect(document.activeElement).toBe(close);
-    expect(rendered.container.querySelector('[role="status"]')?.textContent).toContain(
-      "Saved automatically",
-    );
+  });
+
+  it("keeps successful automatic persistence silent", () => {
+    const rendered = renderPanel();
+
+    expect(rendered.container.textContent).not.toContain("Saved automatically");
+    expect(rendered.container.querySelector(".reader-settings__status")).toBeNull();
+    expect(rendered.container.querySelector('[role="status"]')).toBeNull();
   });
 
   it("announces persistence failures as an alert", () => {
@@ -310,6 +315,25 @@ describe("ReaderSettingsPanel", () => {
     expect(rendered.container.querySelector('[role="alert"]')?.textContent).toContain(
       "Settings could not be saved",
     );
+  });
+
+  it("announces reader theme catalog failures through the existing alert surface", () => {
+    const host = createContainer();
+
+    act(() => {
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          onClose={vi.fn()}
+          readerThemeCatalogError="Themes could not be refreshed"
+        />,
+      );
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Themes could not be refreshed",
+    );
+    expect(host.querySelector(".reader-settings__status")?.hasAttribute("data-error")).toBe(true);
   });
 
   it("keeps appearance-save feedback authoritative over background theme refresh feedback", () => {
