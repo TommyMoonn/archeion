@@ -4,6 +4,7 @@ import type { ReaderStageSize } from "./readerStageGeometry";
 const READER_REFLOWABLE_MEDIA_STYLE_ID = "archeion-reader-reflowable-media";
 const READER_MEDIA_FIT_ATTRIBUTE = "data-archeion-media-fit";
 const READER_MEDIA_FLOW_ATTRIBUTE = "data-archeion-media-flow";
+const READER_MEDIA_CENTER_ATTRIBUTE = "data-archeion-media-center";
 const READER_MEDIA_FORCE_INLINE_ATTRIBUTE = "data-archeion-media-force-inline-fit";
 const READER_MEDIA_FORCE_BLOCK_ATTRIBUTE = "data-archeion-media-force-block-fit";
 const READER_MEDIA_FORCE_FLOW_BLOCK_ATTRIBUTE = "data-archeion-media-force-flow-block-fit";
@@ -22,18 +23,34 @@ type ReaderReflowableMediaLayout = Readonly<{
   stageSize?: ReaderStageSize | null;
 }>;
 
+type StandaloneMedia = Readonly<{
+  flowOwner: Element;
+  media: Element;
+}>;
+
 export function applyReaderReflowableMedia(
   document: Document | null | undefined,
   layout: ReaderReflowableMediaLayout,
 ): void {
   if (!document?.head) return;
 
-  const media = classifyStandaloneMedia(document);
+  const standaloneMedia = classifyStandaloneMedia(document, layout.mode === "paged");
+  const media = standaloneMedia.map(({ media }) => media);
   clearForcedFit(media);
   clearForcedFlowFit(document);
+  clearPagedAlignment(document);
 
   const existingStyle = document.getElementById(READER_REFLOWABLE_MEDIA_STYLE_ID);
-  if (layout.mode !== "continuous" || !layout.stageSize) {
+  if (layout.mode === "paged") {
+    applyPagedAlignment(standaloneMedia, document.defaultView);
+    const style = existingStyle ?? document.createElement("style");
+    style.id = READER_REFLOWABLE_MEDIA_STYLE_ID;
+    style.textContent = readerPagedMediaCss();
+    if (!existingStyle) document.head.appendChild(style);
+    return;
+  }
+
+  if (!layout.stageSize) {
     existingStyle?.remove();
     return;
   }
@@ -65,7 +82,10 @@ export function applyReaderReflowableMedia(
   }
 }
 
-function classifyStandaloneMedia(document: Document): Element[] {
+function classifyStandaloneMedia(
+  document: Document,
+  includeMediaOnlySection: boolean,
+): StandaloneMedia[] {
   for (const element of document.querySelectorAll(`[${READER_MEDIA_FLOW_ATTRIBUTE}]`)) {
     element.removeAttribute(READER_MEDIA_FLOW_ATTRIBUTE);
   }
@@ -73,18 +93,100 @@ function classifyStandaloneMedia(document: Document): Element[] {
     element.removeAttribute(READER_MEDIA_FIT_ATTRIBUTE);
   }
 
-  const standalone: Element[] = [];
+  const standalone: StandaloneMedia[] = [];
   for (const media of document.querySelectorAll(READER_MEDIA_CANDIDATE_SELECTOR)) {
-    const flowOwner = standaloneMediaFlowOwner(media);
+    const flowOwner = standaloneMediaFlowOwner(media, includeMediaOnlySection);
     if (!flowOwner) continue;
     media.setAttribute(READER_MEDIA_FIT_ATTRIBUTE, "");
     flowOwner.setAttribute(READER_MEDIA_FLOW_ATTRIBUTE, "");
-    standalone.push(media);
+    standalone.push({ flowOwner, media });
   }
   return standalone;
 }
 
-function standaloneMediaFlowOwner(media: Element): Element | null {
+function clearPagedAlignment(document: Document): void {
+  for (const element of document.querySelectorAll(`[${READER_MEDIA_CENTER_ATTRIBUTE}]`)) {
+    element.removeAttribute(READER_MEDIA_CENTER_ATTRIBUTE);
+  }
+}
+
+function applyPagedAlignment(
+  standaloneMedia: readonly StandaloneMedia[],
+  view: Window | null,
+): void {
+  if (!view) return;
+
+  for (const { flowOwner, media } of standaloneMedia) {
+    if (publisherOwnsMediaPlacement(media, flowOwner, view)) continue;
+    for (const element of mediaAlignmentElements(media, flowOwner)) {
+      element.setAttribute(READER_MEDIA_CENTER_ATTRIBUTE, "");
+    }
+  }
+}
+
+function publisherOwnsMediaPlacement(media: Element, flowOwner: Element, view: Window): boolean {
+  let element: Element | null = media;
+  while (element) {
+    const computed = view.getComputedStyle(element);
+    if (hasStrongPublisherPlacement(computed)) return true;
+    if (element === flowOwner) break;
+    element = element.parentElement;
+  }
+
+  const flowContext = flowOwner.parentElement;
+  return Boolean(
+    flowContext?.matches(READER_MEDIA_DIRECT_FLOW_CONTEXT_SELECTOR) &&
+    hasStrongPublisherPlacement(view.getComputedStyle(flowContext)),
+  );
+}
+
+function mediaAlignmentElements(media: Element, flowOwner: Element): Element[] {
+  if (flowOwner.matches("figure")) return media === flowOwner ? [media] : [media, flowOwner];
+
+  const elements = [media];
+  let element = media;
+  while (element !== flowOwner && element.parentElement) {
+    element = element.parentElement;
+    elements.push(element);
+  }
+  return elements;
+}
+
+function hasStrongPublisherPlacement(computed: CSSStyleDeclaration): boolean {
+  const float = computed.float.trim().toLowerCase();
+  if (float && float !== "none") return true;
+
+  const display = computed.display.trim().toLowerCase();
+  if (["flex", "inline-flex", "grid", "inline-grid"].includes(display)) return true;
+
+  const transform = computed.transform.trim().toLowerCase();
+  if (transform && transform !== "none") return true;
+
+  const position = computed.position.trim().toLowerCase();
+  if (["absolute", "fixed", "sticky"].includes(position)) return true;
+  if (position !== "relative") return false;
+
+  return [
+    computed.top,
+    computed.right,
+    computed.bottom,
+    computed.left,
+    computed.insetBlockStart,
+    computed.insetBlockEnd,
+    computed.insetInlineStart,
+    computed.insetInlineEnd,
+  ].some(hasPositionedOffset);
+}
+
+function hasPositionedOffset(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return Boolean(normalized && !["auto", "normal", "0", "0px"].includes(normalized));
+}
+
+function standaloneMediaFlowOwner(
+  media: Element,
+  includeMediaOnlySection: boolean,
+): Element | null {
   if (media.closest("figcaption")) return null;
 
   const figure = media.closest("figure");
@@ -94,7 +196,8 @@ function standaloneMediaFlowOwner(media: Element): Element | null {
   let parent = flowOwner.parentElement;
 
   while (
-    parent?.matches(READER_MEDIA_SOLITARY_WRAPPER_SELECTOR) &&
+    (parent?.matches(READER_MEDIA_SOLITARY_WRAPPER_SELECTOR) ||
+      (includeMediaOnlySection && parent?.matches("section"))) &&
     containsOnlyFlowOwner(parent, flowOwner)
   ) {
     flowOwner = parent;
@@ -159,6 +262,20 @@ body :where([${READER_MEDIA_FIT_ATTRIBUTE}=""]) {
 [${READER_MEDIA_FORCE_FLOW_BLOCK_ATTRIBUTE}=""] {
   min-block-size: 0 !important;
   max-block-size: ${bounds.block}px !important;
+}
+`.trim();
+}
+
+function readerPagedMediaCss(): string {
+  return `
+[${READER_MEDIA_CENTER_ATTRIBUTE}=""] {
+  display: block !important;
+  margin-inline-start: auto !important;
+  margin-inline-end: auto !important;
+}
+
+[${READER_MEDIA_CENTER_ATTRIBUTE}=""]:not(figure) {
+  text-indent: 0 !important;
 }
 `.trim();
 }

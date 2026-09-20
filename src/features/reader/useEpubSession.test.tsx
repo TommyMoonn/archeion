@@ -1288,8 +1288,13 @@ describe("useEpubSession lifecycle", () => {
     );
 
     const fixedLayoutDocument = document.implementation.createHTMLDocument("fixed layout");
+    fixedLayoutDocument.body.innerHTML = '<img id="fixed-plate" src="plate.jpg" alt="Plate">';
     session.rendition.contentCallbacks[0]?.({ document: fixedLayoutDocument });
     expect(fixedLayoutDocument.getElementById("archeion-reader-reflowable-layout")).toBeNull();
+    expect(fixedLayoutDocument.getElementById("archeion-reader-reflowable-media")).toBeNull();
+    expect(
+      fixedLayoutDocument.getElementById("fixed-plate")?.hasAttribute("data-archeion-media-center"),
+    ).toBe(false);
 
     await rerenderHarness(
       root,
@@ -1306,6 +1311,7 @@ describe("useEpubSession lifecycle", () => {
     expect(session.rendition.resize).toHaveBeenCalledOnce();
     expect(session.rendition.resize).toHaveBeenLastCalledWith(960, 668);
     expect(fixedLayoutDocument.getElementById("archeion-reader-reflowable-layout")).toBeNull();
+    expect(fixedLayoutDocument.getElementById("archeion-reader-reflowable-media")).toBeNull();
   });
 
   it("does not carry continuous stage sizing across repeated mode replacements", async () => {
