@@ -8,37 +8,61 @@
   const navToggle = document.querySelector(".nav-toggle");
   const siteNav = document.querySelector(".site-nav");
   const navLinks = Array.from(document.querySelectorAll('.site-nav a[href^="#"]'));
+  const mobileNavigation = window.matchMedia("(max-width: 900px)");
 
-  const closeNavigation = () => {
+  const setNavigationOpen = (isOpen, restoreFocus = false) => {
     if (!navToggle || !siteNav) return;
-    navToggle.setAttribute("aria-expanded", "false");
-    navToggle.setAttribute("aria-label", "Open navigation");
-    siteNav.classList.remove("is-open");
+    navToggle.setAttribute("aria-expanded", String(isOpen));
+    navToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+    siteNav.classList.toggle("is-open", isOpen);
+    siteNav.inert = mobileNavigation.matches && !isOpen;
     const use = navToggle.querySelector("use");
-    use?.setAttribute("href", "#icon-menu");
+    use?.setAttribute("href", isOpen ? "#icon-close" : "#icon-menu");
+
+    if (isOpen) navLinks[0]?.focus();
+    else if (restoreFocus && navToggle.isConnected) navToggle.focus();
   };
 
-  navToggle?.addEventListener("click", () => {
+  const closeNavigation = (restoreFocus = false) => {
+    if (!siteNav?.classList.contains("is-open")) return;
+    setNavigationOpen(false, restoreFocus);
+  };
+
+  const syncNavigationMode = () => {
     if (!siteNav) return;
+    const restoreFocus = mobileNavigation.matches && siteNav.contains(document.activeElement);
+    setNavigationOpen(false, restoreFocus);
+  };
+
+  syncNavigationMode();
+  mobileNavigation.addEventListener("change", syncNavigationMode);
+
+  navToggle?.addEventListener("click", () => {
+    if (!siteNav || !mobileNavigation.matches) return;
     const willOpen = navToggle.getAttribute("aria-expanded") !== "true";
-    navToggle.setAttribute("aria-expanded", String(willOpen));
-    navToggle.setAttribute("aria-label", willOpen ? "Close navigation" : "Open navigation");
-    siteNav.classList.toggle("is-open", willOpen);
-    const use = navToggle.querySelector("use");
-    use?.setAttribute("href", willOpen ? "#icon-close" : "#icon-menu");
+    setNavigationOpen(willOpen, !willOpen && siteNav.contains(document.activeElement));
   });
 
-  navLinks.forEach((link) => link.addEventListener("click", closeNavigation));
+  navLinks.forEach((link) =>
+    link.addEventListener("click", () => {
+      if (!siteNav || !mobileNavigation.matches) return;
+      closeNavigation(siteNav.contains(document.activeElement));
+    }),
+  );
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeNavigation();
+    if (event.key !== "Escape" || !siteNav?.classList.contains("is-open")) return;
+    event.preventDefault();
+    closeNavigation(true);
   });
 
   document.addEventListener("click", (event) => {
     if (!siteNav?.classList.contains("is-open") || !navToggle) return;
     const target = event.target;
     if (!(target instanceof Node)) return;
-    if (!siteNav.contains(target) && !navToggle.contains(target)) closeNavigation();
+    if (!siteNav.contains(target) && !navToggle.contains(target)) {
+      closeNavigation(siteNav.contains(document.activeElement));
+    }
   });
 
   const revealElements = document.querySelectorAll("[data-reveal]");
