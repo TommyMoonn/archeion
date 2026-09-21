@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use ::image::GenericImageView;
 
 use super::{
-    super::{archive_root, epub, epub_writeback, filesystem},
+    super::{archive_root, epub, epub_mutation, epub_writeback, filesystem},
     archive::{read_package_and_plan, rewrite_epub_cover, validate_rewritten_cover},
     fingerprint::{assert_fingerprint, file_fingerprint},
     image::{decode_cover_image, preview_bytes, process_cover_image},
@@ -72,9 +72,18 @@ pub(super) fn write_cover_at(
     input: EpubCoverWritebackInput,
 ) -> Result<EpubCoverWritebackResult, String> {
     validate_book_id(&input.book_id)?;
-    let normalized_relative_path =
-        filesystem::normalize_archive_relative_path(&input.relative_path)?;
-    let epub_path = epub::resolve_epub_path(root, &normalized_relative_path)?;
+    let relative_path = input.relative_path.clone();
+    epub_mutation::run(root, &relative_path, move |normalized_relative_path| {
+        write_cover_under_mutation_at(root, normalized_relative_path, input)
+    })
+}
+
+fn write_cover_under_mutation_at(
+    root: &Path,
+    normalized_relative_path: &str,
+    input: EpubCoverWritebackInput,
+) -> Result<EpubCoverWritebackResult, String> {
+    let epub_path = epub::resolve_epub_path(root, normalized_relative_path)?;
     let epub_fingerprint = file_fingerprint(&epub_path, "The selected EPUB file is unavailable.")?;
     assert_fingerprint(
         "EPUB file",
@@ -126,7 +135,7 @@ pub(super) fn write_cover_at(
 
     let writeback = epub_writeback::commit_epub_rewrite_at(
         root,
-        &normalized_relative_path,
+        normalized_relative_path,
         &epub_path,
         &temporary_path,
         source_metadata,
@@ -136,7 +145,7 @@ pub(super) fn write_cover_at(
 
     let cover_cache_warning = (|| -> Result<(), String> {
         archive_root::invalidate_cover_cache_entries_at(root, std::slice::from_ref(&input.book_id))?;
-        epub::load_epub_cover_at(root, &normalized_relative_path, &input.book_id)?;
+        epub::load_epub_cover_at(root, normalized_relative_path, &input.book_id)?;
         Ok(())
     })()
     .err()

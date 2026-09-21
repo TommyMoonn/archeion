@@ -32,6 +32,7 @@ pub(crate) mod epub_digest;
 pub(crate) mod epub_duplicates;
 mod epub_file_resource;
 pub mod epub_metadata;
+pub(crate) mod epub_mutation;
 pub mod epub_writeback;
 pub(crate) mod export_file;
 pub mod external;

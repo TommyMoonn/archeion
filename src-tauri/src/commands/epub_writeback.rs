@@ -10,7 +10,7 @@ use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 use super::{
     archive_backup::ArchiveBackupLayout, archive_root, epub, epub_analysis, epub_metadata,
-    filesystem, metadata, scanner_cache,
+    epub_mutation, filesystem, metadata, scanner_cache,
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -728,46 +728,45 @@ fn write_epub_metadata_at_with_backup_ops(
     transaction_ops: WritebackTransactionOps,
     maintenance_ops: WritebackMaintenanceOps,
 ) -> Result<EpubMetadataWritebackResult, String> {
-    let rewrite_package_document = transaction_ops.rewrite_package_document;
     validate_writeback_metadata(&metadata_update)?;
-    let normalized_relative_path = filesystem::normalize_archive_relative_path(relative_path)?;
-    let epub_path = epub::resolve_epub_path(root, &normalized_relative_path)?;
-    let metadata_update = normalize_writeback_metadata(metadata_update);
+    epub_mutation::run(root, relative_path, move |normalized_relative_path| {
+        let rewrite_package_document = transaction_ops.rewrite_package_document;
+        let epub_path = epub::resolve_epub_path(root, normalized_relative_path)?;
+        let metadata_update = normalize_writeback_metadata(metadata_update);
 
-    let package = {
-        let file = File::open(&epub_path).map_err(|error| error.to_string())?;
-        let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
-        epub_metadata::read_package_document(&mut archive)?
-    };
-
-    let updated_package_xml =
-        epub_metadata::update_package_metadata_xml(&package.xml, &metadata_update)?;
-    let source_metadata = epub_metadata::parse_core_metadata(&updated_package_xml)?;
-
-    let temporary_path =
-        match rewrite_package_document(&epub_path, &package.path, &updated_package_xml) {
-            Ok(path) => path,
-            Err(error) => return Err(write_error_without_swap("metadata", &error)),
+        let package = {
+            let file = File::open(&epub_path).map_err(|error| error.to_string())?;
+            let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
+            epub_metadata::read_package_document(&mut archive)?
         };
 
-    if let Err(error) = epub_metadata::read_core_metadata(&temporary_path) {
-        let _ = fs::remove_file(&temporary_path);
-        return Err(temp_validation_error("metadata", &error));
-    }
+        let updated_package_xml =
+            epub_metadata::update_package_metadata_xml(&package.xml, &metadata_update)?;
+        let source_metadata = epub_metadata::parse_core_metadata(&updated_package_xml)?;
 
-    let result = commit_epub_rewrite_at_with_ops(
-        root,
-        &normalized_relative_path,
-        &epub_path,
-        &temporary_path,
-        source_metadata,
-        keep_successful_backup,
-        "metadata",
-        transaction_ops,
-        maintenance_ops,
-    )?;
+        let temporary_path =
+            match rewrite_package_document(&epub_path, &package.path, &updated_package_xml) {
+                Ok(path) => path,
+                Err(error) => return Err(write_error_without_swap("metadata", &error)),
+            };
 
-    Ok(result)
+        if let Err(error) = epub_metadata::read_core_metadata(&temporary_path) {
+            let _ = fs::remove_file(&temporary_path);
+            return Err(temp_validation_error("metadata", &error));
+        }
+
+        commit_epub_rewrite_at_with_ops(
+            root,
+            normalized_relative_path,
+            &epub_path,
+            &temporary_path,
+            source_metadata,
+            keep_successful_backup,
+            "metadata",
+            transaction_ops,
+            maintenance_ops,
+        )
+    })
 }
 
 #[tauri::command]
