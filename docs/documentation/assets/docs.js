@@ -24,6 +24,32 @@
   };
 
   const mobileNavigation = window.matchMedia("(max-width: 780px)");
+  const navFocusableSelector = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled]):not([type='hidden'])",
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "[tabindex]:not([tabindex='-1'])",
+  ].join(",");
+
+  function navFocusableElements() {
+    if (!sidebar) return [];
+    return [...sidebar.querySelectorAll(navFocusableSelector)].filter(
+      (element) => element.tabIndex >= 0 && !element.closest("[hidden], [inert]"),
+    );
+  }
+
+  function setNavModalSemantics(modal) {
+    if (!sidebar) return;
+    if (modal) {
+      sidebar.setAttribute("role", "dialog");
+      sidebar.setAttribute("aria-modal", "true");
+      return;
+    }
+    sidebar.removeAttribute("role");
+    sidebar.removeAttribute("aria-modal");
+  }
 
   function setNavBackgroundInert(inert) {
     for (const element of body.children) {
@@ -37,6 +63,7 @@
 
     if (isOpen) {
       if (sidebar) sidebar.inert = false;
+      setNavModalSemantics(true);
       body.classList.add("nav-open");
       navOpen?.setAttribute("aria-expanded", "true");
       if (navBackdrop) navBackdrop.hidden = false;
@@ -46,6 +73,7 @@
     }
 
     setNavBackgroundInert(false);
+    setNavModalSemantics(false);
     body.classList.remove("nav-open");
     navOpen?.setAttribute("aria-expanded", "false");
     if (navBackdrop) navBackdrop.hidden = true;
@@ -101,6 +129,15 @@
   const searchInput = document.querySelector("[data-search-input]");
   const searchResults = document.querySelector("[data-search-results]");
   const searchEmpty = document.querySelector("[data-search-empty]");
+  const searchStatus = (() => {
+    if (!searchDialog || !searchResults) return null;
+    const status = document.createElement("p");
+    status.className = "sr-only";
+    status.dataset.searchStatus = "";
+    status.setAttribute("role", "status");
+    searchResults.before(status);
+    return status;
+  })();
   const searchTriggers = document.querySelectorAll("[data-search-trigger]");
   const searchClose = document.querySelector("[data-search-close]");
   const sourceLinks = [...document.querySelectorAll("[data-doc-link]")];
@@ -134,6 +171,13 @@
     });
 
     if (searchEmpty) searchEmpty.hidden = matches.length !== 0;
+    if (searchStatus) {
+      searchStatus.textContent = query
+        ? matches.length === 0
+          ? "No matching pages."
+          : `${matches.length} ${matches.length === 1 ? "page" : "pages"} found.`
+        : "";
+    }
   }
 
   function openSearch() {
@@ -154,6 +198,24 @@
   });
 
   window.addEventListener("keydown", (event) => {
+    if (event.key === "Tab" && mobileNavigation.matches && body.classList.contains("nav-open")) {
+      const focusable = navFocusableElements();
+      if (focusable.length > 0) {
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeElement = document.activeElement;
+        const leavesAtStart =
+          event.shiftKey && (activeElement === first || !sidebar?.contains(activeElement));
+        const leavesAtEnd =
+          !event.shiftKey && (activeElement === last || !sidebar?.contains(activeElement));
+
+        if (leavesAtStart || leavesAtEnd) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
+    }
+
     if (
       (event.ctrlKey || event.metaKey) &&
       event.key.toLowerCase() === "k" &&
