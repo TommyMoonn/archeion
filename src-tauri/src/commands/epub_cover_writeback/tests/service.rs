@@ -7,7 +7,11 @@ use super::{
     },
     fixtures::*,
 };
-use crate::commands::epub_analysis_cache;
+use crate::commands::{
+    epub_analysis_cache::{self, EpubFileSignature},
+    epub_metadata,
+    epub_writeback::{self, EpubMetadataWritebackConflict, EpubMetadataWritebackOutcome},
+};
 
 #[test]
 fn successful_cover_write_invalidates_only_the_edited_epub_analysis() {
@@ -51,6 +55,60 @@ fn successful_cover_write_invalidates_only_the_edited_epub_analysis() {
         "other.epub",
         1
     ));
+    fs::remove_dir_all(root).expect("root should be removed");
+}
+
+#[test]
+fn metadata_request_based_on_generation_before_cover_write_is_rejected() {
+    let root = test_root();
+    fs::create_dir_all(&root).expect("root should be created");
+    let epub_path = root.join("book.epub");
+    let image_path = root.join("replacement.png");
+    write_image(&image_path, 600, 900);
+    write_epub(
+        &epub_path,
+        r#"<package version="3.0"><metadata><dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Original</dc:title></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#,
+        &[("OEBPS/chapter.xhtml", b"<html><body>chapter</body></html>")],
+    );
+    let expected_metadata_generation =
+        EpubFileSignature::from_path(&epub_path).expect("EPUB generation should be readable");
+    let (image_size, image_modified_at) = fingerprint(&image_path);
+    let (epub_size, epub_modified_at) = fingerprint(&epub_path);
+
+    write_cover_at(
+        &root,
+        EpubCoverWritebackInput {
+            relative_path: "book.epub".to_string(),
+            book_id: "book-1".to_string(),
+            image_path: image_path.to_string_lossy().into_owned(),
+            framing: EpubCoverFraming::Fit,
+            expected_image_size: image_size,
+            expected_image_modified_at: image_modified_at,
+            expected_epub_size: epub_size,
+            expected_epub_modified_at: epub_modified_at,
+            keep_successful_backup: false,
+        },
+    )
+    .expect("cover write should succeed");
+
+    let outcome = epub_writeback::write_epub_metadata_at_for_test(
+        &root,
+        "book.epub",
+        epub_metadata::EpubPackageMetadata {
+            title: Some("Stale metadata title".to_string()),
+            ..epub_metadata::EpubPackageMetadata::default()
+        },
+        expected_metadata_generation,
+    )
+    .expect("stale metadata should return a typed conflict");
+
+    assert!(matches!(
+        outcome,
+        EpubMetadataWritebackOutcome::Conflict(EpubMetadataWritebackConflict::StaleSource { .. })
+    ));
+    let metadata =
+        epub_metadata::read_core_metadata(&epub_path).expect("cover-updated EPUB should parse");
+    assert_eq!(metadata.title.as_deref(), Some("Original"));
     fs::remove_dir_all(root).expect("root should be removed");
 }
 

@@ -16,6 +16,27 @@ import {
   requireAvailableBook,
 } from "./operationTypes";
 
+function metadataWritebackGeneration(book: Book): {
+  expectedEpubSize: number;
+  expectedEpubModifiedAt: number;
+} {
+  if (
+    book.size === undefined ||
+    !Number.isSafeInteger(book.size) ||
+    book.size < 0 ||
+    !book.modifiedAt
+  ) {
+    throw new Error(`Book "${book.id}" does not have a valid EPUB source generation.`);
+  }
+
+  const expectedEpubModifiedAt = Date.parse(book.modifiedAt);
+  if (!Number.isFinite(expectedEpubModifiedAt)) {
+    throw new Error(`Book "${book.id}" has an invalid EPUB modified timestamp.`);
+  }
+
+  return { expectedEpubSize: book.size, expectedEpubModifiedAt };
+}
+
 export class WritebackOperations {
   constructor(private readonly host: StorageOperationHost) {}
 
@@ -117,17 +138,24 @@ export class WritebackOperations {
     suppression.begin(book.relativePath);
 
     try {
-      const result = await this.host.commands.invoke(
+      const generation = metadataWritebackGeneration(book);
+      const outcome = await this.host.commands.invoke(
         "write_epub_metadata",
         {
           input: {
             relativePath: book.relativePath,
             metadata,
+            ...generation,
             keepSuccessfulBackup,
           },
         },
         scope.rootPath,
       );
+
+      if ("kind" in outcome) {
+        throw new Error(outcome.message);
+      }
+      const result = outcome;
 
       if (!this.host.isCurrentScope(scope)) {
         return result;

@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 use super::{
-    archive_backup::ArchiveBackupLayout, archive_root, epub, epub_analysis, epub_metadata,
-    epub_mutation, filesystem, metadata, scanner_cache,
+    archive_backup::ArchiveBackupLayout, archive_root, epub, epub_analysis,
+    epub_analysis_cache::EpubFileSignature, epub_metadata, epub_mutation, filesystem, metadata,
+    scanner_cache,
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -18,6 +19,8 @@ use super::{
 pub struct EpubMetadataWritebackInput {
     relative_path: String,
     metadata: epub_metadata::EpubPackageMetadata,
+    expected_epub_size: u64,
+    expected_epub_modified_at: u64,
     #[serde(default)]
     keep_successful_backup: bool,
 }
@@ -38,6 +41,35 @@ pub struct EpubMetadataWritebackResult {
     backup_path: Option<String>,
     source_metadata: epub_metadata::EpubPackageMetadata,
     file_stat: EpubMetadataWritebackFileStat,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum EpubMetadataWritebackConflict {
+    StaleSource { message: String },
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
+pub enum EpubMetadataWritebackOutcome {
+    Written(Box<EpubMetadataWritebackResult>),
+    Conflict(EpubMetadataWritebackConflict),
+}
+
+const STALE_METADATA_SOURCE_MESSAGE: &str =
+    "The EPUB changed after this metadata edit was prepared. Review the latest metadata before writing again.";
+
+fn metadata_source_generation_matches(
+    epub_path: &Path,
+    expected_generation: &EpubFileSignature,
+) -> Result<bool, String> {
+    Ok(EpubFileSignature::from_path(epub_path)? == *expected_generation)
+}
+
+fn stale_metadata_source_outcome() -> EpubMetadataWritebackOutcome {
+    EpubMetadataWritebackOutcome::Conflict(EpubMetadataWritebackConflict::StaleSource {
+        message: STALE_METADATA_SOURCE_MESSAGE.to_string(),
+    })
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -511,12 +543,14 @@ fn write_epub_metadata_at(
     root: &Path,
     relative_path: &str,
     metadata_update: epub_metadata::EpubPackageMetadata,
+    expected_generation: EpubFileSignature,
     keep_successful_backup: bool,
-) -> Result<EpubMetadataWritebackResult, String> {
+) -> Result<EpubMetadataWritebackOutcome, String> {
     write_epub_metadata_at_with_ops(
         root,
         relative_path,
         metadata_update,
+        expected_generation,
         keep_successful_backup,
         WritebackTransactionOps {
             rewrite_package_document: rewrite_epub_package_document,
@@ -550,13 +584,15 @@ fn write_epub_metadata_at_with_ops(
     root: &Path,
     relative_path: &str,
     metadata_update: epub_metadata::EpubPackageMetadata,
+    expected_generation: EpubFileSignature,
     keep_successful_backup: bool,
     transaction_ops: WritebackTransactionOps,
-) -> Result<EpubMetadataWritebackResult, String> {
+) -> Result<EpubMetadataWritebackOutcome, String> {
     write_epub_metadata_at_with_backup_ops(
         root,
         relative_path,
         metadata_update,
+        expected_generation,
         keep_successful_backup,
         transaction_ops,
         WritebackMaintenanceOps {
@@ -724,14 +760,18 @@ fn write_epub_metadata_at_with_backup_ops(
     root: &Path,
     relative_path: &str,
     metadata_update: epub_metadata::EpubPackageMetadata,
+    expected_generation: EpubFileSignature,
     keep_successful_backup: bool,
     transaction_ops: WritebackTransactionOps,
     maintenance_ops: WritebackMaintenanceOps,
-) -> Result<EpubMetadataWritebackResult, String> {
+) -> Result<EpubMetadataWritebackOutcome, String> {
     validate_writeback_metadata(&metadata_update)?;
     epub_mutation::run(root, relative_path, move |normalized_relative_path| {
         let rewrite_package_document = transaction_ops.rewrite_package_document;
         let epub_path = epub::resolve_epub_path(root, normalized_relative_path)?;
+        if !metadata_source_generation_matches(&epub_path, &expected_generation)? {
+            return Ok(stale_metadata_source_outcome());
+        }
         let metadata_update = normalize_writeback_metadata(metadata_update);
 
         let package = {
@@ -755,6 +795,11 @@ fn write_epub_metadata_at_with_backup_ops(
             return Err(temp_validation_error("metadata", &error));
         }
 
+        if !metadata_source_generation_matches(&epub_path, &expected_generation)? {
+            let _ = fs::remove_file(&temporary_path);
+            return Ok(stale_metadata_source_outcome());
+        }
+
         commit_epub_rewrite_at_with_ops(
             root,
             normalized_relative_path,
@@ -766,7 +811,24 @@ fn write_epub_metadata_at_with_backup_ops(
             transaction_ops,
             maintenance_ops,
         )
+        .map(|result| EpubMetadataWritebackOutcome::Written(Box::new(result)))
     })
+}
+
+#[cfg(test)]
+pub(crate) fn write_epub_metadata_at_for_test(
+    root: &Path,
+    relative_path: &str,
+    metadata_update: epub_metadata::EpubPackageMetadata,
+    expected_generation: EpubFileSignature,
+) -> Result<EpubMetadataWritebackOutcome, String> {
+    write_epub_metadata_at(
+        root,
+        relative_path,
+        metadata_update,
+        expected_generation,
+        false,
+    )
 }
 
 #[tauri::command]
@@ -774,13 +836,17 @@ pub async fn write_epub_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
     input: EpubMetadataWritebackInput,
-) -> Result<EpubMetadataWritebackResult, String> {
+) -> Result<EpubMetadataWritebackOutcome, String> {
     let root = archive_root::resolve_archive_root(&app, root_path)?;
     tauri::async_runtime::spawn_blocking(move || {
         write_epub_metadata_at(
             &root,
             &input.relative_path,
             input.metadata,
+            EpubFileSignature {
+                size_bytes: input.expected_epub_size,
+                modified_at_millis: input.expected_epub_modified_at,
+            },
             input.keep_successful_backup,
         )
     })
@@ -820,10 +886,10 @@ mod tests {
 
     use super::{
         clear_epub_writeback_backups_at, epub_metadata, epub_writeback_backup_status_at, metadata,
-        restore_epub_from_backup, write_epub_metadata_at, write_epub_metadata_at_with_backup_ops,
-        write_epub_metadata_at_with_ops, WritebackMaintenanceOps, WritebackTransactionOps,
+        restore_epub_from_backup, EpubMetadataWritebackConflict, EpubMetadataWritebackOutcome,
+        EpubMetadataWritebackResult, WritebackMaintenanceOps, WritebackTransactionOps,
     };
-    use crate::commands::epub_analysis_cache;
+    use crate::commands::{epub_analysis_cache, epub_analysis_cache::EpubFileSignature};
 
     fn test_root() -> std::path::PathBuf {
         let nonce = std::time::SystemTime::now()
@@ -857,6 +923,78 @@ mod tests {
 
     fn read_bytes(path: &Path) -> Vec<u8> {
         fs::read(path).expect("file should be readable")
+    }
+
+    fn current_generation(path: &Path) -> EpubFileSignature {
+        EpubFileSignature::from_path(path).expect("EPUB generation should be readable")
+    }
+
+    fn written_result(
+        outcome: EpubMetadataWritebackOutcome,
+    ) -> Result<EpubMetadataWritebackResult, String> {
+        match outcome {
+            EpubMetadataWritebackOutcome::Written(result) => Ok(*result),
+            EpubMetadataWritebackOutcome::Conflict(
+                EpubMetadataWritebackConflict::StaleSource { message },
+            ) => Err(format!("unexpected stale-source conflict: {message}")),
+        }
+    }
+
+    fn write_epub_metadata_at(
+        root: &Path,
+        relative_path: &str,
+        metadata_update: epub_metadata::EpubPackageMetadata,
+        keep_successful_backup: bool,
+    ) -> Result<EpubMetadataWritebackResult, String> {
+        let generation = current_generation(&root.join(relative_path));
+        super::write_epub_metadata_at(
+            root,
+            relative_path,
+            metadata_update,
+            generation,
+            keep_successful_backup,
+        )
+        .and_then(written_result)
+    }
+
+    fn write_epub_metadata_at_with_ops(
+        root: &Path,
+        relative_path: &str,
+        metadata_update: epub_metadata::EpubPackageMetadata,
+        keep_successful_backup: bool,
+        transaction_ops: WritebackTransactionOps,
+    ) -> Result<EpubMetadataWritebackResult, String> {
+        let generation = current_generation(&root.join(relative_path));
+        super::write_epub_metadata_at_with_ops(
+            root,
+            relative_path,
+            metadata_update,
+            generation,
+            keep_successful_backup,
+            transaction_ops,
+        )
+        .and_then(written_result)
+    }
+
+    fn write_epub_metadata_at_with_backup_ops(
+        root: &Path,
+        relative_path: &str,
+        metadata_update: epub_metadata::EpubPackageMetadata,
+        keep_successful_backup: bool,
+        transaction_ops: WritebackTransactionOps,
+        maintenance_ops: WritebackMaintenanceOps,
+    ) -> Result<EpubMetadataWritebackResult, String> {
+        let generation = current_generation(&root.join(relative_path));
+        super::write_epub_metadata_at_with_backup_ops(
+            root,
+            relative_path,
+            metadata_update,
+            generation,
+            keep_successful_backup,
+            transaction_ops,
+            maintenance_ops,
+        )
+        .and_then(written_result)
     }
 
     fn write_epub_with_binary_entry(
@@ -947,6 +1085,24 @@ mod tests {
         _package_xml: &str,
     ) -> Result<PathBuf, String> {
         Err("simulated rewrite failure".to_string())
+    }
+
+    fn rewrite_then_change_source(
+        epub_path: &Path,
+        package_path: &str,
+        package_xml: &str,
+    ) -> Result<PathBuf, String> {
+        let temporary_path =
+            super::rewrite_epub_package_document(epub_path, package_path, package_xml)?;
+        let mut source = fs::OpenOptions::new()
+            .append(true)
+            .open(epub_path)
+            .map_err(|error| error.to_string())?;
+        source
+            .write_all(b"external-source-change")
+            .map_err(|error| error.to_string())?;
+        source.sync_all().map_err(|error| error.to_string())?;
+        Ok(temporary_path)
     }
 
     fn failing_replace_original_with_temp(
@@ -1131,6 +1287,108 @@ mod tests {
                 .as_ref()
                 .and_then(|metadata| metadata.title.as_deref()),
             Some("Other"),
+        );
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn rejects_metadata_write_when_source_changes_before_final_swap() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_epub(
+            &epub_path,
+            br#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old</dc:title></metadata></package>"#,
+        );
+        let expected_generation = current_generation(&epub_path);
+        let original_size = expected_generation.size_bytes;
+
+        let outcome = super::write_epub_metadata_at_with_ops(
+            &root,
+            "book.epub",
+            update_title(),
+            expected_generation,
+            false,
+            WritebackTransactionOps {
+                rewrite_package_document: rewrite_then_change_source,
+                move_original_to_backup: super::move_original_to_transaction_backup,
+                replace_original_with_temp: super::replace_original_with_temp,
+                restore_backup: restore_epub_from_backup,
+            },
+        )
+        .expect("stale source should be a typed writeback outcome");
+
+        match outcome {
+            EpubMetadataWritebackOutcome::Conflict(
+                EpubMetadataWritebackConflict::StaleSource { message },
+            ) => assert_eq!(message, super::STALE_METADATA_SOURCE_MESSAGE),
+            EpubMetadataWritebackOutcome::Written(_) => panic!("stale source must not be written"),
+        }
+        assert!(
+            fs::metadata(&epub_path)
+                .expect("source should remain")
+                .len()
+                > original_size
+        );
+        assert!(backup_file_names(&root).is_empty());
+        assert!(fs::read_dir(&root)
+            .expect("root should be readable")
+            .all(|entry| !entry
+                .expect("entry should be readable")
+                .file_name()
+                .to_string_lossy()
+                .contains(".tmp-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn rejects_second_metadata_write_based_on_older_generation() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_epub(
+            &epub_path,
+            br#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old</dc:title></metadata></package>"#,
+        );
+        let expected_generation = current_generation(&epub_path);
+        let first_update = epub_metadata::EpubPackageMetadata {
+            title: Some("First committed metadata title with a distinct size".to_string()),
+            ..epub_metadata::EpubPackageMetadata::default()
+        };
+
+        let first = super::write_epub_metadata_at(
+            &root,
+            "book.epub",
+            first_update,
+            expected_generation.clone(),
+            false,
+        )
+        .expect("first metadata write should complete");
+        assert!(matches!(first, EpubMetadataWritebackOutcome::Written(_)));
+
+        let second = super::write_epub_metadata_at(
+            &root,
+            "book.epub",
+            epub_metadata::EpubPackageMetadata {
+                title: Some("Stale second title".to_string()),
+                ..epub_metadata::EpubPackageMetadata::default()
+            },
+            expected_generation,
+            false,
+        )
+        .expect("stale metadata should return a typed conflict");
+        assert!(matches!(
+            second,
+            EpubMetadataWritebackOutcome::Conflict(
+                EpubMetadataWritebackConflict::StaleSource { .. }
+            )
+        ));
+
+        let metadata =
+            epub_metadata::read_core_metadata(&epub_path).expect("committed metadata should parse");
+        assert_eq!(
+            metadata.title.as_deref(),
+            Some("First committed metadata title with a distinct size")
         );
         fs::remove_dir_all(root).expect("test archive should be removed");
     }

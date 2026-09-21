@@ -33,6 +33,8 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
           input: {
             relativePath: "Author/Series/Volume_01.epub",
             metadata: { title: "Edited Title" },
+            expectedEpubSize: 2048,
+            expectedEpubModifiedAt: 1_700_000_000_000,
             keepSuccessfulBackup: false,
           },
         });
@@ -66,6 +68,32 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
     expect(book).not.toBe(initialBook);
     expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
     expect(invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata")).toBe(true);
+  });
+
+  it("surfaces a typed stale-source metadata conflict without applying a writeback result", async () => {
+    const staleMessage =
+      "The EPUB changed after this metadata edit was prepared. Review the latest metadata before writing again.";
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "write_epub_metadata") {
+        return { kind: "stale-source", message: staleMessage };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    const before = await storage.listBooks();
+
+    await expect(storage.writeBookMetadata("book-1", { title: "Edited Title" })).rejects.toThrow(
+      staleMessage,
+    );
+
+    const after = await storage.listBooks();
+    expect(after[0]).toMatchObject({
+      size: before[0]?.size,
+      modifiedAt: before[0]?.modifiedAt,
+      sourceMetadata: before[0]?.sourceMetadata,
+    });
   });
 
   it("begins watcher suppression before invoking backend writeback", async () => {
@@ -510,6 +538,8 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
           input: {
             relativePath: "Author/Series/Volume_01.epub",
             metadata: { title: "Edited Title" },
+            expectedEpubSize: 2048,
+            expectedEpubModifiedAt: 1_700_000_000_000,
             keepSuccessfulBackup: true,
           },
         });

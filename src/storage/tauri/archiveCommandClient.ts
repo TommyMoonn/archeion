@@ -4,8 +4,8 @@ import type {
   EpubCoverPreparation,
   EpubCoverWritebackInput,
   EpubCoverWritebackResult,
+  EpubMetadataWritebackCommandResult,
   EpubMetadataWritebackInput,
-  EpubMetadataWritebackResult,
 } from "../../types/book";
 import type {
   EpubAnalysisFileRequest,
@@ -75,10 +75,12 @@ export type ArchiveCommandMap = {
       input: {
         relativePath: string;
         metadata: EpubMetadataWritebackInput;
+        expectedEpubSize: number;
+        expectedEpubModifiedAt: number;
         keepSuccessfulBackup: boolean;
       };
     },
-    EpubMetadataWritebackResult
+    EpubMetadataWritebackCommandResult
   >;
   prepare_epub_cover_writeback: CommandDefinition<
     {

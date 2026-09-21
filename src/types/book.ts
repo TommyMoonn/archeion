@@ -73,6 +73,14 @@ export type EpubMetadataWritebackResult = {
   fileStat: EpubMetadataWritebackFileStat;
 };
 
+export type EpubMetadataWritebackConflict = {
+  kind: "stale-source";
+  message: string;
+};
+
+export type EpubMetadataWritebackCommandResult =
+  EpubMetadataWritebackResult | EpubMetadataWritebackConflict;
+
 export type EpubCoverWritebackResult = EpubMetadataWritebackResult & {
   coverCacheWarning?: string | null;
 };
