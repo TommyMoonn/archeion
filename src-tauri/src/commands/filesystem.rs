@@ -1,10 +1,12 @@
 use std::{
-    fs,
+    fs, io,
     path::{Component, Path, PathBuf},
     process::Command,
 };
 
 use serde::{Deserialize, Serialize};
+
+use crate::atomic_file::transaction_path;
 
 use super::{
     archive_root,
@@ -181,6 +183,75 @@ fn resolve_command_archive_root(
     archive_root::resolve_archive_root(app, root_path)
 }
 
+const EPUB_EXPORT_COLLISION_MESSAGE: &str =
+    "A file with this name already exists in the export folder.";
+
+#[derive(Debug)]
+enum EpubExportError {
+    Collision,
+    Io(io::Error),
+}
+
+impl EpubExportError {
+    fn into_message(self) -> String {
+        match self {
+            Self::Collision => EPUB_EXPORT_COLLISION_MESSAGE.to_string(),
+            Self::Io(error) => error.to_string(),
+        }
+    }
+}
+
+fn export_epub_to_destination_with<C, R>(
+    source: &Path,
+    destination: &Path,
+    copy: C,
+    remove_file: R,
+) -> Result<(), EpubExportError>
+where
+    C: FnOnce(&mut fs::File, &mut fs::File) -> io::Result<u64>,
+    R: Fn(&Path) -> io::Result<()>,
+{
+    // Fast-path only. The no-clobber guarantee comes from the atomic hard-link publish below.
+    if destination.exists() {
+        return Err(EpubExportError::Collision);
+    }
+
+    let staging_base = destination.with_file_name(".archeion-epub-export");
+    let temporary = transaction_path(&staging_base, "tmp");
+    let mut source_file = fs::File::open(source).map_err(EpubExportError::Io)?;
+    let mut temporary_file = fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&temporary)
+        .map_err(EpubExportError::Io)?;
+
+    if let Err(error) = copy(&mut source_file, &mut temporary_file) {
+        drop(temporary_file);
+        let _ = remove_file(&temporary);
+        return Err(EpubExportError::Io(error));
+    }
+    drop(temporary_file);
+
+    match fs::hard_link(&temporary, destination) {
+        Ok(()) => {
+            let _ = remove_file(&temporary);
+            Ok(())
+        }
+        Err(error) => {
+            let _ = remove_file(&temporary);
+            if error.kind() == io::ErrorKind::AlreadyExists || destination.exists() {
+                Err(EpubExportError::Collision)
+            } else {
+                Err(EpubExportError::Io(error))
+            }
+        }
+    }
+}
+
+fn export_epub_to_destination(source: &Path, destination: &Path) -> Result<(), EpubExportError> {
+    export_epub_to_destination_with(source, destination, io::copy, |path| fs::remove_file(path))
+}
+
 #[tauri::command]
 pub fn export_archive_epub_file(
     app: tauri::AppHandle,
@@ -198,12 +269,7 @@ pub fn export_archive_epub_file(
         .file_name()
         .ok_or_else(|| "The EPUB file name is unavailable.".to_string())?;
     let destination = destination_folder.join(file_name);
-    if destination.exists() {
-        return Err("A file with this name already exists in the export folder.".to_string());
-    }
-    fs::copy(source, destination)
-        .map(|_| ())
-        .map_err(|error| error.to_string())
+    export_epub_to_destination(&source, &destination).map_err(EpubExportError::into_message)
 }
 
 const MAX_ANNOTATION_EXPORT_BYTES: usize = 64 * 1024 * 1024;
@@ -820,17 +886,21 @@ pub fn reveal_archive_folder(
 #[cfg(test)]
 mod tests {
     use std::{
-        fs,
+        fs, io,
+        io::{Read, Write},
+        sync::{mpsc, Arc, Barrier},
+        thread,
         time::{SystemTime, UNIX_EPOCH},
     };
 
     use super::{
         delete_archive_epub_with_trash, delete_archive_folder_with_trash,
-        delete_archive_item_with_trash, is_reserved_archive_path, normalize_archive_relative_path,
+        delete_archive_item_with_trash, export_epub_to_destination,
+        export_epub_to_destination_with, is_reserved_archive_path, normalize_archive_relative_path,
         normalize_windows_shell_path, rename_archive_epub_at, rename_archive_folder_at,
         resolve_existing_epub_path, validate_archive_item_name, validate_epub_file_name,
         write_annotation_export_file, write_annotation_export_to_destination,
-        AnnotationExportFormat,
+        AnnotationExportFormat, EpubExportError, EPUB_EXPORT_COLLISION_MESSAGE,
     };
     use crate::commands::{epub_analysis_cache, metadata, scanner_cache};
 
@@ -1147,6 +1217,207 @@ mod tests {
         assert!(resolve_existing_epub_path(&root, "../outside.epub").is_err());
         assert!(resolve_existing_epub_path(&root, "missing.epub").is_err());
         fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn exports_epub_bytes_to_a_new_destination() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test folder should be created");
+        let source = root.join("source.epub");
+        let destination = root.join("export.epub");
+        let contents = b"epub bytes\0with binary data";
+        fs::write(&source, contents).expect("source should be created");
+
+        export_epub_to_destination(&source, &destination).expect("export should succeed");
+
+        assert_eq!(
+            fs::read(&source).expect("source should remain readable"),
+            contents
+        );
+        assert_eq!(
+            fs::read(&destination).expect("destination should be readable"),
+            contents
+        );
+        fs::remove_dir_all(root).expect("test folder should be removed");
+    }
+
+    #[test]
+    fn existing_epub_export_destination_is_not_modified() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test folder should be created");
+        let source = root.join("source.epub");
+        let destination = root.join("export.epub");
+        fs::write(&source, b"new bytes").expect("source should be created");
+        fs::write(&destination, b"existing bytes").expect("destination should be created");
+
+        let error = export_epub_to_destination_with(&source, &destination, io::copy, |_| {
+            panic!("collision must not trigger cleanup")
+        })
+        .expect_err("existing destination should collide");
+
+        assert!(matches!(&error, EpubExportError::Collision));
+        assert_eq!(error.into_message(), EPUB_EXPORT_COLLISION_MESSAGE);
+        assert_eq!(
+            fs::read(&destination).expect("existing destination should remain readable"),
+            b"existing bytes"
+        );
+        fs::remove_dir_all(root).expect("test folder should be removed");
+    }
+
+    #[test]
+    fn racing_epub_export_reservation_reports_collision_without_clobbering() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test folder should be created");
+        let source = root.join("source.epub");
+        let destination = root.join("export.epub");
+        fs::write(&source, b"export bytes").expect("source should be created");
+
+        let copy_started = Arc::new(Barrier::new(2));
+        let release_copy = Arc::new(Barrier::new(2));
+        let (result_sender, result_receiver) = mpsc::channel();
+        let worker_source = source.clone();
+        let worker_destination = destination.clone();
+        let worker_started = Arc::clone(&copy_started);
+        let worker_release = Arc::clone(&release_copy);
+        let worker = thread::spawn(move || {
+            let result = export_epub_to_destination_with(
+                &worker_source,
+                &worker_destination,
+                |source_file, destination_file| {
+                    worker_started.wait();
+                    worker_release.wait();
+                    io::copy(source_file, destination_file)
+                },
+                |path| fs::remove_file(path),
+            );
+            result_sender
+                .send(result)
+                .expect("worker result should send");
+        });
+
+        copy_started.wait();
+        fs::write(&destination, b"racing reservation")
+            .expect("another actor should reserve destination");
+        release_copy.wait();
+        worker.join().expect("worker should finish");
+        let error = result_receiver
+            .recv()
+            .expect("worker result should arrive")
+            .expect_err("racing reservation should collide");
+        assert!(matches!(error, EpubExportError::Collision));
+        assert_eq!(
+            fs::read(&destination).expect("reserved destination should remain readable"),
+            b"racing reservation"
+        );
+        fs::remove_dir_all(root).expect("test folder should be removed");
+    }
+
+    #[test]
+    fn failed_epub_export_removes_only_its_partial_destination() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test folder should be created");
+        let source = root.join("source.epub");
+        let destination = root.join("export.epub");
+        let unrelated = root.join("existing.epub");
+        fs::write(&source, b"complete source bytes").expect("source should be created");
+        fs::write(&unrelated, b"unrelated bytes").expect("unrelated file should be created");
+
+        let error = export_epub_to_destination_with(
+            &source,
+            &destination,
+            |source_file, destination_file| {
+                let mut prefix = [0_u8; 8];
+                let count = source_file.read(&mut prefix)?;
+                destination_file.write_all(&prefix[..count])?;
+                Err(io::Error::other("copy failed"))
+            },
+            |path| fs::remove_file(path),
+        )
+        .expect_err("copy failure should fail export");
+
+        assert!(matches!(error, EpubExportError::Io(_)));
+        assert!(!destination.exists());
+        assert_eq!(
+            fs::read(&unrelated).expect("unrelated file should remain readable"),
+            b"unrelated bytes"
+        );
+        fs::remove_dir_all(root).expect("test folder should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_epub_export_does_not_delete_replacement_rebound_at_destination() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test folder should be created");
+        let source = root.join("source.epub");
+        let destination = root.join("export.epub");
+        fs::write(&source, b"complete source bytes").expect("source should be created");
+
+        let replacement_bytes = b"replacement bytes";
+        let replacement_destination = destination.clone();
+        let error = export_epub_to_destination_with(
+            &source,
+            &destination,
+            move |_source_file, destination_file| {
+                destination_file.write_all(b"partial")?;
+                if replacement_destination.exists() {
+                    fs::remove_file(&replacement_destination)?;
+                }
+                fs::write(&replacement_destination, replacement_bytes)?;
+                Err(io::Error::other("copy failed after destination rebound"))
+            },
+            |path| fs::remove_file(path),
+        )
+        .expect_err("copy failure should fail export");
+
+        assert_eq!(
+            error.into_message(),
+            "copy failed after destination rebound"
+        );
+        assert_eq!(
+            fs::read(&destination).expect("replacement destination should survive cleanup"),
+            replacement_bytes
+        );
+        fs::remove_dir_all(root).expect("test folder should be removed");
+    }
+
+    #[test]
+    fn epub_export_cleanup_failure_keeps_the_primary_copy_error() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test folder should be created");
+        let source = root.join("source.epub");
+        let destination = root.join("export.epub");
+        fs::write(&source, b"complete source bytes").expect("source should be created");
+
+        let error = export_epub_to_destination_with(
+            &source,
+            &destination,
+            |_source_file, destination_file| {
+                destination_file.write_all(b"partial")?;
+                Err(io::Error::other("primary copy failure"))
+            },
+            |_| {
+                Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "cleanup failure",
+                ))
+            },
+        )
+        .expect_err("copy failure should remain authoritative");
+
+        assert_eq!(error.into_message(), "primary copy failure");
+        assert!(
+            !destination.exists(),
+            "failed staging cleanup must not create the export destination"
+        );
+        assert_eq!(
+            fs::read_dir(&root)
+                .expect("test folder should be readable")
+                .count(),
+            2,
+            "the failed cleanup should leave only the source and staged partial file"
+        );
+        fs::remove_dir_all(root).expect("test folder should be removed");
     }
 
     #[test]
