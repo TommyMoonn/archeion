@@ -199,11 +199,26 @@
               data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
+              href="../series/"
+              data-doc-link
+              data-search="series organize volumes, continue reading, and review volume order."
+              ><span>Series</span></a
+            ><a
               href="./"
               data-doc-link
               data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               aria-current="page"
               ><span>Reader and annotations</span></a
+            ><a
+              href="../reader-navigation/"
+              data-doc-link
+              data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
+              ><span>Reader navigation and progress</span></a
+            ><a
+              href="../reader-media/"
+              data-doc-link
+              data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
+              ><span>Footnotes and illustrations</span></a
             ><a
               href="../file-management/"
               data-doc-link
@@ -293,22 +308,42 @@
           <ul>
             <li>Back to the Library.</li>
             <li>Previous and next chapter controls when available.</li>
-            <li>The table of contents.</li>
-            <li>Page controls in Paged mode and scrolling in Continuous mode.</li>
+            <li>
+              <strong>Back in reading history</strong> and
+              <strong>Forward in reading history</strong>.
+            </li>
+            <li><strong>Find in book</strong> and <strong>Book navigation</strong>.</li>
+            <li><strong>Annotations</strong> and the bookmark control.</li>
+            <li><strong>Reader settings</strong>.</li>
             <li>Book and chapter progress.</li>
           </ul>
+          <p>
+            For search, Contents/Landmarks/Pages, history, and progress seeking, see
+            <a href="../reader-navigation/">Reader navigation and progress</a>.
+          </p>
 
           <h3 id="reader-settings">Change reading settings</h3>
-          <p>Open <strong>Reader settings</strong> to change:</p>
+          <p>
+            Open <strong>Reader settings</strong> to change the controls available for the book:
+          </p>
           <ul>
-            <li>Paged or Continuous mode.</li>
+            <li>Paged or Continuous reading mode.</li>
             <li>Reader colors.</li>
             <li>Typeface and text size.</li>
-            <li>Line spacing and page width.</li>
-            <li>Top or side progress bar placement.</li>
+            <li>Line spacing.</li>
+            <li>Page width.</li>
+            <li>Top or Side progress bar placement.</li>
           </ul>
           <p>
-            Changes save automatically. The Reader shows an error when a setting could not be saved.
+            Page width options are <strong>Narrow</strong>, <strong>Comfortable</strong>,
+            <strong>Wide</strong>, and <strong>Full</strong>. Comfortable is the default. Each step
+            allows a wider reading measure; Full removes the reading-measure cap while retaining a
+            small edge gutter. Paged mode remains a single-page presentation rather than turning a
+            wider setting into a two-page spread.
+          </p>
+          <p>
+            Changes save automatically. Successful saves are silent; the Reader shows an error when
+            a setting could not be saved.
           </p>
 
           <h2 id="create-annotations">Create annotations</h2>
@@ -330,13 +365,15 @@
 
           <h2 id="review-annotations">Review and export annotations</h2>
           <h3 id="annotations-panel">Use the Annotations panel</h3>
-          <p>Open <strong>Annotations</strong> from the Reader toolbar to:</p>
+          <p>
+            <strong>Annotations</strong> is one searchable collection of the current book's
+            bookmarks and highlights. From the panel you can:
+          </p>
           <ul>
-            <li>Show all annotations, bookmarks only, or highlights only.</li>
             <li>Search annotation text and labels.</li>
-            <li>Sort by book order or recently updated.</li>
+            <li>Sort by <strong>Book order</strong> or <strong>Recently updated</strong>.</li>
             <li>Open an annotation in the book.</li>
-            <li>Edit labels, colors, and notes.</li>
+            <li>Edit labels, highlight colors, and notes.</li>
             <li>Copy or remove annotations.</li>
           </ul>
 
@@ -347,6 +384,14 @@
             export action.
           </p>
 
+          <h2 id="supporting-content">Open supporting content</h2>
+          <p>
+            Reader can open supported EPUB footnotes without leaving the current book and can open
+            supported standalone images in a focused viewer. See
+            <a href="../reader-media/">Footnotes and illustrations</a> for the controls and image
+            export behavior.
+          </p>
+
           <h2 id="book-changes">If the EPUB file changes</h2>
           <p>
             When an EPUB is replaced or edited, Archeion tries to reconnect each annotation to its
@@ -355,10 +400,10 @@
           </p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">
-          <a class="article-pager__item article-pager__item--previous" href="../library/"
-            ><span>Previous</span><strong>Library</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../file-management/"
-            ><span>Next</span><strong>File management</strong></a
+          <a class="article-pager__item article-pager__item--previous" href="../series/"
+            ><span>Previous</span><strong>Series</strong></a
+          ><a class="article-pager__item article-pager__item--next" href="../reader-navigation/"
+            ><span>Next</span><strong>Reader navigation and progress</strong></a
           >
         </nav>
         <footer class="docs-footer">

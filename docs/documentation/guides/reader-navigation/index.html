@@ -3,9 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Copy or move EPUB files into the active archive." />
+    <meta
+      name="description"
+      content="Use Find in Book, EPUB navigation, Reader history, and the reading-progress scrubber."
+    />
     <meta name="theme-color" content="#171717" />
-    <title>Add EPUB files | Archeion Docs</title>
+    <title>Reader navigation and progress | Archeion Docs</title>
     <link rel="icon" href="../../../assets/images/archeion-icon.png" />
     <link rel="stylesheet" href="../../assets/docs.css" />
     <script src="../../assets/docs.js" defer></script>
@@ -160,20 +163,19 @@
           </h2>
           <div class="sidebar-group__items" id="sidebar-group-1" data-sidebar-group-items>
             <a
-              href="../installing/"
+              href="../../getting-started/installing/"
               data-doc-link
               data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
-              href="../archives/"
+              href="../../getting-started/archives/"
               data-doc-link
               data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
-              href="./"
+              href="../../getting-started/adding-books/"
               data-doc-link
               data-search="add epub files copy or move books into an archive folder."
-              aria-current="page"
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -192,32 +194,33 @@
           </h2>
           <div class="sidebar-group__items" id="sidebar-group-2" data-sidebar-group-items>
             <a
-              href="../../guides/library/"
+              href="../library/"
               data-doc-link
               data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
-              href="../../guides/series/"
+              href="../series/"
               data-doc-link
               data-search="series organize volumes, continue reading, and review volume order."
               ><span>Series</span></a
             ><a
-              href="../../guides/reading/"
+              href="../reading/"
               data-doc-link
               data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
-              href="../../guides/reader-navigation/"
+              href="./"
               data-doc-link
               data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
+              aria-current="page"
               ><span>Reader navigation and progress</span></a
             ><a
-              href="../../guides/reader-media/"
+              href="../reader-media/"
               data-doc-link
               data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
               ><span>Footnotes and illustrations</span></a
             ><a
-              href="../../guides/file-management/"
+              href="../file-management/"
               data-doc-link
               data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
@@ -281,90 +284,88 @@
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
         <div class="breadcrumbs" aria-label="Breadcrumb">
-          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Getting started</span
-          ><span aria-hidden="true">/</span><span aria-current="page">Add EPUB files</span>
+          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
+          ><span aria-hidden="true">/</span
+          ><span aria-current="page">Reader navigation and progress</span>
         </div>
         <article class="doc-article" data-doc-article>
           <header class="article-header">
-            <p class="eyebrow">Getting started</p>
-            <h1>Add EPUB files</h1>
-            <p>Add books to the active archive by copying or moving them.</p>
+            <p class="eyebrow">Using Archeion</p>
+            <h1>Navigate and track reading progress</h1>
+            <p>
+              Find text, move through EPUB navigation, retrace Reader jumps, and seek by progress.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
           <p class="lead">
-            Use <strong>Add EPUB</strong> when you want Archeion to place books in the archive for
-            you.
+            Reader navigation works inside the currently open EPUB. Use the toolbar controls to
+            search the book, open publisher navigation, retrace jumps, or seek to another point.
           </p>
 
-          <h2 id="add-in-archeion">Add books in Archeion</h2>
-          <h3 id="choose-files">Choose files and a destination</h3>
-          <ol class="steps">
-            <li>
-              <strong>Select Add EPUB.</strong><span>The button is in the Library toolbar.</span>
-            </li>
-            <li>
-              <strong>Choose one or more files.</strong
-              ><span>Select the <code>.epub</code> files you want to add.</span>
-            </li>
-            <li>
-              <strong>Choose a destination.</strong
-              ><span>Use the archive root or an existing folder.</span>
-            </li>
-            <li>
-              <strong>Choose what to do with filename conflicts.</strong
-              ><span
-                >Select the option you want when a file with the same name already exists.</span
-              >
-            </li>
-            <li>
-              <strong>Select Copy or Move.</strong
-              ><span>Copy keeps the original file. Move transfers it into the archive.</span>
-            </li>
-            <li>
-              <strong>Confirm Add EPUB.</strong
-              ><span>Archeion adds the files and refreshes the Library.</span>
-            </li>
-          </ol>
-
-          <h3 id="copy-or-move">Copy or move</h3>
+          <h2 id="find-in-book">Find text in the open book</h2>
           <p>
-            Use <strong>Copy</strong> when you want to keep the original file. Use
-            <strong>Move</strong> when the archive should become the file's new location.
+            Open <strong>Find in Book</strong> from the Reader toolbar or press <kbd>Ctrl</kbd> +
+            <kbd>F</kbd>. Enter a word or phrase to search the active EPUB.
           </p>
-          <div class="notice notice--warning">
-            <strong>Check the destination before moving files</strong>
-            <p>A move removes the source file after it has been placed in the archive.</p>
-          </div>
+          <ul>
+            <li>Result excerpts highlight the matching text.</li>
+            <li>
+              Use <strong>Previous match</strong> and <strong>Next match</strong> to move through
+              results.
+            </li>
+            <li>
+              Press <kbd>Enter</kbd> for the next result or <kbd>Shift</kbd> + <kbd>Enter</kbd> for
+              the previous result while the query field is focused.
+            </li>
+            <li>
+              The status shows the active match position and tells you when more matches are
+              available.
+            </li>
+          </ul>
 
-          <h2 id="existing-filenames">Handle existing filenames</h2>
+          <h2 id="book-navigation">Use Book navigation</h2>
           <p>
-            When the destination already contains the same filename, use the conflict option shown
-            in the dialog. Review replacement confirmations carefully because replacing a file is
-            destructive.
+            Open <strong>Book navigation</strong> to use the navigation collections supplied by the
+            EPUB. Depending on the book, these can include <strong>Contents</strong>,
+            <strong>Landmarks</strong>, and <strong>Pages</strong>.
+          </p>
+          <p>
+            Long Contents and Pages collections provide a search field. Publisher page labels can be
+            searched directly when the EPUB includes a Page List.
           </p>
 
-          <h2 id="organize-books">Organize books</h2>
-          <h3 id="create-folders">Create a folder first</h3>
+          <h2 id="reading-history">Retrace Reader jumps</h2>
           <p>
-            Use the plus button beside <strong>Folders</strong> in the Library sidebar. The new
-            folder can then be selected as the destination when adding books.
+            <strong>Back in reading history</strong> and <strong>Forward in reading history</strong>
+            retrace Reader jumps without replacing normal page turns. History can include jumps from
+            publication navigation, annotations, supported internal links, footnotes, Find in Book
+            results, and progress seeking.
           </p>
+          <ul>
+            <li><kbd>Alt</kbd> + <kbd>Left Arrow</kbd>: Back in reading history.</li>
+            <li><kbd>Alt</kbd> + <kbd>Right Arrow</kbd>: Forward in reading history.</li>
+          </ul>
 
-          <h3 id="add-with-explorer">Add files with Windows Explorer</h3>
+          <h2 id="reading-progress">Seek with Reading progress</h2>
           <p>
-            You can copy EPUB files directly into the archive folder. Archeion normally detects the
-            change. Use <strong>Rescan archive</strong> from the Library toolbar when a new or moved
-            file does not appear.
+            When the progress control is seekable, select or drag along it to preview another point
+            in the book, then release to move there. Pointer hover can show a percentage and chapter
+            label when chapter context is available.
+          </p>
+          <p>
+            With <strong>Reading progress</strong> focused, Arrow keys move the preview in small
+            steps. <kbd>Home</kbd> moves to the start and <kbd>End</kbd> moves to the end. Progress
+            seeking participates in Reader history, so you can return to the location you left.
           </p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">
-          <a class="article-pager__item article-pager__item--previous" href="../archives/"
-            ><span>Previous</span><strong>Open or create an archive</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../../guides/library/"
-            ><span>Next</span><strong>Library</strong></a
+          <a class="article-pager__item article-pager__item--previous" href="../reading/"
+            ><span>Previous</span><strong>Reader and annotations</strong></a
+          ><a class="article-pager__item article-pager__item--next" href="../reader-media/"
+            ><span>Next</span><strong>Footnotes and illustrations</strong></a
           >
         </nav>
         <footer class="docs-footer">

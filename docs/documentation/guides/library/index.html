@@ -200,10 +200,25 @@
               aria-current="page"
               ><span>Library</span></a
             ><a
+              href="../series/"
+              data-doc-link
+              data-search="series organize volumes, continue reading, and review volume order."
+              ><span>Series</span></a
+            ><a
               href="../reading/"
               data-doc-link
               data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
+            ><a
+              href="../reader-navigation/"
+              data-doc-link
+              data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
+              ><span>Reader navigation and progress</span></a
+            ><a
+              href="../reader-media/"
+              data-doc-link
+              data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
+              ><span>Footnotes and illustrations</span></a
             ><a
               href="../file-management/"
               data-doc-link
@@ -276,7 +291,9 @@
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
             <h1>Browse and organize the Library</h1>
-            <p>Find books, use folders, change the layout, and manage one or more books.</p>
+            <p>
+              Find books, use folders and series, change the layout, and manage one or more books.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
@@ -288,6 +305,10 @@
           <h3 id="main-views">Main views</h3>
           <ul>
             <li><strong>Library</strong> shows the active collection.</li>
+            <li>
+              <strong>Series</strong> groups books that contain EPUB series metadata. See
+              <a href="../series/">Series</a> for volume ordering and continuation.
+            </li>
             <li><strong>Favorites</strong> shows books marked as favorites.</li>
             <li><strong>Folders</strong> follows the archive's folder structure.</li>
           </ul>
@@ -318,7 +339,7 @@
           <ul>
             <li>Read the book.</li>
             <li>Add or remove it from Favorites.</li>
-            <li>Open Details.</li>
+            <li>Open Details or <strong>Edit metadata</strong>.</li>
             <li>Rename or move the file.</li>
             <li>Reveal it in Windows Explorer.</li>
             <li>Delete it, or remove its old Library entry when the file is already missing.</li>
@@ -326,9 +347,26 @@
 
           <h3 id="multiple-books">Work with multiple books</h3>
           <p>
-            Select <strong>Select books</strong> in the toolbar. The bulk action bar can update
-            favorites, move books, edit or refresh metadata, regenerate covers, export files or
-            annotations, and delete selected books to the Recycle Bin.
+            Select <strong>Select books</strong> in the toolbar to enter selection mode. Select
+            individual books, or use <strong>Select all</strong> to select every book currently
+            visible in the filtered view. <strong>Clear</strong> removes the selection and
+            <strong>Done</strong> exits selection mode.
+          </p>
+          <p>The selection bar provides these bulk workflows:</p>
+          <ul>
+            <li>Add selected books to favorites or <strong>Remove favorites</strong>.</li>
+            <li>Move selected books to another archive folder.</li>
+            <li><strong>Edit metadata</strong> shared across selected books.</li>
+            <li><strong>Re-extract metadata</strong> or <strong>Regenerate covers</strong>.</li>
+            <li>Export selected EPUB files.</li>
+            <li>
+              Export <strong>Annotations (Markdown)</strong> or <strong>Annotations (JSON)</strong>.
+            </li>
+            <li><strong>Delete to Recycle Bin</strong> after reviewing the confirmation.</li>
+          </ul>
+          <p>
+            Bulk operations report failed or skipped items instead of treating one failed book as a
+            successful result for the whole selection.
           </p>
 
           <h3 id="folders">Manage folders</h3>
@@ -341,7 +379,8 @@
           <h2 id="quick-actions">Use Quick Actions</h2>
           <p>
             Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> to open Quick Actions and search
-            the commands available on the current screen.
+            the commands available on the current screen. Library, Folder, and Series surfaces also
+            expose their current view, sort, and card-size commands when applicable.
           </p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">
@@ -349,8 +388,8 @@
             class="article-pager__item article-pager__item--previous"
             href="../../getting-started/adding-books/"
             ><span>Previous</span><strong>Add EPUB files</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../reading/"
-            ><span>Next</span><strong>Reader and annotations</strong></a
+          ><a class="article-pager__item article-pager__item--next" href="../series/"
+            ><span>Next</span><strong>Series</strong></a
           >
         </nav>
         <footer class="docs-footer">
