@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Use Find in Book, EPUB navigation, Reader history, and the reading-progress scrubber."
+      content="Install and manage local dictionaries and use Define from Reader selections."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Reader navigation and progress | Archeion Docs</title>
+    <title>Dictionaries and Define | Archeion</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -209,10 +209,9 @@
               href="../reading/"
               ><span>Reader and annotations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
-              href="./"
+              href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
@@ -231,9 +230,10 @@
               href="../settings/"
               ><span>Settings</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="dictionaries define installed local lookup all installed not installed"
-              href="../dictionaries/"
+              href="./"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
@@ -313,15 +313,15 @@
       <main class="docs-main" id="main-content">
         <div aria-label="Breadcrumb" class="breadcrumbs">
           <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
-          ><span aria-hidden="true">/</span
-          ><span aria-current="page">Reader navigation and progress</span>
+          ><span aria-hidden="true">/</span><span aria-current="page">Dictionaries and Define</span>
         </div>
         <article class="doc-article" data-doc-article="">
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
-            <h1>Navigate and track reading progress</h1>
+            <h1>Dictionaries and Define</h1>
             <p>
-              Find text, move through EPUB navigation, retrace Reader jumps, and seek by progress.
+              Install dictionary resources explicitly, keep them available locally, and look up
+              selected Reader text without sending the lookup to a cloud dictionary service.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -329,69 +329,41 @@
             <nav data-mobile-toc=""></nav>
           </details>
           <p class="lead">
-            Reader navigation works inside the currently open EPUB. Use the toolbar controls to
-            search the book, open publisher navigation, retrace jumps, or seek to another point.
+            Install dictionary resources explicitly, keep them available locally, and look up
+            selected Reader text without sending the lookup to a cloud dictionary service.
           </p>
-          <h2 id="find-in-book">Find text in the open book</h2>
+          <h2 id="manage">Manage dictionaries</h2>
           <p>
-            Open <strong>Find in Book</strong> from the Reader toolbar or press <kbd>Ctrl</kbd> +
-            <kbd>F</kbd>. Enter a word or phrase to search the active EPUB.
-          </p>
-          <ul>
-            <li>Result excerpts highlight the matching text.</li>
-            <li>
-              Use <strong>Previous match</strong> and <strong>Next match</strong> to move through
-              results.
-            </li>
-            <li>
-              Press <kbd>Enter</kbd> for the next result or <kbd>Shift</kbd> + <kbd>Enter</kbd> for
-              the previous result while the query field is focused.
-            </li>
-            <li>
-              The status shows the active match position and tells you when more matches are
-              available.
-            </li>
-          </ul>
-          <h2 id="book-navigation">Use Book navigation</h2>
-          <p>
-            Open <strong>Book navigation</strong> to use the navigation collections supplied by the
-            EPUB. Depending on the book, these can include <strong>Contents</strong>,
-            <strong>Landmarks</strong>, and <strong>Pages</strong>.
-          </p>
-          <p>
-            Long Contents and Pages collections provide a search field. Publisher page labels can be
-            searched directly when the EPUB includes a Page List.
-          </p>
-          <h2 id="reading-history">Retrace Reader jumps</h2>
-          <p>
-            <strong>Back in reading history</strong> and <strong>Forward in reading history</strong>
-            retrace Reader jumps without replacing normal page turns. History can include jumps from
-            publication navigation, annotations, supported internal links, footnotes, Find in Book
-            results, and progress seeking.
+            Open <strong>Settings → Dictionaries</strong>. Use the shared search field and the
+            <strong>All</strong>, <strong>Installed</strong>, and
+            <strong>Not installed</strong> views to narrow the list.
           </p>
           <ul>
-            <li><kbd>Alt</kbd> + <kbd>Left Arrow</kbd>: Back in reading history.</li>
-            <li><kbd>Alt</kbd> + <kbd>Right Arrow</kbd>: Forward in reading history.</li>
+            <li><strong>Refresh</strong> updates the downloadable catalog.</li>
+            <li><strong>Download</strong> installs a catalog dictionary after you request it.</li>
+            <li>
+              <strong>Import</strong> installs a supported local dictionary package you choose.
+            </li>
+            <li>
+              Installed entries can be removed. Missing or invalid installed files expose recovery
+              actions such as downloading or importing a replacement.
+            </li>
           </ul>
-          <h2 id="reading-progress">Seek with Reading progress</h2>
           <p>
-            When the progress control is seekable, select or drag along it to preview another point
-            in the book, then release to move there. Pointer hover can show a percentage and chapter
-            label when chapter context is available.
+            Dictionary acquisition is optional. Catalog packages are downloaded only after a user
+            action; installed local dictionaries are then used for Reader lookup.
+          </p>
+          <h2 id="define">Define selected Reader text</h2>
+          <p>
+            Select text in Reader and choose <strong>Define</strong> from the text-selection
+            actions. The anchored definition popover uses installed local dictionaries and can show
+            loading, multiple-dictionary results, no-result feedback, or a retryable error.
           </p>
           <p>
-            With <strong>Reading progress</strong> focused, Arrow keys move the preview in small
-            steps. <kbd>Home</kbd> moves to the start and <kbd>End</kbd> moves to the end. Progress
-            seeking participates in Reader history, so you can return to the location you left.
+            If no suitable dictionary is installed, open <strong>Settings → Dictionaries</strong> to
+            install or import one.
           </p>
         </article>
-        <nav aria-label="Documentation pages" class="article-pager">
-          <a class="article-pager__item article-pager__item--previous" href="../reading/"
-            ><span>Previous</span><strong>Reader and annotations</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../reader-media/"
-            ><span>Next</span><strong>Footnotes and illustrations</strong></a
-          >
-        </nav>
         <footer class="docs-footer">
           <span>Archeion documentation</span>
           <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"

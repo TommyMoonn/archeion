@@ -1,276 +1,305 @@
 <!doctype html>
-<html lang="en" data-theme="system">
+
+<html data-theme="system" lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      name="description"
       content="Open EPUB footnotes and inspect, zoom, pan, and save supported illustrations."
+      name="description"
     />
-    <meta name="theme-color" content="#171717" />
+    <meta content="#171717" name="theme-color" />
     <title>Footnotes and illustrations | Archeion Docs</title>
-    <link rel="icon" href="../../../assets/images/archeion-icon.png" />
-    <link rel="stylesheet" href="../../assets/docs.css" />
-    <script src="../../assets/docs.js" defer></script>
+    <link href="../../../assets/images/archeion-icon.png" rel="icon" />
+    <link href="../../assets/docs.css" rel="stylesheet" />
+    <script defer="" src="../../assets/docs.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
-
-    <svg class="svg-defs" aria-hidden="true" focusable="false">
-      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
-      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
-      <symbol id="icon-search" viewBox="0 0 24 24">
-        <circle cx="10.5" cy="10.5" r="6.5" />
-        <path d="m16 16 5 5" />
+    <svg aria-hidden="true" class="svg-defs" focusable="false">
+      <symbol id="icon-menu" viewbox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></symbol>
+      <symbol id="icon-close" viewbox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></symbol>
+      <symbol id="icon-search" viewbox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5"></circle>
+        <path d="m16 16 5 5"></path>
       </symbol>
-      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></symbol>
-      <symbol id="icon-github" viewBox="0 0 24 24">
+      <symbol id="icon-chevron" viewbox="0 0 24 24"><path d="m8 10 4 4 4-4"></path></symbol>
+      <symbol id="icon-github" viewbox="0 0 24 24">
         <path
           d="M12 2.7a9.3 9.3 0 0 0-2.9 18.14c.47.09.64-.2.64-.45v-1.63c-2.6.57-3.16-1.1-3.16-1.1-.43-1.09-1.05-1.38-1.05-1.38-.85-.59.07-.58.07-.58.94.07 1.44.97 1.44.97.84 1.44 2.2 1.03 2.73.79.09-.61.33-1.03.59-1.26-2.08-.24-4.27-1.04-4.27-4.63 0-1.03.37-1.86.97-2.52-.1-.24-.42-1.19.1-2.49 0 0 .79-.25 2.56.96A8.9 8.9 0 0 1 12 7.18a8.9 8.9 0 0 1 2.33.31c1.77-1.21 2.56-.96 2.56-.96.52 1.3.2 2.25.1 2.49.6.66.97 1.49.97 2.52 0 3.6-2.19 4.39-4.29 4.62.34.29.64.86.64 1.74v2.49c0 .25.18.54.65.45A9.3 9.3 0 0 0 12 2.7Z"
-        />
+        ></path>
       </symbol>
-      <symbol id="icon-theme" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4" />
+      <symbol id="icon-theme" viewbox="0 0 24 24">
+        <circle cx="12" cy="12" r="4"></circle>
         <path
           d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
-        />
+        ></path>
       </symbol>
-      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
-      <symbol id="icon-copy" viewBox="0 0 24 24">
-        <rect x="8" y="8" width="11" height="11" rx="2" />
-        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+      <symbol id="icon-arrow" viewbox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></symbol>
+      <symbol id="icon-copy" viewbox="0 0 24 24">
+        <rect height="11" rx="2" width="11" x="8" y="8"></rect>
+        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>
       </symbol>
     </svg>
     <header class="docs-header">
       <div class="docs-header__inner">
         <button
-          class="icon-button mobile-menu-button"
-          type="button"
-          data-nav-open
-          aria-label="Open documentation navigation"
           aria-controls="docs-sidebar"
           aria-expanded="false"
+          aria-label="Open documentation navigation"
+          class="icon-button mobile-menu-button"
+          data-nav-open=""
+          type="button"
         >
-          <svg aria-hidden="true"><use href="#icon-menu" /></svg>
+          <svg aria-hidden="true"><use href="#icon-menu"></use></svg>
         </button>
-        <a class="docs-brand" href="../../../" aria-label="Archeion website">
-          <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
+        <a aria-label="Archeion website" class="docs-brand" href="../../../">
+          <img alt="" height="32" src="../../../assets/images/archeion-icon.png" width="32" />
           <span>Archeion</span>
         </a>
         <button
-          class="docs-search-trigger"
-          type="button"
-          data-search-trigger
           aria-label="Search documentation"
+          class="docs-search-trigger"
+          data-search-trigger=""
+          type="button"
         >
-          <svg aria-hidden="true"><use href="#icon-search" /></svg><span>Search documentation</span
-          ><kbd>Ctrl K</kbd>
+          <svg aria-hidden="true"><use href="#icon-search"></use></svg
+          ><span>Search documentation</span><kbd>Ctrl K</kbd>
         </button>
         <div class="docs-header__actions">
           <button
-            class="icon-button"
-            type="button"
-            data-theme-toggle
             aria-label="Change documentation theme"
+            class="icon-button"
+            data-theme-toggle=""
             title="Change theme"
+            type="button"
           >
-            <svg aria-hidden="true"><use href="#icon-theme" /></svg>
+            <svg aria-hidden="true"><use href="#icon-theme"></use></svg>
           </button>
           <a
+            aria-label="Archeion on GitHub"
             class="icon-button"
             href="https://github.com/TommyMoonn/archeion"
-            target="_blank"
             rel="noreferrer"
-            aria-label="Archeion on GitHub"
+            target="_blank"
             title="GitHub"
-            ><svg aria-hidden="true"><use href="#icon-github" /></svg
+            ><svg aria-hidden="true"><use href="#icon-github"></use></svg
           ></a>
         </div>
       </div>
     </header>
-
-    <dialog class="docs-search-dialog" data-search-dialog aria-labelledby="docs-search-title">
+    <dialog aria-labelledby="docs-search-title" class="docs-search-dialog" data-search-dialog="">
       <div class="docs-search-dialog__header">
         <h2 id="docs-search-title">Search documentation</h2>
-        <button class="icon-button" type="button" data-search-close aria-label="Close search">
-          <svg aria-hidden="true"><use href="#icon-close" /></svg>
+        <button aria-label="Close search" class="icon-button" data-search-close="" type="button">
+          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
       </div>
       <label class="docs-search-field">
         <span class="sr-only">Search documentation pages</span>
-        <svg aria-hidden="true"><use href="#icon-search" /></svg>
-        <input type="search" placeholder="Search pages" autocomplete="off" data-search-input />
+        <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+        <input autocomplete="off" data-search-input="" placeholder="Search pages" type="search" />
       </label>
       <nav
-        class="docs-search-results"
-        data-search-results
         aria-label="Documentation search results"
+        class="docs-search-results"
+        data-search-results=""
       ></nav>
-      <p class="docs-search-empty" data-search-empty hidden>No matching pages.</p>
+      <p class="docs-search-empty" data-search-empty="" hidden="">No matching pages.</p>
     </dialog>
-
-    <div class="mobile-backdrop" data-nav-backdrop hidden></div>
+    <div class="mobile-backdrop" data-nav-backdrop="" hidden=""></div>
     <aside
-      class="docs-sidebar"
-      id="docs-sidebar"
-      data-sidebar
       aria-label="Documentation navigation"
+      class="docs-sidebar"
+      data-sidebar=""
+      id="docs-sidebar"
     >
       <div class="docs-sidebar__mobile-header">
         <strong>Documentation</strong>
         <button
-          class="icon-button"
-          type="button"
-          data-nav-close
           aria-label="Close documentation navigation"
+          class="icon-button"
+          data-nav-close=""
+          type="button"
         >
-          <svg aria-hidden="true"><use href="#icon-close" /></svg>
+          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
       </div>
       <nav>
-        <section class="sidebar-group" data-sidebar-group>
+        <section class="sidebar-group" data-sidebar-group="">
           <h2>
             <button
-              class="sidebar-group__toggle"
-              type="button"
-              aria-expanded="true"
               aria-controls="sidebar-group-0"
-              data-sidebar-group-toggle
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
             >
-              <span>Overview</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+              <span>Overview</span><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
             </button>
           </h2>
-          <div class="sidebar-group__items" id="sidebar-group-0" data-sidebar-group-items>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-0">
             <a
-              href="../../"
-              data-doc-link
+              data-doc-link=""
               data-search="overview find installation, archive setup, reading, organization, and customization guides."
+              href="../../"
               ><span>Overview</span></a
             >
           </div>
         </section>
-        <section class="sidebar-group" data-sidebar-group>
+        <section class="sidebar-group" data-sidebar-group="">
           <h2>
             <button
-              class="sidebar-group__toggle"
-              type="button"
-              aria-expanded="true"
               aria-controls="sidebar-group-1"
-              data-sidebar-group-toggle
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
             >
-              <span>Getting started</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+              <span>Getting started</span
+              ><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
             </button>
           </h2>
-          <div class="sidebar-group__items" id="sidebar-group-1" data-sidebar-group-items>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-1">
             <a
-              href="../../getting-started/installing/"
-              data-doc-link
+              data-doc-link=""
               data-search="installation download and install archeion on windows."
+              href="../../getting-started/installing/"
               ><span>Installation</span></a
             ><a
-              href="../../getting-started/archives/"
-              data-doc-link
+              data-doc-link=""
               data-search="open or create an archive choose an existing epub folder or create a new one."
+              href="../../getting-started/archives/"
               ><span>Open or create an archive</span></a
             ><a
-              href="../../getting-started/adding-books/"
-              data-doc-link
+              data-doc-link=""
               data-search="add epub files copy or move books into an archive folder."
+              href="../../getting-started/adding-books/"
               ><span>Add EPUB files</span></a
             >
           </div>
         </section>
-        <section class="sidebar-group" data-sidebar-group>
+        <section class="sidebar-group" data-sidebar-group="">
           <h2>
             <button
-              class="sidebar-group__toggle"
-              type="button"
-              aria-expanded="true"
               aria-controls="sidebar-group-2"
-              data-sidebar-group-toggle
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
             >
-              <span>Using Archeion</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+              <span>Using Archeion</span
+              ><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
             </button>
           </h2>
-          <div class="sidebar-group__items" id="sidebar-group-2" data-sidebar-group-items>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-2">
             <a
-              href="../library/"
-              data-doc-link
+              data-doc-link=""
               data-search="library find books, use folders, change views, and manage multiple books."
+              href="../library/"
               ><span>Library</span></a
             ><a
-              href="../series/"
-              data-doc-link
+              data-doc-link=""
               data-search="series organize volumes, continue reading, and review volume order."
+              href="../series/"
               ><span>Series</span></a
             ><a
-              href="../reading/"
-              data-doc-link
+              data-doc-link=""
               data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
+              href="../reading/"
               ><span>Reader and annotations</span></a
             ><a
-              href="../reader-navigation/"
-              data-doc-link
+              data-doc-link=""
               data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
+              href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
-              href="./"
-              data-doc-link
-              data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
               aria-current="page"
+              data-doc-link=""
+              data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
+              href="./"
               ><span>Footnotes and illustrations</span></a
             ><a
-              href="../file-management/"
-              data-doc-link
+              data-doc-link=""
               data-search="file management rename, move, reveal, export, and delete books and folders."
+              href="../file-management/"
               ><span>File management</span></a
             >
+            <a
+              data-doc-link=""
+              data-search="settings application-wide preferences standalone window sections"
+              href="../settings/"
+              ><span>Settings</span></a
+            ><a
+              data-doc-link=""
+              data-search="dictionaries define installed local lookup all installed not installed"
+              href="../dictionaries/"
+              ><span>Dictionaries and Define</span></a
+            ><a
+              data-doc-link=""
+              data-search="keyboard shortcuts search configurable fixed interaction keys"
+              href="../keyboard-shortcuts/"
+              ><span>Keyboard shortcuts</span></a
+            >
           </div>
         </section>
-        <section class="sidebar-group" data-sidebar-group>
+        <section class="sidebar-group" data-sidebar-group="">
           <h2>
             <button
-              class="sidebar-group__toggle"
-              type="button"
-              aria-expanded="true"
               aria-controls="sidebar-group-3"
-              data-sidebar-group-toggle
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
             >
-              <span>Customization</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+              <span>Customization</span
+              ><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
             </button>
           </h2>
-          <div class="sidebar-group__items" id="sidebar-group-3" data-sidebar-group-items>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
-              href="../../customization/appearance/"
-              data-doc-link
+              data-doc-link=""
               data-search="appearance change app colors, reader typography, and library layout."
+              href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
-              href="../../customization/custom-themes/"
-              data-doc-link
+              data-doc-link=""
               data-search="custom themes create, import, preview, and fix custom color themes."
+              href="../../customization/custom-themes/"
               ><span>Custom themes</span></a
+            >
+            <a
+              data-doc-link=""
+              data-search="theme manager import preview use theme reload application data"
+              href="../../customization/theme-manager/"
+              ><span>Theme Manager</span></a
             >
           </div>
         </section>
-        <section class="sidebar-group" data-sidebar-group>
+        <section class="sidebar-group" data-sidebar-group="">
           <h2>
             <button
-              class="sidebar-group__toggle"
-              type="button"
-              aria-expanded="true"
               aria-controls="sidebar-group-4"
-              data-sidebar-group-toggle
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
             >
-              <span>Reference</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+              <span>Reference</span><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
             </button>
           </h2>
-          <div class="sidebar-group__items" id="sidebar-group-4" data-sidebar-group-items>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-4">
             <a
-              href="../../reference/archive-storage/"
-              data-doc-link
+              data-doc-link=""
               data-search="archive storage back up, move, and inspect the files stored with an archive."
+              href="../../reference/archive-storage/"
               ><span>Archive storage</span></a
+            >
+            <a
+              data-doc-link=""
+              data-search="about archeion version website documentation source code standalone window"
+              href="../../reference/about-resources/"
+              ><span>About and resources</span></a
             >
           </div>
         </section>
@@ -280,15 +309,14 @@
         <a href="../../../">Back to website</a>
       </div>
     </aside>
-
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
-        <div class="breadcrumbs" aria-label="Breadcrumb">
+        <div aria-label="Breadcrumb" class="breadcrumbs">
           <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
           ><span aria-hidden="true">/</span
           ><span aria-current="page">Footnotes and illustrations</span>
         </div>
-        <article class="doc-article" data-doc-article>
+        <article class="doc-article" data-doc-article="">
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
             <h1>Open footnotes and illustrations</h1>
@@ -304,7 +332,6 @@
             Reader keeps temporary footnote and illustration surfaces above the active book so you
             can inspect supporting content without reopening the EPUB or losing the current session.
           </p>
-
           <h2 id="footnotes">Read a Footnote</h2>
           <p>
             Select a supported footnote or endnote link to open the <strong>Footnote</strong>
@@ -315,7 +342,6 @@
             Close the popover to return focus to reading. Following a supported internal link from a
             note uses normal Reader navigation, so the jump can be retraced with Reader history.
           </p>
-
           <h2 id="illustrations">Open an Illustration</h2>
           <p>
             Supported standalone book images can open in the focused
@@ -327,7 +353,6 @@
             reading, while smaller images are not deliberately enlarged. Open the focused viewer
             when you want to inspect the image independently of the page presentation.
           </p>
-
           <h3 id="inspect-image">Zoom and pan</h3>
           <ul>
             <li><strong>Fit to viewport</strong> fits the image inside the viewer.</li>
@@ -339,7 +364,6 @@
             <li>When the image is larger than the viewport, drag to pan around it.</li>
             <li><strong>Reset</strong> returns to the fitted view.</li>
           </ul>
-
           <h3 id="save-image">Save the original image</h3>
           <p>
             When export is available, choose <strong>Save image</strong> to save the original local
@@ -347,7 +371,7 @@
             supports original AVIF, GIF, JPEG, PNG, and WebP resources on this export path.
           </p>
         </article>
-        <nav class="article-pager" aria-label="Documentation pages">
+        <nav aria-label="Documentation pages" class="article-pager">
           <a class="article-pager__item article-pager__item--previous" href="../reader-navigation/"
             ><span>Previous</span><strong>Reader navigation and progress</strong></a
           ><a class="article-pager__item article-pager__item--next" href="../file-management/"
@@ -356,14 +380,14 @@
         </nav>
         <footer class="docs-footer">
           <span>Archeion documentation</span>
-          <a href="https://github.com/TommyMoonn/archeion/issues" target="_blank" rel="noreferrer"
+          <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"
             >Report a documentation issue <span aria-hidden="true">↗</span></a
           >
         </footer>
       </main>
-      <aside class="docs-outline" aria-label="On this page">
+      <aside aria-label="On this page" class="docs-outline">
         <h2>On this page</h2>
-        <nav data-toc></nav>
+        <nav data-toc=""></nav>
       </aside>
     </div>
   </body>

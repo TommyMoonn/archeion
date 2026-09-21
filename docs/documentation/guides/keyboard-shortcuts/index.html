@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Use Find in Book, EPUB navigation, Reader history, and the reading-progress scrubber."
+      content="Search, customize, clear, and reset supported shortcuts in Settings."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Reader navigation and progress | Archeion Docs</title>
+    <title>Keyboard shortcuts | Archeion</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -209,10 +209,9 @@
               href="../reading/"
               ><span>Reader and annotations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
-              href="./"
+              href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
@@ -236,9 +235,10 @@
               href="../dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="keyboard shortcuts search configurable fixed interaction keys"
-              href="../keyboard-shortcuts/"
+              href="./"
               ><span>Keyboard shortcuts</span></a
             >
           </div>
@@ -313,15 +313,15 @@
       <main class="docs-main" id="main-content">
         <div aria-label="Breadcrumb" class="breadcrumbs">
           <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
-          ><span aria-hidden="true">/</span
-          ><span aria-current="page">Reader navigation and progress</span>
+          ><span aria-hidden="true">/</span><span aria-current="page">Keyboard shortcuts</span>
         </div>
         <article class="doc-article" data-doc-article="">
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
-            <h1>Navigate and track reading progress</h1>
+            <h1>Keyboard shortcuts</h1>
             <p>
-              Find text, move through EPUB navigation, retrace Reader jumps, and seek by progress.
+              Use the Keyboard section in Settings to find configurable commands and review fixed
+              interaction keys.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -329,69 +329,32 @@
             <nav data-mobile-toc=""></nav>
           </details>
           <p class="lead">
-            Reader navigation works inside the currently open EPUB. Use the toolbar controls to
-            search the book, open publisher navigation, retrace jumps, or seek to another point.
+            Use the Keyboard section in Settings to find configurable commands and review fixed
+            interaction keys.
           </p>
-          <h2 id="find-in-book">Find text in the open book</h2>
+          <h2 id="search">Search shortcuts</h2>
           <p>
-            Open <strong>Find in Book</strong> from the Reader toolbar or press <kbd>Ctrl</kbd> +
-            <kbd>F</kbd>. Enter a word or phrase to search the active EPUB.
+            Open <strong>Settings → Keyboard</strong> and use <strong>Search shortcuts</strong> to
+            filter commands by label or shortcut-related terms. When nothing matches, Settings
+            reports that no shortcuts match the search.
           </p>
-          <ul>
-            <li>Result excerpts highlight the matching text.</li>
-            <li>
-              Use <strong>Previous match</strong> and <strong>Next match</strong> to move through
-              results.
-            </li>
-            <li>
-              Press <kbd>Enter</kbd> for the next result or <kbd>Shift</kbd> + <kbd>Enter</kbd> for
-              the previous result while the query field is focused.
-            </li>
-            <li>
-              The status shows the active match position and tells you when more matches are
-              available.
-            </li>
-          </ul>
-          <h2 id="book-navigation">Use Book navigation</h2>
+          <h2 id="customize">Customize supported commands</h2>
           <p>
-            Open <strong>Book navigation</strong> to use the navigation collections supplied by the
-            EPUB. Depending on the book, these can include <strong>Contents</strong>,
-            <strong>Landmarks</strong>, and <strong>Pages</strong>.
+            Configurable commands are grouped by context. Select a shortcut row to change or clear
+            its binding. Archeion reports conflicts and reserved-key problems instead of silently
+            accepting an unusable combination.
           </p>
           <p>
-            Long Contents and Pages collections provide a search field. Publisher page labels can be
-            searched directly when the EPUB includes a Page List.
+            Use <strong>Reset all keyboard shortcuts</strong> to restore configurable bindings to
+            their defaults.
           </p>
-          <h2 id="reading-history">Retrace Reader jumps</h2>
+          <h2 id="fixed">Fixed Interaction Keys</h2>
           <p>
-            <strong>Back in reading history</strong> and <strong>Forward in reading history</strong>
-            retrace Reader jumps without replacing normal page turns. History can include jumps from
-            publication navigation, annotations, supported internal links, footnotes, Find in Book
-            results, and progress seeking.
-          </p>
-          <ul>
-            <li><kbd>Alt</kbd> + <kbd>Left Arrow</kbd>: Back in reading history.</li>
-            <li><kbd>Alt</kbd> + <kbd>Right Arrow</kbd>: Forward in reading history.</li>
-          </ul>
-          <h2 id="reading-progress">Seek with Reading progress</h2>
-          <p>
-            When the progress control is seekable, select or drag along it to preview another point
-            in the book, then release to move there. Pointer hover can show a percentage and chapter
-            label when chapter context is available.
-          </p>
-          <p>
-            With <strong>Reading progress</strong> focused, Arrow keys move the preview in small
-            steps. <kbd>Home</kbd> moves to the start and <kbd>End</kbd> moves to the end. Progress
-            seeking participates in Reader history, so you can return to the location you left.
+            The <strong>Fixed Interaction Keys</strong> group documents keyboard behavior that is
+            part of the interface contract rather than a configurable command. These entries are
+            reference rows, not editable shortcuts.
           </p>
         </article>
-        <nav aria-label="Documentation pages" class="article-pager">
-          <a class="article-pager__item article-pager__item--previous" href="../reading/"
-            ><span>Previous</span><strong>Reader and annotations</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../reader-media/"
-            ><span>Next</span><strong>Footnotes and illustrations</strong></a
-          >
-        </nav>
         <footer class="docs-footer">
           <span>Archeion documentation</span>
           <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"

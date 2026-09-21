@@ -26,9 +26,7 @@
 ## About Archeion
 
 Archeion turns a normal folder of EPUB files into a fast personal archive. It keeps
-books on your computer, preserves your existing folder structure, and stores its
-own reading data beside the archive instead of requiring an account or cloud
-service.
+books on your computer, preserves your existing folder structure, and stores archive-specific reading data beside the books while keeping application-wide preferences and resources in Archeion application data, without requiring an account or cloud service.
 
 ## Download Archeion
 
@@ -53,13 +51,15 @@ or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
 - **File management** - add, rename, move, export, reveal, and delete EPUBs and folders.
 - **Quick Actions** - reach common library and reader commands from the keyboard.
 - **Customizable appearance** - configure application appearance, library density, and reader typography.
+- **Offline dictionaries and Define** - install local dictionaries and look up selected Reader text without a cloud dictionary service.
+- **Standalone utility windows** - keep Settings, Theme Manager, and About open independently of the Library.
 
 ## Local-first by design
 
 Archeion has no account system, cloud sync, or telemetry. Your EPUB files remain
 normal files that can be opened, copied, backed up, and organized outside the app.
 
-Each archive may contain a hidden `.archeion` folder for local application data:
+Each archive may contain a hidden `.archeion` folder for archive-specific metadata and recovery data:
 
 ```txt
 Your Archive/
@@ -71,7 +71,6 @@ Your Archive/
     library.json
     progress.json
     scanner-cache.json
-    settings.json
     covers/
     backups/
       annotations/
@@ -79,13 +78,12 @@ Your Archive/
       library/
       progress/
       scanner-cache/
-      settings/
 ```
 
 Active metadata stays directly under `.archeion`. Recovery copies are grouped under
 `.archeion/backups/<category>/`, while retained EPUB writeback backups are stored under
 `.archeion/backups/epub-writeback/`. Back up the complete archive folder, including the
-hidden `.archeion` directory, so books and their recovery data remain together.
+hidden `.archeion` directory, so books and their archive-owned recovery data remain together. Application-wide preferences, installed dictionaries, and custom theme packages live separately in Archeion application data.
 
 ## Project documentation
 

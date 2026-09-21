@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Use Find in Book, EPUB navigation, Reader history, and the reading-progress scrubber."
+      content="Use Archeion Settings, understand global and archive-specific controls, and work with the standalone Settings window."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Reader navigation and progress | Archeion Docs</title>
+    <title>Settings | Archeion</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -209,10 +209,9 @@
               href="../reading/"
               ><span>Reader and annotations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
-              href="./"
+              href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
@@ -226,9 +225,10 @@
               ><span>File management</span></a
             >
             <a
+              aria-current="page"
               data-doc-link=""
               data-search="settings application-wide preferences standalone window sections"
-              href="../settings/"
+              href="./"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
@@ -313,15 +313,15 @@
       <main class="docs-main" id="main-content">
         <div aria-label="Breadcrumb" class="breadcrumbs">
           <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
-          ><span aria-hidden="true">/</span
-          ><span aria-current="page">Reader navigation and progress</span>
+          ><span aria-hidden="true">/</span><span aria-current="page">Settings</span>
         </div>
         <article class="doc-article" data-doc-article="">
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
-            <h1>Navigate and track reading progress</h1>
+            <h1>Settings</h1>
             <p>
-              Find text, move through EPUB navigation, retrace Reader jumps, and seek by progress.
+              Use the standalone Settings window to change application-wide preferences and
+              active-archive options without leaving the Library.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -329,69 +329,68 @@
             <nav data-mobile-toc=""></nav>
           </details>
           <p class="lead">
-            Reader navigation works inside the currently open EPUB. Use the toolbar controls to
-            search the book, open publisher navigation, retrace jumps, or seek to another point.
+            Use the standalone Settings window to change application-wide preferences and
+            active-archive options without leaving the Library.
           </p>
-          <h2 id="find-in-book">Find text in the open book</h2>
+          <h2 id="open-settings">Open the standalone Settings window</h2>
           <p>
-            Open <strong>Find in Book</strong> from the Reader toolbar or press <kbd>Ctrl</kbd> +
-            <kbd>F</kbd>. Enter a word or phrase to search the active EPUB.
+            Open <strong>Settings</strong> from the Library sidebar or use your configured
+            <strong>Open Settings</strong> shortcut. Settings opens in its own window and can remain
+            open beside the Library. Opening Settings again focuses the existing Settings window
+            instead of creating another copy.
           </p>
+          <p>
+            Settings can open without an active archive. Application-wide preferences remain
+            available; controls that require an active archive are omitted until an archive is
+            available.
+          </p>
+          <h2 id="sections">Settings sections</h2>
           <ul>
-            <li>Result excerpts highlight the matching text.</li>
             <li>
-              Use <strong>Previous match</strong> and <strong>Next match</strong> to move through
-              results.
+              <strong>General</strong>: startup behavior, destructive-action confirmation,
+              Reader-route restoration, and window behavior.
             </li>
             <li>
-              Press <kbd>Enter</kbd> for the next result or <kbd>Shift</kbd> + <kbd>Enter</kbd> for
-              the previous result while the query field is focused.
+              <strong>Appearance</strong>: app theme, Theme Manager access, animation preference,
+              and display density.
             </li>
             <li>
-              The status shows the active match position and tells you when more matches are
-              available.
+              <strong>Library</strong>: default Books, Folders, and Series presentation plus Smart
+              View visibility.
+            </li>
+            <li>
+              <strong>Reader</strong>: default typography, Page Width, Reader theme, and progress
+              placement.
+            </li>
+            <li>
+              <strong>Archives</strong>: active archive folder, Archive Manager, import defaults,
+              and the active archive's destination folder.
+            </li>
+            <li>
+              <strong>Storage</strong>: global monitoring/backup policies plus maintenance actions
+              for the active archive.
+            </li>
+            <li>
+              <strong>Dictionaries</strong>: discover, install, import, repair, and remove local
+              dictionaries.
+            </li>
+            <li>
+              <strong>Keyboard</strong>: search, customize, clear, and reset supported shortcuts,
+              plus fixed interaction-key reference.
             </li>
           </ul>
-          <h2 id="book-navigation">Use Book navigation</h2>
+          <h2 id="ownership">Know what follows you across archives</h2>
           <p>
-            Open <strong>Book navigation</strong> to use the navigation collections supplied by the
-            EPUB. Depending on the book, these can include <strong>Contents</strong>,
-            <strong>Landmarks</strong>, and <strong>Pages</strong>.
+            Application preferences such as appearance, Reader defaults, keyboard shortcuts,
+            dictionary installations, and theme selections are application-wide and follow you when
+            you switch archives. Archive-specific controls are identified by the active archive,
+            such as the default import destination and Storage maintenance actions.
           </p>
           <p>
-            Long Contents and Pages collections provide a search field. Publisher page labels can be
-            searched directly when the EPUB includes a Page List.
-          </p>
-          <h2 id="reading-history">Retrace Reader jumps</h2>
-          <p>
-            <strong>Back in reading history</strong> and <strong>Forward in reading history</strong>
-            retrace Reader jumps without replacing normal page turns. History can include jumps from
-            publication navigation, annotations, supported internal links, footnotes, Find in Book
-            results, and progress seeking.
-          </p>
-          <ul>
-            <li><kbd>Alt</kbd> + <kbd>Left Arrow</kbd>: Back in reading history.</li>
-            <li><kbd>Alt</kbd> + <kbd>Right Arrow</kbd>: Forward in reading history.</li>
-          </ul>
-          <h2 id="reading-progress">Seek with Reading progress</h2>
-          <p>
-            When the progress control is seekable, select or drag along it to preview another point
-            in the book, then release to move there. Pointer hover can show a percentage and chapter
-            label when chapter context is available.
-          </p>
-          <p>
-            With <strong>Reading progress</strong> focused, Arrow keys move the preview in small
-            steps. <kbd>Home</kbd> moves to the start and <kbd>End</kbd> moves to the end. Progress
-            seeking participates in Reader history, so you can return to the location you left.
+            See <a href="../../reference/archive-storage/">Archive storage</a> for the boundary
+            between application data and an archive's <code>.archeion</code> sidecars.
           </p>
         </article>
-        <nav aria-label="Documentation pages" class="article-pager">
-          <a class="article-pager__item article-pager__item--previous" href="../reading/"
-            ><span>Previous</span><strong>Reader and annotations</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../reader-media/"
-            ><span>Next</span><strong>Footnotes and illustrations</strong></a
-          >
-        </nav>
         <footer class="docs-footer">
           <span>Archeion documentation</span>
           <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"

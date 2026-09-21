@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Use Find in Book, EPUB navigation, Reader history, and the reading-progress scrubber."
+      content="Use the standalone About window to view the app version and open Archeion resources."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Reader navigation and progress | Archeion Docs</title>
+    <title>About and resources | Archeion</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -196,49 +196,48 @@
             <a
               data-doc-link=""
               data-search="library find books, use folders, change views, and manage multiple books."
-              href="../library/"
+              href="../../guides/library/"
               ><span>Library</span></a
             ><a
               data-doc-link=""
               data-search="series organize volumes, continue reading, and review volume order."
-              href="../series/"
+              href="../../guides/series/"
               ><span>Series</span></a
             ><a
               data-doc-link=""
               data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
-              href="../reading/"
+              href="../../guides/reading/"
               ><span>Reader and annotations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
-              href="./"
+              href="../../guides/reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
               data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
-              href="../reader-media/"
+              href="../../guides/reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
               data-doc-link=""
               data-search="file management rename, move, reveal, export, and delete books and folders."
-              href="../file-management/"
+              href="../../guides/file-management/"
               ><span>File management</span></a
             >
             <a
               data-doc-link=""
               data-search="settings application-wide preferences standalone window sections"
-              href="../settings/"
+              href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
               data-search="dictionaries define installed local lookup all installed not installed"
-              href="../dictionaries/"
+              href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
               data-search="keyboard shortcuts search configurable fixed interaction keys"
-              href="../keyboard-shortcuts/"
+              href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
           </div>
@@ -292,13 +291,14 @@
             <a
               data-doc-link=""
               data-search="archive storage back up, move, and inspect the files stored with an archive."
-              href="../../reference/archive-storage/"
+              href="../archive-storage/"
               ><span>Archive storage</span></a
             >
             <a
+              aria-current="page"
               data-doc-link=""
               data-search="about archeion version website documentation source code standalone window"
-              href="../../reference/about-resources/"
+              href="./"
               ><span>About and resources</span></a
             >
           </div>
@@ -312,16 +312,16 @@
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
         <div aria-label="Breadcrumb" class="breadcrumbs">
-          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
-          ><span aria-hidden="true">/</span
-          ><span aria-current="page">Reader navigation and progress</span>
+          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Reference</span
+          ><span aria-hidden="true">/</span><span aria-current="page">About and resources</span>
         </div>
         <article class="doc-article" data-doc-article="">
           <header class="article-header">
-            <p class="eyebrow">Using Archeion</p>
-            <h1>Navigate and track reading progress</h1>
+            <p class="eyebrow">Reference</p>
+            <h1>About Archeion and resources</h1>
             <p>
-              Find text, move through EPUB navigation, retrace Reader jumps, and seek by progress.
+              Open the standalone About window for the installed version and direct links to
+              Archeion's public resources.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -329,69 +329,28 @@
             <nav data-mobile-toc=""></nav>
           </details>
           <p class="lead">
-            Reader navigation works inside the currently open EPUB. Use the toolbar controls to
-            search the book, open publisher navigation, retrace jumps, or seek to another point.
+            Open the standalone About window for the installed version and direct links to
+            Archeion's public resources.
           </p>
-          <h2 id="find-in-book">Find text in the open book</h2>
+          <h2 id="open">Open About Archeion</h2>
           <p>
-            Open <strong>Find in Book</strong> from the Reader toolbar or press <kbd>Ctrl</kbd> +
-            <kbd>F</kbd>. Enter a word or phrase to search the active EPUB.
+            Choose <strong>About Archeion</strong> from the Library sidebar. About opens in its own
+            compact window without replacing the current Library view. Opening it again focuses the
+            existing About window.
           </p>
+          <p>The window shows the current Archeion version.</p>
+          <h2 id="resources">Open public resources</h2>
+          <p>About includes three external destinations:</p>
           <ul>
-            <li>Result excerpts highlight the matching text.</li>
-            <li>
-              Use <strong>Previous match</strong> and <strong>Next match</strong> to move through
-              results.
-            </li>
-            <li>
-              Press <kbd>Enter</kbd> for the next result or <kbd>Shift</kbd> + <kbd>Enter</kbd> for
-              the previous result while the query field is focused.
-            </li>
-            <li>
-              The status shows the active match position and tells you when more matches are
-              available.
-            </li>
+            <li><strong>Website</strong>: the Archeion project site.</li>
+            <li><strong>Documentation</strong>: these user guides.</li>
+            <li><strong>Source code</strong>: the public GitHub repository.</li>
           </ul>
-          <h2 id="book-navigation">Use Book navigation</h2>
           <p>
-            Open <strong>Book navigation</strong> to use the navigation collections supplied by the
-            EPUB. Depending on the book, these can include <strong>Contents</strong>,
-            <strong>Landmarks</strong>, and <strong>Pages</strong>.
-          </p>
-          <p>
-            Long Contents and Pages collections provide a search field. Publisher page labels can be
-            searched directly when the EPUB includes a Page List.
-          </p>
-          <h2 id="reading-history">Retrace Reader jumps</h2>
-          <p>
-            <strong>Back in reading history</strong> and <strong>Forward in reading history</strong>
-            retrace Reader jumps without replacing normal page turns. History can include jumps from
-            publication navigation, annotations, supported internal links, footnotes, Find in Book
-            results, and progress seeking.
-          </p>
-          <ul>
-            <li><kbd>Alt</kbd> + <kbd>Left Arrow</kbd>: Back in reading history.</li>
-            <li><kbd>Alt</kbd> + <kbd>Right Arrow</kbd>: Forward in reading history.</li>
-          </ul>
-          <h2 id="reading-progress">Seek with Reading progress</h2>
-          <p>
-            When the progress control is seekable, select or drag along it to preview another point
-            in the book, then release to move there. Pointer hover can show a percentage and chapter
-            label when chapter context is available.
-          </p>
-          <p>
-            With <strong>Reading progress</strong> focused, Arrow keys move the preview in small
-            steps. <kbd>Home</kbd> moves to the start and <kbd>End</kbd> moves to the end. Progress
-            seeking participates in Reader history, so you can return to the location you left.
+            If the operating system cannot open a selected destination, About reports an error in
+            the window.
           </p>
         </article>
-        <nav aria-label="Documentation pages" class="article-pager">
-          <a class="article-pager__item article-pager__item--previous" href="../reading/"
-            ><span>Previous</span><strong>Reader and annotations</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../reader-media/"
-            ><span>Next</span><strong>Footnotes and illustrations</strong></a
-          >
-        </nav>
         <footer class="docs-footer">
           <span>Archeion documentation</span>
           <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"
