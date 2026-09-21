@@ -45,6 +45,7 @@ pub(crate) enum AtomicReplaceError {
     ReplaceRestored { replace_error: String },
     RestoreFailed { restore_error: String },
     RemoveBackup(String),
+    SyncDirectory(String),
 }
 
 pub(crate) trait AtomicFileSystem {
@@ -78,6 +79,137 @@ pub(crate) fn transaction_path(destination: &Path, marker: &str) -> PathBuf {
         "{file_name}.{marker}-{}-{timestamp}-{sequence}",
         std::process::id()
     ))
+}
+
+#[derive(Debug)]
+struct TransactionArtifact {
+    path: PathBuf,
+    order: (u128, u64, u32),
+}
+
+fn transaction_artifacts(destination: &Path, marker: &str) -> io::Result<Vec<TransactionArtifact>> {
+    let Some(parent) = destination.parent() else {
+        return Ok(Vec::new());
+    };
+    let Some(file_name) = destination.file_name() else {
+        return Ok(Vec::new());
+    };
+    let prefix = format!("{}.{marker}-", file_name.to_string_lossy());
+    let entries = match fs::read_dir(parent) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error),
+    };
+
+    let mut artifacts = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(suffix) = name.strip_prefix(&prefix) else {
+            continue;
+        };
+        let Some((process_and_timestamp, sequence)) = suffix.rsplit_once('-') else {
+            continue;
+        };
+        let Some((process, timestamp)) = process_and_timestamp.rsplit_once('-') else {
+            continue;
+        };
+        let (Ok(process), Ok(timestamp), Ok(sequence)) = (
+            process.parse::<u32>(),
+            timestamp.parse::<u128>(),
+            sequence.parse::<u64>(),
+        ) else {
+            continue;
+        };
+        if !entry.file_type()?.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "Transaction artifact is not a regular file: {}",
+                    entry.path().display()
+                ),
+            ));
+        }
+        artifacts.push(TransactionArtifact {
+            path: entry.path(),
+            order: (timestamp, sequence, process),
+        });
+    }
+
+    artifacts.sort_by(|left, right| {
+        left.order
+            .cmp(&right.order)
+            .then_with(|| left.path.cmp(&right.path))
+    });
+    Ok(artifacts)
+}
+
+#[cfg(unix)]
+fn sync_parent_directory(destination: &Path) -> io::Result<()> {
+    if let Some(parent) = destination.parent() {
+        fs::File::open(parent)?.sync_all()?;
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn sync_parent_directory(_destination: &Path) -> io::Result<()> {
+    Ok(())
+}
+
+fn remove_transaction_artifact(path: &Path) -> io::Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error),
+    }
+}
+
+fn cleanup_transaction_artifacts(
+    temporary_files: &[TransactionArtifact],
+    backup_files: &[TransactionArtifact],
+    preserved_path: Option<&Path>,
+) -> io::Result<()> {
+    for artifact in temporary_files.iter().chain(backup_files) {
+        if preserved_path.is_some_and(|path| path == artifact.path) {
+            continue;
+        }
+        remove_transaction_artifact(&artifact.path)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn recover_atomic_replace(destination: &Path) -> io::Result<()> {
+    let temporary_files = transaction_artifacts(destination, "tmp-write")?;
+    let backup_files = transaction_artifacts(destination, "write-backup")?;
+
+    if temporary_files.is_empty() && backup_files.is_empty() {
+        return Ok(());
+    }
+
+    if destination.exists() {
+        if !destination.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "Atomic replacement destination is not a regular file: {}",
+                    destination.display()
+                ),
+            ));
+        }
+        cleanup_transaction_artifacts(&temporary_files, &backup_files, None)?;
+        return sync_parent_directory(destination);
+    }
+
+    let recovery_source = backup_files
+        .last()
+        .or_else(|| temporary_files.last())
+        .ok_or_else(|| io::Error::other("Atomic replacement recovery source is unavailable."))?;
+
+    fs::rename(&recovery_source.path, destination)?;
+    sync_parent_directory(destination)?;
+    cleanup_transaction_artifacts(&temporary_files, &backup_files, Some(&recovery_source.path))?;
+    sync_parent_directory(destination)
 }
 
 pub(crate) struct PreparedAtomicFile {
@@ -149,6 +281,8 @@ impl PreparedAtomicFile {
                 .rename(&self.path, destination)
                 .map_err(AtomicReplaceError::ReplaceMissingDestination)?;
             self.committed = true;
+            sync_parent_directory(destination)
+                .map_err(|error| AtomicReplaceError::SyncDirectory(error.to_string()))?;
             return Ok(());
         }
 
@@ -167,9 +301,12 @@ impl PreparedAtomicFile {
             };
         }
         self.committed = true;
+        sync_parent_directory(destination)
+            .map_err(|error| AtomicReplaceError::SyncDirectory(error.to_string()))?;
 
         match fs_ops.remove_file(backup) {
-            Ok(()) => Ok(()),
+            Ok(()) => sync_parent_directory(destination)
+                .map_err(|error| AtomicReplaceError::SyncDirectory(error.to_string())),
             Err(_) if backup_cleanup == BackupCleanup::BestEffort => Ok(()),
             Err(error) => Err(AtomicReplaceError::RemoveBackup(error)),
         }
@@ -189,8 +326,8 @@ mod tests {
     use std::{fs, path::Path, time::SystemTime};
 
     use super::{
-        transaction_path, AtomicFileSystem, AtomicReplaceError, BackupCleanup, PreparedAtomicFile,
-        RealAtomicFileSystem,
+        recover_atomic_replace, transaction_path, AtomicFileSystem, AtomicReplaceError,
+        BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -321,6 +458,141 @@ mod tests {
 
         assert!(PreparedAtomicFile::write(temporary_path.clone(), b"new").is_err());
         assert!(!temporary_path.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_keeps_valid_destination_without_transaction_artifacts() {
+        let root = test_root("recovery-current-only");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        fs::write(&destination, b"current").expect("current destination should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should be a no-op");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"current");
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_keeps_current_destination_and_cleans_synced_temporary_file() {
+        let root = test_root("recovery-current-temp");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        fs::write(&destination, b"current").expect("current destination should be written");
+        let temporary = transaction_path(&destination, "tmp-write");
+        fs::write(&temporary, b"pending").expect("pending replacement should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should keep the current destination");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"current");
+        assert!(!temporary.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_restores_transaction_backup_when_destination_is_missing() {
+        let root = test_root("recovery-backup-temp");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        let backup = transaction_path(&destination, "write-backup");
+        let temporary = transaction_path(&destination, "tmp-write");
+        fs::write(&backup, b"previous").expect("transaction backup should be written");
+        fs::write(&temporary, b"pending").expect("pending replacement should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should restore last-known-good data");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"previous");
+        assert!(!backup.exists());
+        assert!(!temporary.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_restores_transaction_backup_when_temporary_file_is_missing() {
+        let root = test_root("recovery-backup-only");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        let backup = transaction_path(&destination, "write-backup");
+        fs::write(&backup, b"previous").expect("transaction backup should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should restore the backup");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"previous");
+        assert!(!backup.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_never_replaces_valid_destination_with_stale_transaction_artifacts() {
+        let root = test_root("recovery-committed");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        let backup = transaction_path(&destination, "write-backup");
+        let temporary = transaction_path(&destination, "tmp-write");
+        fs::write(&destination, b"replacement").expect("replacement should be written");
+        fs::write(&backup, b"previous").expect("stale backup should be written");
+        fs::write(&temporary, b"stale-pending").expect("stale temporary should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should keep committed data");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"replacement");
+        assert!(!backup.exists());
+        assert!(!temporary.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_uses_newest_backup_and_cleans_multiple_stale_artifacts() {
+        let root = test_root("recovery-multiple");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        let older_backup = transaction_path(&destination, "write-backup");
+        let newer_backup = transaction_path(&destination, "write-backup");
+        let older_temporary = transaction_path(&destination, "tmp-write");
+        let newer_temporary = transaction_path(&destination, "tmp-write");
+        fs::write(&older_backup, b"older").expect("older backup should be written");
+        fs::write(&newer_backup, b"newer").expect("newer backup should be written");
+        fs::write(&older_temporary, b"pending-one").expect("older temp should be written");
+        fs::write(&newer_temporary, b"pending-two").expect("newer temp should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should choose deterministically");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"newer");
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_finishes_new_file_from_temporary_when_no_backup_exists() {
+        let root = test_root("recovery-new-file");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        let temporary = transaction_path(&destination, "tmp-write");
+        fs::write(&temporary, b"pending").expect("pending new file should be written");
+
+        recover_atomic_replace(&destination).expect("recovery should finish the new file");
+
+        assert_eq!(fs::read(&destination).unwrap(), b"pending");
+        assert!(!temporary.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovery_surfaces_unusable_transaction_artifact_without_creating_destination() {
+        let root = test_root("recovery-invalid-artifact");
+        fs::create_dir_all(&root).expect("test root should be created");
+        let destination = root.join("state.json");
+        let backup = transaction_path(&destination, "write-backup");
+        fs::create_dir(&backup).expect("invalid transaction artifact should be created");
+
+        let error = recover_atomic_replace(&destination)
+            .expect_err("invalid artifact should fail recovery");
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(!destination.exists());
+        assert!(backup.is_dir());
         fs::remove_dir_all(root).unwrap();
     }
 }

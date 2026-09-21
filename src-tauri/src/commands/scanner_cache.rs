@@ -241,7 +241,8 @@ fn scanner_invalidation_replace_error(error: AtomicReplaceError) -> String {
         }
         AtomicReplaceError::MoveDestinationToBackup(error)
         | AtomicReplaceError::ReplaceMissingDestination(error)
-        | AtomicReplaceError::RemoveBackup(error) => error,
+        | AtomicReplaceError::RemoveBackup(error)
+        | AtomicReplaceError::SyncDirectory(error) => error,
         AtomicReplaceError::ReplaceRestored { replace_error } => format!(
             "Scanner-cache invalidation save failed and the previous journal was restored: {replace_error}"
         ),

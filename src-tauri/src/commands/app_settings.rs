@@ -10,8 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 use crate::atomic_file::{
-    transaction_path, AtomicReplaceError, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
-    TemporaryWriteStage,
+    recover_atomic_replace, transaction_path, AtomicReplaceError, BackupCleanup,
+    PreparedAtomicFile, RealAtomicFileSystem, TemporaryWriteStage,
 };
 use tauri::{Emitter, Manager};
 
@@ -1287,7 +1287,13 @@ fn app_settings_corrupt_path(path: &Path) -> PathBuf {
     path.with_file_name(format!("{file_name}.corrupt-{timestamp}.bak"))
 }
 
+fn recover_settings_transaction(path: &Path) -> Result<(), String> {
+    recover_atomic_replace(path)
+        .map_err(|error| format!("App settings interrupted write could not be recovered: {error}"))
+}
+
 fn read_settings(path: &Path) -> Result<AppPreferences, String> {
+    recover_settings_transaction(path)?;
     if !path.exists() {
         return Ok(AppPreferences::default());
     }
@@ -1342,6 +1348,9 @@ fn app_settings_replace_error(error: AtomicReplaceError) -> String {
         ),
         AtomicReplaceError::RemoveBackup(error) => {
             format!("App settings transaction backup could not be removed: {error}")
+        }
+        AtomicReplaceError::SyncDirectory(error) => {
+            format!("App settings directory could not be synced: {error}")
         }
     }
 }
@@ -1463,6 +1472,7 @@ fn migrate_global_theme_selections(
     preferred_archive: Option<&Path>,
     report: &theme_migration::ThemeMigrationReport,
 ) -> Result<(), String> {
+    recover_settings_transaction(settings_path)?;
     let value = match fs::read(settings_path) {
         Ok(contents) => match serde_json::from_slice::<Value>(&contents) {
             Ok(value) => value,
@@ -1669,9 +1679,12 @@ mod tests {
 
     use serde_json::Value;
 
-    use crate::commands::theme_migration::{
-        migrate_legacy_theme_packages_at, ThemeMigrationAction, ThemeMigrationRecord,
-        ThemeMigrationReport,
+    use crate::{
+        atomic_file::transaction_path,
+        commands::theme_migration::{
+            migrate_legacy_theme_packages_at, ThemeMigrationAction, ThemeMigrationRecord,
+            ThemeMigrationReport,
+        },
     };
 
     use super::{
@@ -2134,6 +2147,10 @@ mod tests {
         write_settings(&path, &first).expect("initial settings should write");
         write_settings(&path, &second).expect("replacement settings should write");
         let loaded = read_settings(&path).expect("settings should read");
+        let file_name = path
+            .file_name()
+            .expect("settings path should have a file name")
+            .to_string_lossy();
         let write_backup_exists = path
             .parent()
             .expect("settings path should have parent")
@@ -2141,10 +2158,8 @@ mod tests {
             .expect("settings directory should be readable")
             .filter_map(Result::ok)
             .any(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .contains(".write-backup-")
+                let entry_name = entry.file_name().to_string_lossy().into_owned();
+                entry_name.starts_with(file_name.as_ref()) && entry_name.contains(".write-backup-")
             });
         let _ = std::fs::remove_file(&path);
 
@@ -2175,6 +2190,79 @@ mod tests {
                 entry_name.starts_with(file_name.as_ref()) && entry_name.contains("tmp-write")
             }));
         std::fs::remove_dir_all(path).expect("conflicting directory should be removed");
+    }
+
+    #[test]
+    fn app_preferences_recover_interrupted_transaction_before_missing_defaults() {
+        let path = temporary_settings_path("interrupted-recovery");
+        let expected = AppPreferences {
+            density: "compact".to_string(),
+            restore_last_reader: true,
+            ..AppPreferences::default()
+        };
+        let backup = transaction_path(&path, "write-backup");
+        std::fs::write(
+            &backup,
+            serde_json::to_vec_pretty(&expected).expect("settings should serialize"),
+        )
+        .expect("transaction backup should be written");
+
+        let loaded = read_settings(&path).expect("settings should recover before defaults");
+
+        assert_eq!(loaded, expected);
+        assert!(path.is_file());
+        assert!(!backup.exists());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn app_preferences_surface_recovery_failure_before_missing_defaults() {
+        let path = temporary_settings_path("interrupted-recovery-failure");
+        let backup = transaction_path(&path, "write-backup");
+        std::fs::create_dir_all(&backup).expect("invalid transaction artifact should be created");
+
+        let error = read_settings(&path).expect_err("recovery failure should be surfaced");
+
+        assert!(error.contains("interrupted write could not be recovered"));
+        assert!(!path.exists());
+        assert!(backup.is_dir());
+        std::fs::remove_dir_all(
+            path.parent()
+                .expect("temporary settings path should have a parent"),
+        )
+        .expect("temporary settings root should be removed");
+    }
+
+    #[test]
+    fn theme_selection_migration_recovers_interrupted_settings_before_missing_defaults() {
+        let root = temporary_settings_root("migration-interrupted-recovery");
+        std::fs::create_dir_all(&root).expect("settings root should be created");
+        let path = root.join("settings.json");
+        let expected = AppPreferences {
+            density: "compact".to_string(),
+            restore_last_reader: true,
+            ..AppPreferences::default()
+        };
+        let backup = transaction_path(&path, "write-backup");
+        std::fs::write(
+            &backup,
+            serde_json::to_vec_pretty(&expected).expect("settings should serialize"),
+        )
+        .expect("transaction backup should be written");
+        let report = ThemeMigrationReport {
+            version: 1,
+            records: Vec::new(),
+        };
+
+        migrate_global_theme_selections(&path, None, &report)
+            .expect("migration should recover settings before reading them");
+
+        assert_eq!(
+            read_settings(&path).expect("recovered settings should read"),
+            expected
+        );
+        assert!(!backup.exists());
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
 
     #[test]

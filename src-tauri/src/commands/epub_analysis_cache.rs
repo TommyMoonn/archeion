@@ -266,7 +266,8 @@ fn replace_error(error: AtomicReplaceError) -> String {
         }
         AtomicReplaceError::MoveDestinationToBackup(error)
         | AtomicReplaceError::ReplaceMissingDestination(error)
-        | AtomicReplaceError::RemoveBackup(error) => error,
+        | AtomicReplaceError::RemoveBackup(error)
+        | AtomicReplaceError::SyncDirectory(error) => error,
         AtomicReplaceError::ReplaceRestored { replace_error } => format!(
             "EPUB analysis cache save failed and the previous cache was restored: {replace_error}"
         ),

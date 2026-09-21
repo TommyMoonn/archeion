@@ -276,7 +276,8 @@ fn metadata_replace_error(error: AtomicReplaceError) -> String {
         AtomicReplaceError::DestinationNotFile => "Metadata path is not a file.".to_string(),
         AtomicReplaceError::MoveDestinationToBackup(error)
         | AtomicReplaceError::ReplaceMissingDestination(error)
-        | AtomicReplaceError::RemoveBackup(error) => error,
+        | AtomicReplaceError::RemoveBackup(error)
+        | AtomicReplaceError::SyncDirectory(error) => error,
         AtomicReplaceError::ReplaceRestored { replace_error } => {
             format!("Metadata save failed and the previous file was restored: {replace_error}")
         }
