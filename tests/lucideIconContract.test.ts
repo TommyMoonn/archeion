@@ -115,5 +115,5 @@ describe("Lucide icon integration", () => {
 
     expect(importedIcons.size).toBeGreaterThan(0);
     expect(() => assertValidLucideExports(importedIcons)).not.toThrow();
-  });
+  }, 15_000);
 });

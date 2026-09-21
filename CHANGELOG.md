@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-21
+
+Archeion 1.5.0 improves EPUB compatibility and readability across Paged, Continuous, reflowable, and fixed-layout books.
+
+### Added
+
+- Added **Narrow**, **Comfortable**, **Wide**, and **Full** Page Width options for reflowable books, with **Comfortable** as the default.
+
+### Changed
+
+- Reader settings now adapt to each book's layout. Fixed-layout books keep their publisher-designed pages and no longer offer incompatible typography or Continuous-mode controls.
+- Reader settings now save successful changes quietly while keeping failures visible, and the reading-progress handle has a simpler appearance without changing its controls.
+
+### Fixed
+
+- Made selected typeface, text size, line spacing, colors, and reading width apply more consistently when reflowable books contain conflicting publisher styles.
+- Stabilized page width, prose alignment, and viewport sizing across Paged and Continuous modes so chapters keep a readable measure without distorted columns or shifting text edges.
+- Kept the current reading position stable when the Reader toolbar expands or collapses, while reserving space so the toolbar does not cover book content.
+- Improved illustration presentation in reflowable books: large media fits the visible Reader area, ordinary standalone illustrations are centered in Paged mode, and deliberate publisher placement remains intact.
+- Preserved available alternative text when opening illustrations in the expanded viewer.
+- Kept select menus within the available window or dialog space when there is not enough room below their control.
+
 ## [1.4.3] - 2026-09-17
 
 Archeion 1.4.3 improves readability, keeps long book and file details contained, and makes application actions and failures clearer to assistive technology.
@@ -519,7 +541,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/TommyMoonn/archeion/compare/v1.4.3...v1.5.0
 [1.4.3]: https://github.com/TommyMoonn/archeion/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/TommyMoonn/archeion/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/TommyMoonn/archeion/compare/v1.4.0...v1.4.1
