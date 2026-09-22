@@ -92,8 +92,15 @@ export class SettingsArchiveMaintenanceClient {
 
   initialize(): Promise<void> {
     if (this.initialization) return this.initialization;
-    this.initialization = this.initializeNow();
-    return this.initialization;
+    if (this.snapshot.status === "error") {
+      this.publish({ ...this.snapshot, status: "loading" });
+    }
+    const initialization = this.initializeNow();
+    this.initialization = initialization;
+    void initialization.catch(() => {
+      if (this.initialization === initialization) this.initialization = null;
+    });
+    return initialization;
   }
 
   dispose(): void {
@@ -129,25 +136,35 @@ export class SettingsArchiveMaintenanceClient {
   }
 
   private async initializeNow(): Promise<void> {
+    let unlistenRegistry: UnlistenFn | null = null;
+    let unlistenCompletion: UnlistenFn | null = null;
     try {
       const eventRevision = this.registryEventRevision;
-      const [unlistenRegistry, unlistenCompletion] = await Promise.all([
-        this.dependencies.listen<ArchiveRegistry>(ARCHIVE_REGISTRY_CHANGED_EVENT, (event) => {
+      unlistenRegistry = await this.dependencies.listen<ArchiveRegistry>(
+        ARCHIVE_REGISTRY_CHANGED_EVENT,
+        (event) => {
           this.registryEventRevision += 1;
           this.applyRegistry(event.payload);
-        }),
-        this.dependencies.listen<ArchiveReconciliationCompletion>(
-          ARCHIVE_RECONCILIATION_COMPLETED_EVENT,
-          (event) => this.completeReconciliation(event.payload),
-        ),
-      ]);
+        },
+      );
+      unlistenCompletion = await this.dependencies.listen<ArchiveReconciliationCompletion>(
+        ARCHIVE_RECONCILIATION_COMPLETED_EVENT,
+        (event) => this.completeReconciliation(event.payload),
+      );
       this.unlisten = () => {
-        unlistenRegistry();
-        unlistenCompletion();
+        unlistenRegistry?.();
+        unlistenCompletion?.();
       };
       const registry = await this.dependencies.invoke<ArchiveRegistry>("load_archive_registry");
       if (this.registryEventRevision === eventRevision) this.applyRegistry(registry);
     } catch (error) {
+      if (this.unlisten) {
+        this.unlisten();
+        this.unlisten = null;
+      } else {
+        unlistenRegistry?.();
+        unlistenCompletion?.();
+      }
       this.publish({ archive: null, generation: this.snapshot.generation + 1, status: "error" });
       throw error;
     }

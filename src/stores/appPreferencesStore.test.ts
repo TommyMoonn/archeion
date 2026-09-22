@@ -723,9 +723,32 @@ describe("app preferences", () => {
 
     expect(loadDesktop).not.toHaveBeenCalled();
 
-    await Promise.all([store.initialize(), store.initialize()]);
+    const initialization = store.initialize();
+    expect(store.initialize()).toBe(initialization);
+    await initialization;
 
     expect(loadDesktop).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot().density).toBe("compact");
+    expect(store.initialize()).toBe(initialization);
+    expect(loadDesktop).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears a failed initialization attempt and succeeds on retry", async () => {
+    const loadDesktop = vi
+      .fn<() => Promise<unknown>>()
+      .mockRejectedValueOnce(new Error("settings unavailable"))
+      .mockResolvedValueOnce(nativeSnapshot({ density: "compact" }, 3));
+    const store = new AppPreferencesStore(createPersistence({ loadDesktop }));
+
+    await expect(store.initialize()).rejects.toThrow(
+      "App settings could not be loaded. Restart Archeion to try again.",
+    );
+    expect(store.getPersistenceSnapshot().status).toBe("error");
+
+    await expect(store.initialize()).resolves.toBeUndefined();
+
+    expect(loadDesktop).toHaveBeenCalledTimes(2);
+    expect(store.getPersistenceSnapshot()).toEqual({ status: "idle" });
     expect(store.getSnapshot().density).toBe("compact");
   });
 

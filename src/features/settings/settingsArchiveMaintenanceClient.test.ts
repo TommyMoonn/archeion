@@ -30,11 +30,16 @@ function registry(active: KnownArchive | null): ArchiveRegistry {
   };
 }
 
-function createClient(initial: ArchiveRegistry, requestIds = ["settings-session-1-request-1"]) {
+function createClient(
+  initial: ArchiveRegistry,
+  requestIds = ["settings-session-1-request-1"],
+  loadRegistry: () => Promise<ArchiveRegistry> = async () => initial,
+) {
   let requestIndex = 0;
   const handlers = new Map<string, (event: { payload: unknown }) => void>();
+  const unlisten = vi.fn();
   const invoke = vi.fn<(command: string, args?: unknown) => Promise<unknown>>(async (command) => {
-    if (command === "load_archive_registry") return initial;
+    if (command === "load_archive_registry") return loadRegistry();
     return undefined;
   });
   const archiveInvoke = vi.fn<
@@ -50,13 +55,14 @@ function createClient(initial: ArchiveRegistry, requestIds = ["settings-session-
     invoke: invoke as never,
     listen: vi.fn(async (event, handler) => {
       handlers.set(event, handler as (event: { payload: unknown }) => void);
-      return () => undefined;
+      return unlisten;
     }) as never,
   });
   return {
     archiveInvoke,
     client,
     invoke,
+    unlisten,
     publishCompletion: (completion: ArchiveReconciliationCompletion) =>
       handlers.get(ARCHIVE_RECONCILIATION_COMPLETED_EVENT)?.({ payload: completion }),
     publishRegistry: (next: ArchiveRegistry) =>
@@ -74,6 +80,36 @@ function requestedReconciliation(owner: ReturnType<typeof createClient>) {
 }
 
 describe("SettingsArchiveMaintenanceClient", () => {
+  it("shares successful initialization and keeps the ready result cached", async () => {
+    const loadRegistry = vi.fn(async () => registry(archiveA));
+    const owner = createClient(registry(archiveA), undefined, loadRegistry);
+
+    const initialization = owner.client.initialize();
+    expect(owner.client.initialize()).toBe(initialization);
+    await initialization;
+
+    expect(owner.client.initialize()).toBe(initialization);
+    expect(loadRegistry).toHaveBeenCalledTimes(1);
+    expect(owner.client.getSnapshot().status).toBe("ready");
+  });
+
+  it("cleans up a failed initialization and succeeds on retry", async () => {
+    const loadRegistry = vi
+      .fn<() => Promise<ArchiveRegistry>>()
+      .mockRejectedValueOnce(new Error("registry unavailable"))
+      .mockResolvedValueOnce(registry(archiveA));
+    const owner = createClient(registry(archiveA), undefined, loadRegistry);
+
+    await expect(owner.client.initialize()).rejects.toThrow("registry unavailable");
+    expect(owner.client.getSnapshot().status).toBe("error");
+    expect(owner.unlisten).toHaveBeenCalledTimes(2);
+
+    await expect(owner.client.initialize()).resolves.toBeUndefined();
+
+    expect(loadRegistry).toHaveBeenCalledTimes(2);
+    expect(owner.client.getSnapshot()).toMatchObject({ archive: archiveA, status: "ready" });
+  });
+
   it("reads active identity and follows archive changes without LibraryStorage", async () => {
     const owner = createClient(registry(archiveA));
     await owner.client.initialize();

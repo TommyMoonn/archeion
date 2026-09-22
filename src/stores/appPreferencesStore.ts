@@ -960,8 +960,12 @@ export class AppPreferencesStore {
       return this.loadPromise;
     }
 
-    this.loadPromise = this.loadPreferences();
-    return this.loadPromise;
+    const initialization = this.loadPreferences();
+    this.loadPromise = initialization;
+    void initialization.catch(() => {
+      if (this.loadPromise === initialization) this.loadPromise = null;
+    });
+    return initialization;
   }
 
   async update(changes: Partial<AppPreferences>): Promise<AppPreferences> {

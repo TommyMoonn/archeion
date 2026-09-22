@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defaultAppPreferences } from "../../types/appSettings";
 import { SettingsWindow } from "./StandaloneSettingsWindow";
 
 const mocks = vi.hoisted(() => ({
@@ -47,6 +48,26 @@ function deferred() {
   return { promise, reject, resolve };
 }
 
+async function createRetryablePreferencesStore() {
+  const { AppPreferencesStore } = await vi.importActual<
+    typeof import("../../stores/appPreferencesStore")
+  >("../../stores/appPreferencesStore");
+  const loadDesktop = vi
+    .fn<() => Promise<unknown>>()
+    .mockRejectedValueOnce(new Error("settings unavailable"))
+    .mockResolvedValueOnce({ preferences: defaultAppPreferences, revision: 1 });
+  const store = new AppPreferencesStore({
+    isDesktop: () => true,
+    loadDesktop,
+    mutateDesktop: vi.fn(async () => ({ preferences: defaultAppPreferences, revision: 2 })),
+    readLegacy: () => null,
+    removeLegacy: vi.fn(),
+    saveBrowserFallback: vi.fn(),
+    subscribeDesktop: vi.fn(async () => () => undefined),
+  });
+  return { loadDesktop, store };
+}
+
 beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
@@ -81,9 +102,8 @@ describe("SettingsWindow", () => {
 
   it("keeps initialization failure inside the Settings window and supports retry", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    mocks.initialize
-      .mockRejectedValueOnce(new Error("settings unavailable"))
-      .mockResolvedValueOnce();
+    const { loadDesktop, store } = await createRetryablePreferencesStore();
+    mocks.initialize.mockImplementation(() => store.initialize());
     await act(async () => root.render(<SettingsWindow />));
     await act(async () => Promise.resolve());
 
@@ -98,6 +118,7 @@ describe("SettingsWindow", () => {
     });
 
     expect(mocks.initialize).toHaveBeenCalledTimes(2);
+    expect(loadDesktop).toHaveBeenCalledTimes(2);
     expect(container.querySelector('[data-testid="settings-surface"]')).not.toBeNull();
     consoleError.mockRestore();
   });

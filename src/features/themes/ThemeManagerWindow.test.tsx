@@ -8,6 +8,7 @@ import type { GlobalAppearancePreferences } from "../../themes/AppearanceRuntime
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
+import { defaultAppPreferences } from "../../types/appSettings";
 import { ThemeManagerWindow } from "./ThemeManagerWindow";
 import type { ThemeManagerControllerOptions } from "./useThemeManagerController";
 
@@ -44,6 +45,26 @@ function deferred() {
     reject = rejectPromise;
   });
   return { promise, reject, resolve };
+}
+
+async function createRetryablePreferencesStore() {
+  const { AppPreferencesStore } = await vi.importActual<
+    typeof import("../../stores/appPreferencesStore")
+  >("../../stores/appPreferencesStore");
+  const loadDesktop = vi
+    .fn<() => Promise<unknown>>()
+    .mockRejectedValueOnce(new Error("settings unavailable"))
+    .mockResolvedValueOnce({ preferences: defaultAppPreferences, revision: 1 });
+  const store = new AppPreferencesStore({
+    isDesktop: () => true,
+    loadDesktop,
+    mutateDesktop: vi.fn(async () => ({ preferences: defaultAppPreferences, revision: 2 })),
+    readLegacy: () => null,
+    removeLegacy: vi.fn(),
+    saveBrowserFallback: vi.fn(),
+    subscribeDesktop: vi.fn(async () => () => undefined),
+  });
+  return { loadDesktop, store };
 }
 
 function createServices() {
@@ -196,7 +217,8 @@ describe("ThemeManagerWindow", () => {
   });
 
   it("keeps initialization failure and retry inside the standalone root", async () => {
-    mocks.initialize.mockRejectedValueOnce(new Error("settings unavailable")).mockResolvedValue();
+    const { loadDesktop, store } = await createRetryablePreferencesStore();
+    mocks.initialize.mockImplementation(() => store.initialize());
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     await act(async () => root.render(<ThemeManagerWindow services={createServices()} />));
 
@@ -212,6 +234,7 @@ describe("ThemeManagerWindow", () => {
     await settle();
 
     expect(mocks.initialize).toHaveBeenCalledTimes(2);
+    expect(loadDesktop).toHaveBeenCalledTimes(2);
     expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
     expect(consoleError).toHaveBeenCalledWith(
       "Theme Manager initialization failed",
