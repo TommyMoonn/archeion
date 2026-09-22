@@ -28,6 +28,10 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(|app| {
+            let archive_registry =
+                commands::archive::ArchiveRegistryService::from_app(app.handle())
+                    .map_err(std::io::Error::other)?;
+            app.manage(archive_registry);
             let app_settings = commands::app_settings::AppSettingsService::from_app(app.handle())
                 .map_err(std::io::Error::other)?;
             app.manage(app_settings);

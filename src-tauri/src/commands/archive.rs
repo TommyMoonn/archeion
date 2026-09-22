@@ -2,15 +2,22 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
+    sync::{Mutex, MutexGuard},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
+use crate::atomic_file::{
+    recover_atomic_replace, transaction_path, AtomicReplaceError, BackupCleanup,
+    PreparedAtomicFile, RealAtomicFileSystem, TemporaryWriteError, TemporaryWriteStage,
+};
+
 use super::{archive_root, epub_analysis, metadata};
 
 const ARCHIVE_REGISTRY_FILE: &str = "archives.json";
+const ARCHIVE_REGISTRY_LAST_GOOD_FILE: &str = "archives.last-good.json";
 const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
 const ARCHIVE_MANAGER_WINDOW_LABEL: &str = "archive-manager";
 const ARCHIVE_REGISTRY_CHANGED_EVENT: &str = "archive-registry-changed";
@@ -306,16 +313,22 @@ fn archive_paths_match(left: &str, right: &str) -> bool {
     }
 }
 
-fn registry_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app_config_path(app, ARCHIVE_REGISTRY_FILE)
+#[derive(Clone, Debug)]
+struct ArchiveRegistryPaths {
+    current: PathBuf,
+    last_good: PathBuf,
+    legacy: PathBuf,
 }
 
-fn legacy_archive_registry_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app_config_path(app, LEGACY_ARCHIVE_REGISTRY_FILE)
+fn archive_registry_paths(app: &tauri::AppHandle) -> Result<ArchiveRegistryPaths, String> {
+    Ok(ArchiveRegistryPaths {
+        current: app_config_path(app, ARCHIVE_REGISTRY_FILE)?,
+        last_good: app_config_path(app, ARCHIVE_REGISTRY_LAST_GOOD_FILE)?,
+        legacy: app_config_path(app, LEGACY_ARCHIVE_REGISTRY_FILE)?,
+    })
 }
 
-fn read_legacy_registry(app: &tauri::AppHandle) -> Result<Option<ArchiveRegistry>, String> {
-    let path = legacy_archive_registry_path(app)?;
+fn read_legacy_registry(path: &Path) -> Result<Option<ArchiveRegistry>, String> {
     let contents = match fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -343,28 +356,265 @@ fn read_legacy_registry(app: &tauri::AppHandle) -> Result<Option<ArchiveRegistry
     }))
 }
 
-fn read_registry(app: &tauri::AppHandle) -> Result<ArchiveRegistry, String> {
-    let path = registry_path(app)?;
-    let contents = match fs::read_to_string(&path) {
-        Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            if let Some(registry) = read_legacy_registry(app)? {
-                write_registry(app, &registry)?;
-                return Ok(registry);
-            }
-            return Ok(ArchiveRegistry::default());
+fn validate_registry(registry: &ArchiveRegistry) -> Result<(), String> {
+    if registry.version != 1 {
+        return Err(format!(
+            "Unsupported archive registry version: {}.",
+            registry.version
+        ));
+    }
+    Ok(())
+}
+
+fn parse_registry(contents: &[u8]) -> Result<ArchiveRegistry, String> {
+    let registry: ArchiveRegistry =
+        serde_json::from_slice(contents).map_err(|error| error.to_string())?;
+    validate_registry(&registry)?;
+    Ok(registry)
+}
+
+fn archive_registry_temporary_write_error(error: TemporaryWriteError) -> String {
+    let stage = error.stage();
+    let source = error.into_source();
+    match stage {
+        TemporaryWriteStage::Create => {
+            format!("Archive registry temporary file could not be created: {source}")
         }
-        Err(error) => return Err(error.to_string()),
-    };
+        TemporaryWriteStage::Write => {
+            format!("Archive registry temporary file could not be written: {source}")
+        }
+        TemporaryWriteStage::Sync => {
+            format!("Archive registry temporary file could not be synced: {source}")
+        }
+    }
+}
 
-    let mut registry: ArchiveRegistry =
-        serde_json::from_str(&contents).map_err(|error| error.to_string())?;
+fn archive_registry_replace_error(error: AtomicReplaceError) -> String {
+    match error {
+        AtomicReplaceError::DestinationNotFile => {
+            "Archive registry path is not a file.".to_string()
+        }
+        AtomicReplaceError::MoveDestinationToBackup(error) => {
+            format!("Archive registry transaction backup could not be created: {error}")
+        }
+        AtomicReplaceError::ReplaceMissingDestination(error) => {
+            format!("Archive registry could not be replaced: {error}")
+        }
+        AtomicReplaceError::ReplaceRestored { replace_error } => format!(
+            "Archive registry could not be replaced and the previous registry was restored: {replace_error}"
+        ),
+        AtomicReplaceError::RestoreFailed { restore_error } => format!(
+            "Archive registry could not be replaced and the previous registry could not be restored: {restore_error}"
+        ),
+        AtomicReplaceError::RemoveBackup(error) => {
+            format!("Archive registry transaction backup could not be removed: {error}")
+        }
+        AtomicReplaceError::SyncDirectory(error) => {
+            format!("Archive registry directory could not be synced: {error}")
+        }
+    }
+}
 
-    if normalize_registry_paths(&mut registry) {
-        write_registry(app, &registry)?;
+fn write_registry_document(path: &Path, registry: &ArchiveRegistry) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Archive registry directory could not be created: {error}"))?;
+    }
+    recover_atomic_replace(path)
+        .map_err(|error| format!("Archive registry transaction could not be recovered: {error}"))?;
+    validate_registry(registry)?;
+    let contents = serde_json::to_vec_pretty(registry)
+        .map_err(|error| format!("Archive registry could not be serialized: {error}"))?;
+    parse_registry(&contents)
+        .map_err(|error| format!("Archive registry could not be validated: {error}"))?;
+    let temporary = PreparedAtomicFile::write(transaction_path(path, "tmp-write"), &contents)
+        .map_err(archive_registry_temporary_write_error)?;
+    let backup = transaction_path(path, "write-backup");
+    temporary
+        .replace(
+            path,
+            &backup,
+            BackupCleanup::Required,
+            &RealAtomicFileSystem,
+        )
+        .map_err(archive_registry_replace_error)
+}
+
+pub(crate) struct ArchiveRegistryService {
+    paths: ArchiveRegistryPaths,
+    operation: Mutex<()>,
+}
+
+impl ArchiveRegistryService {
+    pub(crate) fn from_app(app: &tauri::AppHandle) -> Result<Self, String> {
+        Ok(Self::new(archive_registry_paths(app)?))
     }
 
-    Ok(registry)
+    fn new(paths: ArchiveRegistryPaths) -> Self {
+        Self {
+            paths,
+            operation: Mutex::new(()),
+        }
+    }
+
+    fn lock(&self) -> Result<MutexGuard<'_, ()>, String> {
+        self.operation
+            .lock()
+            .map_err(|_| "Archive registry state is unavailable.".to_string())
+    }
+
+    fn load_last_good_locked(&self) -> Result<Option<ArchiveRegistry>, String> {
+        recover_atomic_replace(&self.paths.last_good).map_err(|error| {
+            format!("Archive registry last-known-good transaction could not be recovered: {error}")
+        })?;
+        let contents = match fs::read(&self.paths.last_good) {
+            Ok(contents) => contents,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(format!(
+                    "Archive registry last-known-good copy could not be read: {error}"
+                ))
+            }
+        };
+        parse_registry(&contents)
+            .map(Some)
+            .map_err(|error| format!("Archive registry last-known-good copy is invalid: {error}"))
+    }
+
+    fn restore_from_last_good_locked(
+        &self,
+        mut registry: ArchiveRegistry,
+    ) -> Result<ArchiveRegistry, String> {
+        normalize_registry_paths(&mut registry);
+        write_registry_document(&self.paths.current, &registry)?;
+        Ok(registry)
+    }
+
+    fn load_locked(&self) -> Result<ArchiveRegistry, String> {
+        recover_atomic_replace(&self.paths.current).map_err(|error| {
+            format!("Archive registry transaction could not be recovered: {error}")
+        })?;
+
+        let contents = match fs::read(&self.paths.current) {
+            Ok(contents) => contents,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                if let Some(registry) = self.load_last_good_locked()? {
+                    return self.restore_from_last_good_locked(registry);
+                }
+                if let Some(mut registry) = read_legacy_registry(&self.paths.legacy)? {
+                    normalize_registry_paths(&mut registry);
+                    write_registry_document(&self.paths.last_good, &registry)?;
+                    write_registry_document(&self.paths.current, &registry)?;
+                    return Ok(registry);
+                }
+                return Ok(ArchiveRegistry::default());
+            }
+            Err(error) => return Err(format!("Archive registry could not be read: {error}")),
+        };
+
+        let mut registry = match parse_registry(&contents) {
+            Ok(registry) => registry,
+            Err(current_error) => {
+                let Some(last_good) = self.load_last_good_locked()? else {
+                    return Err(format!("Archive registry is invalid: {current_error}"));
+                };
+                return self.restore_from_last_good_locked(last_good);
+            }
+        };
+
+        if normalize_registry_paths(&mut registry) {
+            let previous = parse_registry(&contents)?;
+            self.persist_locked(&previous, &registry)?;
+        }
+
+        Ok(registry)
+    }
+
+    fn persist_locked(
+        &self,
+        previous: &ArchiveRegistry,
+        next: &ArchiveRegistry,
+    ) -> Result<(), String> {
+        // One stable copy always records the last registry known-good before a mutation commits.
+        write_registry_document(&self.paths.last_good, previous)?;
+        write_registry_document(&self.paths.current, next)
+    }
+
+    fn load(&self) -> Result<ArchiveRegistry, String> {
+        let _guard = self.lock()?;
+        self.load_locked()
+    }
+
+    fn mutate<T>(
+        &self,
+        mutation: impl FnOnce(&mut ArchiveRegistry) -> Result<T, String>,
+    ) -> Result<(ArchiveRegistry, T), String> {
+        let _guard = self.lock()?;
+        let mut registry = self.load_locked()?;
+        let previous = registry.clone();
+        let result = mutation(&mut registry)?;
+        validate_registry(&registry)?;
+        self.persist_locked(&previous, &registry)?;
+        Ok((registry, result))
+    }
+
+    fn upsert(
+        &self,
+        root_path: String,
+        display_name: Option<String>,
+    ) -> Result<(ArchiveRegistry, ArchiveRecord), String> {
+        self.mutate(|registry| Ok(upsert_archive_at_path(registry, root_path, display_name)))
+    }
+
+    fn activate(&self, archive_id: &str) -> Result<(ArchiveRegistry, Option<String>), String> {
+        self.mutate(|registry| {
+            let index = registry
+                .archives
+                .iter()
+                .position(|archive| archive.id == archive_id)
+                .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
+            let root_path = registry.archives[index].root_path.clone();
+            let validation_error = validated_root_path(&root_path).err();
+
+            if validation_error.is_none() {
+                registry.archives[index].last_opened_at = now_timestamp();
+            }
+            registry.last_opened_archive_id = Some(registry.archives[index].id.clone());
+            Ok(validation_error)
+        })
+    }
+
+    fn rename(&self, archive_id: &str, display_name: &str) -> Result<ArchiveRegistry, String> {
+        let (registry, ()) = self.mutate(|registry| {
+            let archive = registry
+                .archives
+                .iter_mut()
+                .find(|archive| archive.id == archive_id)
+                .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
+            archive.display_name = display_name.to_string();
+            Ok(())
+        })?;
+        Ok(registry)
+    }
+
+    fn forget(&self, archive_id: &str) -> Result<(ArchiveRegistry, bool), String> {
+        self.mutate(|registry| {
+            let forgetting_active = registry.last_opened_archive_id.as_deref() == Some(archive_id);
+            registry.archives.retain(|archive| archive.id != archive_id);
+            if forgetting_active {
+                registry.last_opened_archive_id = None;
+            }
+            Ok(forgetting_active)
+        })
+    }
+}
+
+fn archive_registry_service(app: &tauri::AppHandle) -> tauri::State<'_, ArchiveRegistryService> {
+    app.state::<ArchiveRegistryService>()
+}
+
+fn read_registry(app: &tauri::AppHandle) -> Result<ArchiveRegistry, String> {
+    archive_registry_service(app).load()
 }
 
 pub(crate) fn registered_archive_roots(app: &tauri::AppHandle) -> Result<Vec<PathBuf>, String> {
@@ -373,16 +623,6 @@ pub(crate) fn registered_archive_roots(app: &tauri::AppHandle) -> Result<Vec<Pat
         .into_iter()
         .map(|archive| PathBuf::from(archive.root_path))
         .collect())
-}
-
-fn write_registry(app: &tauri::AppHandle, registry: &ArchiveRegistry) -> Result<(), String> {
-    let path = registry_path(app)?;
-    let directory = path
-        .parent()
-        .ok_or_else(|| "App config directory is unavailable.".to_string())?;
-    fs::create_dir_all(directory).map_err(|error| error.to_string())?;
-    let contents = serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
-    fs::write(path, contents).map_err(|error| error.to_string())
 }
 
 fn emit_archive_registry_changed(app: &tauri::AppHandle, registry: &ArchiveRegistry) {
@@ -578,9 +818,7 @@ pub(crate) fn save_active_archive_path(
     let root = validated_root_path(&path)?;
     metadata::initialize_at(&root)?;
     let root_path = archive_root::display_archive_path(&root);
-    let mut registry = read_registry(app)?;
-    let archive = upsert_archive_at_path(&mut registry, root_path, None);
-    write_registry(app, &registry)?;
+    let (_, archive) = archive_registry_service(app).upsert(root_path, None)?;
     Ok(archive)
 }
 
@@ -682,9 +920,7 @@ pub fn create_empty_archive(
     let parent = validated_parent_path(&parent_path)?;
     let root = create_empty_archive_at(&parent, &validated_name)?;
     let root_path = archive_root::display_archive_path(&root);
-    let mut registry = read_registry(&app)?;
-    upsert_archive_at_path(&mut registry, root_path, Some(validated_name));
-    write_registry(&app, &registry)?;
+    let (registry, _) = archive_registry_service(&app).upsert(root_path, Some(validated_name))?;
     epub_analysis::retire_active_archive();
     emit_archive_registry_changed(&app, &registry);
     Ok(registry)
@@ -695,28 +931,12 @@ pub fn activate_archive(
     app: tauri::AppHandle,
     archive_id: String,
 ) -> Result<ArchiveRegistry, String> {
-    let mut registry = read_registry(&app)?;
-    let timestamp = now_timestamp();
-    let index = registry
-        .archives
-        .iter()
-        .position(|archive| archive.id == archive_id)
-        .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
-    let root_path = registry.archives[index].root_path.clone();
-
-    if let Err(error) = validated_root_path(&root_path) {
-        registry.last_opened_archive_id = Some(registry.archives[index].id.clone());
-        write_registry(&app, &registry)?;
-        epub_analysis::retire_active_archive();
-        emit_archive_registry_changed(&app, &registry);
-        return Err(error);
-    }
-
-    registry.archives[index].last_opened_at = timestamp;
-    registry.last_opened_archive_id = Some(registry.archives[index].id.clone());
-    write_registry(&app, &registry)?;
+    let (registry, validation_error) = archive_registry_service(&app).activate(&archive_id)?;
     epub_analysis::retire_active_archive();
     emit_archive_registry_changed(&app, &registry);
+    if let Some(error) = validation_error {
+        return Err(error);
+    }
     Ok(registry)
 }
 
@@ -731,14 +951,7 @@ pub fn rename_archive(
         return Err("Archive names cannot be empty.".to_string());
     }
 
-    let mut registry = read_registry(&app)?;
-    let archive = registry
-        .archives
-        .iter_mut()
-        .find(|archive| archive.id == archive_id)
-        .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
-    archive.display_name = name.to_string();
-    write_registry(&app, &registry)?;
+    let registry = archive_registry_service(&app).rename(&archive_id, name)?;
     emit_archive_registry_changed(&app, &registry);
     Ok(registry)
 }
@@ -748,13 +961,7 @@ pub fn forget_archive(
     app: tauri::AppHandle,
     archive_id: String,
 ) -> Result<ArchiveRegistry, String> {
-    let mut registry = read_registry(&app)?;
-    let forgetting_active = registry.last_opened_archive_id.as_deref() == Some(archive_id.as_str());
-    registry.archives.retain(|archive| archive.id != archive_id);
-    if forgetting_active {
-        registry.last_opened_archive_id = None;
-    }
-    write_registry(&app, &registry)?;
+    let (registry, forgetting_active) = archive_registry_service(&app).forget(&archive_id)?;
     if forgetting_active {
         epub_analysis::retire_active_archive();
     }
@@ -832,8 +1039,12 @@ pub fn reveal_archive(app: tauri::AppHandle, archive_id: String) -> Result<(), S
 mod tests {
     use std::{
         fs,
-        time::{SystemTime, UNIX_EPOCH},
+        sync::Arc,
+        thread,
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
+
+    use crate::atomic_file::transaction_path;
 
     use super::{
         archive_id_for_path, archive_manager_close_action, archive_manager_url_parts,
@@ -842,6 +1053,7 @@ mod tests {
         upsert_archive_at_path, validate_archive_invalidation_scope, validate_archive_name,
         validated_display_root_path, validated_parent_path, validated_root_path,
         ArchiveManagerCloseAction, ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
+        ArchiveRegistryPaths, ArchiveRegistryService,
     };
 
     #[test]
@@ -1166,5 +1378,231 @@ mod tests {
     fn archive_ids_are_case_sensitive_on_case_sensitive_platforms() {
         assert_ne!(archive_id_for_path("/Books"), archive_id_for_path("/books"));
         assert!(!archive_paths_match("/Books", "/books"));
+    }
+
+    fn test_registry_paths(root: &std::path::Path) -> ArchiveRegistryPaths {
+        ArchiveRegistryPaths {
+            current: root.join("archives.json"),
+            last_good: root.join("archives.last-good.json"),
+            legacy: root.join("vault.json"),
+        }
+    }
+
+    fn archive_record(id: &str, root: &std::path::Path) -> ArchiveRecord {
+        ArchiveRecord {
+            id: id.to_string(),
+            display_name: id.to_string(),
+            root_path: root.to_string_lossy().into_owned(),
+            created_at: "1".to_string(),
+            last_opened_at: "1".to_string(),
+        }
+    }
+
+    #[test]
+    fn registry_service_routes_create_activate_rename_and_forget_mutations() {
+        let root = test_root("registry-service-mutations");
+        let first_root = root.join("First");
+        let second_root = root.join("Second");
+        fs::create_dir_all(&first_root).unwrap();
+        fs::create_dir_all(&second_root).unwrap();
+        let paths = test_registry_paths(&root);
+        let service = ArchiveRegistryService::new(paths.clone());
+
+        let (_, first) = service
+            .upsert(
+                first_root.to_string_lossy().into_owned(),
+                Some("First".to_string()),
+            )
+            .unwrap();
+        let (_, second) = service
+            .upsert(
+                second_root.to_string_lossy().into_owned(),
+                Some("Second".to_string()),
+            )
+            .unwrap();
+        let (activated, activation_error) = service.activate(&first.id).unwrap();
+        assert!(activation_error.is_none());
+        assert_eq!(
+            activated.last_opened_archive_id.as_deref(),
+            Some(first.id.as_str())
+        );
+
+        service.rename(&second.id, "Renamed").unwrap();
+        let (_, forgetting_active) = service.forget(&first.id).unwrap();
+        assert!(forgetting_active);
+
+        let registry = service.load().unwrap();
+        assert_eq!(registry.archives.len(), 1);
+        assert_eq!(registry.archives[0].id, second.id);
+        assert_eq!(registry.archives[0].display_name, "Renamed");
+        assert!(registry.last_opened_archive_id.is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn registry_service_round_trips_through_durable_writer() {
+        let root = test_root("registry-service-round-trip");
+        fs::create_dir_all(&root).unwrap();
+        let paths = test_registry_paths(&root);
+        let service = ArchiveRegistryService::new(paths.clone());
+        let archive_root = root.join("Books");
+        fs::create_dir_all(&archive_root).unwrap();
+
+        let (_, archive) = service
+            .upsert(
+                archive_root.to_string_lossy().into_owned(),
+                Some("Books".to_string()),
+            )
+            .unwrap();
+        let loaded = service.load().unwrap();
+
+        assert_eq!(loaded.archives.len(), 1);
+        assert_eq!(loaded.archives[0].id, archive.id);
+        assert!(paths.current.is_file());
+        assert!(paths.last_good.is_file());
+        assert!(!fs::read_dir(&root).unwrap().any(|entry| {
+            let name = entry.unwrap().file_name().to_string_lossy().into_owned();
+            name.contains("tmp-write") || name.contains("write-backup")
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn registry_service_recovers_interrupted_replacement_before_load() {
+        let root = test_root("registry-service-interrupted");
+        fs::create_dir_all(&root).unwrap();
+        let paths = test_registry_paths(&root);
+        let old_registry = ArchiveRegistry {
+            version: 1,
+            archives: vec![archive_record("old", &root.join("Old"))],
+            last_opened_archive_id: Some("old".to_string()),
+        };
+        let pending_registry = ArchiveRegistry {
+            version: 1,
+            archives: vec![archive_record("new", &root.join("New"))],
+            last_opened_archive_id: Some("new".to_string()),
+        };
+        fs::write(
+            &paths.current,
+            serde_json::to_vec_pretty(&old_registry).unwrap(),
+        )
+        .unwrap();
+        let backup = transaction_path(&paths.current, "write-backup");
+        fs::rename(&paths.current, &backup).unwrap();
+        let temporary = transaction_path(&paths.current, "tmp-write");
+        fs::write(
+            &temporary,
+            serde_json::to_vec_pretty(&pending_registry).unwrap(),
+        )
+        .unwrap();
+
+        let loaded = ArchiveRegistryService::new(paths.clone()).load().unwrap();
+
+        assert_eq!(loaded.archives[0].id, "old");
+        assert!(paths.current.is_file());
+        assert!(!backup.exists());
+        assert!(!temporary.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn registry_service_recovers_corrupt_current_from_last_known_good() {
+        let root = test_root("registry-service-corrupt");
+        fs::create_dir_all(&root).unwrap();
+        let paths = test_registry_paths(&root);
+        let service = ArchiveRegistryService::new(paths.clone());
+        let first_root = root.join("First");
+        let second_root = root.join("Second");
+        fs::create_dir_all(&first_root).unwrap();
+        fs::create_dir_all(&second_root).unwrap();
+
+        service
+            .upsert(
+                first_root.to_string_lossy().into_owned(),
+                Some("First".to_string()),
+            )
+            .unwrap();
+        service
+            .upsert(
+                second_root.to_string_lossy().into_owned(),
+                Some("Second".to_string()),
+            )
+            .unwrap();
+        fs::write(&paths.current, b"{ broken registry").unwrap();
+
+        let recovered = service.load().unwrap();
+
+        assert_eq!(recovered.archives.len(), 1);
+        assert_eq!(recovered.archives[0].display_name, "First");
+        assert_eq!(
+            serde_json::from_slice::<ArchiveRegistry>(&fs::read(&paths.current).unwrap())
+                .unwrap()
+                .archives
+                .len(),
+            1
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn unrecoverable_registry_error_does_not_delete_archive_directories() {
+        let root = test_root("registry-service-unrecoverable");
+        let archive_root = root.join("Registered Books");
+        fs::create_dir_all(&archive_root).unwrap();
+        let paths = test_registry_paths(&root);
+        fs::write(&paths.current, b"not json").unwrap();
+        fs::write(&paths.last_good, b"also not json").unwrap();
+
+        let error = ArchiveRegistryService::new(paths.clone())
+            .load()
+            .expect_err("unrecoverable registry should surface an error");
+
+        assert!(error.contains("registry"));
+        assert!(archive_root.is_dir());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn concurrent_registry_mutations_preserve_unrelated_changes() {
+        let root = test_root("registry-service-concurrent");
+        fs::create_dir_all(&root).unwrap();
+        let paths = test_registry_paths(&root);
+        let service = Arc::new(ArchiveRegistryService::new(paths.clone()));
+        let first_paths = paths.clone();
+        let second_paths = paths.clone();
+        let first_service = Arc::clone(&service);
+        let second_service = Arc::clone(&service);
+
+        let first = thread::spawn(move || {
+            first_service
+                .mutate(|registry| {
+                    thread::sleep(Duration::from_millis(40));
+                    registry.archives.push(archive_record(
+                        "first",
+                        &first_paths.current.with_file_name("First"),
+                    ));
+                    Ok(())
+                })
+                .unwrap();
+        });
+        let second = thread::spawn(move || {
+            second_service
+                .mutate(|registry| {
+                    registry.archives.push(archive_record(
+                        "second",
+                        &second_paths.current.with_file_name("Second"),
+                    ));
+                    Ok(())
+                })
+                .unwrap();
+        });
+        first.join().unwrap();
+        second.join().unwrap();
+
+        let loaded = service.load().unwrap();
+        assert_eq!(loaded.archives.len(), 2);
+        assert!(loaded.archives.iter().any(|archive| archive.id == "first"));
+        assert!(loaded.archives.iter().any(|archive| archive.id == "second"));
+        fs::remove_dir_all(root).unwrap();
     }
 }
