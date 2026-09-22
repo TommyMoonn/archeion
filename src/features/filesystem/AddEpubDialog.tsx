@@ -10,7 +10,7 @@ import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "../../types/archiveImport";
 import type { ReadonlyFolder } from "../../types/folder";
 import { defaultAppPreferences } from "../../types/appSettings";
-import type { ImportSettings } from "../../types/settings";
+import type { GlobalImportSettings } from "../../types/settings";
 import {
   ARCHIVE_ROOT_DESTINATION,
   archiveImportConflictOptions,
@@ -26,7 +26,7 @@ import { shouldConfirmImportReplace } from "./destructiveActionPolicy";
 type AddEpubDialogProps = {
   folders: readonly ReadonlyFolder[];
   confirmDestructiveFileActions?: boolean;
-  importDefaults?: ImportSettings;
+  importDefaults?: GlobalImportSettings;
   initialFolderPath?: string;
   initialSourcePaths?: string[];
   isImporting?: boolean;
@@ -52,9 +52,7 @@ export function AddEpubDialog({
   onImport,
 }: AddEpubDialogProps) {
   const destinations = useMemo(() => createArchiveDestinationOptions(folders), [folders]);
-  const initialDestination = destinationValueFromFolderPath(
-    initialFolderPath ?? importDefaults.defaultDestinationFolderPath,
-  );
+  const initialDestination = destinationValueFromFolderPath(initialFolderPath);
   const hasInitialDestination = destinations.some(
     (destination) => destination.value === initialDestination,
   );
@@ -62,9 +60,7 @@ export function AddEpubDialog({
     initialSourcePaths.filter(isEpubSourcePath),
   );
   const [destinationValue, setDestinationValue] = useState(
-    hasInitialDestination
-      ? initialDestination
-      : (destinations[0]?.value ?? ARCHIVE_ROOT_DESTINATION),
+    hasInitialDestination ? initialDestination : ARCHIVE_ROOT_DESTINATION,
   );
   const [conflictAction, setConflictAction] = useState<ArchiveImportConflictAction>(
     importDefaults.defaultConflictAction,

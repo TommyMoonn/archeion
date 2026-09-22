@@ -149,6 +149,135 @@ describe("AddEpubDialog replacement confirmation", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("defaults ordinary imports to archive root while preserving global import defaults", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    const onImport = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root.render(
+        <AddEpubDialog
+          confirmDestructiveFileActions={false}
+          folders={[
+            {
+              id: "folder-fiction",
+              name: "Fiction",
+              relativePath: "Fiction",
+              parentId: null,
+              parentPath: null,
+              createdAt: "1",
+              updatedAt: "1",
+            },
+          ]}
+          importDefaults={{ defaultConflictAction: "skip", defaultMode: "move" }}
+          initialSourcePaths={["D:\\Incoming\\Book.epub"]}
+          onClose={vi.fn()}
+          onImport={onImport}
+        />,
+      );
+    });
+
+    expect(container.querySelector("#add-epub-destination-button")?.textContent).toContain(
+      "Archive root",
+    );
+    expect(container.querySelector("#add-epub-conflict-button")?.textContent).toContain(
+      "Skip duplicates",
+    );
+    expect(
+      Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'))
+        .find((button) => button.textContent === "Move")
+        ?.getAttribute("aria-checked"),
+    ).toBe("true");
+
+    await act(async () => buttonWithText(container, "Add EPUB").click());
+
+    expect(onImport).toHaveBeenCalledWith({
+      conflictAction: "skip",
+      destinationFolderPath: undefined,
+      mode: "move",
+      sourcePaths: ["D:\\Incoming\\Book.epub"],
+    });
+  });
+
+  it("sends a changed destination for the current import", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    const onImport = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root.render(
+        <AddEpubDialog
+          confirmDestructiveFileActions={false}
+          folders={[
+            {
+              id: "folder-fiction",
+              name: "Fiction",
+              relativePath: "Fiction",
+              parentId: null,
+              parentPath: null,
+              createdAt: "1",
+              updatedAt: "1",
+            },
+          ]}
+          importDefaults={{ defaultConflictAction: "keepBoth", defaultMode: "copy" }}
+          initialSourcePaths={["D:\\Incoming\\Book.epub"]}
+          onClose={vi.fn()}
+          onImport={onImport}
+        />,
+      );
+    });
+
+    const destination = container.querySelector<HTMLButtonElement>("#add-epub-destination-button");
+    if (!destination) throw new Error("Destination control was not rendered.");
+
+    await act(async () => destination.click());
+    const fiction = Array.from(
+      container.querySelectorAll<HTMLButtonElement>("#add-epub-destination-menu [role=option]"),
+    ).find((option) => option.textContent?.includes("Fiction"));
+    if (!fiction) throw new Error("Fiction destination was not rendered.");
+    await act(async () => fiction.click());
+    await act(async () => buttonWithText(container, "Add EPUB").click());
+
+    expect(onImport).toHaveBeenCalledWith({
+      conflictAction: "keepBoth",
+      destinationFolderPath: "Fiction",
+      mode: "copy",
+      sourcePaths: ["D:\\Incoming\\Book.epub"],
+    });
+
+    await act(async () => {
+      root.render(
+        <AddEpubDialog
+          key="next-import"
+          confirmDestructiveFileActions={false}
+          folders={[
+            {
+              id: "folder-fiction",
+              name: "Fiction",
+              relativePath: "Fiction",
+              parentId: null,
+              parentPath: null,
+              createdAt: "1",
+              updatedAt: "1",
+            },
+          ]}
+          importDefaults={{ defaultConflictAction: "keepBoth", defaultMode: "copy" }}
+          initialSourcePaths={["D:\\Incoming\\Next.epub"]}
+          onClose={vi.fn()}
+          onImport={vi.fn(async () => undefined)}
+        />,
+      );
+    });
+
+    expect(container.querySelector("#add-epub-destination-button")?.textContent).toContain(
+      "Archive root",
+    );
+  });
+
   it("prefills dropped EPUB paths and their target folder before confirmation", async () => {
     const container = document.createElement("div");
     document.body.append(container);

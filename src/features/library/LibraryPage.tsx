@@ -22,7 +22,6 @@ import {
 } from "../../types/library";
 import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
 import type { SeriesEntry } from "../../types/series";
-import type { ImportSettings } from "../../types/settings";
 import { currentFocusOrigin, focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { useArchive } from "../archive/useArchive";
@@ -164,21 +163,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     },
     [pushFeedback],
   );
-  const {
-    archiveImportSettings,
-    books,
-    booksLoadState,
-    folders,
-    libraryArchiveGeneration,
-    libraryRevision,
-  } = useLibraryWorkspaceData({
-    archiveId: activeArchive.id,
-    archiveRootPath: activeArchive.rootPath,
-    storage,
-    watcherError: archive.watcherError,
-    onArchiveLoadError: handleArchiveLoadError,
-    onWatcherError: handleWatcherError,
-  });
+  const { books, booksLoadState, folders, libraryArchiveGeneration, libraryRevision } =
+    useLibraryWorkspaceData({
+      archiveId: activeArchive.id,
+      archiveRootPath: activeArchive.rootPath,
+      storage,
+      watcherError: archive.watcherError,
+      onArchiveLoadError: handleArchiveLoadError,
+      onWatcherError: handleWatcherError,
+    });
   const integrity = useLibraryIntegrity({
     archiveGeneration: libraryArchiveGeneration,
     archiveRootPath: activeArchive.rootPath,
@@ -289,10 +282,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const sort = booksDisplayPreferences.sortBy;
   const view = booksDisplayPreferences.viewMode;
   const hasFilters = hasActiveLibraryFilters(filters);
-  const importSettings: ImportSettings = {
-    ...globalImportPreferences,
-    ...archiveImportSettings,
-  };
   const {
     continuePreview,
     currentFolder,
@@ -999,11 +988,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       <LibraryWorkspaceDialogs
         books={books}
         confirmDestructiveFileActions={confirmDestructiveFileActions}
-        currentFolder={currentFolder}
         dialog={dialog}
         dialogActions={dialogActions}
         folders={folders}
-        importDefaults={importSettings}
+        importDefaults={globalImportPreferences}
         isBulkRunning={bulkActions.isBulkRunning}
         isClearingProgress={bookActions.isClearingProgress}
         isDeleting={bookActions.isDeleting}

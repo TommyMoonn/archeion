@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
-import type { ArchiveImportSettings } from "../../types/settings";
 
 export type ArchiveBooksLoadState =
   | {
@@ -59,10 +57,6 @@ export function useLibraryWorkspaceData({
     }
     return { status: "ready", archiveId, books: books ?? [] };
   }, [archiveId, books, snapshot.loadState, snapshotMatchesArchive]);
-  const [archiveImportSettings, setArchiveImportSettings] = useState<ArchiveImportSettings>(
-    defaultArchiveImportSettings,
-  );
-
   useEffect(() => {
     if (
       snapshotMatchesArchive &&
@@ -85,23 +79,7 @@ export function useLibraryWorkspaceData({
     }
   }, [onWatcherError, watcherError]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    void storage
-      .getArchiveImportSettings()
-      .then((loadedImportSettings) => {
-        if (!cancelled) setArchiveImportSettings(loadedImportSettings);
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storage]);
-
   return {
-    archiveImportSettings,
     books,
     booksLoadState,
     folders,

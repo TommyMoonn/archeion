@@ -57,4 +57,33 @@ describe("LibraryPage external EPUB drag and drop", () => {
     expect(dialog?.textContent).toContain("Add EPUB files");
     expect(dialog?.textContent).toContain("Dropped.epub");
   });
+
+  it("preserves an explicit folder drop destination for that import", async () => {
+    const session = await renderLibraryPage(
+      createStorage({
+        folders: [
+          {
+            id: "folder-fiction",
+            name: "Fiction",
+            relativePath: "Fiction",
+            parentId: null,
+            parentPath: null,
+            createdAt: "1",
+            updatedAt: "1",
+          },
+        ],
+      }),
+    );
+    suite.trackRoot(session.root);
+    await import("../filesystem/AddEpubDialog");
+
+    await act(async () => {
+      dropCallbacks?.onDrop(["C:\\Incoming\\Dropped.epub"], "Fiction");
+      await Promise.resolve();
+    });
+
+    expect(session.container.querySelector("#add-epub-destination-button")?.textContent).toContain(
+      "Fiction",
+    );
+  });
 });

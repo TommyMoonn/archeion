@@ -17,7 +17,7 @@ import type {
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
 } from "../../types/book";
-import type { ImportSettings } from "../../types/settings";
+import type { GlobalImportSettings } from "../../types/settings";
 import { bookTitle } from "./libraryFilters";
 import { isInsideFolder } from "./libraryFolderRelations";
 import {
@@ -39,11 +39,10 @@ import type {
 type LibraryWorkspaceDialogsProps = {
   books: readonly LibrarySnapshotBook[] | undefined;
   confirmDestructiveFileActions: boolean;
-  currentFolder: LibrarySnapshotFolder | undefined;
   dialog: LibraryWorkspaceDialog;
   dialogActions: LibraryWorkspaceDialogActions;
   folders: readonly LibrarySnapshotFolder[] | undefined;
-  importDefaults: ImportSettings;
+  importDefaults: GlobalImportSettings;
   isBulkRunning: boolean;
   isClearingProgress: boolean;
   isDeleting: boolean;
@@ -95,7 +94,6 @@ function findBook(
 export function LibraryWorkspaceDialogs({
   books,
   confirmDestructiveFileActions,
-  currentFolder,
   dialog,
   dialogActions,
   folders,
@@ -139,11 +137,7 @@ export function LibraryWorkspaceDialogs({
           confirmDestructiveFileActions={confirmDestructiveFileActions}
           folders={folders ?? []}
           importDefaults={importDefaults}
-          initialFolderPath={
-            dialog.droppedImport
-              ? dialog.droppedImport.destinationFolderPath
-              : currentFolder?.relativePath
-          }
+          initialFolderPath={dialog.droppedImport?.destinationFolderPath}
           initialSourcePaths={dialog.droppedImport?.sourcePaths}
           isImporting={isImporting}
           onClose={dialogActions.close}
