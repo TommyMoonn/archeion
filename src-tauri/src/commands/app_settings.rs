@@ -15,7 +15,11 @@ use crate::atomic_file::{
 };
 use tauri::{Emitter, Manager};
 
-use super::{archive, metadata, theme_migration};
+use super::{
+    archive,
+    archive_backup::{ArchiveBackupLayout, MetadataDocument},
+    theme_migration,
+};
 
 const APP_SETTINGS_FILE: &str = "settings.json";
 const APP_SETTINGS_CHANGED_EVENT: &str = "app-settings-changed";
@@ -133,15 +137,30 @@ pub struct ReaderSettings {
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AppThemeSelection {
     System,
-    Builtin { id: metadata::BuiltInAppThemeId },
+    Builtin { id: BuiltInAppThemeId },
     Custom { id: String },
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BuiltInAppThemeId {
+    Dark,
+    Light,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum ReaderThemeSelection {
-    Builtin { id: metadata::BuiltInReaderThemeId },
+    Builtin { id: BuiltInReaderThemeId },
     Custom { id: String },
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BuiltInReaderThemeId {
+    Dark,
+    Light,
+    Sepia,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -377,10 +396,10 @@ fn parse_app_theme_selection(value: Option<&Value>) -> Option<AppThemeSelection>
         "system" => Some(AppThemeSelection::System),
         "builtin" => match string_field(value, "id")?.as_str() {
             "dark" => Some(AppThemeSelection::Builtin {
-                id: metadata::BuiltInAppThemeId::Dark,
+                id: BuiltInAppThemeId::Dark,
             }),
             "light" => Some(AppThemeSelection::Builtin {
-                id: metadata::BuiltInAppThemeId::Light,
+                id: BuiltInAppThemeId::Light,
             }),
             _ => None,
         },
@@ -396,13 +415,13 @@ fn parse_reader_theme_selection(value: Option<&Value>) -> Option<ReaderThemeSele
     match string_field(value, "kind")?.as_str() {
         "builtin" => match string_field(value, "id")?.as_str() {
             "dark" => Some(ReaderThemeSelection::Builtin {
-                id: metadata::BuiltInReaderThemeId::Dark,
+                id: BuiltInReaderThemeId::Dark,
             }),
             "light" => Some(ReaderThemeSelection::Builtin {
-                id: metadata::BuiltInReaderThemeId::Light,
+                id: BuiltInReaderThemeId::Light,
             }),
             "sepia" => Some(ReaderThemeSelection::Builtin {
-                id: metadata::BuiltInReaderThemeId::Sepia,
+                id: BuiltInReaderThemeId::Sepia,
             }),
             _ => None,
         },
@@ -1157,7 +1176,7 @@ impl Default for ReaderSettings {
 impl Default for AppThemeSelection {
     fn default() -> Self {
         Self::Builtin {
-            id: metadata::BuiltInAppThemeId::Dark,
+            id: BuiltInAppThemeId::Dark,
         }
     }
 }
@@ -1165,7 +1184,7 @@ impl Default for AppThemeSelection {
 impl Default for ReaderThemeSelection {
     fn default() -> Self {
         Self::Builtin {
-            id: metadata::BuiltInReaderThemeId::Dark,
+            id: BuiltInReaderThemeId::Dark,
         }
     }
 }
@@ -1538,6 +1557,85 @@ fn migrated_custom_theme_id(
         .and_then(|record| record.destination_id.clone())
 }
 
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum LegacyAppThemeSelection {
+    #[default]
+    Inherit,
+    System,
+    Builtin {
+        id: BuiltInAppThemeId,
+    },
+    Custom {
+        id: String,
+    },
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+enum LegacyReaderThemeSelection {
+    #[default]
+    Inherit,
+    Builtin {
+        id: BuiltInReaderThemeId,
+    },
+    Custom {
+        id: String,
+    },
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LegacyArchiveAppearance {
+    #[serde(default)]
+    app_theme: LegacyAppThemeSelection,
+    #[serde(default)]
+    reader_theme: LegacyReaderThemeSelection,
+}
+
+#[derive(Deserialize)]
+struct LegacyArchiveSettings {
+    version: u8,
+    #[serde(default)]
+    appearance: LegacyArchiveAppearance,
+}
+
+fn parse_legacy_archive_appearance(
+    contents: &[u8],
+) -> Result<Option<LegacyArchiveAppearance>, serde_json::Error> {
+    let settings: LegacyArchiveSettings = serde_json::from_slice(contents)?;
+    Ok((settings.version == 2).then_some(settings.appearance))
+}
+
+fn read_legacy_archive_appearance(
+    archive_root: &Path,
+) -> Result<Option<LegacyArchiveAppearance>, String> {
+    if !archive_root.is_dir() {
+        return Err("The selected archive folder is unavailable.".to_string());
+    }
+
+    let layout = ArchiveBackupLayout::new(archive_root);
+    let active_path = layout.checked_active_document_path(MetadataDocument::Settings)?;
+    let contents = match fs::read(&active_path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error.to_string()),
+    };
+    if let Ok(appearance) = parse_legacy_archive_appearance(&contents) {
+        return Ok(appearance);
+    }
+
+    for backup_path in layout.metadata_backup_candidates(MetadataDocument::Settings)? {
+        let Ok(contents) = fs::read(backup_path) else {
+            continue;
+        };
+        if let Ok(appearance) = parse_legacy_archive_appearance(&contents) {
+            return Ok(appearance);
+        }
+    }
+    Ok(None)
+}
+
 fn legacy_global_theme_selections(
     preferred_archive: Option<&Path>,
     report: &theme_migration::ThemeMigrationReport,
@@ -1548,34 +1646,31 @@ fn legacy_global_theme_selections(
             ReaderThemeSelection::default(),
         );
     };
-    let Ok(settings) = metadata::load_settings_at(preferred_archive) else {
+    let Ok(Some(appearance)) = read_legacy_archive_appearance(preferred_archive) else {
         return (
             AppThemeSelection::default(),
             ReaderThemeSelection::default(),
         );
     };
 
-    let appearance = settings.into_legacy_appearance().unwrap_or_default();
     let app_theme = match appearance.app_theme {
-        metadata::ArchiveAppThemeSelection::System => AppThemeSelection::System,
-        metadata::ArchiveAppThemeSelection::Builtin { id } => AppThemeSelection::Builtin { id },
-        metadata::ArchiveAppThemeSelection::Custom { id } => {
+        LegacyAppThemeSelection::System => AppThemeSelection::System,
+        LegacyAppThemeSelection::Builtin { id } => AppThemeSelection::Builtin { id },
+        LegacyAppThemeSelection::Custom { id } => {
             migrated_custom_theme_id(preferred_archive, &id, report)
                 .map(|id| AppThemeSelection::Custom { id })
                 .unwrap_or_default()
         }
-        metadata::ArchiveAppThemeSelection::Inherit => AppThemeSelection::default(),
+        LegacyAppThemeSelection::Inherit => AppThemeSelection::default(),
     };
     let reader_theme = match appearance.reader_theme {
-        metadata::ArchiveReaderThemeSelection::Builtin { id } => {
-            ReaderThemeSelection::Builtin { id }
-        }
-        metadata::ArchiveReaderThemeSelection::Custom { id } => {
+        LegacyReaderThemeSelection::Builtin { id } => ReaderThemeSelection::Builtin { id },
+        LegacyReaderThemeSelection::Custom { id } => {
             migrated_custom_theme_id(preferred_archive, &id, report)
                 .map(|id| ReaderThemeSelection::Custom { id })
                 .unwrap_or_default()
         }
-        metadata::ArchiveReaderThemeSelection::Inherit => ReaderThemeSelection::default(),
+        LegacyReaderThemeSelection::Inherit => ReaderThemeSelection::default(),
     };
     (app_theme, reader_theme)
 }
@@ -1806,9 +1901,9 @@ mod tests {
         build_service_after_theme_migration, migrate_global_theme_selections,
         normalize_reader_settings, read_settings, write_settings, write_theme_migration_receipt,
         AppPreferences, AppSettingsMutation, AppSettingsService, AppThemeSelection,
-        AppearanceSettings, KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride,
-        LibrarySmartViewSettings, ReaderSettings, ReaderSettingsMutation, ReaderThemeSelection,
-        THEME_MIGRATION_RECEIPT_FILE,
+        AppearanceSettings, BuiltInAppThemeId, BuiltInReaderThemeId, KeyboardBinding,
+        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings, ReaderSettings,
+        ReaderSettingsMutation, ReaderThemeSelection, THEME_MIGRATION_RECEIPT_FILE,
     };
 
     fn preference_field_mutation(area: &str, field: &str, value: Value) -> AppSettingsMutation {
@@ -2707,7 +2802,7 @@ mod tests {
         let reader = service
             .mutate(
                 AppSettingsMutation::ReaderTheme(ReaderThemeSelection::Builtin {
-                    id: crate::commands::metadata::BuiltInReaderThemeId::Sepia,
+                    id: BuiltInReaderThemeId::Sepia,
                 }),
                 |_| {},
             )
@@ -2724,7 +2819,7 @@ mod tests {
         assert_eq!(
             reader.preferences.reader_theme,
             ReaderThemeSelection::Builtin {
-                id: crate::commands::metadata::BuiltInReaderThemeId::Sepia
+                id: BuiltInReaderThemeId::Sepia
             }
         );
         std::fs::remove_dir_all(root).expect("settings root should be removed");
@@ -2957,7 +3052,7 @@ mod tests {
         assert_eq!(
             preferences.reader_theme,
             ReaderThemeSelection::Builtin {
-                id: crate::commands::metadata::BuiltInReaderThemeId::Sepia
+                id: BuiltInReaderThemeId::Sepia
             }
         );
         std::fs::remove_dir_all(root).unwrap();
@@ -3052,6 +3147,79 @@ mod tests {
         assert_eq!(preserved.app_theme, preferences.app_theme);
         assert_eq!(preserved.reader_theme, preferences.reader_theme);
 
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_legacy_archive_settings_leave_the_archive_untouched() {
+        let root = temporary_settings_root("global-theme-selection-missing-archive-settings");
+        let app_data = root.join("app-data");
+        let archive = root.join("archive");
+        let metadata = archive.join(".archeion");
+        std::fs::create_dir_all(&metadata).unwrap();
+        let settings_path = app_data.join("settings.json");
+        let report = ThemeMigrationReport {
+            version: 1,
+            records: Vec::new(),
+        };
+
+        migrate_global_theme_selections(&settings_path, Some(&archive), &report).unwrap();
+
+        assert_eq!(
+            read_settings(&settings_path).unwrap(),
+            AppPreferences::default()
+        );
+        assert!(!metadata.join("settings.json").exists());
+        assert_eq!(std::fs::read_dir(&metadata).unwrap().count(), 0);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_theme_selection_fallback_reads_backup_without_rewriting_archive_settings() {
+        let root = temporary_settings_root("global-theme-selection-read-only-fallback");
+        let app_data = root.join("app-data");
+        let archive = root.join("archive");
+        let metadata = archive.join(".archeion");
+        let backup_directory = metadata.join("backups/settings");
+        std::fs::create_dir_all(&backup_directory).unwrap();
+        let active_path = metadata.join("settings.json");
+        let backup_path = backup_directory.join("settings.json.bak");
+        let invalid_active = b"{invalid";
+        let legacy_backup = serde_json::to_vec(&serde_json::json!({
+            "version": 2,
+            "import": { "defaultDestinationFolderPath": "Ignored" },
+            "appearance": {
+                "appTheme": { "kind": "builtin", "id": "light" },
+                "readerTheme": { "kind": "builtin", "id": "sepia" }
+            }
+        }))
+        .unwrap();
+        std::fs::write(&active_path, invalid_active).unwrap();
+        std::fs::write(&backup_path, &legacy_backup).unwrap();
+        let settings_path = app_data.join("settings.json");
+        let report = ThemeMigrationReport {
+            version: 1,
+            records: Vec::new(),
+        };
+
+        migrate_global_theme_selections(&settings_path, Some(&archive), &report).unwrap();
+        let preferences = read_settings(&settings_path).unwrap();
+
+        assert_eq!(
+            preferences.app_theme,
+            AppThemeSelection::Builtin {
+                id: BuiltInAppThemeId::Light
+            }
+        );
+        assert_eq!(
+            preferences.reader_theme,
+            ReaderThemeSelection::Builtin {
+                id: BuiltInReaderThemeId::Sepia
+            }
+        );
+        assert_eq!(std::fs::read(&active_path).unwrap(), invalid_active);
+        assert_eq!(std::fs::read(&backup_path).unwrap(), legacy_backup);
+        assert_eq!(std::fs::read_dir(&backup_directory).unwrap().count(), 1);
         std::fs::remove_dir_all(root).unwrap();
     }
 

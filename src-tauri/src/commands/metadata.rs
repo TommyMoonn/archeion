@@ -86,64 +86,10 @@ pub struct ImportSettings {
     pub default_destination_folder_path: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum BuiltInAppThemeId {
-    Dark,
-    Light,
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum BuiltInReaderThemeId {
-    Dark,
-    Light,
-    Sepia,
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
-pub enum ArchiveAppThemeSelection {
-    #[default]
-    Inherit,
-    System,
-    Builtin {
-        id: BuiltInAppThemeId,
-    },
-    Custom {
-        id: String,
-    },
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "lowercase")]
-pub enum ArchiveReaderThemeSelection {
-    #[default]
-    Inherit,
-    Builtin {
-        id: BuiltInReaderThemeId,
-    },
-    Custom {
-        id: String,
-    },
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ArchiveAppearanceSettings {
-    #[serde(default)]
-    pub app_theme: ArchiveAppThemeSelection,
-    #[serde(default)]
-    pub reader_theme: ArchiveReaderThemeSelection,
-}
-
 #[derive(Clone, Debug, Deserialize)]
 struct StoredSettingsMetadata {
-    version: u8,
     #[serde(default)]
     import: ImportSettings,
-    #[serde(default)]
-    appearance: Option<ArchiveAppearanceSettings>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -151,8 +97,6 @@ struct StoredSettingsMetadata {
 pub struct SettingsMetadata {
     pub version: u8,
     pub import: ImportSettings,
-    #[serde(skip)]
-    legacy_appearance: Option<ArchiveAppearanceSettings>,
 }
 
 impl From<StoredSettingsMetadata> for SettingsMetadata {
@@ -160,18 +104,7 @@ impl From<StoredSettingsMetadata> for SettingsMetadata {
         Self {
             version: 3,
             import: stored.import,
-            legacy_appearance: if stored.version == 2 {
-                Some(stored.appearance.unwrap_or_default())
-            } else {
-                None
-            },
         }
-    }
-}
-
-impl SettingsMetadata {
-    pub(crate) fn into_legacy_appearance(self) -> Option<ArchiveAppearanceSettings> {
-        self.legacy_appearance
     }
 }
 
@@ -180,7 +113,6 @@ impl Default for SettingsMetadata {
         Self {
             version: 3,
             import: ImportSettings::default(),
-            legacy_appearance: None,
         }
     }
 }
@@ -605,9 +537,8 @@ mod tests {
     use super::{
         initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, load_settings_at,
         metadata_path, read_json, save_annotations_at, write_json, write_json_with_fs,
-        ArchiveAppThemeSelection, ArchiveAppearanceSettings, ArchiveReaderThemeSelection,
-        BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata, ProgressMetadata,
-        ReadingProgress, SettingsMetadata, MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
+        LibraryBookMetadata, LibraryMetadata, ProgressMetadata, ReadingProgress, SettingsMetadata,
+        MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
     };
     use crate::{
         atomic_file::transaction_path,
@@ -729,7 +660,6 @@ mod tests {
             import: super::ImportSettings {
                 default_destination_folder_path: Some("Recovered".to_string()),
             },
-            legacy_appearance: None,
         };
 
         let library_backup =
@@ -1149,7 +1079,6 @@ mod tests {
             Some("Fiction")
         );
         assert_eq!(settings.version, 3);
-        assert!(settings.legacy_appearance.is_none());
         assert!(!metadata_path(&root).join("library.json").exists());
         assert!(!metadata_path(&root).join("progress.json").exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
@@ -1173,12 +1102,6 @@ mod tests {
         assert_eq!(
             settings.import.default_destination_folder_path.as_deref(),
             Some("Recovered")
-        );
-        assert_eq!(
-            settings
-                .legacy_appearance
-                .expect("recovered v2 appearance should remain readable"),
-            ArchiveAppearanceSettings::default()
         );
         assert!(directory
             .join("backups/settings/settings.json.bak")
@@ -1213,7 +1136,6 @@ mod tests {
         let settings = load_settings_at(&root).expect("settings should load");
 
         assert_eq!(settings.version, 3);
-        assert!(settings.legacy_appearance.is_none());
         assert_eq!(
             fs::read(&settings_path).expect("settings should remain readable"),
             source
@@ -1223,7 +1145,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_version_two_appearance_for_migration_but_omits_it_from_current_writes() {
+    fn normalizes_version_two_settings_and_omits_retired_appearance_from_current_writes() {
         let root = test_root("settings-v2-roundtrip");
         fs::create_dir_all(&root).expect("test archive should be created");
         let settings_path = metadata_path(&root).join("settings.json");
@@ -1247,23 +1169,6 @@ mod tests {
         .expect("settings metadata should be written");
 
         let settings = load_settings_at(&root).expect("settings should load");
-        let appearance = settings
-            .legacy_appearance
-            .as_ref()
-            .expect("version two appearance should remain available for migration");
-        assert_eq!(
-            appearance.app_theme,
-            ArchiveAppThemeSelection::Custom {
-                id: "moon-ink".to_string()
-            }
-        );
-        assert_eq!(
-            appearance.reader_theme,
-            ArchiveReaderThemeSelection::Builtin {
-                id: BuiltInReaderThemeId::Sepia
-            }
-        );
-
         write_json(&root, MetadataDocument::Settings, &settings, true)
             .expect("settings should save");
         let serialized: serde_json::Value = serde_json::from_slice(
@@ -1279,58 +1184,6 @@ mod tests {
         assert!(metadata_path(&root)
             .join("backups/settings/settings.json.bak")
             .is_file());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn legacy_appearance_is_retained_only_for_version_two_settings() {
-        let root = test_root("legacy-appearance-migration");
-        let settings_path = metadata_path(&root).join("settings.json");
-        fs::create_dir_all(
-            settings_path
-                .parent()
-                .expect("settings should have a parent"),
-        )
-        .expect("metadata directory should be created");
-        fs::write(
-            &settings_path,
-            br#"{
-                "version": 2,
-                "import": {},
-                "appearance": {
-                    "appTheme": { "kind": "builtin", "id": "light" },
-                    "readerTheme": { "kind": "builtin", "id": "sepia" }
-                }
-            }"#,
-        )
-        .expect("legacy settings should be written");
-
-        let appearance = load_settings_at(&root)
-            .expect("legacy settings should load")
-            .into_legacy_appearance()
-            .expect("version two appearance should be available");
-        assert_eq!(
-            appearance,
-            ArchiveAppearanceSettings {
-                app_theme: ArchiveAppThemeSelection::Builtin {
-                    id: super::BuiltInAppThemeId::Light,
-                },
-                reader_theme: ArchiveReaderThemeSelection::Builtin {
-                    id: BuiltInReaderThemeId::Sepia,
-                },
-            }
-        );
-        fs::write(
-            &settings_path,
-            br#"{"version":3,"import":{"defaultDestinationFolderPath":"Fiction"}}"#,
-        )
-        .expect("current settings should be written");
-        assert_eq!(
-            load_settings_at(&root)
-                .expect("current settings should remain readable")
-                .into_legacy_appearance(),
-            None
-        );
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -1942,7 +1795,6 @@ mod tests {
         }))
         .expect("current settings should deserialize");
 
-        assert!(parsed.legacy_appearance.is_none());
         assert_eq!(
             serde_json::to_value(parsed).expect("current settings should serialize"),
             serde_json::json!({
