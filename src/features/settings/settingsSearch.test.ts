@@ -54,14 +54,6 @@ describe("settingsSearch", () => {
         }),
       ]),
     );
-    expect(findSettingsSearchResults("default destination folder")).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          item: expect.objectContaining({ id: "import.default-destination-folder" }),
-          sectionLabel: "Archives",
-        }),
-      ]),
-    );
   });
 
   it("returns the app and reader theme controls once each", () => {

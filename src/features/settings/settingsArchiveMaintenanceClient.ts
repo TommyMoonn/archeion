@@ -7,19 +7,12 @@ import {
 } from "../../storage/tauri/archiveCommandClient";
 import type { CoverCacheStatus, EpubWritebackBackupStatus } from "../../storage/LibraryStorage";
 import {
-  defaultArchiveImportSettings,
-  normalizeArchiveImportSettings,
-} from "../../storage/metadataFiles";
-import type { ArchiveScan } from "../../storage/reconcileLibraryState";
-import {
   ARCHIVE_RECONCILIATION_COMPLETED_EVENT,
   type ArchiveReconciliationCompletion,
   type ArchiveReconciliationRequest,
 } from "../../storage/archiveReconciliation";
 import type { ArchiveRegistry, KnownArchive } from "../../types/archive";
 import { activeArchiveFromRegistry } from "../../types/archive";
-import type { Folder } from "../../types/folder";
-import type { ArchiveImportSettings } from "../../types/settings";
 
 const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
 const ARCHIVE_CHANGED_ERROR = "The active archive changed before the Settings operation completed.";
@@ -34,16 +27,12 @@ export type SettingsArchiveMaintenance = Readonly<{
   clearCoverCache: () => Promise<CoverCacheStatus>;
   clearEpubWritebackBackups: () => Promise<EpubWritebackBackupStatus>;
   clearScannerCache: () => Promise<void>;
-  getArchiveImportSettings: () => Promise<ArchiveImportSettings>;
   getCoverCacheStatus: () => Promise<CoverCacheStatus>;
   getEpubWritebackBackupStatus: () => Promise<EpubWritebackBackupStatus>;
-  listFolders: () => Promise<Folder[]>;
   repairArchiveMetadata: () => Promise<void>;
-  resetArchiveImportSettings: () => Promise<ArchiveImportSettings>;
   rescan: () => Promise<void>;
   revealArchiveFolder: () => Promise<void>;
   revealMetadataFolder: () => Promise<void>;
-  saveArchiveImportSettings: (settings: ArchiveImportSettings) => Promise<ArchiveImportSettings>;
 }>;
 
 type Dependencies = Readonly<{
@@ -119,18 +108,13 @@ export class SettingsArchiveMaintenanceClient {
       clearCoverCache: () => this.runArchiveCommand("clear_cover_cache"),
       clearEpubWritebackBackups: () => this.runArchiveCommand("clear_epub_writeback_backups"),
       clearScannerCache: () => this.runArchiveCommand("clear_scanner_cache"),
-      getArchiveImportSettings: () => this.getArchiveImportSettings(),
       getCoverCacheStatus: () => this.runArchiveCommand("cover_cache_status"),
       getEpubWritebackBackupStatus: () =>
         this.runArchiveCommand("get_epub_writeback_backup_status"),
-      listFolders: () => this.listFolders(),
       repairArchiveMetadata: () => this.repairArchiveMetadata(),
-      resetArchiveImportSettings: () =>
-        this.saveArchiveImportSettings({ ...defaultArchiveImportSettings }),
       rescan: () => this.rescan(),
       revealArchiveFolder: () => this.revealArchiveFolder(),
       revealMetadataFolder: () => this.runArchiveCommand("reveal_archeion_folder"),
-      saveArchiveImportSettings: (settings) => this.saveArchiveImportSettings(settings),
     };
     return this.maintenanceView;
   }
@@ -220,48 +204,6 @@ export class SettingsArchiveMaintenanceClient {
     );
     this.assertCurrent(scope);
     return result;
-  }
-
-  private async getArchiveImportSettings(): Promise<ArchiveImportSettings> {
-    const scope = this.createScope();
-    const metadata = await this.dependencies.archiveCommands.invoke(
-      "load_settings_metadata",
-      undefined,
-      scope.archive.rootPath,
-    );
-    this.assertCurrent(scope);
-    return normalizeArchiveImportSettings(metadata.import);
-  }
-
-  private async saveArchiveImportSettings(
-    settings: ArchiveImportSettings,
-  ): Promise<ArchiveImportSettings> {
-    const scope = this.createScope();
-    const metadata = await this.dependencies.archiveCommands.invoke(
-      "load_settings_metadata",
-      undefined,
-      scope.archive.rootPath,
-    );
-    this.assertCurrent(scope);
-    const normalized = normalizeArchiveImportSettings(settings);
-    await this.dependencies.archiveCommands.invoke(
-      "save_settings_metadata",
-      { metadata: { ...metadata, import: normalized } },
-      scope.archive.rootPath,
-    );
-    this.assertCurrent(scope);
-    return normalized;
-  }
-
-  private async listFolders(): Promise<Folder[]> {
-    const scope = this.createScope();
-    const scan = await this.dependencies.archiveCommands.invoke(
-      "scan_archive",
-      undefined,
-      scope.archive.rootPath,
-    );
-    this.assertCurrent(scope);
-    return foldersFromScan(scan);
   }
 
   private async rescan(): Promise<void> {
@@ -370,17 +312,6 @@ function createReconciliationRequestId(): string {
     throw new Error("Secure reconciliation request IDs are unavailable.");
   }
   return `settings-${globalThis.crypto.randomUUID()}`;
-}
-
-function foldersFromScan(scan: ArchiveScan): Folder[] {
-  const timestamp = new Date().toISOString();
-  const ids = new Map(scan.folders.map((folder) => [folder.relativePath, folder.id]));
-  return scan.folders.map((folder) => ({
-    ...folder,
-    createdAt: timestamp,
-    parentId: folder.parentPath ? (ids.get(folder.parentPath) ?? null) : null,
-    updatedAt: timestamp,
-  }));
 }
 
 export const settingsArchiveMaintenanceClient = new SettingsArchiveMaintenanceClient();

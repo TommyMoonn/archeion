@@ -659,44 +659,6 @@ export const settingsItems: readonly SettingsItem[] = [
     searchTerms: ["reset", "import defaults"],
     sectionId: "archives",
   },
-  {
-    description: "Stored per archive because folders differ.",
-    deferredData: ["archiveImportSettings", "folders"],
-    groupLabel: "Archive destination",
-    id: "import.default-destination-folder",
-    label: "Default destination folder",
-    requiresArchive: true,
-    render: (context) => (
-      <StandardSettingsRow
-        description="Stored per archive because folders differ."
-        label="Default destination folder"
-      >
-        <AppSelect
-          ariaLabel="Default import destination folder"
-          onChange={context.updateImportDestination}
-          options={context.destinationOptions}
-          value={context.safeImportDestinationValue}
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["destination", "folder", "archive folder"],
-    sectionId: "archives",
-  },
-  {
-    groupLabel: "Archive destination",
-    id: "import.reset-destination",
-    label: "Reset destination folder",
-    requiresArchive: true,
-    render: (context) => (
-      <SettingsActionRow label="Reset destination folder">
-        <Button onClick={() => void context.resetImportDestination()} variant="secondary">
-          Use archive root
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["reset", "archive root", "destination"],
-    sectionId: "archives",
-  },
   ...keyboardSettingsItems,
 ] as const;
 

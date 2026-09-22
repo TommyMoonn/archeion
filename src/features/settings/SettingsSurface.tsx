@@ -89,10 +89,8 @@ export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
     archiveGeneration: archiveBoundary?.snapshot.generation,
     archiveIdentity: archiveBoundary?.snapshot.archive,
     archiveMaintenance: archiveBoundary?.maintenance,
-    loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
-    loadFolders: dataRequirements.has("folders"),
     onOpenThemeManager: () => {
       themeCatalog.retireRefreshFailure();
       void openThemeManagerWindow().catch((error) => {

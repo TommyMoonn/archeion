@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverCacheStatus, EpubWritebackBackupStatus } from "../../storage/LibraryStorage";
-import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import {
   appPreferencesStore,
   useAppPreferences,
@@ -10,14 +9,7 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
-import type { Folder } from "../../types/folder";
-import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import type { KnownArchive } from "../../types/archive";
-import {
-  createArchiveDestinationOptions,
-  destinationValueFromFolderPath,
-  destinationValueToFolderPath,
-} from "../filesystem/archiveImport";
 import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
 import type { SettingsArchiveMaintenance } from "./settingsArchiveMaintenanceClient";
@@ -45,16 +37,13 @@ const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
   "repairMetadata",
   "rescanArchive",
 ]);
-const emptyFolders: readonly Folder[] = Object.freeze([]);
 
 export type SettingsControllerOptions = {
   archiveGeneration?: number;
   archiveIdentity?: KnownArchive | null;
   archiveMaintenance?: SettingsArchiveMaintenance | null;
-  loadArchiveImportSettings?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
-  loadFolders?: boolean;
   onOpenThemeManager?: () => void;
   refreshThemeCatalog?: () => Promise<boolean>;
   themeCatalogEntries?: readonly ThemeCatalogEntry[];
@@ -65,10 +54,8 @@ export function useSettingsController({
   archiveGeneration = 0,
   archiveIdentity = null,
   archiveMaintenance = null,
-  loadArchiveImportSettings = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
-  loadFolders = false,
   onOpenThemeManager,
   refreshThemeCatalog = async () => false,
   themeCatalogEntries = [],
@@ -94,14 +81,6 @@ export function useSettingsController({
   const reader = preferences.reader;
   const library = preferences.library;
   const files = preferences.filesAndMetadata;
-  const [archiveImportState, setArchiveImportState] = useState<{
-    scope: typeof archiveLocalScope;
-    value: ArchiveImportSettings;
-  }>({ scope: archiveLocalScope, value: { ...defaultArchiveImportSettings } });
-  const [foldersState, setFoldersState] = useState<{
-    scope: typeof archiveLocalScope;
-    value: Folder[];
-  }>({ scope: archiveLocalScope, value: [] });
   const [cacheState, setCacheState] = useState<{
     scope: typeof archiveLocalScope;
     value: CoverCacheStatus | null;
@@ -112,14 +91,10 @@ export function useSettingsController({
     value: EpubWritebackBackupStatus | null;
   }>({ scope: archiveLocalScope, status: "loading", value: null });
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
-  const archiveImportLoadedRef = useRef(false);
-  const archiveImportLoadingRef = useRef(false);
   const coverCacheLoadedRef = useRef(false);
   const coverCacheLoadingRef = useRef(false);
   const epubWritebackBackupStatusLoadedRef = useRef(false);
   const epubWritebackBackupStatusLoadingRef = useRef(false);
-  const foldersLoadedRef = useRef(false);
-  const foldersLoadingRef = useRef(false);
   const dataLoadGenerationRef = useRef(0);
   const appPreferenceSaveRevisionRef = useRef(0);
   const statusOperationRevisionRef = useRef(0);
@@ -133,11 +108,6 @@ export function useSettingsController({
     busyConfirmations.rescanArchive ||
     busyConfirmations.reextractMetadata ||
     busyConfirmations.repairMetadata;
-  const archiveImport =
-    archiveImportState.scope === archiveLocalScope
-      ? archiveImportState.value
-      : defaultArchiveImportSettings;
-  const folders = foldersState.scope === archiveLocalScope ? foldersState.value : emptyFolders;
   const cache = cacheState.scope === archiveLocalScope ? cacheState.value : null;
   const currentEpubWritebackBackupStatus =
     epubWritebackBackupStatusState.scope === archiveLocalScope
@@ -145,19 +115,7 @@ export function useSettingsController({
       : { status: "loading" as const, value: null };
   const epubWritebackBackupStatus = currentEpubWritebackBackupStatus.value;
 
-  const importSettings: ImportSettings = {
-    ...preferences.import,
-    ...archiveImport,
-  };
-  const destinationOptions = useMemo(() => createArchiveDestinationOptions(folders), [folders]);
-  const importDestinationValue = destinationValueFromFolderPath(
-    importSettings.defaultDestinationFolderPath,
-  );
-  const safeImportDestinationValue = destinationOptions.some(
-    (destination) => destination.value === importDestinationValue,
-  )
-    ? importDestinationValue
-    : destinationOptions[0]?.value;
+  const importSettings = preferences.import;
   const selectedArchivePath = archiveIdentity?.rootPath;
 
   const clearLocalStatus = useCallback(() => {
@@ -200,14 +158,10 @@ export function useSettingsController({
 
   useEffect(() => {
     dataLoadGenerationRef.current += 1;
-    archiveImportLoadedRef.current = false;
-    archiveImportLoadingRef.current = false;
     coverCacheLoadedRef.current = false;
     coverCacheLoadingRef.current = false;
     epubWritebackBackupStatusLoadedRef.current = false;
     epubWritebackBackupStatusLoadingRef.current = false;
-    foldersLoadedRef.current = false;
-    foldersLoadingRef.current = false;
   }, [archiveLocalScope]);
 
   useEffect(() => {
@@ -226,95 +180,6 @@ export function useSettingsController({
       active = false;
     };
   }, [archiveGeneration, archiveMaintenance]);
-
-  useEffect(() => {
-    if (
-      !storage ||
-      !loadArchiveImportSettings ||
-      archiveImportLoadedRef.current ||
-      archiveImportLoadingRef.current
-    ) {
-      return;
-    }
-
-    const activeStorage = storage;
-    const scope = archiveLocalScope;
-    const generation = dataLoadGenerationRef.current;
-    archiveImportLoadingRef.current = true;
-    void activeStorage
-      .getArchiveImportSettings()
-      .then((loadedImportSettings) => {
-        if (
-          dataLoadGenerationRef.current !== generation ||
-          archiveLocalScopeRef.current !== scope
-        ) {
-          return;
-        }
-        archiveImportLoadedRef.current = true;
-        setArchiveImportState({ scope, value: loadedImportSettings });
-      })
-      .catch(() => {
-        if (
-          dataLoadGenerationRef.current === generation &&
-          archiveLocalScopeRef.current === scope
-        ) {
-          setLocalStatus(
-            "Import settings could not be loaded. Close and reopen Settings to try again.",
-            "error",
-          );
-        }
-      })
-      .finally(() => {
-        if (
-          dataLoadGenerationRef.current === generation &&
-          archiveLocalScopeRef.current === scope
-        ) {
-          archiveImportLoadingRef.current = false;
-        }
-      });
-  }, [archiveLocalScope, loadArchiveImportSettings, storage, setLocalStatus]);
-
-  useEffect(() => {
-    if (!storage || !loadFolders || foldersLoadedRef.current || foldersLoadingRef.current) {
-      return;
-    }
-
-    const activeStorage = storage;
-    const scope = archiveLocalScope;
-    const generation = dataLoadGenerationRef.current;
-    foldersLoadingRef.current = true;
-    void activeStorage
-      .listFolders()
-      .then((loadedFolders) => {
-        if (
-          dataLoadGenerationRef.current !== generation ||
-          archiveLocalScopeRef.current !== scope
-        ) {
-          return;
-        }
-        foldersLoadedRef.current = true;
-        setFoldersState({ scope, value: loadedFolders });
-      })
-      .catch(() => {
-        if (
-          dataLoadGenerationRef.current === generation &&
-          archiveLocalScopeRef.current === scope
-        ) {
-          setLocalStatus(
-            "Folder destinations could not be loaded. Close and reopen Settings to try again.",
-            "error",
-          );
-        }
-      })
-      .finally(() => {
-        if (
-          dataLoadGenerationRef.current === generation &&
-          archiveLocalScopeRef.current === scope
-        ) {
-          foldersLoadingRef.current = false;
-        }
-      });
-  }, [archiveLocalScope, loadFolders, storage, setLocalStatus]);
 
   useEffect(() => {
     if (
@@ -517,32 +382,6 @@ export function useSettingsController({
   function updateImportDefaults(changes: Partial<AppPreferences["import"]>) {
     void updateAppPreferences({
       import: { ...preferences.import, ...changes },
-    });
-  }
-
-  async function updateArchiveImport(changes: Partial<ArchiveImportSettings>): Promise<void> {
-    if (!storage) return;
-    const activeStorage = storage;
-    const scope = archiveLocalScope;
-    const next = { ...archiveImport, ...changes };
-    const statusOperation = beginStatusOperation();
-    try {
-      const saved = await activeStorage.saveArchiveImportSettings(next);
-      if (archiveLocalScopeRef.current !== scope) return;
-      setArchiveImportState({ scope, value: saved });
-    } catch {
-      if (archiveLocalScopeRef.current !== scope) return;
-      publishStatusOperation(
-        statusOperation,
-        "Import destination could not be saved. The previous destination is unchanged. Try again.",
-        "error",
-      );
-    }
-  }
-
-  function updateImportDestination(value: string) {
-    void updateArchiveImport({
-      defaultDestinationFolderPath: destinationValueToFolderPath(value),
     });
   }
 
@@ -795,26 +634,6 @@ export function useSettingsController({
     );
   }
 
-  async function resetImportDestination() {
-    if (!storage) return;
-    const activeStorage = storage;
-    const scope = archiveLocalScope;
-    const statusOperation = beginStatusOperation();
-    try {
-      const reset = await activeStorage.resetArchiveImportSettings();
-      if (archiveLocalScopeRef.current !== scope) return;
-      setArchiveImportState({ scope, value: reset });
-      publishStatusOperation(statusOperation, "Import destination reset.", "success");
-    } catch {
-      if (archiveLocalScopeRef.current !== scope) return;
-      publishStatusOperation(
-        statusOperation,
-        "Import destination could not be reset. The previous destination is unchanged. Try again.",
-        "error",
-      );
-    }
-  }
-
   return {
     archiveAvailable: storage !== null,
     archiveScanActive,
@@ -822,7 +641,6 @@ export function useSettingsController({
     busyConfirmations,
     closeConfirmation,
     confirmations,
-    destinationOptions,
     dismissStatus: clearLocalStatus,
     epubWritebackBackupStatus,
     epubWritebackBackupStatusState: currentEpubWritebackBackupStatus.status,
@@ -838,7 +656,6 @@ export function useSettingsController({
     resetAppearance,
     resetGeneral,
     resetImportDefaults,
-    resetImportDestination,
     resetLibrary,
     resetReader,
     resetStorage,
@@ -846,7 +663,6 @@ export function useSettingsController({
     revealArchiveFolder,
     revealMetadata,
     refreshThemeCatalog,
-    safeImportDestinationValue,
     selectedArchivePath,
     status,
     themeCatalogEntries,
@@ -855,7 +671,6 @@ export function useSettingsController({
     updateAppPreferences,
     updateFiles,
     updateImportDefaults,
-    updateImportDestination,
     updateLibrary,
     updateLibraryCollection,
     updateReader,

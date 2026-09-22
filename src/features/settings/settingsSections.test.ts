@@ -65,8 +65,6 @@ describe("settingsSections", () => {
     expect(sectionMatches("keyboard", "shortcut")).toBe(true);
     expect(sectionMatches("keyboard", "quick actions")).toBe(true);
     expect(sectionMatches("general", " window ")).toBe(true);
-    expect(sectionMatches("archives", "destination")).toBe(true);
-    expect(sectionMatches("reader", "destination")).toBe(false);
     expect(sectionMatches("dictionaries", "stardict")).toBe(true);
   });
 

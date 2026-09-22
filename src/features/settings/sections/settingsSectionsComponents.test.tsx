@@ -24,7 +24,6 @@ function createController(overrides: Partial<SettingsController> = {}): Settings
       repairMetadata: false,
       rescanArchive: false,
     },
-    destinationOptions: [{ label: "Archive root", value: "" }],
     epubWritebackBackupStatus: { fileCount: 1, totalBytes: 2048 },
     epubWritebackBackupStatusState: "loaded",
     files: preferences.filesAndMetadata,
@@ -38,20 +37,17 @@ function createController(overrides: Partial<SettingsController> = {}): Settings
     resetAppearance: vi.fn(),
     resetGeneral: vi.fn(),
     resetImportDefaults: vi.fn(),
-    resetImportDestination: vi.fn(),
     resetLibrary: vi.fn(),
     resetReader: vi.fn(),
     resetStorage: vi.fn(),
     resetWindow: vi.fn(),
     revealArchiveFolder: vi.fn(),
     revealMetadata: vi.fn(),
-    safeImportDestinationValue: "",
     selectedArchivePath: undefined,
     status: null,
     updateAppPreferences: vi.fn(async () => true),
     updateFiles: vi.fn(),
     updateImportDefaults: vi.fn(),
-    updateImportDestination: vi.fn(),
     updateLibrary: vi.fn(),
     updateReader: vi.fn(),
     confirmClearCoverCache: vi.fn(),
@@ -186,16 +182,13 @@ describe("settings section components", () => {
     expect(markup).toContain("Wait for the archive scan to finish");
   });
 
-  it("disables archive reveal when no archive path is available", () => {
+  it("renders active Archives controls and disables reveal without an archive path", () => {
     const markup = renderToStaticMarkup(<ArchivesSettingsSection context={createController()} />);
 
     expect(markup).toContain("Import defaults");
-    expect(markup).toContain("Archive destination");
     expect(markup).toContain("Default import mode");
     expect(markup).toContain("Default conflict handling");
-    expect(markup).toContain("Default destination folder");
     expect(markup).toContain("Reset import defaults");
-    expect(markup).toContain("Reset destination folder");
     expect(markup).toContain("No archive selected");
     expect(markup).toContain("disabled");
     expect(markup).toContain("Reveal archive folder");

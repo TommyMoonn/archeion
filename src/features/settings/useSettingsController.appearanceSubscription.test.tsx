@@ -31,8 +31,6 @@ function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage 
     })),
     observeLibrarySnapshot: vi.fn(() => () => undefined),
     rescan: vi.fn().mockResolvedValue(undefined),
-    resetArchiveImportSettings: vi.fn().mockResolvedValue({}),
-    saveArchiveImportSettings: vi.fn(),
     ...overrides,
   } as unknown as LibraryStorage;
 }
@@ -138,7 +136,7 @@ describe("Settings committed appearance subscription", () => {
     expect(openArchiveManagerWindow).toHaveBeenCalledTimes(1);
   });
 
-  it("resets global import defaults without changing archive-local destination", async () => {
+  it("resets global import defaults through app preferences", async () => {
     const update = vi.spyOn(appPreferencesStore, "update");
     await render();
 
@@ -147,19 +145,6 @@ describe("Settings committed appearance subscription", () => {
     });
 
     expect(update).toHaveBeenCalledWith({ import: defaultAppPreferences.import });
-    expect(storage.resetArchiveImportSettings).not.toHaveBeenCalled();
-  });
-
-  it("resets archive-local destination without changing global import defaults", async () => {
-    const update = vi.spyOn(appPreferencesStore, "update");
-    await render();
-
-    await act(async () => {
-      await latest.resetImportDestination();
-    });
-
-    expect(storage.resetArchiveImportSettings).toHaveBeenCalledTimes(1);
-    expect(update).not.toHaveBeenCalled();
   });
 
   it("persists import mode and conflict defaults only through global preferences", async () => {
@@ -175,64 +160,6 @@ describe("Settings committed appearance subscription", () => {
     expect(update).toHaveBeenCalledWith({
       import: { ...currentImport, defaultConflictAction: "replace", defaultMode: "move" },
     });
-    expect(storage.saveArchiveImportSettings).not.toHaveBeenCalled();
-  });
-
-  it("persists destination changes only through the active archive storage", async () => {
-    const saveArchiveImportSettings = vi.fn().mockResolvedValue({});
-    storage = createStorage({ saveArchiveImportSettings });
-    const update = vi.spyOn(appPreferencesStore, "update");
-    await render();
-
-    act(() => latest.updateImportDestination("__archive-root__"));
-    await act(async () => Promise.resolve());
-
-    expect(saveArchiveImportSettings).toHaveBeenCalledWith({
-      defaultDestinationFolderPath: undefined,
-    });
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it("ignores an archive A destination save that completes after switching to B", async () => {
-    const archiveASave = deferred<{ defaultDestinationFolderPath?: string }>();
-    const archiveAStorage = createStorage({
-      saveArchiveImportSettings: vi.fn(() => archiveASave.promise),
-    });
-    const archiveBStorage = createStorage({
-      saveArchiveImportSettings: vi
-        .fn()
-        .mockResolvedValue({ defaultDestinationFolderPath: "B\\Novels" }),
-    });
-    const archiveAIdentity: KnownArchive = {
-      createdAt: "1",
-      displayName: "Archive A",
-      id: "archive-a",
-      lastOpenedAt: "1",
-      rootPath: "D:\\Archive A",
-    };
-    const archiveBIdentity: KnownArchive = {
-      ...archiveAIdentity,
-      displayName: "Archive B",
-      id: "archive-b",
-      rootPath: "E:\\Archive B",
-    };
-    storage = archiveAStorage;
-    await render({ archiveGeneration: 1, archiveIdentity: archiveAIdentity });
-
-    act(() => latest.updateImportDestination("A\\Comics"));
-    storage = archiveBStorage;
-    await render({ archiveGeneration: 2, archiveIdentity: archiveBIdentity });
-    act(() => latest.updateImportDestination("B\\Novels"));
-    await act(async () => Promise.resolve());
-    expect(latest.importSettings.defaultDestinationFolderPath).toBe("B\\Novels");
-
-    await act(async () => {
-      archiveASave.resolve({ defaultDestinationFolderPath: "A\\Comics" });
-      await archiveASave.promise;
-      await Promise.resolve();
-    });
-
-    expect(latest.importSettings.defaultDestinationFolderPath).toBe("B\\Novels");
   });
 
   it("ignores archive A status reads that complete after archive B becomes current", async () => {
@@ -381,37 +308,6 @@ describe("Settings committed appearance subscription", () => {
       message: "The scanner cache could not be cleared. Try again.",
       tone: "error",
     });
-  });
-
-  it("does not let a stale archive-specific save replace a newer Settings result", async () => {
-    const pendingImportSave = deferred<never>();
-    storage = createStorage({
-      saveArchiveImportSettings: vi.fn(() => pendingImportSave.promise),
-    });
-    vi.spyOn(appPreferencesStore, "update").mockRejectedValue(
-      new Error("Newer appearance failure."),
-    );
-    await render();
-
-    act(() => latest.updateImportDestination("__archive_root__"));
-    await act(async () => {
-      await latest.updateAppearance({
-        appTheme: { kind: "builtin", id: "light" },
-      });
-    });
-    expect(latest.status?.message).toBe(
-      "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
-    );
-
-    await act(async () => {
-      pendingImportSave.reject(new Error("old import failure"));
-      await pendingImportSave.promise.catch(() => undefined);
-      await Promise.resolve();
-    });
-
-    expect(latest.status?.message).toBe(
-      "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
-    );
   });
 
   it("blocks repeated activation of the same expensive Settings operation", async () => {

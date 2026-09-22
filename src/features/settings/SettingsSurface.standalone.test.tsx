@@ -5,7 +5,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
-import type { Folder } from "../../types/folder";
 import { SettingsSurface } from "./SettingsSurface";
 import type { SettingsArchiveBoundary } from "./useSettingsArchiveMaintenance";
 
@@ -23,22 +22,6 @@ function deferred<T>() {
     reject = rejectPromise;
   });
   return { promise, reject, resolve };
-}
-
-function folder(relativePath: string): Folder {
-  return {
-    createdAt: "1",
-    id: relativePath,
-    name: relativePath,
-    relativePath,
-    updatedAt: "1",
-  };
-}
-
-function destinationLabel() {
-  return container.querySelector(
-    '[data-setting-id="import.default-destination-folder"] [role="combobox"]',
-  )?.textContent;
 }
 
 function storageStatus(settingId: string) {
@@ -73,16 +56,12 @@ function availableArchiveBoundary(
       clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
       clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
       clearScannerCache: vi.fn().mockResolvedValue(undefined),
-      getArchiveImportSettings: vi.fn().mockResolvedValue({}),
       getCoverCacheStatus: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
       getEpubWritebackBackupStatus: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
-      listFolders: vi.fn().mockResolvedValue([]),
       repairArchiveMetadata: vi.fn().mockResolvedValue(undefined),
-      resetArchiveImportSettings: vi.fn().mockResolvedValue({}),
       rescan: vi.fn().mockResolvedValue(undefined),
       revealArchiveFolder: vi.fn().mockResolvedValue(undefined),
       revealMetadataFolder: vi.fn().mockResolvedValue(undefined),
-      saveArchiveImportSettings: vi.fn().mockResolvedValue({}),
     },
     snapshot: {
       archive: {
@@ -136,7 +115,7 @@ describe("standalone Settings surface", () => {
     ).toBe(false);
   });
 
-  it("keeps global import defaults usable while archive destination controls are unavailable", async () => {
+  it("keeps global import defaults usable without an active archive", async () => {
     await renderSurface();
     clickButton("Archives");
 
@@ -149,81 +128,34 @@ describe("standalone Settings surface", () => {
       container.querySelector<HTMLButtonElement>('[data-setting-id="import.reset-defaults"] button')
         ?.disabled,
     ).toBe(false);
-    expect(
-      container.querySelector(
-        '[data-setting-id="import.default-destination-folder"] fieldset:disabled',
-      ),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-setting-id="import.reset-destination"] fieldset:disabled'),
-    ).not.toBeNull();
   });
 
-  it("hides archive A destination data while archive B reads are pending", async () => {
-    const archiveA = availableArchiveBoundary();
-    const archiveB = availableArchiveBoundary("archive-b", "E:\\Archive B", 2);
-    const archiveBImport = deferred<{ defaultDestinationFolderPath?: string }>();
-    const archiveBFolders = deferred<Folder[]>();
-    vi.mocked(archiveA.maintenance!.getArchiveImportSettings).mockResolvedValue({
-      defaultDestinationFolderPath: "A\\Comics",
-    });
-    vi.mocked(archiveA.maintenance!.listFolders).mockResolvedValue([folder("A\\Comics")]);
-    vi.mocked(archiveB.maintenance!.getArchiveImportSettings).mockReturnValue(
-      archiveBImport.promise,
-    );
-    vi.mocked(archiveB.maintenance!.listFolders).mockReturnValue(archiveBFolders.promise);
-    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
+  it("opens global import defaults without loading archive destination data", async () => {
+    const archiveBoundary = availableArchiveBoundary();
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveBoundary} />));
+
     clickButton("Archives");
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
-    expect(destinationLabel()).toContain("A\\Comics");
 
-    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveB} />));
-    expect(destinationLabel()).toContain("Archive root");
-    expect(container.textContent).not.toContain("A\\Comics");
-
-    await act(async () => {
-      archiveBImport.resolve({ defaultDestinationFolderPath: "B\\Novels" });
-      archiveBFolders.resolve([folder("B\\Novels")]);
-      await Promise.all([archiveBImport.promise, archiveBFolders.promise]);
-      await Promise.resolve();
-    });
-
-    expect(archiveA.maintenance?.getArchiveImportSettings).toHaveBeenCalledTimes(1);
-    expect(archiveA.maintenance?.listFolders).toHaveBeenCalledTimes(1);
-    expect(archiveB.maintenance?.getArchiveImportSettings).toHaveBeenCalledTimes(1);
-    expect(archiveB.maintenance?.listFolders).toHaveBeenCalledTimes(1);
-    expect(destinationLabel()).toContain("B\\Novels");
-    expect(container.textContent).toContain("E:\\Archive B");
-  });
-
-  it("does not present archive A destination data when archive B loading fails", async () => {
-    const archiveA = availableArchiveBoundary();
-    const archiveB = availableArchiveBoundary("archive-b", "E:\\Archive B", 2);
-    vi.mocked(archiveA.maintenance!.getArchiveImportSettings).mockResolvedValue({
-      defaultDestinationFolderPath: "A\\Comics",
-    });
-    vi.mocked(archiveA.maintenance!.listFolders).mockResolvedValue([folder("A\\Comics")]);
-    vi.mocked(archiveB.maintenance!.getArchiveImportSettings).mockRejectedValue(
-      new Error("B settings unavailable"),
-    );
-    vi.mocked(archiveB.maintenance!.listFolders).mockResolvedValue([]);
-    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
-    clickButton("Archives");
-    await act(async () => {
-      for (let index = 0; index < 3; index += 1) await Promise.resolve();
-    });
-    expect(destinationLabel()).toContain("A\\Comics");
-
-    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveB} />));
-    await act(async () => {
-      for (let index = 0; index < 3; index += 1) await Promise.resolve();
-    });
-
-    expect(destinationLabel()).toContain("Archive root");
-    expect(container.textContent).not.toContain("A\\Comics");
-    expect(container.textContent).toContain("Import settings could not be loaded");
+    expect(
+      container.querySelector<HTMLButtonElement>(
+        '[data-setting-id="import.default-import-mode"] button',
+      )?.disabled,
+    ).toBe(false);
+    expect(
+      container.querySelector<HTMLButtonElement>('[data-setting-id="import.reset-defaults"] button')
+        ?.disabled,
+    ).toBe(false);
+    expect(
+      container.querySelector<HTMLButtonElement>(
+        '[data-setting-id="import.default-conflict-handling"] [role="combobox"]',
+      )?.disabled,
+    ).toBe(false);
+    for (const operation of Object.values(archiveBoundary.maintenance ?? {})) {
+      expect(operation).not.toHaveBeenCalled();
+    }
   });
 
   it("enables archive controls through the standalone maintenance boundary", async () => {
