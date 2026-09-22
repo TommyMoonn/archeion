@@ -62,6 +62,98 @@ export type AppSettingsSnapshot = {
   preferences: AppPreferences;
 };
 
+export type LibrarySettingsMutation =
+  | {
+      field: "booksCardSize";
+      value: AppPreferences["library"]["collections"]["books"]["cardSize"];
+    }
+  | {
+      field: "booksSortBy";
+      value: AppPreferences["library"]["collections"]["books"]["sortBy"];
+    }
+  | {
+      field: "booksViewMode";
+      value: AppPreferences["library"]["collections"]["books"]["viewMode"];
+    }
+  | {
+      field: "foldersCardSize";
+      value: AppPreferences["library"]["collections"]["folders"]["cardSize"];
+    }
+  | {
+      field: "foldersSortBy";
+      value: AppPreferences["library"]["collections"]["folders"]["sortBy"];
+    }
+  | {
+      field: "foldersViewMode";
+      value: AppPreferences["library"]["collections"]["folders"]["viewMode"];
+    }
+  | {
+      field: "seriesCardSize";
+      value: AppPreferences["library"]["collections"]["series"]["cardSize"];
+    }
+  | {
+      field: "seriesSortBy";
+      value: AppPreferences["library"]["collections"]["series"]["sortBy"];
+    }
+  | {
+      field: "seriesViewMode";
+      value: AppPreferences["library"]["collections"]["series"]["viewMode"];
+    }
+  | { field: "filterSeries"; value: AppPreferences["library"]["filters"]["series"] }
+  | { field: "filterSubjects"; value: AppPreferences["library"]["filters"]["subjects"] }
+  | { field: "filterLanguages"; value: AppPreferences["library"]["filters"]["languages"] }
+  | { field: "filterPublishers"; value: AppPreferences["library"]["filters"]["publishers"] }
+  | {
+      field: "filterReadingStatuses";
+      value: AppPreferences["library"]["filters"]["readingStatuses"];
+    }
+  | {
+      field: "filterFavoritesOnly";
+      value: AppPreferences["library"]["filters"]["favoritesOnly"];
+    }
+  | {
+      field: "filterMissingMetadata";
+      value: AppPreferences["library"]["filters"]["missingMetadata"];
+    }
+  | {
+      field: "filterMissingCover";
+      value: AppPreferences["library"]["filters"]["missingCover"];
+    }
+  | {
+      field: "smartViewsEnabled";
+      value: AppPreferences["library"]["smartViews"]["enabled"];
+    }
+  | {
+      field: "smartViewsVisible";
+      value: AppPreferences["library"]["smartViews"]["visible"];
+    };
+
+export type ReaderSettingsMutation =
+  | { field: "fontSize"; value: AppPreferences["reader"]["fontSize"] }
+  | { field: "fontFamily"; value: AppPreferences["reader"]["fontFamily"] }
+  | { field: "lineHeight"; value: AppPreferences["reader"]["lineHeight"] }
+  | { field: "readingWidth"; value: AppPreferences["reader"]["readingWidth"] }
+  | { field: "theme"; value: AppPreferences["reader"]["theme"] }
+  | {
+      field: "progressPlacement";
+      value: AppPreferences["reader"]["progressPlacement"];
+    }
+  | { field: "mode"; value: AppPreferences["reader"]["mode"] };
+
+export type FilesAndMetadataSettingsMutation =
+  | {
+      field: "keepEpubWritebackBackup";
+      value: AppPreferences["filesAndMetadata"]["keepEpubWritebackBackup"];
+    }
+  | {
+      field: "liveWatcherEnabled";
+      value: AppPreferences["filesAndMetadata"]["liveWatcherEnabled"];
+    }
+  | {
+      field: "scanOnStartup";
+      value: AppPreferences["filesAndMetadata"]["scanOnStartup"];
+    };
+
 export type AppSettingsMutation =
   | { area: "appTheme"; value: AppPreferences["appTheme"] }
   | { area: "appThemePreset"; value: AppPreferences["appThemePreset"] }
@@ -71,12 +163,12 @@ export type AppSettingsMutation =
       value: AppPreferences["confirmDestructiveFileActions"];
     }
   | { area: "density"; value: AppPreferences["density"] }
-  | { area: "filesAndMetadata"; value: AppPreferences["filesAndMetadata"] }
+  | { area: "filesAndMetadataField"; value: FilesAndMetadataSettingsMutation }
   | { area: "import"; value: AppPreferences["import"] }
   | { area: "keyboard"; value: AppPreferences["keyboard"] }
-  | { area: "library"; value: AppPreferences["library"] }
+  | { area: "libraryField"; value: LibrarySettingsMutation }
   | { area: "navigation"; value: AppPreferences["navigation"] }
-  | { area: "reader"; value: AppPreferences["reader"] }
+  | { area: "readerField"; value: ReaderSettingsMutation }
   | { area: "readerTheme"; value: AppPreferences["readerTheme"] }
   | { area: "rememberWindowState"; value: AppPreferences["rememberWindowState"] }
   | { area: "restoreLastReader"; value: AppPreferences["restoreLastReader"] }

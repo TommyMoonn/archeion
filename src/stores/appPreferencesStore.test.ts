@@ -131,6 +131,94 @@ function applyNativeMutation(
   snapshot: AppSettingsSnapshot,
   mutation: AppSettingsMutation,
 ): AppSettingsSnapshot {
+  if (mutation.area === "readerField") {
+    return nativeSnapshot(
+      {
+        ...snapshot.preferences,
+        reader: {
+          ...snapshot.preferences.reader,
+          [mutation.value.field]: mutation.value.value,
+        },
+      },
+      snapshot.revision + 1,
+    );
+  }
+  if (mutation.area === "filesAndMetadataField") {
+    return nativeSnapshot(
+      {
+        ...snapshot.preferences,
+        filesAndMetadata: {
+          ...snapshot.preferences.filesAndMetadata,
+          [mutation.value.field]: mutation.value.value,
+        },
+      },
+      snapshot.revision + 1,
+    );
+  }
+  if (mutation.area === "libraryField") {
+    const library = structuredClone(snapshot.preferences.library);
+    switch (mutation.value.field) {
+      case "booksCardSize":
+        library.collections.books.cardSize = mutation.value.value;
+        break;
+      case "booksSortBy":
+        library.collections.books.sortBy = mutation.value.value;
+        break;
+      case "booksViewMode":
+        library.collections.books.viewMode = mutation.value.value;
+        break;
+      case "foldersCardSize":
+        library.collections.folders.cardSize = mutation.value.value;
+        break;
+      case "foldersSortBy":
+        library.collections.folders.sortBy = mutation.value.value;
+        break;
+      case "foldersViewMode":
+        library.collections.folders.viewMode = mutation.value.value;
+        break;
+      case "seriesCardSize":
+        library.collections.series.cardSize = mutation.value.value;
+        break;
+      case "seriesSortBy":
+        library.collections.series.sortBy = mutation.value.value;
+        break;
+      case "seriesViewMode":
+        library.collections.series.viewMode = mutation.value.value;
+        break;
+      case "filterSeries":
+        library.filters.series = mutation.value.value;
+        break;
+      case "filterSubjects":
+        library.filters.subjects = mutation.value.value;
+        break;
+      case "filterLanguages":
+        library.filters.languages = mutation.value.value;
+        break;
+      case "filterPublishers":
+        library.filters.publishers = mutation.value.value;
+        break;
+      case "filterReadingStatuses":
+        library.filters.readingStatuses = mutation.value.value;
+        break;
+      case "filterFavoritesOnly":
+        library.filters.favoritesOnly = mutation.value.value;
+        break;
+      case "filterMissingMetadata":
+        library.filters.missingMetadata = mutation.value.value;
+        break;
+      case "filterMissingCover":
+        library.filters.missingCover = mutation.value.value;
+        break;
+      case "smartViewsEnabled":
+        library.smartViews.enabled = mutation.value.value;
+        break;
+      case "smartViewsVisible":
+        library.smartViews.visible = mutation.value.value;
+        break;
+    }
+    return nativeSnapshot({ ...snapshot.preferences, library }, snapshot.revision + 1);
+  }
+
   return {
     preferences: normalizeAppPreferences({
       ...snapshot.preferences,
@@ -194,12 +282,8 @@ describe("desktop app preference read model", () => {
 
       expect(mutateDesktop).toHaveBeenCalledOnce();
       expect(mutateDesktop).toHaveBeenCalledWith({
-        area: "library",
-        value: expect.objectContaining({
-          collections: expect.objectContaining({
-            books: expect.objectContaining({ cardSize: "large" }),
-          }),
-        }),
+        area: "libraryField",
+        value: { field: "booksCardSize", value: "large" },
       });
       expect(store.getRevisionSnapshot()).toBe(5);
     } finally {
@@ -319,6 +403,212 @@ describe("cross-window app preference synchronization", () => {
       expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
       expect(first.getRevisionSnapshot()).toBe(5);
       expect(second.getRevisionSnapshot()).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("converges disjoint Library fields changed from two windows", async () => {
+    vi.useFakeTimers();
+    const harness = createDesktopSettingsHarness(nativeSnapshot());
+    const firstWindow = harness.createWindow();
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const viewUpdate = first.updateLibraryCollection("books", { viewMode: "list" });
+      const filterUpdate = second.updateLibrary({
+        filters: {
+          ...second.getLibrarySnapshot().filters,
+          favoritesOnly: true,
+        },
+      });
+
+      await vi.advanceTimersByTimeAsync(250);
+      await Promise.all([viewUpdate, filterUpdate]);
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledWith({
+        area: "libraryField",
+        value: { field: "booksViewMode", value: "list" },
+      });
+      expect(secondWindow.mutateDesktop).toHaveBeenCalledWith({
+        area: "libraryField",
+        value: { field: "filterFavoritesOnly", value: true },
+      });
+      expect(harness.snapshot().preferences.library).toMatchObject({
+        collections: { books: { viewMode: "list" } },
+        filters: { favoritesOnly: true },
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("converges disjoint Reader fields changed from two windows", async () => {
+    vi.useFakeTimers();
+    const harness = createDesktopSettingsHarness(nativeSnapshot());
+    const firstWindow = harness.createWindow();
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const fontUpdate = first.update({
+        reader: { ...first.getReaderSnapshot(), fontSize: 22 },
+      });
+      const modeUpdate = second.update({
+        reader: { ...second.getReaderSnapshot(), mode: "continuous" },
+      });
+
+      await vi.advanceTimersByTimeAsync(250);
+      await Promise.all([fontUpdate, modeUpdate]);
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledWith({
+        area: "readerField",
+        value: { field: "fontSize", value: 22 },
+      });
+      expect(secondWindow.mutateDesktop).toHaveBeenCalledWith({
+        area: "readerField",
+        value: { field: "mode", value: "continuous" },
+      });
+      expect(harness.snapshot().preferences.reader).toMatchObject({
+        fontSize: 22,
+        mode: "continuous",
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("converges disjoint Files and Metadata fields changed from two windows", async () => {
+    vi.useFakeTimers();
+    const harness = createDesktopSettingsHarness(nativeSnapshot());
+    const firstWindow = harness.createWindow();
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const backupUpdate = first.update({
+        filesAndMetadata: {
+          ...first.getFilesAndMetadataSnapshot(),
+          keepEpubWritebackBackup: true,
+        },
+      });
+      const watcherUpdate = second.update({
+        filesAndMetadata: {
+          ...second.getFilesAndMetadataSnapshot(),
+          liveWatcherEnabled: false,
+        },
+      });
+
+      await vi.advanceTimersByTimeAsync(250);
+      await Promise.all([backupUpdate, watcherUpdate]);
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledWith({
+        area: "filesAndMetadataField",
+        value: { field: "keepEpubWritebackBackup", value: true },
+      });
+      expect(secondWindow.mutateDesktop).toHaveBeenCalledWith({
+        area: "filesAndMetadataField",
+        value: { field: "liveWatcherEnabled", value: false },
+      });
+      expect(harness.snapshot().preferences.filesAndMetadata).toEqual({
+        keepEpubWritebackBackup: true,
+        liveWatcherEnabled: false,
+        scanOnStartup: true,
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rebases a pending Library field over a remote sibling-field event", async () => {
+    vi.useFakeTimers();
+    const firstMutationGate = deferred<void>();
+    const harness = createDesktopSettingsHarness(nativeSnapshot());
+    const firstWindow = harness.createWindow(firstMutationGate.promise);
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const viewUpdate = first.updateLibraryCollection("books", { viewMode: "list" });
+      await vi.advanceTimersByTimeAsync(250);
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledOnce();
+
+      const filterUpdate = second.updateLibrary({
+        filters: {
+          ...second.getLibrarySnapshot().filters,
+          favoritesOnly: true,
+        },
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      await filterUpdate;
+
+      expect(first.getLibrarySnapshot()).toMatchObject({
+        collections: { books: { viewMode: "list" } },
+        filters: { favoritesOnly: true },
+      });
+
+      firstMutationGate.resolve();
+      await viewUpdate;
+
+      expect(harness.snapshot().preferences.library).toMatchObject({
+        collections: { books: { viewMode: "list" } },
+        filters: { favoritesOnly: true },
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles same-leaf window conflicts by last commit without duplicate mutations", async () => {
+    vi.useFakeTimers();
+    const firstMutationGate = deferred<void>();
+    const harness = createDesktopSettingsHarness(nativeSnapshot());
+    const firstWindow = harness.createWindow(firstMutationGate.promise);
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const firstUpdate = first.update({
+        reader: { ...first.getReaderSnapshot(), fontSize: 20 },
+      });
+      await vi.advanceTimersByTimeAsync(250);
+
+      const secondUpdate = second.update({
+        reader: { ...second.getReaderSnapshot(), fontSize: 22 },
+      });
+      await vi.advanceTimersByTimeAsync(250);
+      await secondUpdate;
+
+      firstMutationGate.resolve();
+      await firstUpdate;
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledOnce();
+      expect(secondWindow.mutateDesktop).toHaveBeenCalledOnce();
+      expect(harness.snapshot()).toMatchObject({
+        preferences: { reader: { fontSize: 20 } },
+        revision: 2,
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
     } finally {
       vi.useRealTimers();
     }
@@ -1063,10 +1353,14 @@ describe("app preferences", () => {
     });
     expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
       "density",
-      "library",
+      "libraryField",
       "showContinueReading",
     ]);
     expect(mutateDesktop).toHaveBeenCalledWith({ area: "density", value: "compact" });
+    expect(mutateDesktop).toHaveBeenCalledWith({
+      area: "libraryField",
+      value: { field: "booksCardSize", value: "large" },
+    });
     expect(removeLegacy).toHaveBeenCalledTimes(1);
   });
 
@@ -1232,22 +1526,30 @@ describe("app preferences", () => {
 
     expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
       "appearance",
-      "filesAndMetadata",
+      "filesAndMetadataField",
+      "filesAndMetadataField",
+      "filesAndMetadataField",
       "import",
-      "library",
-      "reader",
+      "libraryField",
+      "libraryField",
+      "readerField",
+      "readerField",
     ]);
     expect(mutateDesktop).toHaveBeenCalledWith({
-      area: "filesAndMetadata",
-      value: {
-        keepEpubWritebackBackup: true,
-        liveWatcherEnabled: false,
-        scanOnStartup: false,
-      },
+      area: "filesAndMetadataField",
+      value: { field: "keepEpubWritebackBackup", value: true },
     });
     expect(mutateDesktop).toHaveBeenCalledWith({
-      area: "reader",
-      value: expect.objectContaining({ fontSize: 24, progressPlacement: "side" }),
+      area: "filesAndMetadataField",
+      value: { field: "liveWatcherEnabled", value: false },
+    });
+    expect(mutateDesktop).toHaveBeenCalledWith({
+      area: "readerField",
+      value: { field: "fontSize", value: 24 },
+    });
+    expect(mutateDesktop).toHaveBeenCalledWith({
+      area: "readerField",
+      value: { field: "progressPlacement", value: "side" },
     });
   });
 
@@ -1343,19 +1645,15 @@ describe("app preference write coalescing", () => {
       expect(mutateDesktop).toHaveBeenCalledTimes(2);
       expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
         "density",
-        "library",
+        "libraryField",
       ]);
       expect(mutateDesktop).toHaveBeenNthCalledWith(1, {
         area: "density",
         value: "compact",
       });
       expect(mutateDesktop).toHaveBeenNthCalledWith(2, {
-        area: "library",
-        value: expect.objectContaining({
-          collections: expect.objectContaining({
-            books: expect.objectContaining({ cardSize: "large" }),
-          }),
-        }),
+        area: "libraryField",
+        value: { field: "booksCardSize", value: "large" },
       });
     } finally {
       vi.useRealTimers();

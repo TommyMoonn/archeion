@@ -1332,15 +1332,11 @@ pub enum AppSettingsMutation {
     Appearance(AppearanceSettings),
     ConfirmDestructiveFileActions(bool),
     Density(String),
-    // Whole-area variants remain until the frontend migrates to the field variants.
-    FilesAndMetadata(FilesAndMetadataSettings),
     FilesAndMetadataField(FilesAndMetadataSettingsMutation),
     Import(GlobalImportSettings),
     Keyboard(KeyboardPreferences),
-    Library(Box<LibraryDisplaySettings>),
     LibraryField(LibrarySettingsMutation),
     Navigation(Option<RememberedNavigationState>),
-    Reader(Box<ReaderSettings>),
     ReaderField(ReaderSettingsMutation),
     ReaderTheme(ReaderThemeSelection),
     RememberWindowState(bool),
@@ -1360,16 +1356,13 @@ impl AppSettingsMutation {
                 preferences.confirm_destructive_file_actions = value;
             }
             Self::Density(value) => preferences.density = value,
-            Self::FilesAndMetadata(value) => preferences.files_and_metadata = value,
             Self::FilesAndMetadataField(value) => {
                 value.apply(&mut preferences.files_and_metadata);
             }
             Self::Import(value) => preferences.import = value,
             Self::Keyboard(value) => preferences.keyboard = value,
-            Self::Library(value) => preferences.library = *value,
             Self::LibraryField(value) => value.apply(&mut preferences.library),
             Self::Navigation(value) => preferences.navigation = value,
-            Self::Reader(value) => preferences.reader = *value,
             Self::ReaderField(value) => value.apply(&mut preferences.reader),
             Self::ReaderTheme(value) => preferences.reader_theme = value,
             Self::RememberWindowState(value) => preferences.remember_window_state = value,
@@ -1814,7 +1807,7 @@ mod tests {
         normalize_reader_settings, read_settings, write_settings, write_theme_migration_receipt,
         AppPreferences, AppSettingsMutation, AppSettingsService, AppThemeSelection,
         AppearanceSettings, KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride,
-        LibrarySmartViewSettings, ReaderSettings, ReaderThemeSelection,
+        LibrarySmartViewSettings, ReaderSettings, ReaderSettingsMutation, ReaderThemeSelection,
         THEME_MIGRATION_RECEIPT_FILE,
     };
 
@@ -2537,10 +2530,9 @@ mod tests {
             .expect("density should update");
         let second = service
             .mutate(
-                AppSettingsMutation::Reader(Box::new(ReaderSettings {
-                    mode: "continuous".to_string(),
-                    ..ReaderSettings::default()
-                })),
+                AppSettingsMutation::ReaderField(ReaderSettingsMutation::Mode(
+                    "continuous".to_string(),
+                )),
                 |event| published.borrow_mut().push(event.clone()),
             )
             .expect("reader settings should update");
@@ -2700,54 +2692,6 @@ mod tests {
     }
 
     #[test]
-    fn whole_area_mutations_remain_available_during_caller_migration() {
-        let root = temporary_settings_root("whole-area-compatibility");
-        let service = AppSettingsService::new(root.join("settings.json"));
-        let library = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
-            "area": "library",
-            "value": {
-                "collections": {},
-                "filters": { "favoritesOnly": true },
-                "smartViews": {}
-            }
-        }))
-        .expect("library snapshot should remain compatible");
-        let reader = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
-            "area": "reader",
-            "value": { "mode": "continuous" }
-        }))
-        .expect("reader snapshot should remain compatible");
-        let files = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
-            "area": "filesAndMetadata",
-            "value": {
-                "keepEpubWritebackBackup": true,
-                "liveWatcherEnabled": true,
-                "scanOnStartup": false
-            }
-        }))
-        .expect("files and metadata snapshot should remain compatible");
-
-        service
-            .mutate(library, |_| {})
-            .expect("library should update");
-        service
-            .mutate(reader, |_| {})
-            .expect("reader should update");
-        let snapshot = service.mutate(files, |_| {}).expect("files should update");
-
-        assert!(snapshot.preferences.library.filters.favorites_only);
-        assert_eq!(snapshot.preferences.reader.mode, "continuous");
-        assert!(
-            snapshot
-                .preferences
-                .files_and_metadata
-                .keep_epub_writeback_backup
-        );
-        assert!(!snapshot.preferences.files_and_metadata.scan_on_startup);
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
     fn typed_global_theme_mutations_preserve_independent_selections() {
         let root = temporary_settings_root("typed-global-themes");
         let service = AppSettingsService::new(root.join("settings.json"));
@@ -2837,15 +2781,10 @@ mod tests {
             .mutate(density_mutation, |_| {})
             .expect("density mutation should normalize");
         let reader_mutation: AppSettingsMutation = serde_json::from_value(serde_json::json!({
-            "area": "reader",
+            "area": "readerField",
             "value": {
-                "fontSize": 500,
-                "fontFamily": "serif",
-                "lineHeight": 0.1,
-                "margin": -20,
-                "theme": "dark",
-                "progressPlacement": "top",
-                "mode": "unsupported"
+                "field": "fontSize",
+                "value": 500
             }
         }))
         .expect("typed reader mutation should deserialize");
@@ -2856,10 +2795,6 @@ mod tests {
         assert_eq!(density.preferences.density, "comfortable");
         assert_eq!(reader.revision, 2);
         assert_eq!(reader.preferences.reader, ReaderSettings::default());
-        let serialized_reader = serde_json::to_value(&reader.preferences.reader)
-            .expect("reader settings should serialize");
-        assert_eq!(serialized_reader["readingWidth"], "comfortable");
-        assert!(serialized_reader.get("margin").is_none());
         std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
 

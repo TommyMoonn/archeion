@@ -11,7 +11,10 @@ import {
   type AppPreferences,
   type AppSettingsMutation,
   type AppSettingsSnapshot,
+  type FilesAndMetadataSettingsMutation,
+  type LibrarySettingsMutation,
   type PersistedWindowState,
+  type ReaderSettingsMutation,
   type RememberedNavigationState,
 } from "../types/appSettings";
 import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
@@ -495,6 +498,157 @@ function preferenceAreaEqual(left: unknown, right: unknown): boolean {
   );
 }
 
+type FieldMutationCandidate<TMutation> = {
+  current: unknown;
+  mutation: TMutation;
+};
+
+function createLibrarySettingsMutations(
+  persisted: LibraryDisplaySettings,
+  target: LibraryDisplaySettings,
+): Extract<AppSettingsMutation, { area: "libraryField" }>[] {
+  const candidates: FieldMutationCandidate<LibrarySettingsMutation>[] = [
+    {
+      current: persisted.collections.books.cardSize,
+      mutation: { field: "booksCardSize", value: target.collections.books.cardSize },
+    },
+    {
+      current: persisted.collections.books.sortBy,
+      mutation: { field: "booksSortBy", value: target.collections.books.sortBy },
+    },
+    {
+      current: persisted.collections.books.viewMode,
+      mutation: { field: "booksViewMode", value: target.collections.books.viewMode },
+    },
+    {
+      current: persisted.collections.folders.cardSize,
+      mutation: { field: "foldersCardSize", value: target.collections.folders.cardSize },
+    },
+    {
+      current: persisted.collections.folders.sortBy,
+      mutation: { field: "foldersSortBy", value: target.collections.folders.sortBy },
+    },
+    {
+      current: persisted.collections.folders.viewMode,
+      mutation: { field: "foldersViewMode", value: target.collections.folders.viewMode },
+    },
+    {
+      current: persisted.collections.series.cardSize,
+      mutation: { field: "seriesCardSize", value: target.collections.series.cardSize },
+    },
+    {
+      current: persisted.collections.series.sortBy,
+      mutation: { field: "seriesSortBy", value: target.collections.series.sortBy },
+    },
+    {
+      current: persisted.collections.series.viewMode,
+      mutation: { field: "seriesViewMode", value: target.collections.series.viewMode },
+    },
+    {
+      current: persisted.filters.series,
+      mutation: { field: "filterSeries", value: target.filters.series },
+    },
+    {
+      current: persisted.filters.subjects,
+      mutation: { field: "filterSubjects", value: target.filters.subjects },
+    },
+    {
+      current: persisted.filters.languages,
+      mutation: { field: "filterLanguages", value: target.filters.languages },
+    },
+    {
+      current: persisted.filters.publishers,
+      mutation: { field: "filterPublishers", value: target.filters.publishers },
+    },
+    {
+      current: persisted.filters.readingStatuses,
+      mutation: { field: "filterReadingStatuses", value: target.filters.readingStatuses },
+    },
+    {
+      current: persisted.filters.favoritesOnly,
+      mutation: { field: "filterFavoritesOnly", value: target.filters.favoritesOnly },
+    },
+    {
+      current: persisted.filters.missingMetadata,
+      mutation: { field: "filterMissingMetadata", value: target.filters.missingMetadata },
+    },
+    {
+      current: persisted.filters.missingCover,
+      mutation: { field: "filterMissingCover", value: target.filters.missingCover },
+    },
+    {
+      current: persisted.smartViews.enabled,
+      mutation: { field: "smartViewsEnabled", value: target.smartViews.enabled },
+    },
+    {
+      current: persisted.smartViews.visible,
+      mutation: { field: "smartViewsVisible", value: target.smartViews.visible },
+    },
+  ];
+
+  return candidates
+    .filter(({ current, mutation }) => !preferenceAreaEqual(current, mutation.value))
+    .map(({ mutation }) => ({ area: "libraryField", value: mutation }));
+}
+
+function createReaderSettingsMutations(
+  persisted: ReaderSettings,
+  target: ReaderSettings,
+): Extract<AppSettingsMutation, { area: "readerField" }>[] {
+  const candidates: FieldMutationCandidate<ReaderSettingsMutation>[] = [
+    { current: persisted.fontSize, mutation: { field: "fontSize", value: target.fontSize } },
+    {
+      current: persisted.fontFamily,
+      mutation: { field: "fontFamily", value: target.fontFamily },
+    },
+    {
+      current: persisted.lineHeight,
+      mutation: { field: "lineHeight", value: target.lineHeight },
+    },
+    {
+      current: persisted.readingWidth,
+      mutation: { field: "readingWidth", value: target.readingWidth },
+    },
+    { current: persisted.theme, mutation: { field: "theme", value: target.theme } },
+    {
+      current: persisted.progressPlacement,
+      mutation: { field: "progressPlacement", value: target.progressPlacement },
+    },
+    { current: persisted.mode, mutation: { field: "mode", value: target.mode } },
+  ];
+
+  return candidates
+    .filter(({ current, mutation }) => !preferenceAreaEqual(current, mutation.value))
+    .map(({ mutation }) => ({ area: "readerField", value: mutation }));
+}
+
+function createFilesAndMetadataSettingsMutations(
+  persisted: FilesAndMetadataSettings,
+  target: FilesAndMetadataSettings,
+): Extract<AppSettingsMutation, { area: "filesAndMetadataField" }>[] {
+  const candidates: FieldMutationCandidate<FilesAndMetadataSettingsMutation>[] = [
+    {
+      current: persisted.keepEpubWritebackBackup,
+      mutation: {
+        field: "keepEpubWritebackBackup",
+        value: target.keepEpubWritebackBackup,
+      },
+    },
+    {
+      current: persisted.liveWatcherEnabled,
+      mutation: { field: "liveWatcherEnabled", value: target.liveWatcherEnabled },
+    },
+    {
+      current: persisted.scanOnStartup,
+      mutation: { field: "scanOnStartup", value: target.scanOnStartup },
+    },
+  ];
+
+  return candidates
+    .filter(({ current, mutation }) => !preferenceAreaEqual(current, mutation.value))
+    .map(({ mutation }) => ({ area: "filesAndMetadataField", value: mutation }));
+}
+
 function createAppSettingsMutations(
   persisted: AppPreferences,
   target: AppPreferences,
@@ -519,24 +673,20 @@ function createAppSettingsMutations(
   if (persisted.density !== target.density) {
     mutations.push({ area: "density", value: target.density });
   }
-  if (!preferenceAreaEqual(persisted.filesAndMetadata, target.filesAndMetadata)) {
-    mutations.push({ area: "filesAndMetadata", value: target.filesAndMetadata });
-  }
+  mutations.push(
+    ...createFilesAndMetadataSettingsMutations(persisted.filesAndMetadata, target.filesAndMetadata),
+  );
   if (!preferenceAreaEqual(persisted.import, target.import)) {
     mutations.push({ area: "import", value: target.import });
   }
   if (!preferenceAreaEqual(persisted.keyboard, target.keyboard)) {
     mutations.push({ area: "keyboard", value: target.keyboard });
   }
-  if (!preferenceAreaEqual(persisted.library, target.library)) {
-    mutations.push({ area: "library", value: target.library });
-  }
+  mutations.push(...createLibrarySettingsMutations(persisted.library, target.library));
   if (!preferenceAreaEqual(persisted.navigation, target.navigation)) {
     mutations.push({ area: "navigation", value: target.navigation });
   }
-  if (!preferenceAreaEqual(persisted.reader, target.reader)) {
-    mutations.push({ area: "reader", value: target.reader });
-  }
+  mutations.push(...createReaderSettingsMutations(persisted.reader, target.reader));
   if (!preferenceAreaEqual(persisted.readerTheme, target.readerTheme)) {
     mutations.push({ area: "readerTheme", value: target.readerTheme });
   }
@@ -559,17 +709,150 @@ function createAppSettingsMutations(
   return mutations;
 }
 
+function updateProperty<TValue, TKey extends keyof TValue>(
+  value: TValue,
+  key: TKey,
+  next: TValue[TKey],
+): TValue {
+  return { ...value, [key]: next };
+}
+
+function updateLibraryCollectionField<
+  TCollection extends keyof LibraryCollectionPreferences,
+  TField extends keyof LibraryCollectionPreferences[TCollection],
+>(
+  settings: LibraryDisplaySettings,
+  collection: TCollection,
+  field: TField,
+  value: LibraryCollectionPreferences[TCollection][TField],
+): LibraryDisplaySettings {
+  return {
+    ...settings,
+    collections: updateProperty(
+      settings.collections,
+      collection,
+      updateProperty(settings.collections[collection], field, value),
+    ),
+  };
+}
+
+function applyLibrarySettingsMutation(
+  settings: LibraryDisplaySettings,
+  mutation: LibrarySettingsMutation,
+): LibraryDisplaySettings {
+  switch (mutation.field) {
+    case "booksCardSize":
+      return updateLibraryCollectionField(settings, "books", "cardSize", mutation.value);
+    case "booksSortBy":
+      return updateLibraryCollectionField(settings, "books", "sortBy", mutation.value);
+    case "booksViewMode":
+      return updateLibraryCollectionField(settings, "books", "viewMode", mutation.value);
+    case "foldersCardSize":
+      return updateLibraryCollectionField(settings, "folders", "cardSize", mutation.value);
+    case "foldersSortBy":
+      return updateLibraryCollectionField(settings, "folders", "sortBy", mutation.value);
+    case "foldersViewMode":
+      return updateLibraryCollectionField(settings, "folders", "viewMode", mutation.value);
+    case "seriesCardSize":
+      return updateLibraryCollectionField(settings, "series", "cardSize", mutation.value);
+    case "seriesSortBy":
+      return updateLibraryCollectionField(settings, "series", "sortBy", mutation.value);
+    case "seriesViewMode":
+      return updateLibraryCollectionField(settings, "series", "viewMode", mutation.value);
+    case "filterSeries":
+      return { ...settings, filters: updateProperty(settings.filters, "series", mutation.value) };
+    case "filterSubjects":
+      return { ...settings, filters: updateProperty(settings.filters, "subjects", mutation.value) };
+    case "filterLanguages":
+      return {
+        ...settings,
+        filters: updateProperty(settings.filters, "languages", mutation.value),
+      };
+    case "filterPublishers":
+      return {
+        ...settings,
+        filters: updateProperty(settings.filters, "publishers", mutation.value),
+      };
+    case "filterReadingStatuses":
+      return {
+        ...settings,
+        filters: updateProperty(settings.filters, "readingStatuses", mutation.value),
+      };
+    case "filterFavoritesOnly":
+      return {
+        ...settings,
+        filters: updateProperty(settings.filters, "favoritesOnly", mutation.value),
+      };
+    case "filterMissingMetadata":
+      return {
+        ...settings,
+        filters: updateProperty(settings.filters, "missingMetadata", mutation.value),
+      };
+    case "filterMissingCover":
+      return {
+        ...settings,
+        filters: updateProperty(settings.filters, "missingCover", mutation.value),
+      };
+    case "smartViewsEnabled":
+      return {
+        ...settings,
+        smartViews: updateProperty(settings.smartViews, "enabled", mutation.value),
+      };
+    case "smartViewsVisible":
+      return {
+        ...settings,
+        smartViews: updateProperty(settings.smartViews, "visible", mutation.value),
+      };
+  }
+}
+
+function applyAppSettingsMutation(
+  preferences: AppPreferences,
+  mutation: AppSettingsMutation,
+): AppPreferences {
+  switch (mutation.area) {
+    case "libraryField":
+      return mergeAppPreferences(preferences, {
+        library: applyLibrarySettingsMutation(preferences.library, mutation.value),
+      });
+    case "readerField":
+      return mergeAppPreferences(preferences, {
+        reader: updateProperty(preferences.reader, mutation.value.field, mutation.value.value),
+      });
+    case "filesAndMetadataField":
+      return mergeAppPreferences(preferences, {
+        filesAndMetadata: updateProperty(
+          preferences.filesAndMetadata,
+          mutation.value.field,
+          mutation.value.value,
+        ),
+      });
+    default:
+      return mergeAppPreferences(preferences, {
+        [mutation.area]: mutation.value,
+      } as Partial<AppPreferences>);
+  }
+}
+
 function applyAppSettingsMutations(
   preferences: AppPreferences,
   mutations: AppSettingsMutation[],
 ): AppPreferences {
   return mutations.reduce<AppPreferences>(
-    (next, mutation) =>
-      mergeAppPreferences(next, {
-        [mutation.area]: mutation.value,
-      } as Partial<AppPreferences>),
+    (next, mutation) => applyAppSettingsMutation(next, mutation),
     preferences,
   );
+}
+
+function appSettingsMutationKey(mutation: AppSettingsMutation): string {
+  switch (mutation.area) {
+    case "libraryField":
+    case "readerField":
+    case "filesAndMetadataField":
+      return `${mutation.area}:${mutation.value.field}`;
+    default:
+      return mutation.area;
+  }
 }
 
 function preserveEquivalentPreferenceAreas(
@@ -610,10 +893,7 @@ export class AppPreferencesStore {
   private mutationRevision = 0;
   private desktopRevision = 0;
   private desktopIntentSequence = 0;
-  private readonly desktopMutationIntents = new Map<
-    AppSettingsMutation["area"],
-    DesktopMutationIntent
-  >();
+  private readonly desktopMutationIntents = new Map<string, DesktopMutationIntent>();
   private hasDesktopSnapshot = false;
   private desktopPersistedPreferences: AppPreferences | null = null;
   private completedDesktopSnapshot: AppSettingsSnapshot | null = null;
@@ -853,7 +1133,7 @@ export class AppPreferencesStore {
         continue;
       }
       const current = this.desktopPersistedPreferences;
-      if (current && preferenceAreaEqual(current[mutation.area], mutation.value)) {
+      if (current && preferenceAreaEqual(applyAppSettingsMutation(current, mutation), current)) {
         this.retireDesktopMutationIntent(intent);
         continue;
       }
@@ -922,7 +1202,7 @@ export class AppPreferencesStore {
   private recordDesktopMutationIntents(mutations: AppSettingsMutation[]): DesktopMutationIntent[] {
     mutations.forEach((mutation) => {
       this.desktopIntentSequence += 1;
-      this.desktopMutationIntents.set(mutation.area, {
+      this.desktopMutationIntents.set(appSettingsMutationKey(mutation), {
         id: this.desktopIntentSequence,
         mutation,
       });
@@ -931,12 +1211,14 @@ export class AppPreferencesStore {
   }
 
   private isCurrentDesktopMutationIntent(intent: DesktopMutationIntent): boolean {
-    return this.desktopMutationIntents.get(intent.mutation.area)?.id === intent.id;
+    return (
+      this.desktopMutationIntents.get(appSettingsMutationKey(intent.mutation))?.id === intent.id
+    );
   }
 
   private retireDesktopMutationIntent(intent: DesktopMutationIntent): void {
     if (this.isCurrentDesktopMutationIntent(intent)) {
-      this.desktopMutationIntents.delete(intent.mutation.area);
+      this.desktopMutationIntents.delete(appSettingsMutationKey(intent.mutation));
     }
   }
 
