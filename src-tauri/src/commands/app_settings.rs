@@ -2226,11 +2226,7 @@ mod tests {
         assert!(error.contains("interrupted write could not be recovered"));
         assert!(!path.exists());
         assert!(backup.is_dir());
-        std::fs::remove_dir_all(
-            path.parent()
-                .expect("temporary settings path should have a parent"),
-        )
-        .expect("temporary settings root should be removed");
+        std::fs::remove_dir_all(backup).expect("invalid transaction artifact should be removed");
     }
 
     #[test]

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-09-22
+
+Archeion 1.5.2 recovers saved application and archive state after interrupted writes.
+
+### Fixed
+
+- Recovered application settings from an interrupted save before treating them as missing or restoring defaults.
+- Recovered archive metadata, including saved library and reading state, before creating replacement data after an interrupted write.
+- Recovered the registered archive list from interrupted or corrupt writes when a valid recovery copy is available, without deleting archive folders.
+
 ## [1.5.1] - 2026-09-21
 
 Archeion 1.5.1 protects EPUB edits and exports from replacing newer or existing file changes.
@@ -551,7 +561,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/TommyMoonn/archeion/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/TommyMoonn/archeion/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/TommyMoonn/archeion/compare/v1.4.3...v1.5.0
 [1.4.3]: https://github.com/TommyMoonn/archeion/compare/v1.4.2...v1.4.3
