@@ -38,7 +38,6 @@ function createStorage(): LibraryStorage {
     clearCoverCache: vi.fn(),
     clearEpubWritebackBackups: vi.fn(),
     clearScannerCache: vi.fn(),
-    getArchiveImportSettings: vi.fn(async () => ({})),
     getCoverCacheStatus: vi.fn(async () => ({ fileCount: 1, totalBytes: 1024 })),
     getEpubWritebackBackupStatus: vi.fn(async () => ({
       fileCount: 1,

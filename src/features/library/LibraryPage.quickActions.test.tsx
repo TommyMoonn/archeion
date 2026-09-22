@@ -16,7 +16,6 @@ import type {
   ScanStatus,
   StorageObserver,
 } from "../../storage/LibraryStorage";
-import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
@@ -118,10 +117,6 @@ function createStorage(books: Book[] = []): LibraryStorage {
     updateFolder: vi.fn(),
     revealFolder: vi.fn(),
     deleteFolder: vi.fn(),
-    getArchiveImportSettings: vi.fn().mockResolvedValue(defaultArchiveImportSettings),
-    saveArchiveImportSettings: vi.fn(),
-    updateArchiveImportSettings: vi.fn(),
-    resetArchiveImportSettings: vi.fn(),
     getCoverCacheStatus: vi.fn(),
     clearCoverCache: vi.fn(),
     getEpubWritebackBackupStatus: vi.fn(),

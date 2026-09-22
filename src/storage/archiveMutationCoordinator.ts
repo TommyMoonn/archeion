@@ -14,7 +14,6 @@ import {
   createProgressMetadata,
   type ProgressMetadata,
   type ReadingProgress,
-  type SettingsMetadata,
 } from "./metadataFiles";
 import { sanitizeProgressMetadataForLibrary } from "./progressMetadataSanitization";
 import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
@@ -39,7 +38,6 @@ type FullScanCompletion = Readonly<{
 }>;
 
 type ArchiveMutationCoordinatorHost = Readonly<{
-  acceptSettingsMetadata: (metadata: SettingsMetadata) => void;
   assertCurrentScope: (scope: ArchiveCommandScope) => void;
   commands: ArchiveCommandClient;
   createScope: () => ArchiveCommandScope;
@@ -348,7 +346,6 @@ export class ArchiveMutationCoordinator {
       this.libraryMetadata = next.libraryMetadata;
       this.progressMetadata = sanitizedProgress.metadata;
       this.progressMetadataWrites.replacePersistedMetadata(sanitizedProgress.metadata);
-      this.host.acceptSettingsMetadata(metadata.settings);
       this.books = next.books;
       this.missingBooks = next.missingBooks;
       this.folders = next.folders;

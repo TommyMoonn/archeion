@@ -11,7 +11,6 @@ import type {
   LibraryStorage,
   StorageObserver,
 } from "../../storage/LibraryStorage";
-import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
@@ -135,10 +134,6 @@ export function createStorage({
     updateFolder,
     revealFolder: vi.fn(),
     deleteFolder,
-    getArchiveImportSettings: vi.fn().mockResolvedValue(defaultArchiveImportSettings),
-    saveArchiveImportSettings: vi.fn(),
-    updateArchiveImportSettings: vi.fn(),
-    resetArchiveImportSettings: vi.fn(),
     getCoverCacheStatus: vi.fn(),
     clearCoverCache: vi.fn(),
     getEpubWritebackBackupStatus: vi.fn(),

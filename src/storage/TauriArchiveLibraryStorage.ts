@@ -20,14 +20,6 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../types/annotation";
-import type { ArchiveImportSettings } from "../types/settings";
-import {
-  createSettingsMetadata,
-  defaultArchiveImportSettings,
-  normalizeArchiveImportSettings,
-  normalizeSettingsMetadata,
-  type SettingsMetadata,
-} from "./metadataFiles";
 import { AnnotationRepository } from "./annotations/AnnotationRepository";
 import { ArchiveMutationCoordinator } from "./archiveMutationCoordinator";
 import { ArchiveScanSession, isArchiveScanCommandError } from "./archiveScanSession";
@@ -99,7 +91,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private archiveRootPath: string | null = null;
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly operationWarningObservers = new Set<StorageObserver<ArchiveOperationWarning>>();
-  private settingsMetadata = createSettingsMetadata();
 
   private readonly commands = new ArchiveCommandClient();
   private readonly mutationCoordinator: ArchiveMutationCoordinator;
@@ -125,9 +116,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         this.scanSession.runFallbackFullScan(scope, replacementRelativePaths),
       runReplacementFullScan: (scope, replacementRelativePaths) =>
         this.scanSession.runReplacementFullScan(scope, replacementRelativePaths),
-      acceptSettingsMetadata: (metadata) => {
-        this.settingsMetadata = normalizeSettingsMetadata(metadata);
-      },
     });
     this.scanSession = new ArchiveScanSession({
       commands: this.commands,
@@ -194,7 +182,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     }
     this.scanSession.reset();
     this.coverPromises.clear();
-    this.settingsMetadata = createSettingsMetadata();
     this.mutationCoordinator.reset();
     this.annotationRepository.reset();
   }
@@ -506,38 +493,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.folderOperations.deleteFolder(id);
   }
 
-  async getArchiveImportSettings(): Promise<ArchiveImportSettings> {
-    const settings = await this.ensureSettingsMetadata();
-    return { ...settings.import };
-  }
-
-  async saveArchiveImportSettings(settings: ArchiveImportSettings): Promise<ArchiveImportSettings> {
-    const scope = this.createArchiveCommandScope();
-    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
-      ...current,
-      import: normalizeArchiveImportSettings(settings),
-    }));
-    return { ...metadata.import };
-  }
-
-  async updateArchiveImportSettings(
-    changes: Partial<ArchiveImportSettings>,
-  ): Promise<ArchiveImportSettings> {
-    const scope = this.createArchiveCommandScope();
-    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
-      ...current,
-      import: {
-        ...current.import,
-        ...changes,
-      },
-    }));
-    return { ...metadata.import };
-  }
-
-  resetArchiveImportSettings(): Promise<ArchiveImportSettings> {
-    return this.saveArchiveImportSettings({ ...defaultArchiveImportSettings });
-  }
-
   getCoverCacheStatus(): Promise<CoverCacheStatus> {
     return this.maintenanceOperations.getCoverCacheStatus();
   }
@@ -599,54 +554,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
   private emitOperationWarning(warning: ArchiveOperationWarning): void {
     this.operationWarningObservers.forEach((observer) => observer.next(warning));
-  }
-
-  private async loadSettingsMetadataOnly(
-    scope = this.createArchiveCommandScope(),
-  ): Promise<SettingsMetadata> {
-    const metadata = await this.mutationCoordinator.runMetadataIo(scope, () =>
-      this.commands.invoke("load_settings_metadata", undefined, scope.rootPath),
-    );
-    this.assertCurrentArchiveScope(scope);
-    if (!metadata) {
-      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
-    }
-    this.settingsMetadata = normalizeSettingsMetadata(metadata);
-    return this.settingsMetadata;
-  }
-
-  private async ensureSettingsMetadata(
-    scope = this.createArchiveCommandScope(),
-  ): Promise<SettingsMetadata> {
-    if (!this.mutationCoordinator.isLoaded) {
-      return this.loadSettingsMetadataOnly(scope);
-    }
-    this.assertCurrentArchiveScope(scope);
-    return this.settingsMetadata;
-  }
-
-  private async mutateSettingsMetadata(
-    scope: ArchiveCommandScope,
-    mutation: (current: Readonly<SettingsMetadata>) => SettingsMetadata,
-  ): Promise<SettingsMetadata> {
-    await this.ensureSettingsMetadata(scope);
-    const metadata = await this.mutationCoordinator.runMetadataIo(scope, async () => {
-      this.assertCurrentArchiveScope(scope);
-      const normalized = normalizeSettingsMetadata(mutation(this.settingsMetadata));
-      await this.commands.invoke(
-        "save_settings_metadata",
-        { metadata: normalized },
-        scope.rootPath,
-      );
-      this.assertCurrentArchiveScope(scope);
-      this.settingsMetadata = normalized;
-      return normalized;
-    });
-    this.assertCurrentArchiveScope(scope);
-    if (!metadata) {
-      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
-    }
-    return metadata;
   }
 
   private clearCoverPromisesForBook(bookId: string): void {

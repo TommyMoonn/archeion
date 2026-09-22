@@ -21,7 +21,6 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../types/annotation";
-import type { ArchiveImportSettings } from "../types/settings";
 
 export type StorageObserver<T> = {
   next: (value: T) => void;
@@ -211,13 +210,6 @@ export interface LibraryStorage {
   updateFolder(id: string, changes: UpdateFolderInput): Promise<Folder | undefined>;
   revealFolder(id: string): Promise<void>;
   deleteFolder(id: string): Promise<boolean>;
-
-  getArchiveImportSettings(): Promise<ArchiveImportSettings>;
-  saveArchiveImportSettings(settings: ArchiveImportSettings): Promise<ArchiveImportSettings>;
-  updateArchiveImportSettings(
-    changes: Partial<ArchiveImportSettings>,
-  ): Promise<ArchiveImportSettings>;
-  resetArchiveImportSettings(): Promise<ArchiveImportSettings>;
 
   getCoverCacheStatus(): Promise<CoverCacheStatus>;
   clearCoverCache(): Promise<CoverCacheStatus>;

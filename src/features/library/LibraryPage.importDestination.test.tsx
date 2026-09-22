@@ -58,16 +58,4 @@ describe("LibraryPage import destination", () => {
         ?.getAttribute("aria-checked"),
     ).toBe("true");
   });
-
-  it("loads the Library workspace without fetching archive destination settings", async () => {
-    const storage = createStorage();
-    const session = await renderLibraryPage(storage);
-    suite.trackRoot(session.root);
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(storage.getArchiveImportSettings).not.toHaveBeenCalled();
-  });
 });
