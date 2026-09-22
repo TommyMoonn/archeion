@@ -8,8 +8,8 @@ use std::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::atomic_file::{
-    transaction_path, AtomicFileSystem, AtomicReplaceError, BackupCleanup, PreparedAtomicFile,
-    RealAtomicFileSystem,
+    recover_atomic_replace, transaction_path, AtomicFileSystem, AtomicReplaceError, BackupCleanup,
+    PreparedAtomicFile, RealAtomicFileSystem,
 };
 
 use super::{
@@ -356,6 +356,7 @@ where
 {
     let layout = ArchiveBackupLayout::new(root);
     let path = layout.checked_active_document_path(document)?;
+    recover_atomic_replace(&path).map_err(|error| error.to_string())?;
     if !path.exists() {
         layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
         let value = T::default();
@@ -408,6 +409,7 @@ where
 {
     let layout = ArchiveBackupLayout::new(root);
     let path = layout.checked_active_document_path(document)?;
+    recover_atomic_replace(&path).map_err(|error| error.to_string())?;
     if !path.exists() {
         layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
         return Ok(default_value);
@@ -604,10 +606,13 @@ mod tests {
         initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, load_settings_at,
         metadata_path, read_json, save_annotations_at, write_json, write_json_with_fs,
         ArchiveAppThemeSelection, ArchiveAppearanceSettings, ArchiveReaderThemeSelection,
-        BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata, SettingsMetadata,
-        MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
+        BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata, ProgressMetadata,
+        ReadingProgress, SettingsMetadata, MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
     };
-    use crate::commands::archive_backup::{ArchiveBackupLayout, MetadataDocument};
+    use crate::{
+        atomic_file::transaction_path,
+        commands::archive_backup::{ArchiveBackupLayout, MetadataDocument},
+    };
 
     fn test_root(label: &str) -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -615,6 +620,28 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-metadata-{label}-{nonce}"))
+    }
+
+    fn write_transaction_artifact<T: serde::Serialize>(
+        root: &std::path::Path,
+        document: MetadataDocument,
+        marker: &str,
+        value: &T,
+    ) -> std::path::PathBuf {
+        let destination = metadata_path(root).join(document.file_name());
+        fs::create_dir_all(
+            destination
+                .parent()
+                .expect("metadata document should have a parent"),
+        )
+        .expect("metadata directory should be created");
+        let artifact = transaction_path(&destination, marker);
+        fs::write(
+            &artifact,
+            serde_json::to_vec_pretty(value).expect("transaction value should serialize"),
+        )
+        .expect("transaction artifact should be written");
+        artifact
     }
 
     struct FailingMetadataRenameFileSystem;
@@ -666,6 +693,253 @@ mod tests {
         assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
         assert!(!metadata.join("backups").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn initialization_recovers_interrupted_current_metadata_before_defaults() {
+        let root = test_root("transaction-recovery-before-defaults");
+        fs::create_dir_all(&root).expect("test archive should be created");
+
+        let mut library = LibraryMetadata::default();
+        library.books.insert(
+            "recovered-book".to_string(),
+            LibraryBookMetadata {
+                relative_path: "Recovered.epub".to_string(),
+                is_favorite: true,
+                cover_path: None,
+                source_metadata: None,
+                file_size: None,
+                file_modified_at: None,
+                added_at: "added".to_string(),
+                updated_at: "updated".to_string(),
+            },
+        );
+        let mut progress = ProgressMetadata::default();
+        progress.progress.insert(
+            "recovered-book".to_string(),
+            ReadingProgress {
+                cfi: Some("epubcfi(/6/2!/4/2)".to_string()),
+                percent: 0.42,
+                last_opened_at: Some("now".to_string()),
+            },
+        );
+        let settings = SettingsMetadata {
+            version: 3,
+            import: super::ImportSettings {
+                default_destination_folder_path: Some("Recovered".to_string()),
+            },
+            legacy_appearance: None,
+        };
+
+        let library_backup =
+            write_transaction_artifact(&root, MetadataDocument::Library, "write-backup", &library);
+        let progress_temp =
+            write_transaction_artifact(&root, MetadataDocument::Progress, "tmp-write", &progress);
+        let settings_backup = write_transaction_artifact(
+            &root,
+            MetadataDocument::Settings,
+            "write-backup",
+            &settings,
+        );
+
+        initialize_at(&root).expect("interrupted metadata should recover before initialization");
+
+        let recovered_library: LibraryMetadata = serde_json::from_slice(
+            &fs::read(metadata_path(&root).join("library.json"))
+                .expect("library metadata should be readable"),
+        )
+        .expect("library metadata should remain valid");
+        let recovered_progress: ProgressMetadata = serde_json::from_slice(
+            &fs::read(metadata_path(&root).join("progress.json"))
+                .expect("progress metadata should be readable"),
+        )
+        .expect("progress metadata should remain valid");
+        let recovered_settings: SettingsMetadata = serde_json::from_slice(
+            &fs::read(metadata_path(&root).join("settings.json"))
+                .expect("settings metadata should be readable"),
+        )
+        .expect("settings metadata should remain valid");
+
+        assert!(recovered_library.books.contains_key("recovered-book"));
+        assert!(recovered_progress.progress.contains_key("recovered-book"));
+        assert_eq!(
+            recovered_settings
+                .import
+                .default_destination_folder_path
+                .as_deref(),
+            Some("Recovered")
+        );
+        assert!(!library_backup.exists());
+        assert!(!progress_temp.exists());
+        assert!(!settings_backup.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn malformed_active_metadata_reconciles_transaction_then_uses_stable_backup() {
+        let root = test_root("transaction-before-corruption-backup");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let layout = ArchiveBackupLayout::new(&root);
+        let path = metadata_path(&root).join("library.json");
+        fs::create_dir_all(path.parent().expect("metadata should have a parent"))
+            .expect("metadata directory should be created");
+        fs::write(&path, b"{not-json").expect("malformed active metadata should be written");
+
+        let mut stable = LibraryMetadata::default();
+        stable.books.insert(
+            "stable".to_string(),
+            LibraryBookMetadata {
+                relative_path: "Stable.epub".to_string(),
+                is_favorite: false,
+                cover_path: None,
+                source_metadata: None,
+                file_size: None,
+                file_modified_at: None,
+                added_at: "added".to_string(),
+                updated_at: "updated".to_string(),
+            },
+        );
+        let stable_backup = layout
+            .stable_backup_path(MetadataDocument::Library)
+            .expect("stable backup path should resolve");
+        fs::write(
+            &stable_backup,
+            serde_json::to_vec_pretty(&stable).expect("stable backup should serialize"),
+        )
+        .expect("stable backup should be written");
+        let stale_temp = write_transaction_artifact(
+            &root,
+            MetadataDocument::Library,
+            "tmp-write",
+            &LibraryMetadata::default(),
+        );
+
+        let recovered: LibraryMetadata =
+            read_json(&root, MetadataDocument::Library).expect("stable backup should recover");
+
+        assert!(recovered.books.contains_key("stable"));
+        assert!(!stale_temp.exists());
+        assert!(stable_backup.exists());
+        assert!(metadata_path(&root)
+            .join("backups/library")
+            .read_dir()
+            .expect("backup directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("library.json.corrupt-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn recovering_one_document_does_not_rewrite_unrelated_metadata() {
+        let root = test_root("transaction-document-isolation");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let progress_path = metadata_path(&root).join("progress.json");
+        fs::create_dir_all(
+            progress_path
+                .parent()
+                .expect("metadata should have a parent"),
+        )
+        .expect("metadata directory should be created");
+        let progress_bytes = br#"{
+  "version": 1,
+  "progress": {}
+}"#;
+        fs::write(&progress_path, progress_bytes).expect("progress metadata should be written");
+
+        let mut library = LibraryMetadata::default();
+        library.books.insert(
+            "recovered".to_string(),
+            LibraryBookMetadata {
+                relative_path: "Recovered.epub".to_string(),
+                is_favorite: false,
+                cover_path: None,
+                source_metadata: None,
+                file_size: None,
+                file_modified_at: None,
+                added_at: "added".to_string(),
+                updated_at: "updated".to_string(),
+            },
+        );
+        write_transaction_artifact(&root, MetadataDocument::Library, "write-backup", &library);
+
+        let recovered: LibraryMetadata =
+            read_json(&root, MetadataDocument::Library).expect("library should recover");
+
+        assert!(recovered.books.contains_key("recovered"));
+        assert_eq!(
+            fs::read(&progress_path).expect("progress metadata should remain readable"),
+            progress_bytes
+        );
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn unrecoverable_interrupted_metadata_is_not_silently_defaulted() {
+        let root = test_root("transaction-recovery-error");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let destination = metadata_path(&root).join("library.json");
+        fs::create_dir_all(destination.parent().expect("metadata should have a parent"))
+            .expect("metadata directory should be created");
+        let invalid_artifact = transaction_path(&destination, "write-backup");
+        fs::create_dir(&invalid_artifact).expect("invalid transaction artifact should be created");
+
+        let error = read_json::<LibraryMetadata>(&root, MetadataDocument::Library)
+            .expect_err("unrecoverable transaction state should surface an error");
+
+        assert!(error.contains("Transaction artifact is not a regular file"));
+        assert!(!destination.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn missing_annotations_recover_before_optional_default() {
+        let root = test_root("annotations-transaction-recovery");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let annotations = serde_json::json!({
+            "version": 1,
+            "books": { "recovered": { "annotations": [] } }
+        });
+        let backup = write_transaction_artifact(
+            &root,
+            MetadataDocument::Annotations,
+            "write-backup",
+            &annotations,
+        );
+
+        let recovered = load_annotations_at(&root).expect("annotations should recover");
+
+        assert_eq!(recovered, annotations);
+        assert!(!backup.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn historical_backup_enumeration_ignores_transaction_artifacts() {
+        let root = test_root("transaction-not-history");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let layout = ArchiveBackupLayout::new(&root);
+        let stable = layout
+            .stable_backup_path(MetadataDocument::Library)
+            .expect("stable backup path should resolve");
+        fs::write(&stable, br#"{"version":1,"books":{}}"#)
+            .expect("stable backup should be written");
+        let transaction = write_transaction_artifact(
+            &root,
+            MetadataDocument::Library,
+            "write-backup",
+            &LibraryMetadata::default(),
+        );
+
+        let candidates = layout
+            .metadata_backup_candidates(MetadataDocument::Library)
+            .expect("backup candidates should enumerate");
+
+        assert_eq!(candidates, vec![stable]);
+        assert!(transaction.exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
