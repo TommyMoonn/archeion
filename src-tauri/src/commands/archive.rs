@@ -1224,7 +1224,6 @@ mod tests {
 
         assert!(root.join(".archeion").join("library.json").is_file());
         assert!(root.join(".archeion").join("progress.json").is_file());
-        assert!(root.join(".archeion").join("settings.json").is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -1298,7 +1297,6 @@ mod tests {
         assert!(created.is_dir());
         assert!(created.join(".archeion").join("library.json").is_file());
         assert!(created.join(".archeion").join("progress.json").is_file());
-        assert!(created.join(".archeion").join("settings.json").is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

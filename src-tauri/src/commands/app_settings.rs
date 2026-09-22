@@ -15,11 +15,7 @@ use crate::atomic_file::{
 };
 use tauri::{Emitter, Manager};
 
-use super::{
-    archive,
-    archive_backup::{ArchiveBackupLayout, MetadataDocument},
-    theme_migration,
-};
+use super::{archive, archive_backup::ArchiveBackupLayout, theme_migration};
 
 const APP_SETTINGS_FILE: &str = "settings.json";
 const APP_SETTINGS_CHANGED_EVENT: &str = "app-settings-changed";
@@ -1615,7 +1611,7 @@ fn read_legacy_archive_appearance(
     }
 
     let layout = ArchiveBackupLayout::new(archive_root);
-    let active_path = layout.checked_active_document_path(MetadataDocument::Settings)?;
+    let active_path = layout.legacy_settings_active_path()?;
     let contents = match fs::read(&active_path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -1625,7 +1621,7 @@ fn read_legacy_archive_appearance(
         return Ok(appearance);
     }
 
-    for backup_path in layout.metadata_backup_candidates(MetadataDocument::Settings)? {
+    for backup_path in layout.legacy_settings_backup_candidates()? {
         let Ok(contents) = fs::read(backup_path) else {
             continue;
         };

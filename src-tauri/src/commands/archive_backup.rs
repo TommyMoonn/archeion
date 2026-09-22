@@ -7,21 +7,21 @@ use super::metadata::METADATA_DIRECTORY;
 
 const BACKUP_DIRECTORY: &str = "backups";
 const EPUB_WRITEBACK_DIRECTORY: &str = "epub-writeback";
+const LEGACY_SETTINGS_FILE: &str = "settings.json";
+const LEGACY_SETTINGS_CATEGORY: &str = "settings";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MetadataDocument {
     Library,
     Progress,
-    Settings,
     Annotations,
     ScannerCache,
 }
 
 impl MetadataDocument {
-    pub(crate) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 4] = [
         Self::Library,
         Self::Progress,
-        Self::Settings,
         Self::Annotations,
         Self::ScannerCache,
     ];
@@ -30,7 +30,6 @@ impl MetadataDocument {
         match self {
             Self::Library => "library.json",
             Self::Progress => "progress.json",
-            Self::Settings => "settings.json",
             Self::Annotations => "annotations.json",
             Self::ScannerCache => "scanner-cache.json",
         }
@@ -40,7 +39,6 @@ impl MetadataDocument {
         match self {
             Self::Library => "library",
             Self::Progress => "progress",
-            Self::Settings => "settings",
             Self::Annotations => "annotations",
             Self::ScannerCache => "scanner-cache",
         }
@@ -72,14 +70,20 @@ impl<'a> ArchiveBackupLayout<'a> {
         &self,
         document: MetadataDocument,
     ) -> Result<PathBuf, String> {
+        self.checked_active_file_path(document.file_name())
+    }
+
+    pub(crate) fn legacy_settings_active_path(&self) -> Result<PathBuf, String> {
+        self.checked_active_file_path(LEGACY_SETTINGS_FILE)
+    }
+
+    fn checked_active_file_path(&self, file_name: &str) -> Result<PathBuf, String> {
         if let Some(metadata_directory) = self.existing_metadata_directory()? {
-            return Ok(metadata_directory.join(document.file_name()));
+            return Ok(metadata_directory.join(file_name));
         }
         let canonical_root =
             fs::canonicalize(self.archive_root).map_err(|error| error.to_string())?;
-        Ok(canonical_root
-            .join(METADATA_DIRECTORY)
-            .join(document.file_name()))
+        Ok(canonical_root.join(METADATA_DIRECTORY).join(file_name))
     }
 
     pub(crate) fn stable_backup_path(&self, document: MetadataDocument) -> Result<PathBuf, String> {
@@ -112,24 +116,34 @@ impl<'a> ArchiveBackupLayout<'a> {
         &self,
         document: MetadataDocument,
     ) -> Result<Vec<PathBuf>, String> {
+        self.backup_candidates(document.file_name(), document.category())
+    }
+
+    pub(crate) fn legacy_settings_backup_candidates(&self) -> Result<Vec<PathBuf>, String> {
+        self.backup_candidates(LEGACY_SETTINGS_FILE, LEGACY_SETTINGS_CATEGORY)
+    }
+
+    fn backup_candidates(&self, file_name: &str, category: &str) -> Result<Vec<PathBuf>, String> {
         let mut candidates = Vec::new();
 
-        if let Some(directory) = self.existing_category(document.category())? {
-            let stable = directory.join(format!("{}.bak", document.file_name()));
+        if let Some(directory) = self.existing_category(category)? {
+            let stable = directory.join(format!("{file_name}.bak"));
             if is_regular_file(&stable)? {
                 candidates.push(stable);
             }
-            candidates.extend(timestamped_files(&directory, document, "backup", true)?);
+            candidates.extend(timestamped_files_for_name(
+                &directory, file_name, "backup", true,
+            )?);
         }
 
         if let Some(legacy_directory) = self.existing_metadata_directory()? {
-            let legacy_stable = legacy_directory.join(format!("{}.bak", document.file_name()));
+            let legacy_stable = legacy_directory.join(format!("{file_name}.bak"));
             if is_regular_file(&legacy_stable)? {
                 candidates.push(legacy_stable);
             }
-            candidates.extend(timestamped_files(
+            candidates.extend(timestamped_files_for_name(
                 &legacy_directory,
-                document,
+                file_name,
                 "backup",
                 true,
             )?);
@@ -386,7 +400,11 @@ fn checked_existing_directory(
 }
 
 fn timestamped_prefix(document: MetadataDocument, marker: &str) -> String {
-    format!("{}.{marker}-", document.file_name())
+    timestamped_prefix_for_name(document.file_name(), marker)
+}
+
+fn timestamped_prefix_for_name(file_name: &str, marker: &str) -> String {
+    format!("{file_name}.{marker}-")
 }
 
 fn is_timestamped_name(file_name: &str, prefix: &str) -> bool {
@@ -399,10 +417,19 @@ fn timestamped_files(
     marker: &str,
     newest_first: bool,
 ) -> Result<Vec<PathBuf>, String> {
+    timestamped_files_for_name(directory, document.file_name(), marker, newest_first)
+}
+
+fn timestamped_files_for_name(
+    directory: &Path,
+    document_file_name: &str,
+    marker: &str,
+    newest_first: bool,
+) -> Result<Vec<PathBuf>, String> {
     if !directory.is_dir() {
         return Ok(Vec::new());
     }
-    let prefix = timestamped_prefix(document, marker);
+    let prefix = timestamped_prefix_for_name(document_file_name, marker);
     let mut backups = Vec::new();
     for entry in fs::read_dir(directory).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;

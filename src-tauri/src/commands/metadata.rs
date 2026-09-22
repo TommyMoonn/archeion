@@ -81,44 +81,6 @@ impl Default for ProgressMetadata {
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ImportSettings {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub default_destination_folder_path: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct StoredSettingsMetadata {
-    #[serde(default)]
-    import: ImportSettings,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(from = "StoredSettingsMetadata")]
-pub struct SettingsMetadata {
-    pub version: u8,
-    pub import: ImportSettings,
-}
-
-impl From<StoredSettingsMetadata> for SettingsMetadata {
-    fn from(stored: StoredSettingsMetadata) -> Self {
-        Self {
-            version: 3,
-            import: stored.import,
-        }
-    }
-}
-
-impl Default for SettingsMetadata {
-    fn default() -> Self {
-        Self {
-            version: 3,
-            import: ImportSettings::default(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ScannerCacheEntry {
     #[serde(default)]
     pub size: u64,
@@ -401,17 +363,7 @@ pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
     fs::create_dir_all(directory.join("covers")).map_err(|error| error.to_string())?;
     read_json::<LibraryMetadata>(root, MetadataDocument::Library)?;
     read_json::<ProgressMetadata>(root, MetadataDocument::Progress)?;
-    read_json::<SettingsMetadata>(root, MetadataDocument::Settings)?;
     Ok(())
-}
-
-#[cfg(test)]
-pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> {
-    if !root.is_dir() {
-        return Err("The selected archive folder is unavailable.".to_string());
-    }
-
-    read_json::<SettingsMetadata>(root, MetadataDocument::Settings)
 }
 
 #[cfg(test)]
@@ -514,10 +466,10 @@ mod tests {
     };
 
     use super::{
-        initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, load_settings_at,
-        metadata_path, read_json, save_annotations_at, write_json, write_json_with_fs,
-        LibraryBookMetadata, LibraryMetadata, ProgressMetadata, ReadingProgress, SettingsMetadata,
-        MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
+        initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, metadata_path,
+        read_json, save_annotations_at, write_json, write_json_with_fs, LibraryBookMetadata,
+        LibraryMetadata, ProgressMetadata, ReadingProgress, MAX_METADATA_BACKUPS,
+        SCANNER_CACHE_FILE,
     };
     use crate::{
         atomic_file::transaction_path,
@@ -584,7 +536,7 @@ mod tests {
     }
 
     #[test]
-    fn initializes_the_complete_metadata_layout() {
+    fn initializes_current_metadata_layout() {
         let root = test_root("layout");
         fs::create_dir_all(&root).expect("test archive should be created");
 
@@ -593,13 +545,6 @@ mod tests {
         let metadata = metadata_path(&root);
         assert!(metadata.join("library.json").is_file());
         assert!(metadata.join("progress.json").is_file());
-        assert!(metadata.join("settings.json").is_file());
-        let settings: serde_json::Value = serde_json::from_slice(
-            &fs::read(metadata.join("settings.json")).expect("settings should be readable"),
-        )
-        .expect("settings should be valid JSON");
-        assert_eq!(settings["version"], 3);
-        assert!(settings.get("appearance").is_none());
         assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
         assert!(!metadata.join("backups").exists());
@@ -634,23 +579,14 @@ mod tests {
                 last_opened_at: Some("now".to_string()),
             },
         );
-        let settings = SettingsMetadata {
-            version: 3,
-            import: super::ImportSettings {
-                default_destination_folder_path: Some("Recovered".to_string()),
-            },
-        };
+        let retired_settings_path = metadata_path(&root).join("settings.json");
+        fs::create_dir_all(&retired_settings_path)
+            .expect("retired settings artifact should be left outside current metadata ownership");
 
         let library_backup =
             write_transaction_artifact(&root, MetadataDocument::Library, "write-backup", &library);
         let progress_temp =
             write_transaction_artifact(&root, MetadataDocument::Progress, "tmp-write", &progress);
-        let settings_backup = write_transaction_artifact(
-            &root,
-            MetadataDocument::Settings,
-            "write-backup",
-            &settings,
-        );
 
         initialize_at(&root).expect("interrupted metadata should recover before initialization");
 
@@ -664,24 +600,11 @@ mod tests {
                 .expect("progress metadata should be readable"),
         )
         .expect("progress metadata should remain valid");
-        let recovered_settings: SettingsMetadata = serde_json::from_slice(
-            &fs::read(metadata_path(&root).join("settings.json"))
-                .expect("settings metadata should be readable"),
-        )
-        .expect("settings metadata should remain valid");
-
         assert!(recovered_library.books.contains_key("recovered-book"));
         assert!(recovered_progress.progress.contains_key("recovered-book"));
-        assert_eq!(
-            recovered_settings
-                .import
-                .default_destination_folder_path
-                .as_deref(),
-            Some("Recovered")
-        );
+        assert!(retired_settings_path.is_dir());
         assert!(!library_backup.exists());
         assert!(!progress_temp.exists());
-        assert!(!settings_backup.exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -860,7 +783,6 @@ mod tests {
         for (document, category) in [
             (MetadataDocument::Library, "library"),
             (MetadataDocument::Progress, "progress"),
-            (MetadataDocument::Settings, "settings"),
             (MetadataDocument::Annotations, "annotations"),
         ] {
             write_json(&root, document, &serde_json::json!({ "version": 1 }), false)
@@ -890,7 +812,7 @@ mod tests {
         let root = test_root("independent-retention");
         fs::create_dir_all(&root).expect("test archive should be created");
 
-        for document in [MetadataDocument::Library, MetadataDocument::Settings] {
+        for document in [MetadataDocument::Library, MetadataDocument::Progress] {
             write_json(&root, document, &serde_json::json!({ "version": 1 }), false)
                 .expect("initial metadata should save");
         }
@@ -906,11 +828,11 @@ mod tests {
         for revision in 0..3 {
             write_json(
                 &root,
-                MetadataDocument::Settings,
+                MetadataDocument::Progress,
                 &serde_json::json!({ "version": revision }),
                 true,
             )
-            .expect("settings metadata should save");
+            .expect("progress metadata should save");
         }
 
         let count_history = |category: &str, prefix: &str| {
@@ -924,7 +846,7 @@ mod tests {
                 .count()
         };
         assert_eq!(count_history("library", "library.json.backup-"), 5);
-        assert_eq!(count_history("settings", "settings.json.backup-"), 3);
+        assert_eq!(count_history("progress", "progress.json.backup-"), 3);
 
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
@@ -1031,138 +953,6 @@ mod tests {
         assert!(!directory.join("annotations.json.bak").exists());
         assert!(!directory.join("library.json").exists());
         assert!(!directory.join("progress.json").exists());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn loads_archive_settings_without_initializing_library_or_progress_files() {
-        let root = test_root("settings-only");
-        fs::create_dir_all(&root).expect("test archive should be created");
-        let settings_path = metadata_path(&root).join("settings.json");
-        fs::create_dir_all(
-            settings_path
-                .parent()
-                .expect("settings should have a parent"),
-        )
-        .expect("metadata directory should be created");
-        fs::write(
-            &settings_path,
-            br#"{"version":1,"import":{"defaultDestinationFolderPath":"Fiction"}}"#,
-        )
-        .expect("settings metadata should be written");
-
-        let settings = load_settings_at(&root).expect("settings should load");
-
-        assert_eq!(
-            settings.import.default_destination_folder_path.as_deref(),
-            Some("Fiction")
-        );
-        assert_eq!(settings.version, 3);
-        assert!(!metadata_path(&root).join("library.json").exists());
-        assert!(!metadata_path(&root).join("progress.json").exists());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn settings_only_loading_migrates_and_recovers_legacy_backup() {
-        let root = test_root("settings-legacy-recovery");
-        let directory = metadata_path(&root);
-        fs::create_dir_all(&directory).expect("metadata directory should be created");
-        fs::write(directory.join("settings.json"), b"{invalid")
-            .expect("active settings should be written");
-        fs::write(
-            directory.join("settings.json.bak"),
-            br#"{"version":2,"import":{"defaultDestinationFolderPath":"Recovered"},"appearance":{"appTheme":{"kind":"inherit"},"readerTheme":{"kind":"inherit"}}}"#,
-        )
-        .expect("legacy settings backup should be written");
-
-        let settings = load_settings_at(&root).expect("settings should recover");
-
-        assert_eq!(
-            settings.import.default_destination_folder_path.as_deref(),
-            Some("Recovered")
-        );
-        assert!(directory
-            .join("backups/settings/settings.json.bak")
-            .is_file());
-        assert!(!directory.join("settings.json.bak").exists());
-        assert!(!directory.join("library.json").exists());
-        assert!(!directory.join("progress.json").exists());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn normalizes_version_one_settings_without_eagerly_rewriting_the_file() {
-        let root = test_root("settings-v1-normalization");
-        fs::create_dir_all(&root).expect("test archive should be created");
-        let settings_path = metadata_path(&root).join("settings.json");
-        fs::create_dir_all(
-            settings_path
-                .parent()
-                .expect("settings should have a parent"),
-        )
-        .expect("metadata directory should be created");
-        let source = br#"{
-            "version": 1,
-            "import": { "defaultDestinationFolderPath": "Fiction" },
-            "appearance": {
-                "appTheme": { "kind": "custom", "id": "ignored-v1" },
-                "readerTheme": { "kind": "builtin", "id": "sepia" }
-            }
-        }"#;
-        fs::write(&settings_path, source).expect("settings metadata should be written");
-
-        let settings = load_settings_at(&root).expect("settings should load");
-
-        assert_eq!(settings.version, 3);
-        assert_eq!(
-            fs::read(&settings_path).expect("settings should remain readable"),
-            source
-        );
-        assert!(!settings_path.with_extension("json.bak").exists());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn normalizes_version_two_settings_and_omits_retired_appearance_from_current_writes() {
-        let root = test_root("settings-v2-roundtrip");
-        fs::create_dir_all(&root).expect("test archive should be created");
-        let settings_path = metadata_path(&root).join("settings.json");
-        fs::create_dir_all(
-            settings_path
-                .parent()
-                .expect("settings should have a parent"),
-        )
-        .expect("metadata directory should be created");
-        fs::write(
-            &settings_path,
-            br#"{
-                "version": 2,
-                "import": { "defaultDestinationFolderPath": "Fiction" },
-                "appearance": {
-                    "appTheme": { "kind": "custom", "id": "moon-ink" },
-                    "readerTheme": { "kind": "builtin", "id": "sepia" }
-                }
-            }"#,
-        )
-        .expect("settings metadata should be written");
-
-        let settings = load_settings_at(&root).expect("settings should load");
-        write_json(&root, MetadataDocument::Settings, &settings, true)
-            .expect("settings should save");
-        let serialized: serde_json::Value = serde_json::from_slice(
-            &fs::read(&settings_path).expect("settings should remain readable"),
-        )
-        .expect("settings should remain valid JSON");
-        assert_eq!(serialized["version"], 3);
-        assert_eq!(
-            serialized["import"]["defaultDestinationFolderPath"],
-            "Fiction"
-        );
-        assert!(serialized.get("appearance").is_none());
-        assert!(metadata_path(&root)
-            .join("backups/settings/settings.json.bak")
-            .is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -1506,7 +1296,7 @@ mod tests {
     }
 
     #[test]
-    fn archive_initialization_removes_all_recognized_legacy_backup_names_from_metadata_root() {
+    fn archive_initialization_migrates_current_legacy_backup_names_from_metadata_root() {
         let root = test_root("complete-legacy-migration");
         let directory = metadata_path(&root);
         fs::create_dir_all(&directory).expect("metadata directory should be created");
@@ -1517,9 +1307,6 @@ mod tests {
             "progress.json.bak",
             "progress.json.backup-1.bak",
             "progress.json.corrupt-1.bak",
-            "settings.json.bak",
-            "settings.json.backup-1.bak",
-            "settings.json.corrupt-1.bak",
             "annotations.json.bak",
             "annotations.json.backup-1.bak",
             "annotations.json.corrupt-1.bak",
@@ -1539,13 +1326,7 @@ mod tests {
             .map(|entry| entry.file_name().to_string_lossy().to_string())
             .collect::<Vec<_>>();
         assert!(!root_file_names.iter().any(|name| name.ends_with(".bak")));
-        for category in [
-            "library",
-            "progress",
-            "settings",
-            "annotations",
-            "scanner-cache",
-        ] {
+        for category in ["library", "progress", "annotations", "scanner-cache"] {
             assert!(directory.join("backups").join(category).is_dir());
         }
         fs::remove_dir_all(root).expect("test archive should be removed");
@@ -1721,65 +1502,5 @@ mod tests {
         assert_eq!(book["isFavorite"], true);
         assert!(book.get("displayTitle").is_none());
         assert!(book.get("displayAuthor").is_none());
-    }
-
-    #[test]
-    fn archive_settings_ignore_old_app_level_fields() {
-        let value = serde_json::json!({
-            "version": 1,
-            "reader": {
-                "fontSize": 22.0,
-                "progressPlacement": "side"
-            },
-            "library": {
-                "viewMode": "grid",
-                "sortBy": "folder"
-            },
-            "filesAndMetadata": {
-                "scanOnStartup": false
-            },
-            "import": {
-                "defaultMode": "move",
-                "defaultConflictAction": "replace",
-                "defaultDestinationFolderPath": "Fiction"
-            }
-        });
-
-        let parsed: SettingsMetadata =
-            serde_json::from_value(value).expect("old settings should deserialize");
-        let serialized = serde_json::to_value(parsed).expect("settings should serialize");
-
-        assert_eq!(
-            serialized["import"]["defaultDestinationFolderPath"],
-            "Fiction"
-        );
-        assert_eq!(serialized["version"], 3);
-        assert!(serialized.get("appearance").is_none());
-        assert!(serialized.get("reader").is_none());
-        assert!(serialized.get("library").is_none());
-        assert!(serialized.get("filesAndMetadata").is_none());
-        assert!(serialized["import"].get("defaultMode").is_none());
-        assert!(serialized["import"].get("defaultConflictAction").is_none());
-    }
-
-    #[test]
-    fn current_archive_settings_ignore_legacy_appearance_on_read_and_write() {
-        let parsed: SettingsMetadata = serde_json::from_value(serde_json::json!({
-            "version": 3,
-            "import": { "defaultDestinationFolderPath": "Fiction" },
-            "appearance": {
-                "appTheme": { "kind": "custom", "id": "must-not-persist" },
-                "readerTheme": { "kind": "builtin", "id": "sepia" }
-            }
-        }))
-        .expect("current settings should deserialize");
-
-        assert_eq!(
-            serde_json::to_value(parsed).expect("current settings should serialize"),
-            serde_json::json!({
-                "version": 3,
-                "import": { "defaultDestinationFolderPath": "Fiction" }
-            })
-        );
     }
 }
