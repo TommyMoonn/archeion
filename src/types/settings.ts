@@ -22,14 +22,8 @@ export type GlobalImportSettings = {
   defaultMode: ArchiveImportMode;
 };
 
-export type ArchiveImportSettings = {
-  defaultDestinationFolderPath?: string;
-};
-
 export type AppThemeSelection =
   { kind: "system" } | { kind: "builtin"; id: "dark" | "light" } | { kind: "custom"; id: string };
 
 export type ReaderThemeSelection =
   { kind: "builtin"; id: "dark" | "light" | "sepia" } | { kind: "custom"; id: string };
-
-export type ImportSettings = GlobalImportSettings & ArchiveImportSettings;

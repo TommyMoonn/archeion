@@ -14,12 +14,7 @@ import type {
   EpubDuplicateAnalysisResult,
 } from "../../types/epubIntegrity";
 import type { StoredAnnotationsMetadata } from "../annotations/annotationsMetadata";
-import type {
-  LibraryMetadata,
-  MetadataBundle,
-  ProgressMetadata,
-  SettingsMetadata,
-} from "../metadataFiles";
+import type { LibraryMetadata, MetadataBundle, ProgressMetadata } from "../metadataFiles";
 import type { ArchiveEpubScan, ArchiveScan } from "../reconcileLibraryState";
 import type {
   AddArchiveEpubInput,
@@ -60,11 +55,9 @@ export type ArchiveCommandMap = {
     EpubDiagnosticAnalysisResult
   >;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
-  load_settings_metadata: CommandDefinition<undefined, SettingsMetadata>;
   load_annotations_metadata: CommandDefinition<undefined, unknown>;
   save_library_metadata: CommandDefinition<{ metadata: LibraryMetadata }, void>;
   save_progress_metadata: CommandDefinition<{ metadata: ProgressMetadata }, void>;
-  save_settings_metadata: CommandDefinition<{ metadata: SettingsMetadata }, void>;
   save_annotations_metadata: CommandDefinition<{ metadata: StoredAnnotationsMetadata }, void>;
   add_epub_files_to_archive: CommandDefinition<AddArchiveEpubInput, ArchiveImportCommandResult>;
   read_epub_file: CommandDefinition<{ relativePath: string }, ArrayBuffer>;
@@ -150,7 +143,6 @@ export type ArchiveCommandResult<Name extends ArchiveCommandName> =
 const METADATA_WRITE_COMMANDS = new Set<ArchiveCommandName>([
   "save_library_metadata",
   "save_progress_metadata",
-  "save_settings_metadata",
   "save_annotations_metadata",
   "initialize_archive_metadata",
 ]);

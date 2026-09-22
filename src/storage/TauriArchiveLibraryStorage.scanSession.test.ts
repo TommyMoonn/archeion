@@ -447,9 +447,6 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
           });
           return structuredClone(staleMetadata);
         }
-        if (command === "load_settings_metadata") {
-          return structuredClone(metadata.settings);
-        }
         return undefined;
       });
     });
@@ -1173,7 +1170,6 @@ describe("orphan progress identity safety", () => {
     const staleMetadata = structuredClone(metadata) as unknown as {
       library: LibraryMetadata;
       progress: ProgressMetadata;
-      settings: typeof metadata.settings;
     };
     staleMetadata.library.books = {};
     staleMetadata.progress.progress["book-1"] = {
@@ -1257,7 +1253,6 @@ describe("orphan progress identity safety", () => {
     const ownedMetadata = structuredClone(metadata) as unknown as {
       library: LibraryMetadata;
       progress: ProgressMetadata;
-      settings: typeof metadata.settings;
     };
     ownedMetadata.progress.progress["orphan-book"] = { percent: 88 };
     let savedProgress: ProgressMetadata | undefined;

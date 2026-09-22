@@ -80,23 +80,6 @@ export const metadata = {
       },
     },
   },
-  settings: {
-    version: 1 as const,
-    reader: {
-      fontSize: 20,
-      fontFamily: "serif",
-      lineHeight: 1.7,
-      margin: 40,
-      theme: "sepia",
-    },
-    library: {
-      viewMode: "grid",
-      sortBy: "title",
-    },
-    import: {
-      defaultDestinationFolderPath: "Author",
-    },
-  },
 };
 
 export function twoBookArchive(folderPath: string) {
@@ -173,7 +156,6 @@ export function setupDefaultStorageMock(): void {
   invokeMock.mockImplementation(async (command) => {
     if (command === "scan_archive") return firstScan;
     if (command === "load_archive_metadata") return structuredClone(metadata);
-    if (command === "load_settings_metadata") return structuredClone(metadata.settings);
     if (command === "read_epub_file") return new Uint8Array([80, 75, 3, 4]).buffer;
     if (command === "load_epub_cover") return new Uint8Array([255, 216, 255]).buffer;
     if (command === "add_epub_files_to_archive") return { results: [] };

@@ -352,9 +352,6 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
       if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
-      if (command === "load_settings_metadata") {
-        return structuredClone(metadata.settings);
-      }
       if (command === "read_epub_file") {
         return new Uint8Array([80, 75, 3, 4]).buffer;
       }
@@ -376,7 +373,6 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "scan_archive") return firstScan;
       if (command === "load_archive_metadata") return structuredClone(metadata);
-      if (command === "load_settings_metadata") return structuredClone(metadata.settings);
       if (command === "read_epub_file") return fileRead.promise;
       return undefined;
     });
@@ -414,7 +410,6 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "scan_archive") return firstScan;
       if (command === "load_archive_metadata") return structuredClone(metadata);
-      if (command === "load_settings_metadata") return structuredClone(metadata.settings);
       if (command === "read_epub_file") return fileRead.promise;
       return undefined;
     });
@@ -434,7 +429,6 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "scan_archive") return firstScan;
       if (command === "load_archive_metadata") return structuredClone(metadata);
-      if (command === "load_settings_metadata") return structuredClone(metadata.settings);
       if (command === "read_epub_file") {
         readAttempts += 1;
         if (readAttempts === 1) throw new Error("read failed");
@@ -456,9 +450,6 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
       }
       if (command === "load_archive_metadata") {
         return structuredClone(metadata);
-      }
-      if (command === "load_settings_metadata") {
-        return structuredClone(metadata.settings);
       }
       if (command === "load_epub_cover") {
         return new Uint8Array([255, 216, 255]).buffer;

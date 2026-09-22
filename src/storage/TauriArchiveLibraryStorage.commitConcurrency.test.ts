@@ -55,10 +55,6 @@ function concurrentArchive(): { metadata: MetadataBundle; scan: ArchiveScan } {
     metadata: {
       library: { version: 1, books: libraryBooks },
       progress: { version: 1, progress },
-      settings: {
-        version: 3,
-        import: {},
-      },
     },
     scan: {
       folders: [
@@ -429,7 +425,6 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
         return {
           library: { version: 1, books: {} },
           progress: { version: 1, progress: {} },
-          settings: { version: 1 },
         };
       }
       return undefined;

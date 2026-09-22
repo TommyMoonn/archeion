@@ -39,10 +39,6 @@ function stateArchive(prefix = "Source"): { metadata: MetadataBundle; scan: Arch
     metadata: {
       library: { version: 1, books: libraryBooks },
       progress: { version: 1, progress },
-      settings: {
-        version: 3,
-        import: {},
-      },
     },
     scan: {
       folders: [

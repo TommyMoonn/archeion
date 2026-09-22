@@ -150,7 +150,6 @@ impl Default for ScannerCache {
 pub struct MetadataBundle {
     library: LibraryMetadata,
     progress: ProgressMetadata,
-    settings: SettingsMetadata,
 }
 
 fn metadata_path(root: &Path) -> PathBuf {
@@ -406,6 +405,7 @@ pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
 pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> {
     if !root.is_dir() {
         return Err("The selected archive folder is unavailable.".to_string());
@@ -465,18 +465,7 @@ pub fn load_archive_metadata(
     let metadata = MetadataBundle {
         library: read_json(&root, MetadataDocument::Library)?,
         progress: read_json(&root, MetadataDocument::Progress)?,
-        settings: read_json(&root, MetadataDocument::Settings)?,
     };
-    Ok(metadata)
-}
-
-#[tauri::command]
-pub fn load_settings_metadata(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-) -> Result<SettingsMetadata, String> {
-    let root = resolve_command_archive_root(&app, root_path)?;
-    let metadata = load_settings_at(&root)?;
     Ok(metadata)
 }
 
@@ -498,16 +487,6 @@ pub fn save_progress_metadata(
 ) -> Result<(), String> {
     let root = resolve_command_archive_root(&app, root_path)?;
     write_json(&root, MetadataDocument::Progress, &metadata, true)
-}
-
-#[tauri::command]
-pub fn save_settings_metadata(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-    metadata: SettingsMetadata,
-) -> Result<(), String> {
-    let root = resolve_command_archive_root(&app, root_path)?;
-    write_json(&root, MetadataDocument::Settings, &metadata, true)
 }
 
 #[tauri::command]
