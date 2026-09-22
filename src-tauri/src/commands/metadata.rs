@@ -363,6 +363,7 @@ pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
     fs::create_dir_all(directory.join("covers")).map_err(|error| error.to_string())?;
     read_json::<LibraryMetadata>(root, MetadataDocument::Library)?;
     read_json::<ProgressMetadata>(root, MetadataDocument::Progress)?;
+    layout.retire_legacy_settings_artifacts();
     Ok(())
 }
 
@@ -549,6 +550,166 @@ mod tests {
         assert!(metadata.join("covers").is_dir());
         assert!(!metadata.join("backups").exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn initialization_retires_legacy_settings_without_touching_archive_data() {
+        let root = test_root("retire-legacy-settings");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        initialize_at(&root).expect("metadata should initialize");
+
+        let metadata = metadata_path(&root);
+        let library_path = metadata.join("library.json");
+        let progress_path = metadata.join("progress.json");
+        let library_before = fs::read(&library_path).expect("library metadata should be readable");
+        let progress_before =
+            fs::read(&progress_path).expect("progress metadata should be readable");
+
+        let epub_path = root.join("Keep.epub");
+        let annotations_path = metadata.join("annotations.json");
+        let scanner_cache_path = metadata.join(SCANNER_CACHE_FILE);
+        let cover_path = metadata.join("covers/keep.webp");
+        fs::write(&epub_path, b"epub-bytes").expect("epub should be written");
+        fs::write(&annotations_path, b"annotations-bytes").expect("annotations should be written");
+        fs::write(&scanner_cache_path, b"scanner-bytes").expect("scanner cache should be written");
+        fs::write(&cover_path, b"cover-bytes").expect("cover should be written");
+
+        fs::write(metadata.join("settings.json"), b"legacy-settings")
+            .expect("legacy settings should be written");
+        fs::write(metadata.join("settings.json.bak"), b"legacy-stable")
+            .expect("legacy root backup should be written");
+        fs::write(
+            metadata.join("settings.json.backup-123.bak"),
+            b"legacy-timestamped",
+        )
+        .expect("legacy timestamped backup should be written");
+        fs::write(
+            metadata.join("settings.json.corrupt-124.bak"),
+            b"legacy-corrupt",
+        )
+        .expect("legacy corruption backup should be written");
+        fs::write(
+            metadata.join("settings.json.tmp-write-1-2-3"),
+            b"legacy-transaction-temp",
+        )
+        .expect("legacy transaction temp should be written");
+        fs::write(
+            metadata.join("settings.json.write-backup-1-2-4"),
+            b"legacy-transaction-backup",
+        )
+        .expect("legacy transaction backup should be written");
+
+        let settings_backup_directory = metadata.join("backups/settings");
+        fs::create_dir_all(&settings_backup_directory)
+            .expect("legacy settings backup directory should be created");
+        fs::write(
+            settings_backup_directory.join("settings.json.bak"),
+            b"category-stable",
+        )
+        .expect("category stable backup should be written");
+        fs::write(
+            settings_backup_directory.join("settings.json.backup-125.collision-1.bak"),
+            b"category-timestamped",
+        )
+        .expect("category timestamped backup should be written");
+        fs::write(
+            settings_backup_directory.join("settings.json.corrupt-126.bak"),
+            b"category-corrupt",
+        )
+        .expect("category corruption backup should be written");
+
+        let library_backup_directory = metadata.join("backups/library");
+        fs::create_dir_all(&library_backup_directory)
+            .expect("library backup directory should be created");
+        let library_backup_path = library_backup_directory.join("library.json.bak");
+        fs::write(&library_backup_path, b"library-backup")
+            .expect("unrelated backup should be written");
+
+        initialize_at(&root).expect("legacy settings cleanup must not block initialization");
+
+        assert_eq!(fs::read(&library_path).unwrap(), library_before);
+        assert_eq!(fs::read(&progress_path).unwrap(), progress_before);
+        assert_eq!(fs::read(&epub_path).unwrap(), b"epub-bytes");
+        assert_eq!(fs::read(&annotations_path).unwrap(), b"annotations-bytes");
+        assert_eq!(fs::read(&scanner_cache_path).unwrap(), b"scanner-bytes");
+        assert_eq!(fs::read(&cover_path).unwrap(), b"cover-bytes");
+        assert_eq!(fs::read(&library_backup_path).unwrap(), b"library-backup");
+
+        assert!(!metadata.join("settings.json").exists());
+        assert!(!metadata.join("settings.json.bak").exists());
+        assert!(!metadata.join("settings.json.backup-123.bak").exists());
+        assert!(!metadata.join("settings.json.corrupt-124.bak").exists());
+        assert!(!metadata.join("settings.json.tmp-write-1-2-3").exists());
+        assert!(!metadata.join("settings.json.write-backup-1-2-4").exists());
+        assert!(!settings_backup_directory.exists());
+
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn legacy_settings_cleanup_failure_does_not_block_archive_opening() {
+        let root = test_root("retire-legacy-settings-nonempty-backup");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        initialize_at(&root).expect("metadata should initialize");
+
+        let settings_backup_directory = metadata_path(&root).join("backups/settings");
+        fs::create_dir_all(&settings_backup_directory)
+            .expect("legacy settings backup directory should be created");
+        let known_backup = settings_backup_directory.join("settings.json.bak");
+        let unrelated_file = settings_backup_directory.join("keep.txt");
+        fs::write(&known_backup, b"legacy-settings")
+            .expect("known legacy settings backup should be written");
+        fs::write(&unrelated_file, b"unrelated").expect("unrelated file should be written");
+
+        initialize_at(&root).expect("non-empty cleanup directory must not block archive opening");
+
+        assert!(!known_backup.exists());
+        assert_eq!(fs::read(&unrelated_file).unwrap(), b"unrelated");
+        assert!(settings_backup_directory.is_dir());
+        assert!(metadata_path(&root).join("library.json").is_file());
+        assert!(metadata_path(&root).join("progress.json").is_file());
+
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn legacy_settings_retirement_does_not_follow_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let root = test_root("retire-legacy-settings-symlink");
+        let outside = test_root("retire-legacy-settings-outside");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        fs::create_dir_all(&outside).expect("outside directory should be created");
+        initialize_at(&root).expect("metadata should initialize");
+
+        let metadata = metadata_path(&root);
+        let outside_settings = outside.join("settings.json");
+        fs::write(&outside_settings, b"outside-settings")
+            .expect("outside settings should be written");
+        symlink(&outside_settings, metadata.join("settings.json"))
+            .expect("legacy settings symlink should be created");
+
+        let outside_backups = outside.join("settings-backups");
+        fs::create_dir_all(&outside_backups).expect("outside backup directory should be created");
+        let outside_backup = outside_backups.join("settings.json.bak");
+        fs::write(&outside_backup, b"outside-backup").expect("outside backup should be written");
+        let backup_root = metadata.join("backups");
+        fs::create_dir_all(&backup_root).expect("backup root should be created");
+        symlink(&outside_backups, backup_root.join("settings"))
+            .expect("settings backup symlink should be created");
+
+        fs::write(metadata.join("settings.json.bak"), b"owned-backup")
+            .expect("owned legacy backup should be written");
+
+        initialize_at(&root).expect("symlinked legacy settings must not block archive opening");
+
+        assert_eq!(fs::read(&outside_settings).unwrap(), b"outside-settings");
+        assert_eq!(fs::read(&outside_backup).unwrap(), b"outside-backup");
+        assert!(!metadata.join("settings.json.bak").exists());
+
+        fs::remove_dir_all(root).expect("test archive should be removed");
+        fs::remove_dir_all(outside).expect("outside directory should be removed");
     }
 
     #[test]

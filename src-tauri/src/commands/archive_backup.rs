@@ -9,6 +9,11 @@ const BACKUP_DIRECTORY: &str = "backups";
 const EPUB_WRITEBACK_DIRECTORY: &str = "epub-writeback";
 const LEGACY_SETTINGS_FILE: &str = "settings.json";
 const LEGACY_SETTINGS_CATEGORY: &str = "settings";
+const LEGACY_SETTINGS_STABLE_BACKUP_FILE: &str = "settings.json.bak";
+const LEGACY_SETTINGS_BACKUP_PREFIX: &str = "settings.json.backup-";
+const LEGACY_SETTINGS_CORRUPT_PREFIX: &str = "settings.json.corrupt-";
+const LEGACY_SETTINGS_TEMPORARY_PREFIX: &str = "settings.json.tmp-write-";
+const LEGACY_SETTINGS_TRANSACTION_BACKUP_PREFIX: &str = "settings.json.write-backup-";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MetadataDocument {
@@ -73,10 +78,6 @@ impl<'a> ArchiveBackupLayout<'a> {
         self.checked_active_file_path(document.file_name())
     }
 
-    pub(crate) fn legacy_settings_active_path(&self) -> Result<PathBuf, String> {
-        self.checked_active_file_path(LEGACY_SETTINGS_FILE)
-    }
-
     fn checked_active_file_path(&self, file_name: &str) -> Result<PathBuf, String> {
         if let Some(metadata_directory) = self.existing_metadata_directory()? {
             return Ok(metadata_directory.join(file_name));
@@ -119,8 +120,58 @@ impl<'a> ArchiveBackupLayout<'a> {
         self.backup_candidates(document.file_name(), document.category())
     }
 
-    pub(crate) fn legacy_settings_backup_candidates(&self) -> Result<Vec<PathBuf>, String> {
-        self.backup_candidates(LEGACY_SETTINGS_FILE, LEGACY_SETTINGS_CATEGORY)
+    pub(crate) fn read_legacy_settings_for_migration<T>(
+        &self,
+        mut parse: impl FnMut(&[u8]) -> Option<T>,
+    ) -> Result<Option<T>, String> {
+        let Some(metadata_directory) = self.existing_metadata_directory()? else {
+            return Ok(None);
+        };
+        let active = metadata_directory.join(LEGACY_SETTINGS_FILE);
+        if is_regular_file_without_following(&active)? {
+            let contents = fs::read(active).map_err(|error| error.to_string())?;
+            if let Some(value) = parse(&contents) {
+                return Ok(Some(value));
+            }
+        }
+
+        let mut candidates = Vec::new();
+        if let Some(directory) = self.existing_category(LEGACY_SETTINGS_CATEGORY)? {
+            append_backup_candidates(&mut candidates, &directory, LEGACY_SETTINGS_FILE)?;
+        }
+        append_backup_candidates(&mut candidates, &metadata_directory, LEGACY_SETTINGS_FILE)?;
+        for path in candidates {
+            let Ok(contents) = fs::read(path) else {
+                continue;
+            };
+            if let Some(value) = parse(&contents) {
+                return Ok(Some(value));
+            }
+        }
+        Ok(None)
+    }
+
+    pub(crate) fn retire_legacy_settings_artifacts(&self) {
+        let Ok(Some(metadata_directory)) = self.existing_metadata_directory() else {
+            return;
+        };
+
+        retire_matching_files(&metadata_directory, is_legacy_settings_root_artifact);
+
+        let Ok(Some(backup_root)) = self.existing_backup_root() else {
+            return;
+        };
+        let settings_directory = backup_root.join(LEGACY_SETTINGS_CATEGORY);
+        let Ok(Some(settings_directory)) = checked_existing_directory(
+            &settings_directory,
+            &settings_directory,
+            "Legacy settings backup category",
+        ) else {
+            return;
+        };
+
+        retire_matching_files(&settings_directory, is_legacy_settings_backup_artifact);
+        let _ = fs::remove_dir(settings_directory);
     }
 
     fn backup_candidates(&self, file_name: &str, category: &str) -> Result<Vec<PathBuf>, String> {
@@ -397,6 +448,62 @@ fn checked_existing_directory(
         return Err(format!("{label} is outside the active archive."));
     }
     Ok(Some(canonical_path))
+}
+
+fn append_backup_candidates(
+    candidates: &mut Vec<PathBuf>,
+    directory: &Path,
+    file_name: &str,
+) -> Result<(), String> {
+    let stable = directory.join(format!("{file_name}.bak"));
+    if is_regular_file_without_following(&stable)? {
+        candidates.push(stable);
+    }
+    candidates.extend(timestamped_files_for_name(
+        directory, file_name, "backup", true,
+    )?);
+    Ok(())
+}
+
+fn is_regular_file_without_following(path: &Path) -> Result<bool, String> {
+    Ok(existing_entry(path)?
+        .is_some_and(|metadata| !metadata.file_type().is_symlink() && metadata.is_file()))
+}
+
+fn is_legacy_settings_backup_artifact(file_name: &str) -> bool {
+    file_name == LEGACY_SETTINGS_STABLE_BACKUP_FILE
+        || ((file_name.starts_with(LEGACY_SETTINGS_BACKUP_PREFIX)
+            || file_name.starts_with(LEGACY_SETTINGS_CORRUPT_PREFIX))
+            && file_name.ends_with(".bak"))
+}
+
+fn is_legacy_settings_root_artifact(file_name: &str) -> bool {
+    file_name == LEGACY_SETTINGS_FILE
+        || is_legacy_settings_backup_artifact(file_name)
+        || file_name.starts_with(LEGACY_SETTINGS_TEMPORARY_PREFIX)
+        || file_name.starts_with(LEGACY_SETTINGS_TRANSACTION_BACKUP_PREFIX)
+}
+
+fn retire_matching_files(directory: &Path, matches: impl Fn(&str) -> bool) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let Some(file_name) = file_name.to_str() else {
+            continue;
+        };
+        if !matches(file_name) {
+            continue;
+        }
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_symlink() || !file_type.is_file() {
+            continue;
+        }
+        let _ = fs::remove_file(entry.path());
+    }
 }
 
 fn timestamped_prefix(document: MetadataDocument, marker: &str) -> String {

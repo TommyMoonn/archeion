@@ -1610,26 +1610,9 @@ fn read_legacy_archive_appearance(
         return Err("The selected archive folder is unavailable.".to_string());
     }
 
-    let layout = ArchiveBackupLayout::new(archive_root);
-    let active_path = layout.legacy_settings_active_path()?;
-    let contents = match fs::read(&active_path) {
-        Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error.to_string()),
-    };
-    if let Ok(appearance) = parse_legacy_archive_appearance(&contents) {
-        return Ok(appearance);
-    }
-
-    for backup_path in layout.legacy_settings_backup_candidates()? {
-        let Ok(contents) = fs::read(backup_path) else {
-            continue;
-        };
-        if let Ok(appearance) = parse_legacy_archive_appearance(&contents) {
-            return Ok(appearance);
-        }
-    }
-    Ok(None)
+    ArchiveBackupLayout::new(archive_root).read_legacy_settings_for_migration(|contents| {
+        parse_legacy_archive_appearance(contents).ok().flatten()
+    })
 }
 
 fn legacy_global_theme_selections(
@@ -1887,9 +1870,12 @@ mod tests {
 
     use crate::{
         atomic_file::transaction_path,
-        commands::theme_migration::{
-            migrate_legacy_theme_packages_at, ThemeMigrationAction, ThemeMigrationRecord,
-            ThemeMigrationReport,
+        commands::{
+            metadata,
+            theme_migration::{
+                migrate_legacy_theme_packages_at, ThemeMigrationAction, ThemeMigrationRecord,
+                ThemeMigrationReport,
+            },
         },
     };
 
@@ -3216,6 +3202,22 @@ mod tests {
         assert_eq!(std::fs::read(&active_path).unwrap(), invalid_active);
         assert_eq!(std::fs::read(&backup_path).unwrap(), legacy_backup);
         assert_eq!(std::fs::read_dir(&backup_directory).unwrap().count(), 1);
+
+        metadata::initialize_at(&archive).expect("opened archive should retire legacy settings");
+        assert_eq!(
+            read_settings(&settings_path).unwrap().app_theme,
+            AppThemeSelection::Builtin {
+                id: BuiltInAppThemeId::Light
+            }
+        );
+        assert_eq!(
+            read_settings(&settings_path).unwrap().reader_theme,
+            ReaderThemeSelection::Builtin {
+                id: BuiltInReaderThemeId::Sepia
+            }
+        );
+        assert!(!active_path.exists());
+        assert!(!backup_directory.exists());
         std::fs::remove_dir_all(root).unwrap();
     }
 
