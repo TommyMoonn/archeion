@@ -1214,6 +1214,117 @@ impl Default for AppPreferences {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(
+    tag = "field",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum LibrarySettingsMutation {
+    BooksCardSize(String),
+    BooksSortBy(String),
+    BooksViewMode(String),
+    FoldersCardSize(String),
+    FoldersSortBy(String),
+    FoldersViewMode(String),
+    SeriesCardSize(String),
+    SeriesSortBy(String),
+    SeriesViewMode(String),
+    FilterSeries(Vec<String>),
+    FilterSubjects(Vec<String>),
+    FilterLanguages(Vec<String>),
+    FilterPublishers(Vec<String>),
+    FilterReadingStatuses(Vec<String>),
+    FilterFavoritesOnly(bool),
+    FilterMissingMetadata(bool),
+    FilterMissingCover(bool),
+    SmartViewsEnabled(bool),
+    SmartViewsVisible(Vec<String>),
+}
+
+impl LibrarySettingsMutation {
+    fn apply(self, settings: &mut LibraryDisplaySettings) {
+        match self {
+            Self::BooksCardSize(value) => settings.collections.books.card_size = value,
+            Self::BooksSortBy(value) => settings.collections.books.sort_by = value,
+            Self::BooksViewMode(value) => settings.collections.books.view_mode = value,
+            Self::FoldersCardSize(value) => settings.collections.folders.card_size = value,
+            Self::FoldersSortBy(value) => settings.collections.folders.sort_by = value,
+            Self::FoldersViewMode(value) => settings.collections.folders.view_mode = value,
+            Self::SeriesCardSize(value) => settings.collections.series.card_size = value,
+            Self::SeriesSortBy(value) => settings.collections.series.sort_by = value,
+            Self::SeriesViewMode(value) => settings.collections.series.view_mode = value,
+            Self::FilterSeries(value) => settings.filters.series = value,
+            Self::FilterSubjects(value) => settings.filters.subjects = value,
+            Self::FilterLanguages(value) => settings.filters.languages = value,
+            Self::FilterPublishers(value) => settings.filters.publishers = value,
+            Self::FilterReadingStatuses(value) => settings.filters.reading_statuses = value,
+            Self::FilterFavoritesOnly(value) => settings.filters.favorites_only = value,
+            Self::FilterMissingMetadata(value) => settings.filters.missing_metadata = value,
+            Self::FilterMissingCover(value) => settings.filters.missing_cover = value,
+            Self::SmartViewsEnabled(value) => settings.smart_views.enabled = value,
+            Self::SmartViewsVisible(value) => settings.smart_views.visible = value,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(
+    tag = "field",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ReaderSettingsMutation {
+    FontSize(f64),
+    FontFamily(String),
+    LineHeight(f64),
+    ReadingWidth(String),
+    Theme(String),
+    ProgressPlacement(String),
+    Mode(String),
+}
+
+impl ReaderSettingsMutation {
+    fn apply(self, settings: &mut ReaderSettings) {
+        match self {
+            Self::FontSize(value) => settings.font_size = value,
+            Self::FontFamily(value) => settings.font_family = value,
+            Self::LineHeight(value) => settings.line_height = value,
+            Self::ReadingWidth(value) => settings.reading_width = value,
+            Self::Theme(value) => settings.theme = value,
+            Self::ProgressPlacement(value) => settings.progress_placement = value,
+            Self::Mode(value) => settings.mode = value,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(
+    tag = "field",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum FilesAndMetadataSettingsMutation {
+    KeepEpubWritebackBackup(bool),
+    LiveWatcherEnabled(bool),
+    ScanOnStartup(bool),
+}
+
+impl FilesAndMetadataSettingsMutation {
+    fn apply(self, settings: &mut FilesAndMetadataSettings) {
+        match self {
+            Self::KeepEpubWritebackBackup(value) => {
+                settings.keep_epub_writeback_backup = value;
+            }
+            Self::LiveWatcherEnabled(value) => settings.live_watcher_enabled = value,
+            Self::ScanOnStartup(value) => settings.scan_on_startup = value,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "area", content = "value", rename_all = "camelCase")]
 pub enum AppSettingsMutation {
     AppTheme(AppThemeSelection),
@@ -1221,12 +1332,16 @@ pub enum AppSettingsMutation {
     Appearance(AppearanceSettings),
     ConfirmDestructiveFileActions(bool),
     Density(String),
+    // Whole-area variants remain until the frontend migrates to the field variants.
     FilesAndMetadata(FilesAndMetadataSettings),
+    FilesAndMetadataField(FilesAndMetadataSettingsMutation),
     Import(GlobalImportSettings),
     Keyboard(KeyboardPreferences),
     Library(Box<LibraryDisplaySettings>),
+    LibraryField(LibrarySettingsMutation),
     Navigation(Option<RememberedNavigationState>),
     Reader(Box<ReaderSettings>),
+    ReaderField(ReaderSettingsMutation),
     ReaderTheme(ReaderThemeSelection),
     RememberWindowState(bool),
     RestoreLastReader(bool),
@@ -1246,11 +1361,16 @@ impl AppSettingsMutation {
             }
             Self::Density(value) => preferences.density = value,
             Self::FilesAndMetadata(value) => preferences.files_and_metadata = value,
+            Self::FilesAndMetadataField(value) => {
+                value.apply(&mut preferences.files_and_metadata);
+            }
             Self::Import(value) => preferences.import = value,
             Self::Keyboard(value) => preferences.keyboard = value,
             Self::Library(value) => preferences.library = *value,
+            Self::LibraryField(value) => value.apply(&mut preferences.library),
             Self::Navigation(value) => preferences.navigation = value,
             Self::Reader(value) => preferences.reader = *value,
+            Self::ReaderField(value) => value.apply(&mut preferences.reader),
             Self::ReaderTheme(value) => preferences.reader_theme = value,
             Self::RememberWindowState(value) => preferences.remember_window_state = value,
             Self::RestoreLastReader(value) => preferences.restore_last_reader = value,
@@ -1615,6 +1735,8 @@ impl AppSettingsService {
         publish: impl FnOnce(&AppSettingsSnapshot),
     ) -> Result<AppSettingsSnapshot, String> {
         let mut state = self.lock_state()?;
+        // The mutex serializes commits. Every operation applies to the latest native snapshot,
+        // so disjoint leaves merge and the later committed operation wins on the same leaf.
         let mut preferences = self.load_preferences(&mut state)?.clone();
         mutation.apply(&mut preferences);
         let value = serde_json::to_value(preferences)
@@ -1695,6 +1817,17 @@ mod tests {
         LibrarySmartViewSettings, ReaderSettings, ReaderThemeSelection,
         THEME_MIGRATION_RECEIPT_FILE,
     };
+
+    fn preference_field_mutation(area: &str, field: &str, value: Value) -> AppSettingsMutation {
+        serde_json::from_value(serde_json::json!({
+            "area": area,
+            "value": {
+                "field": field,
+                "value": value,
+            }
+        }))
+        .unwrap_or_else(|error| panic!("{area}.{field} mutation should deserialize: {error}"))
+    }
 
     fn merge_expected(base: &mut Value, patch: &Value) {
         match (base, patch) {
@@ -2421,6 +2554,196 @@ mod tests {
             read_settings(&root.join("settings.json")).expect("settings should persist"),
             second.preferences
         );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn library_field_mutations_merge_against_the_latest_native_snapshot() {
+        let root = temporary_settings_root("library-field-merge");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let published = std::cell::RefCell::new(Vec::new());
+        let view_mode = preference_field_mutation(
+            "libraryField",
+            "booksViewMode",
+            Value::String("list".to_string()),
+        );
+        let favorites =
+            preference_field_mutation("libraryField", "filterFavoritesOnly", Value::Bool(true));
+
+        let first = service
+            .mutate(view_mode, |event| {
+                published.borrow_mut().push(event.clone())
+            })
+            .expect("book view mode should update");
+        let second = service
+            .mutate(favorites, |event| {
+                published.borrow_mut().push(event.clone())
+            })
+            .expect("favorites filter should update");
+
+        assert_eq!(first.revision, 1);
+        assert_eq!(second.revision, 2);
+        assert_eq!(
+            second.preferences.library.collections.books.view_mode,
+            "list"
+        );
+        assert!(second.preferences.library.filters.favorites_only);
+        assert_eq!(published.borrow().as_slice(), &[first, second.clone()]);
+        assert_eq!(
+            read_settings(&root.join("settings.json")).expect("settings should persist"),
+            second.preferences
+        );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn reader_field_mutations_merge_against_the_latest_native_snapshot() {
+        let root = temporary_settings_root("reader-field-merge");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let font_size = preference_field_mutation(
+            "readerField",
+            "fontSize",
+            Value::Number(serde_json::Number::from(22)),
+        );
+        let mode = preference_field_mutation(
+            "readerField",
+            "mode",
+            Value::String("continuous".to_string()),
+        );
+
+        service
+            .mutate(font_size, |_| {})
+            .expect("font size should update");
+        let snapshot = service
+            .mutate(mode, |_| {})
+            .expect("reader mode should update");
+
+        assert_eq!(snapshot.revision, 2);
+        assert_eq!(snapshot.preferences.reader.font_size, 22.0);
+        assert_eq!(snapshot.preferences.reader.mode, "continuous");
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn files_and_metadata_field_mutations_merge_against_the_latest_native_snapshot() {
+        let root = temporary_settings_root("files-field-merge");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let keep_backup = preference_field_mutation(
+            "filesAndMetadataField",
+            "keepEpubWritebackBackup",
+            Value::Bool(true),
+        );
+        let scan_on_startup =
+            preference_field_mutation("filesAndMetadataField", "scanOnStartup", Value::Bool(false));
+
+        service
+            .mutate(keep_backup, |_| {})
+            .expect("backup preference should update");
+        let snapshot = service
+            .mutate(scan_on_startup, |_| {})
+            .expect("startup scan preference should update");
+
+        assert_eq!(snapshot.revision, 2);
+        assert!(
+            snapshot
+                .preferences
+                .files_and_metadata
+                .keep_epub_writeback_backup
+        );
+        assert!(!snapshot.preferences.files_and_metadata.scan_on_startup);
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn same_leaf_mutations_use_serialized_last_intent_wins() {
+        let root = temporary_settings_root("same-leaf-last-intent");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let first = preference_field_mutation(
+            "readerField",
+            "mode",
+            Value::String("continuous".to_string()),
+        );
+        let second =
+            preference_field_mutation("readerField", "mode", Value::String("paged".to_string()));
+
+        service
+            .mutate(first, |_| {})
+            .expect("first reader mode should update");
+        let snapshot = service
+            .mutate(second, |_| {})
+            .expect("second reader mode should update");
+
+        assert_eq!(snapshot.revision, 2);
+        assert_eq!(snapshot.preferences.reader.mode, "paged");
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn invalid_preference_field_operations_are_rejected() {
+        let unknown_field = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
+            "area": "libraryField",
+            "value": {
+                "field": "unknownField",
+                "value": true,
+            }
+        }));
+        let invalid_value = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
+            "area": "filesAndMetadataField",
+            "value": {
+                "field": "scanOnStartup",
+                "value": "yes",
+            }
+        }));
+
+        assert!(unknown_field.is_err());
+        assert!(invalid_value.is_err());
+    }
+
+    #[test]
+    fn whole_area_mutations_remain_available_during_caller_migration() {
+        let root = temporary_settings_root("whole-area-compatibility");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let library = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
+            "area": "library",
+            "value": {
+                "collections": {},
+                "filters": { "favoritesOnly": true },
+                "smartViews": {}
+            }
+        }))
+        .expect("library snapshot should remain compatible");
+        let reader = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
+            "area": "reader",
+            "value": { "mode": "continuous" }
+        }))
+        .expect("reader snapshot should remain compatible");
+        let files = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
+            "area": "filesAndMetadata",
+            "value": {
+                "keepEpubWritebackBackup": true,
+                "liveWatcherEnabled": true,
+                "scanOnStartup": false
+            }
+        }))
+        .expect("files and metadata snapshot should remain compatible");
+
+        service
+            .mutate(library, |_| {})
+            .expect("library should update");
+        service
+            .mutate(reader, |_| {})
+            .expect("reader should update");
+        let snapshot = service.mutate(files, |_| {}).expect("files should update");
+
+        assert!(snapshot.preferences.library.filters.favorites_only);
+        assert_eq!(snapshot.preferences.reader.mode, "continuous");
+        assert!(
+            snapshot
+                .preferences
+                .files_and_metadata
+                .keep_epub_writeback_backup
+        );
+        assert!(!snapshot.preferences.files_and_metadata.scan_on_startup);
         std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
 
