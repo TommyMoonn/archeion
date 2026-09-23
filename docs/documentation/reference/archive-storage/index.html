@@ -345,13 +345,15 @@
           <p>
             Application preferences, Reader defaults, keyboard shortcuts, theme selections, custom
             theme packages, installed dictionaries, and standalone utility-window preferences are
-            application-wide. They are stored in Archeion's application data rather than copied into
-            each archive.
+            application-wide. Preferences are stored in the application <code>settings.json</code>,
+            with custom theme packages alongside it in Archeion's application data rather than
+            copied into each archive.
           </p>
           <p>
-            Older archives may still contain legacy <code>.archeion/themes/</code> packages. Current
-            Archeion can copy compatible legacy packages into global theme storage without deleting
-            the archive copy.
+            Older archives may still contain legacy <code>.archeion/themes/</code> packages and
+            archive settings files. They are migration inputs, not current preferences. Archeion can
+            copy compatible theme packages into application data without deleting the archive copy;
+            it retires obsolete archive settings artifacts when an archive is opened.
           </p>
           <h2 id="backup">Back up or move an archive</h2>
           <p>

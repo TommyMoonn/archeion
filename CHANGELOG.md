@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-09-23
+
+Archeion 1.5.3 keeps Settings changes consistent across open windows and makes failed Settings loads retryable.
+
+### Changed
+
+- Add EPUB now starts at the archive root unless the current import explicitly targets a folder. The saved destination preference has been removed; Copy or Move and filename-conflict defaults remain application-wide.
+- Compatible theme choices from older archives still carry into application-wide settings during upgrade.
+
+### Fixed
+
+- Changes to different Library, Reader, or Storage settings made in separate windows now survive together instead of replacing one another.
+- Retry now starts a new load after a temporary failure in Settings or Theme Manager, including active-archive maintenance controls.
+
 ## [1.5.2] - 2026-09-22
 
 Archeion 1.5.2 recovers saved application and archive state after interrupted writes.
@@ -561,7 +575,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.2...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.3...HEAD
+[1.5.3]: https://github.com/TommyMoonn/archeion/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/TommyMoonn/archeion/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/TommyMoonn/archeion/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/TommyMoonn/archeion/compare/v1.4.3...v1.5.0

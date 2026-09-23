@@ -363,8 +363,8 @@
               placement.
             </li>
             <li>
-              <strong>Archives</strong>: active archive folder, Archive Manager, import defaults,
-              and the active archive's destination folder.
+              <strong>Archives</strong>: active archive folder, Archive Manager, default import
+              mode, and default filename-conflict handling.
             </li>
             <li>
               <strong>Storage</strong>: global monitoring/backup policies plus maintenance actions
@@ -383,8 +383,17 @@
           <p>
             Application preferences such as appearance, Reader defaults, keyboard shortcuts,
             dictionary installations, and theme selections are application-wide and follow you when
-            you switch archives. Archive-specific controls are identified by the active archive,
-            such as the default import destination and Storage maintenance actions.
+            you switch archives. They are saved in the application <code>settings.json</code>.
+            Storage maintenance actions apply to the active archive.
+          </p>
+          <p>
+            Ordinary <strong>Add EPUB</strong> starts at the archive root. A folder target supplied
+            for the current operation or selected in the dialog applies only to that import. Default
+            import mode and filename-conflict handling remain application-wide.
+          </p>
+          <p>
+            If Settings cannot load after a temporary error, select <strong>Retry</strong> in the
+            same window to try again.
           </p>
           <p>
             See <a href="../../reference/archive-storage/">Archive storage</a> for the boundary

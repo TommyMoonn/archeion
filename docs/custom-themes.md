@@ -1,17 +1,15 @@
 # Custom themes
 
-Archeion theme manifests are strict, color-only JSON files. They can recolor the application and EPUB reader without changing layout, typography, motion, assets, or behavior. Themes are archive-local so they remain with the archive when its `.archeion` directory is copied or backed up.
+Archeion theme manifests are strict, color-only JSON files. They can recolor the application and EPUB reader without changing layout, typography, motion, assets, or behavior. Current theme packages are application-wide and remain available when you switch archives.
 
 ## Package layout
 
-Store each theme in one direct child directory of `.archeion/themes/`:
+Use **Open themes folder** in Theme Manager to find Archeion's application-data theme directory. Store each theme in one direct child directory:
 
 ```text
-My Archive/
-└── .archeion/
-    └── themes/
-        └── moon-ink/
-            └── theme.json
+themes/
+└── moon-ink/
+    └── theme.json
 ```
 
 The directory name must exactly match the manifest `id`. Archeion reads only the exact `theme.json` file from each direct child directory. Hidden directories and nested packages are ignored. Additional package files are ignored and are never executed by schema version 1.
@@ -128,19 +126,19 @@ Archeion derives quotation and visited-link treatments. Reader typography remain
 
 ## Managing themes in Archeion
 
-Open **Settings → Appearance → App themes → Manage** to inspect built-in application themes and packages stored with the active archive. Theme Manager can import a JSON manifest, preview a valid custom application theme, select it for the app, or delete its package. Use **Open themes folder** to create or edit packages directly in `.archeion/themes/` with an external editor. The [schema](schemas/archeion-theme-v1.schema.json) and [examples](examples/themes/) provide canonical starting points.
+Open **Settings → Appearance → Manage themes** to inspect built-in application themes and application-wide custom packages. Theme Manager can import a JSON manifest, preview a valid custom application theme, select it for the app, or delete its package. Use **Open themes folder** to create or edit packages in Archeion's application data with an external editor. The [schema](schemas/archeion-theme-v1.schema.json) and [examples](examples/themes/) provide canonical starting points.
 
 Import is create-only. If a package with the same ID already exists, Archeion asks before updating that package's `theme.json`; it does not silently overwrite it. Updating preserves other files in the package.
 
 Theme Manager shows invalid packages and their diagnostics so they can be repaired. After editing `theme.json`, choose **Reload themes** to reread package directories and manifests. Archeion does not watch theme files continuously.
 
-Preview is temporary and applies only to the application. **Revert** restores the stored appearance, while **Use theme** saves the previewed application selection for the active archive. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before using a preview with warnings.
+Preview is temporary and applies only to the application. **Revert** restores the stored appearance, while **Use theme** saves the previewed application selection across archives. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before using a preview with warnings.
 
 Choose reader colors from **Settings → Reader → Reader theme** or from the Reader settings panel. Both selectors offer the same built-in and compatible custom reader themes.
 
 If a selected custom package is missing or invalid, its ID remains stored so the selection can resume after the package is restored and reloaded. Choose another available theme to replace that selection immediately.
 
-To move or back up archive-local themes, copy the archive's complete `.archeion/` directory together with its theme packages and settings. Copying only `theme.json` files preserves the packages but not the archive's selected application and reader references.
+To back up current custom themes and selected app and Reader themes, include Archeion's application-data `themes` directory and application `settings.json`. Older archives may still contain compatible legacy packages under `.archeion/themes/`; Archeion copies these into application data during migration without deleting the archive copies.
 
 ## Fixed colors
 
