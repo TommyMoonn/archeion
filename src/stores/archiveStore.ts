@@ -60,6 +60,8 @@ function errorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+type ArchiveRegistryEvent = ArchiveRegistry & { mutationId?: string };
+
 export class ArchiveStore {
   private state: ArchiveState = {
     status: "loading",
@@ -73,7 +75,9 @@ export class ArchiveStore {
   private lastOperationError: string | null = null;
   private transitionGuardSequence = 0;
   private transitionGuards = new Map<number, ArchiveTransitionGuard>();
-  private transitionRequestId = 0;
+  private transitionSequence = 0;
+  private nativeCommitTail: Promise<void> = Promise.resolve();
+  private readonly mutationOrigin = globalThis.crypto.randomUUID();
 
   getSnapshot = (): ArchiveState => this.state;
 
@@ -97,7 +101,7 @@ export class ArchiveStore {
       return this.initialization;
     }
 
-    this.initialization = this.loadSavedArchive();
+    this.initialization = this.loadSavedArchive(this.beginTransition());
     return this.initialization;
   }
 
@@ -138,17 +142,19 @@ export class ArchiveStore {
   }
 
   async createEmptyArchive(input: CreateEmptyArchiveInput): Promise<boolean> {
-    if (!(await this.prepareArchiveTransition())) return false;
+    const transition = this.beginTransition();
+    if (!(await this.settleTransitionGuards(transition))) return false;
     const previousState = this.state;
     this.lastOperationError = null;
 
     try {
-      const registry = await invoke<ArchiveRegistry>("create_empty_archive", {
+      const registry = await this.commitRegistryChange(transition, "create_empty_archive", {
         archiveName: input.archiveName,
         parentPath: input.parentPath,
       });
-      return await this.useRegistryActiveArchive(registry);
+      return registry ? this.useRegistryActiveArchive(registry, transition) : false;
     } catch (error) {
+      if (!this.isCurrentTransition(transition)) return false;
       const message = errorMessage(error, "Archive could not be created.");
       console.error("create_empty_archive failed", error);
       this.lastOperationError = message;
@@ -158,7 +164,11 @@ export class ArchiveStore {
   }
 
   async openArchivePath(path: string): Promise<boolean> {
-    if (!(await this.prepareArchiveTransition())) return false;
+    return this.openArchivePathForTransition(path, this.beginTransition());
+  }
+
+  private async openArchivePathForTransition(path: string, transition: number): Promise<boolean> {
+    if (!(await this.settleTransitionGuards(transition))) return false;
     this.setState({
       status: "loading",
       path: null,
@@ -167,9 +177,10 @@ export class ArchiveStore {
     });
 
     try {
-      const registry = await invoke<ArchiveRegistry>("open_archive", { path });
-      return await this.useRegistryActiveArchive(registry);
+      const registry = await this.commitRegistryChange(transition, "open_archive", { path });
+      return registry ? this.useRegistryActiveArchive(registry, transition) : false;
     } catch (error) {
+      if (!this.isCurrentTransition(transition)) return false;
       const message = errorMessage(error, "The archive folder could not be opened.");
       console.error("open_archive failed", error);
       this.setState({
@@ -183,7 +194,8 @@ export class ArchiveStore {
   }
 
   async switchArchive(archiveId: string): Promise<boolean> {
-    if (!(await this.prepareArchiveTransition())) return false;
+    const transition = this.beginTransition();
+    if (!(await this.settleTransitionGuards(transition))) return false;
     const archives = this.state.archives;
     this.setState({
       status: "loading",
@@ -193,11 +205,12 @@ export class ArchiveStore {
     });
 
     try {
-      const registry = await invoke<ArchiveRegistry>("activate_archive", {
+      const registry = await this.commitRegistryChange(transition, "activate_archive", {
         archiveId,
       });
-      return await this.useRegistryActiveArchive(registry);
+      return registry ? this.useRegistryActiveArchive(registry, transition) : false;
     } catch (error) {
+      if (!this.isCurrentTransition(transition)) return false;
       const archive = archives.find((candidate) => candidate.id === archiveId);
       console.error("activate_archive failed", error);
       if (archive) {
@@ -221,11 +234,14 @@ export class ArchiveStore {
   }
 
   async renameArchive(archiveId: string, displayName: string): Promise<boolean> {
+    const transition = this.transitionSequence;
     try {
       const registry = await invoke<ArchiveRegistry>("rename_archive", {
         archiveId,
         displayName,
+        mutationId: this.createMutationId(),
       });
+      if (!this.isCurrentTransition(transition)) return false;
       this.applyRegistry(registry);
       return true;
     } catch (error) {
@@ -235,11 +251,13 @@ export class ArchiveStore {
   }
 
   async forgetArchive(archiveId: string): Promise<boolean> {
-    if (!(await this.prepareArchiveTransition())) return false;
+    const transition = this.beginTransition();
+    if (!(await this.settleTransitionGuards(transition))) return false;
     try {
-      const registry = await invoke<ArchiveRegistry>("forget_archive", {
+      const registry = await this.commitRegistryChange(transition, "forget_archive", {
         archiveId,
       });
+      if (!registry) return false;
       this.applyRegistry(registry);
       return true;
     } catch (error) {
@@ -303,9 +321,10 @@ export class ArchiveStore {
   }
 
   async refreshActiveArchive(): Promise<boolean> {
-    if (!(await this.prepareArchiveTransition())) return false;
-    await this.loadSavedArchive();
-    return this.state.status === "ready";
+    const transition = this.beginTransition();
+    if (!(await this.settleTransitionGuards(transition))) return false;
+    await this.loadSavedArchive(transition);
+    return this.isCurrentTransition(transition) && this.state.status === "ready";
   }
 
   async retry(): Promise<void> {
@@ -314,6 +333,7 @@ export class ArchiveStore {
       return;
     }
 
+    this.beginTransition();
     this.setState(setupState(this.state.archives));
   }
 
@@ -335,7 +355,9 @@ export class ArchiveStore {
     }
 
     this.registryListenerStarted = true;
-    void listen<ArchiveRegistry>(ARCHIVE_REGISTRY_CHANGED_EVENT, (event) => {
+    void listen<ArchiveRegistryEvent>(ARCHIVE_REGISTRY_CHANGED_EVENT, (event) => {
+      const { mutationId } = event.payload;
+      if (mutationId?.startsWith(`${this.mutationOrigin}:`)) return;
       void this.applyRegistryArchiveTransition(event.payload);
     }).catch((error) => {
       this.registryListenerStarted = false;
@@ -344,6 +366,7 @@ export class ArchiveStore {
   }
 
   private async chooseArchiveFolder({ title }: ArchiveFolderPickerOptions): Promise<boolean> {
+    const transition = this.beginTransition();
     this.lastOperationError = null;
 
     if (!isTauri()) {
@@ -366,6 +389,7 @@ export class ArchiveStore {
         title,
       });
     } catch (error) {
+      if (!this.isCurrentTransition(transition)) return false;
       console.error("archive folder picker failed", error);
       this.lastOperationError = errorMessage(error, "The folder picker could not be opened.");
       this.setState({
@@ -377,6 +401,8 @@ export class ArchiveStore {
       return false;
     }
 
+    if (!this.isCurrentTransition(transition)) return false;
+
     if (selected === null) {
       return false;
     }
@@ -386,11 +412,12 @@ export class ArchiveStore {
       return false;
     }
 
-    return this.openArchivePath(path);
+    return this.openArchivePathForTransition(path, transition);
   }
 
-  private async loadSavedArchive(): Promise<void> {
+  private async loadSavedArchive(transition: number): Promise<void> {
     if (!isTauri()) {
+      if (!this.isCurrentTransition(transition)) return;
       this.setState({
         status: "error",
         path: null,
@@ -405,6 +432,7 @@ export class ArchiveStore {
     try {
       registry = await invoke<ArchiveRegistry>("load_archive_registry");
     } catch (error) {
+      if (!this.isCurrentTransition(transition)) return;
       console.error("load_archive_registry failed", error);
       this.setState({
         status: "error",
@@ -415,22 +443,36 @@ export class ArchiveStore {
       return;
     }
 
+    if (!this.isCurrentTransition(transition)) return;
+
     const active = activeArchiveFromRegistry(registry);
     if (!active) {
       this.setState(setupState(registry.archives));
       return;
     }
 
-    await this.useRegistryActiveArchive(registry);
+    await this.useRegistryActiveArchive(registry, transition);
   }
 
   private async applyRegistryArchiveTransition(registry: ArchiveRegistry): Promise<boolean> {
-    if (!(await this.prepareArchiveTransition())) return false;
-    return this.useRegistryActiveArchive(registry);
+    const transition = this.beginTransition();
+    if (!(await this.settleTransitionGuards(transition))) return false;
+    return this.useRegistryActiveArchive(registry, transition);
   }
 
-  private async prepareArchiveTransition(): Promise<boolean> {
-    const requestId = ++this.transitionRequestId;
+  private createMutationId(): string {
+    return `${this.mutationOrigin}:${globalThis.crypto.randomUUID()}`;
+  }
+
+  private beginTransition(): number {
+    return ++this.transitionSequence;
+  }
+
+  private isCurrentTransition(transition: number): boolean {
+    return this.transitionSequence === transition;
+  }
+
+  private async settleTransitionGuards(transition: number): Promise<boolean> {
     const guards = [...this.transitionGuards.values()];
 
     for (const guard of guards) {
@@ -440,13 +482,40 @@ export class ArchiveStore {
       } catch {
         return false;
       }
-      if (!settled || this.transitionRequestId !== requestId) return false;
+      if (!settled || !this.isCurrentTransition(transition)) return false;
     }
 
-    return this.transitionRequestId === requestId;
+    return this.isCurrentTransition(transition);
   }
 
-  private async useRegistryActiveArchive(registry: ArchiveRegistry): Promise<boolean> {
+  private async commitRegistryChange(
+    transition: number,
+    command: string,
+    args: Record<string, string>,
+  ): Promise<ArchiveRegistry | null> {
+    const precedingCommit = this.nativeCommitTail;
+    let finishCommit!: () => void;
+    this.nativeCommitTail = new Promise<void>((resolve) => {
+      finishCommit = resolve;
+    });
+    await precedingCommit;
+    try {
+      if (!this.isCurrentTransition(transition)) return null;
+      const registry = await invoke<ArchiveRegistry>(command, {
+        ...args,
+        mutationId: this.createMutationId(),
+      });
+      return this.isCurrentTransition(transition) ? registry : null;
+    } finally {
+      finishCommit();
+    }
+  }
+
+  private async useRegistryActiveArchive(
+    registry: ArchiveRegistry,
+    transition: number,
+  ): Promise<boolean> {
+    if (!this.isCurrentTransition(transition)) return false;
     const active = activeArchiveFromRegistry(registry);
     if (!active) {
       this.setState(setupState(registry.archives));
@@ -457,6 +526,8 @@ export class ArchiveStore {
       const exists = await invoke<boolean>("validate_archive_path", {
         path: active.rootPath,
       });
+
+      if (!this.isCurrentTransition(transition)) return false;
 
       if (!exists) {
         this.setState({
@@ -470,6 +541,7 @@ export class ArchiveStore {
       }
 
       await invoke("initialize_archive_metadata", { rootPath: active.rootPath });
+      if (!this.isCurrentTransition(transition)) return false;
       this.setState({
         status: "ready",
         path: active.rootPath,
@@ -480,6 +552,7 @@ export class ArchiveStore {
       });
       return true;
     } catch (error) {
+      if (!this.isCurrentTransition(transition)) return false;
       console.error("archive activation failed", error);
       this.setState({
         status: "error",

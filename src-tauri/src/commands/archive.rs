@@ -50,6 +50,15 @@ pub struct ArchiveRegistry {
     pub last_opened_archive_id: Option<String>,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveRegistryChangedEvent<'a> {
+    #[serde(flatten)]
+    registry: &'a ArchiveRegistry,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mutation_id: Option<&'a str>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchiveReconciliationRequest {
@@ -625,8 +634,16 @@ pub(crate) fn registered_archive_roots(app: &tauri::AppHandle) -> Result<Vec<Pat
         .collect())
 }
 
-fn emit_archive_registry_changed(app: &tauri::AppHandle, registry: &ArchiveRegistry) {
-    if let Err(error) = app.emit(ARCHIVE_REGISTRY_CHANGED_EVENT, registry) {
+fn emit_archive_registry_changed(
+    app: &tauri::AppHandle,
+    registry: &ArchiveRegistry,
+    mutation_id: Option<&str>,
+) {
+    let event = ArchiveRegistryChangedEvent {
+        registry,
+        mutation_id,
+    };
+    if let Err(error) = app.emit(ARCHIVE_REGISTRY_CHANGED_EVENT, event) {
         eprintln!("archive registry change event failed: {error}");
     }
 }
@@ -902,11 +919,15 @@ pub fn complete_archive_reconciliation(
 }
 
 #[tauri::command]
-pub fn open_archive(app: tauri::AppHandle, path: String) -> Result<ArchiveRegistry, String> {
+pub fn open_archive(
+    app: tauri::AppHandle,
+    path: String,
+    mutation_id: Option<String>,
+) -> Result<ArchiveRegistry, String> {
     save_active_archive_path(&app, path)?;
     epub_analysis::retire_active_archive();
     let registry = read_registry(&app)?;
-    emit_archive_registry_changed(&app, &registry);
+    emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
     Ok(registry)
 }
 
@@ -915,6 +936,7 @@ pub fn create_empty_archive(
     app: tauri::AppHandle,
     parent_path: String,
     archive_name: String,
+    mutation_id: Option<String>,
 ) -> Result<ArchiveRegistry, String> {
     let validated_name = validate_archive_name(&archive_name)?;
     let parent = validated_parent_path(&parent_path)?;
@@ -922,7 +944,7 @@ pub fn create_empty_archive(
     let root_path = archive_root::display_archive_path(&root);
     let (registry, _) = archive_registry_service(&app).upsert(root_path, Some(validated_name))?;
     epub_analysis::retire_active_archive();
-    emit_archive_registry_changed(&app, &registry);
+    emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
     Ok(registry)
 }
 
@@ -930,10 +952,11 @@ pub fn create_empty_archive(
 pub fn activate_archive(
     app: tauri::AppHandle,
     archive_id: String,
+    mutation_id: Option<String>,
 ) -> Result<ArchiveRegistry, String> {
     let (registry, validation_error) = archive_registry_service(&app).activate(&archive_id)?;
     epub_analysis::retire_active_archive();
-    emit_archive_registry_changed(&app, &registry);
+    emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
     if let Some(error) = validation_error {
         return Err(error);
     }
@@ -945,6 +968,7 @@ pub fn rename_archive(
     app: tauri::AppHandle,
     archive_id: String,
     display_name: String,
+    mutation_id: Option<String>,
 ) -> Result<ArchiveRegistry, String> {
     let name = display_name.trim();
     if name.is_empty() {
@@ -952,7 +976,7 @@ pub fn rename_archive(
     }
 
     let registry = archive_registry_service(&app).rename(&archive_id, name)?;
-    emit_archive_registry_changed(&app, &registry);
+    emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
     Ok(registry)
 }
 
@@ -960,12 +984,13 @@ pub fn rename_archive(
 pub fn forget_archive(
     app: tauri::AppHandle,
     archive_id: String,
+    mutation_id: Option<String>,
 ) -> Result<ArchiveRegistry, String> {
     let (registry, forgetting_active) = archive_registry_service(&app).forget(&archive_id)?;
     if forgetting_active {
         epub_analysis::retire_active_archive();
     }
-    emit_archive_registry_changed(&app, &registry);
+    emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
     Ok(registry)
 }
 
@@ -1053,8 +1078,31 @@ mod tests {
         upsert_archive_at_path, validate_archive_invalidation_scope, validate_archive_name,
         validated_display_root_path, validated_parent_path, validated_root_path,
         ArchiveManagerCloseAction, ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
-        ArchiveRegistryPaths, ArchiveRegistryService,
+        ArchiveRegistryChangedEvent, ArchiveRegistryPaths, ArchiveRegistryService,
     };
+
+    #[test]
+    fn registry_change_event_keeps_registry_fields_and_tags_local_mutations() {
+        let registry = ArchiveRegistry::default();
+        let event = ArchiveRegistryChangedEvent {
+            registry: &registry,
+            mutation_id: Some("archive-store:mutation"),
+        };
+        let payload = serde_json::to_value(event).expect("registry event should serialize");
+
+        assert_eq!(payload["version"], 1);
+        assert_eq!(payload["archives"], serde_json::json!([]));
+        assert_eq!(payload["mutationId"], "archive-store:mutation");
+        assert!(payload.get("registry").is_none());
+
+        let external = ArchiveRegistryChangedEvent {
+            registry: &registry,
+            mutation_id: None,
+        };
+        let external_payload =
+            serde_json::to_value(external).expect("external registry event should serialize");
+        assert!(external_payload.get("mutationId").is_none());
+    }
 
     #[test]
     fn archive_invalidation_is_bound_to_the_current_registry_identity() {

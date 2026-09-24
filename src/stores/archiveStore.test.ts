@@ -24,7 +24,7 @@ const isTauriMock = vi.mocked(isTauri);
 const listenMock = vi.mocked(listen);
 const openMock = vi.mocked(open);
 
-type ArchiveRegistryEvent = { payload: ArchiveRegistry };
+type ArchiveRegistryEvent = { payload: ArchiveRegistry & { mutationId?: string } };
 let registryEventHandler: ((event: ArchiveRegistryEvent) => void) | undefined;
 
 const emptyRegistry: ArchiveRegistry = {
@@ -59,10 +59,12 @@ function registry(activeId: string | null, archives = [booksArchive]): ArchiveRe
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe("ArchiveStore", () => {
@@ -180,9 +182,10 @@ describe("ArchiveStore", () => {
       multiple: false,
       title: "Open folder as archive",
     });
-    expect(invokeMock).toHaveBeenCalledWith("open_archive", {
-      path: "D:\\Novels",
-    });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "open_archive",
+      expect.objectContaining({ path: "D:\\Novels", mutationId: expect.any(String) }),
+    );
     expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "D:\\Novels",
     });
@@ -255,7 +258,10 @@ describe("ArchiveStore", () => {
 
     settlement.resolve(true);
     await expect(switching).resolves.toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith("activate_archive", { archiveId: comicsArchive.id });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "activate_archive",
+      expect.objectContaining({ archiveId: comicsArchive.id, mutationId: expect.any(String) }),
+    );
     expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
   });
 
@@ -384,6 +390,367 @@ describe("ArchiveStore", () => {
     expect(order).toEqual(["first:start", "first:end", "second"]);
   });
 
+  it("supersedes an older request while its guard is settling", async () => {
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive")
+        return registry((args as { archiveId: string }).archiveId, [booksArchive, comicsArchive]);
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const firstGuard = deferred<boolean>();
+    const secondGuard = deferred<boolean>();
+    const guard = vi
+      .fn()
+      .mockReturnValueOnce(firstGuard.promise)
+      .mockReturnValueOnce(secondGuard.promise);
+    store.registerTransitionGuard(guard);
+
+    const first = store.switchArchive(comicsArchive.id);
+    const second = store.switchArchive(booksArchive.id);
+    firstGuard.resolve(true);
+    await expect(first).resolves.toBe(false);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "activate_archive",
+      expect.objectContaining({ archiveId: comicsArchive.id }),
+    );
+    secondGuard.resolve(true);
+    await expect(second).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+  });
+
+  it("serializes native activation so the latest requested archive remains active", async () => {
+    const firstActivation = deferred<ArchiveRegistry>();
+    const secondActivation = deferred<ArchiveRegistry>();
+    let nativeActiveId = booksArchive.id;
+    const activations: string[] = [];
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive") {
+        const id = (args as { archiveId: string }).archiveId;
+        activations.push(id);
+        const result = await (id === comicsArchive.id
+          ? firstActivation.promise
+          : secondActivation.promise);
+        nativeActiveId = id;
+        return result;
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    const first = store.switchArchive(comicsArchive.id);
+    await vi.waitFor(() => expect(activations).toEqual([comicsArchive.id]));
+    const second = store.switchArchive(booksArchive.id);
+    await Promise.resolve();
+    expect(activations).toEqual([comicsArchive.id]);
+
+    firstActivation.resolve(registry(comicsArchive.id, [booksArchive, comicsArchive]));
+    await expect(first).resolves.toBe(false);
+    await vi.waitFor(() => expect(activations).toEqual([comicsArchive.id, booksArchive.id]));
+    secondActivation.resolve(registry(booksArchive.id, [booksArchive, comicsArchive]));
+    await expect(second).resolves.toBe(true);
+    expect(nativeActiveId).toBe(booksArchive.id);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+  });
+
+  it("does not treat its own native registry event as a newer transition", async () => {
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive") {
+        const changed = registry(comicsArchive.id, [booksArchive, comicsArchive]);
+        registryEventHandler?.({
+          payload: { ...changed, mutationId: (args as { mutationId: string }).mutationId },
+        });
+        return changed;
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.switchArchive(comicsArchive.id)).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+  });
+
+  it("ignores a delayed first activation echo while a newer native activation is in flight", async () => {
+    const firstActivation = deferred<ArchiveRegistry>();
+    const secondActivation = deferred<ArchiveRegistry>();
+    let firstMutationId: string | undefined;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive") {
+        const activation = args as { archiveId: string; mutationId?: string };
+        if (activation.archiveId === comicsArchive.id) {
+          firstMutationId = activation.mutationId;
+          return firstActivation.promise;
+        }
+        return secondActivation.promise;
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    invokeMock.mockClear();
+
+    const first = store.switchArchive(comicsArchive.id);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith(
+        "activate_archive",
+        expect.objectContaining({ archiveId: comicsArchive.id }),
+      ),
+    );
+    const second = store.switchArchive(booksArchive.id);
+    firstActivation.resolve(registry(comicsArchive.id, [booksArchive, comicsArchive]));
+    await expect(first).resolves.toBe(false);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith(
+        "activate_archive",
+        expect.objectContaining({ archiveId: booksArchive.id }),
+      ),
+    );
+
+    registryEventHandler?.({
+      payload: {
+        ...registry(comicsArchive.id, [booksArchive, comicsArchive]),
+        mutationId: firstMutationId,
+      },
+    });
+    secondActivation.resolve(registry(booksArchive.id, [booksArchive, comicsArchive]));
+    await expect(second).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+    expect(invokeMock).not.toHaveBeenCalledWith("validate_archive_path", {
+      path: comicsArchive.rootPath,
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith("initialize_archive_metadata", {
+      rootPath: comicsArchive.rootPath,
+    });
+  });
+
+  it.each([undefined, "another-window:mutation"])(
+    "processes an external registry event with mutation ID %s even when its contents match a local result",
+    async (mutationId) => {
+      invokeMock.mockImplementation(async (command, args) => {
+        if (command === "load_archive_registry")
+          return registry(booksArchive.id, [booksArchive, comicsArchive]);
+        if (command === "activate_archive")
+          return registry((args as { archiveId: string }).archiveId, [booksArchive, comicsArchive]);
+        if (command === "validate_archive_path") return true;
+        return undefined;
+      });
+      const store = new ArchiveStore();
+      await store.initialize();
+      await store.switchArchive(comicsArchive.id);
+      invokeMock.mockClear();
+
+      registryEventHandler?.({
+        payload: { ...registry(comicsArchive.id, [booksArchive, comicsArchive]), mutationId },
+      });
+      await vi.waitFor(() =>
+        expect(invokeMock).toHaveBeenCalledWith("validate_archive_path", {
+          path: comicsArchive.rootPath,
+        }),
+      );
+    },
+  );
+
+  it.each(["validate_archive_path", "initialize_archive_metadata"])(
+    "ignores an older transition that finishes during %s",
+    async (delayedCommand) => {
+      const oldWork = deferred<boolean>();
+      invokeMock.mockImplementation(async (command, args) => {
+        if (command === "load_archive_registry")
+          return registry(booksArchive.id, [booksArchive, comicsArchive]);
+        if (command === "activate_archive")
+          return registry((args as { archiveId: string }).archiveId, [booksArchive, comicsArchive]);
+        const target =
+          (args as { path?: string; rootPath?: string } | undefined)?.path ??
+          (args as { rootPath?: string } | undefined)?.rootPath;
+        if (command === delayedCommand && target === comicsArchive.rootPath) {
+          return oldWork.promise;
+        }
+        if (command === "validate_archive_path") return true;
+        return undefined;
+      });
+      const store = new ArchiveStore();
+      await store.initialize();
+
+      const first = store.switchArchive(comicsArchive.id);
+      await vi.waitFor(() =>
+        expect(invokeMock).toHaveBeenCalledWith(
+          delayedCommand,
+          delayedCommand === "validate_archive_path"
+            ? { path: comicsArchive.rootPath }
+            : { rootPath: comicsArchive.rootPath },
+        ),
+      );
+      const second = store.switchArchive(booksArchive.id);
+      await expect(second).resolves.toBe(true);
+      oldWork.resolve(true);
+      await expect(first).resolves.toBe(false);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+    },
+  );
+
+  it("does not let an older failure replace a newer ready state", async () => {
+    const oldMetadata = deferred<void>();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive")
+        return registry((args as { archiveId: string }).archiveId, [booksArchive, comicsArchive]);
+      if (
+        command === "initialize_archive_metadata" &&
+        (args as { rootPath: string }).rootPath === comicsArchive.rootPath
+      )
+        return oldMetadata.promise;
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const first = store.switchArchive(comicsArchive.id);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
+        rootPath: comicsArchive.rootPath,
+      }),
+    );
+    const second = store.switchArchive(booksArchive.id);
+    await expect(second).resolves.toBe(true);
+    oldMetadata.reject(new Error("stale metadata failure"));
+    await expect(first).resolves.toBe(false);
+    expect(store.getSnapshot()).toMatchObject({
+      status: "ready",
+      archive: booksArchive,
+      error: null,
+    });
+  });
+
+  it("does not let an older native failure clear a newer request", async () => {
+    const oldActivation = deferred<ArchiveRegistry>();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive") {
+        return (args as { archiveId: string }).archiveId === comicsArchive.id
+          ? oldActivation.promise
+          : registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const first = store.switchArchive(comicsArchive.id);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith(
+        "activate_archive",
+        expect.objectContaining({ archiveId: comicsArchive.id }),
+      ),
+    );
+    const second = store.switchArchive(booksArchive.id);
+    oldActivation.reject(new Error("old activation failed"));
+    await expect(first).resolves.toBe(false);
+    await expect(second).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({
+      status: "ready",
+      archive: booksArchive,
+      error: null,
+    });
+  });
+
+  it("does not let an older native failure event supersede a newer switch", async () => {
+    const oldActivation = deferred<ArchiveRegistry>();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry")
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      if (command === "activate_archive") {
+        const id = (args as { archiveId: string }).archiveId;
+        if (id === comicsArchive.id) {
+          await oldActivation.promise;
+          registryEventHandler?.({
+            payload: {
+              ...registry(comicsArchive.id, [booksArchive, comicsArchive]),
+              mutationId: (args as { mutationId: string }).mutationId,
+            },
+          });
+          throw new Error("old activation failed");
+        }
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const first = store.switchArchive(comicsArchive.id);
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith(
+        "activate_archive",
+        expect.objectContaining({ archiveId: comicsArchive.id }),
+      ),
+    );
+    const second = store.switchArchive(booksArchive.id);
+    oldActivation.resolve(registry(comicsArchive.id, [booksArchive, comicsArchive]));
+    await expect(first).resolves.toBe(false);
+    await expect(second).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+  });
+
+  it("keeps a registry-driven no-active transition ahead of stale validation", async () => {
+    const oldValidation = deferred<boolean>();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry") return emptyRegistry;
+      if (
+        command === "validate_archive_path" &&
+        (args as { path: string }).path === booksArchive.rootPath
+      )
+        return oldValidation.promise;
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    registryEventHandler?.({ payload: registry(booksArchive.id) });
+    await vi.waitFor(() =>
+      expect(invokeMock).toHaveBeenCalledWith("validate_archive_path", {
+        path: booksArchive.rootPath,
+      }),
+    );
+    registryEventHandler?.({ payload: emptyRegistry });
+    await vi.waitFor(() => expect(store.getSnapshot()).toMatchObject({ status: "setup" }));
+    oldValidation.resolve(true);
+    await Promise.resolve();
+    expect(store.getSnapshot()).toMatchObject({ status: "setup" });
+  });
+
+  it("does not let a delayed startup registry load replace a later archive request", async () => {
+    const startup = deferred<ArchiveRegistry>();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry") return startup.promise;
+      if (command === "activate_archive")
+        return registry((args as { archiveId: string }).archiveId, [booksArchive, comicsArchive]);
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    const initializing = store.initialize();
+    await expect(store.switchArchive(comicsArchive.id)).resolves.toBe(true);
+    startup.resolve(registry(booksArchive.id, [booksArchive, comicsArchive]));
+    await initializing;
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+  });
+
   it("renames an archive display name without changing its root path", async () => {
     const renamed = { ...booksArchive, displayName: "Novels" };
     invokeMock.mockImplementation(async (command) => {
@@ -411,6 +778,30 @@ describe("ArchiveStore", () => {
     });
   });
 
+  it("does not treat a native rename echo as a competing archive transition", async () => {
+    const renamed = { ...booksArchive, displayName: "Novels" };
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "load_archive_registry") return registry(booksArchive.id);
+      if (command === "rename_archive") {
+        const changed = registry(renamed.id, [renamed]);
+        registryEventHandler?.({
+          payload: { ...changed, mutationId: (args as { mutationId?: string }).mutationId },
+        });
+        return changed;
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    invokeMock.mockClear();
+
+    await expect(store.renameArchive(booksArchive.id, "Novels")).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: renamed });
+    expect(invokeMock).not.toHaveBeenCalledWith("validate_archive_path", expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith("initialize_archive_metadata", expect.anything());
+  });
+
   it("forgets the active archive without deleting local files", async () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_archive_registry") {
@@ -429,9 +820,10 @@ describe("ArchiveStore", () => {
 
     await expect(store.forgetArchive(booksArchive.id)).resolves.toBe(true);
 
-    expect(invokeMock).toHaveBeenCalledWith("forget_archive", {
-      archiveId: booksArchive.id,
-    });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "forget_archive",
+      expect.objectContaining({ archiveId: booksArchive.id, mutationId: expect.any(String) }),
+    );
     expect(store.getSnapshot()).toEqual({
       status: "setup",
       path: null,
@@ -714,10 +1106,14 @@ describe("ArchiveStore", () => {
       }),
     ).resolves.toBe(true);
 
-    expect(invokeMock).toHaveBeenCalledWith("create_empty_archive", {
-      archiveName: "Light Novels",
-      parentPath: "D:\\Books",
-    });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "create_empty_archive",
+      expect.objectContaining({
+        archiveName: "Light Novels",
+        parentPath: "D:\\Books",
+        mutationId: expect.any(String),
+      }),
+    );
     expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "D:\\Books\\Light Novels",
     });
