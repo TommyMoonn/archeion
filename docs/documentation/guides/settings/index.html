@@ -387,6 +387,11 @@
             Storage maintenance actions apply to the active archive.
           </p>
           <p>
+            A rescan requested from <strong>Storage</strong> uses the active Library's scan and
+            reconciliation work. Other active-archive maintenance does not start a competing full
+            scan or cancel a Library scan simply because it runs in Settings.
+          </p>
+          <p>
             Ordinary <strong>Add EPUB</strong> starts at the archive root. A folder target supplied
             for the current operation or selected in the dialog applies only to that import. Default
             import mode and filename-conflict handling remain application-wide.

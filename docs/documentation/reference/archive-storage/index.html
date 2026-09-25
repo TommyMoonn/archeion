@@ -375,7 +375,11 @@
             </li>
           </ul>
           <h2 id="maintenance">Active-archive maintenance</h2>
-          <p>When an archive is active, Storage also exposes maintenance actions:</p>
+          <p>
+            When an archive is active, Storage also exposes maintenance actions. A scan requested
+            here is reconciled through the active Library, so it does not start a separate competing
+            full scan.
+          </p>
           <ul>
             <li>
               <strong>Archive scan</strong>: check the active archive without changing EPUB files.

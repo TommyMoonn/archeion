@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.5.4] - 2026-09-25
+
+Archeion 1.5.4 keeps archive switching, rescanning, and cross-window archive updates current when work overlaps or a connection briefly fails.
+
+### Fixed
+
+- Rapid archive switches no longer let an older request replace the latest archive selection.
+- A full rescan no longer cancels scanning in another archive. Storage maintenance in Settings no longer interrupts the active Library scan.
+- Archive changes made in another window resume appearing after a temporary event connection failure, without restarting Archeion.
+
 ## [1.5.3] - 2026-09-23
 
 Archeion 1.5.3 keeps Settings changes consistent across open windows and makes failed Settings loads retryable.
@@ -575,7 +585,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.3...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.4...HEAD
+[1.5.4]: https://github.com/TommyMoonn/archeion/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/TommyMoonn/archeion/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/TommyMoonn/archeion/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/TommyMoonn/archeion/compare/v1.5.0...v1.5.1

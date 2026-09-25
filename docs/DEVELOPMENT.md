@@ -39,6 +39,22 @@ Run only the Vite frontend when desktop APIs are not needed:
 npm run dev
 ```
 
+## Archive lifecycle ownership
+
+`ArchiveStore` owns active-archive transitions through native activation, path validation,
+metadata initialization, and final state publication. It also owns the long-lived archive registry
+event subscription for each application window, including retry after a failed subscription and
+cleanup when the window closes. Keep archive initialization separate from that connection lifecycle.
+
+`ArchiveScanSession` supplies a stable Library scan consumer to the native full-scan coordinator.
+Native cancellation applies only to a scan for the same archive and consumer. Settings rescan and
+metadata repair request reconciliation from the active Library rather than opening a competing
+full-scan path. Manual Rescan and watcher follow-up work use that Library scan owner.
+
+Check rapid archive switches, overlapping Library scans, Settings maintenance, and cross-window
+archive changes with the focused store, scan-session, scanner, and maintenance tests before running
+the broader release gates.
+
 ## Validation commands
 
 Run the full local verification suite before preparing a pull request or release:
