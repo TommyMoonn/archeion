@@ -36,7 +36,7 @@ type CommandDefinition<Args, Result> = {
 };
 
 export type ArchiveCommandMap = {
-  scan_archive: CommandDefinition<undefined, ArchiveScan>;
+  scan_archive: CommandDefinition<{ scanConsumerId: string }, ArchiveScan>;
   scan_archive_epub_paths: CommandDefinition<{ relativePaths: string[] }, ArchiveEpubScan>;
   request_epub_duplicate_analysis: CommandDefinition<
     {

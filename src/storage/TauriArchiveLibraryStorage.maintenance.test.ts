@@ -146,11 +146,15 @@ describe("TauriArchiveLibraryStorage maintenance", () => {
     expect(repairSettled).toBe(true);
     expect(scanCount).toBe(2);
     expect(statuses).toEqual(["idle", "scanning", "idle"]);
-    expect(
-      invokeMock.mock.calls
-        .filter(([command]) => command === "scan_archive")
-        .map(([, args]) => args),
-    ).toEqual([{ rootPath }, { rootPath }]);
+    const scanArgs = invokeMock.mock.calls
+      .filter(([command]) => command === "scan_archive")
+      .map(([, args]) => args as { rootPath: string; scanConsumerId: string });
+    expect(scanArgs).toHaveLength(2);
+    expect(scanArgs[0]).toMatchObject({
+      rootPath,
+      scanConsumerId: expect.stringMatching(/^library:/),
+    });
+    expect(scanArgs[1]).toEqual(scanArgs[0]);
     stop();
   });
 

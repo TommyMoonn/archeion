@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, AtomicUsize, Ordering},
-        mpsc,
+        mpsc, Arc, Mutex, OnceLock, Weak,
     },
     thread,
     time::{Duration, Instant, UNIX_EPOCH},
@@ -17,7 +17,7 @@ use super::{archive_root, epub_metadata, filesystem, metadata, scanner_cache};
 // Four workers bound simultaneous ZIP handles and parse memory while still overlapping local-disk latency.
 const MAX_METADATA_PARSE_WORKERS: usize = 4;
 const SUPERSEDED_SCAN_ERROR: &str = "Archive scan was superseded by a newer scan.";
-static ACTIVE_FULL_SCAN_GENERATION: AtomicU64 = AtomicU64::new(0);
+static FULL_SCAN_COORDINATOR: OnceLock<FullScanCoordinator> = OnceLock::new();
 
 #[tauri::command]
 pub fn invalidate_scanner_cache_entries(
@@ -81,30 +81,71 @@ pub struct ArchiveScanWarning {
     message: String,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Hash, Eq, PartialEq)]
+struct FullScanKey {
+    root: PathBuf,
+    consumer_id: String,
+}
+
+#[derive(Default)]
+struct FullScanCoordinator {
+    generations: Mutex<HashMap<FullScanKey, Weak<AtomicU64>>>,
+}
+
+impl FullScanCoordinator {
+    fn begin(&self, root: PathBuf, consumer_id: String) -> ScanCancellation {
+        let mut generations = self
+            .generations
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        generations.retain(|_, generation| generation.strong_count() > 0);
+        let slot = generations
+            .entry(FullScanKey { root, consumer_id })
+            .or_default();
+        let counter = match slot.upgrade() {
+            Some(counter) => counter,
+            None => {
+                let counter = Arc::new(AtomicU64::new(0));
+                *slot = Arc::downgrade(&counter);
+                counter
+            }
+        };
+        let generation = counter.fetch_add(1, Ordering::AcqRel) + 1;
+        ScanCancellation {
+            generation: Some((counter, generation)),
+        }
+    }
+}
+
+fn canonical_scan_root(root: &Path) -> Result<PathBuf, String> {
+    let canonical = root
+        .canonicalize()
+        .map_err(|_| "The saved archive folder is unavailable.".to_string())?;
+    if cfg!(windows) {
+        Ok(PathBuf::from(
+            archive_root::display_archive_path(&canonical).to_lowercase(),
+        ))
+    } else {
+        Ok(canonical)
+    }
+}
+
 struct ScanCancellation {
-    generation: Option<u64>,
+    generation: Option<(Arc<AtomicU64>, u64)>,
 }
 
 impl ScanCancellation {
-    fn begin_full_scan() -> Self {
-        let generation = ACTIVE_FULL_SCAN_GENERATION.fetch_add(1, Ordering::AcqRel) + 1;
-        Self {
-            generation: Some(generation),
-        }
-    }
-
     fn never() -> Self {
         Self { generation: None }
     }
 
-    fn is_cancelled(self) -> bool {
-        self.generation.is_some_and(|generation| {
-            ACTIVE_FULL_SCAN_GENERATION.load(Ordering::Acquire) != generation
-        })
+    fn is_cancelled(&self) -> bool {
+        self.generation
+            .as_ref()
+            .is_some_and(|(counter, generation)| counter.load(Ordering::Acquire) != *generation)
     }
 
-    fn ensure_current(self) -> Result<(), String> {
+    fn ensure_current(&self) -> Result<(), String> {
         if self.is_cancelled() {
             Err(SUPERSEDED_SCAN_ERROR.to_string())
         } else {
@@ -387,7 +428,7 @@ fn resolve_metadata(
     discovered: &[DiscoveredEpub],
     cache: &metadata::ScannerCache,
     signature_lookup: &SignatureLookup<'_>,
-    cancellation: ScanCancellation,
+    cancellation: &ScanCancellation,
     collect_metrics: bool,
 ) -> Result<MetadataResolutions, String> {
     let mut resolutions: Vec<Option<MetadataResolution>> = std::iter::repeat_with(|| None)
@@ -508,7 +549,7 @@ fn discover_directory(
     directory: &Path,
     books: &mut Vec<DiscoveredEpub>,
     folders: &mut Vec<ScannedFolder>,
-    cancellation: ScanCancellation,
+    cancellation: &ScanCancellation,
 ) -> Result<(), String> {
     cancellation.ensure_current()?;
     let entries = fs::read_dir(directory).map_err(|error| error.to_string())?;
@@ -628,6 +669,16 @@ fn scan_path_with_cancellation(
     scan_path_internal(root, cancellation, None)
 }
 
+fn complete_full_scan(
+    cancellation: &ScanCancellation,
+    publish_cache: impl FnOnce(),
+) -> Result<(), String> {
+    cancellation.ensure_current()?;
+    publish_cache();
+    cancellation.ensure_current()?;
+    Ok(())
+}
+
 #[cfg(test)]
 fn scan_path_with_measurement(
     root: PathBuf,
@@ -665,7 +716,7 @@ fn scan_path_internal(
     }
     let mut discovered = Vec::new();
     let mut folders = Vec::new();
-    discover_directory(&root, &root, &mut discovered, &mut folders, cancellation)?;
+    discover_directory(&root, &root, &mut discovered, &mut folders, &cancellation)?;
     discovered.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     folders.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 
@@ -674,7 +725,7 @@ fn scan_path_internal(
         &discovered,
         cache,
         &signature_lookup,
-        cancellation,
+        &cancellation,
         measurement.is_some(),
     )?;
     if let (Some(measurement), Some(started)) =
@@ -696,18 +747,18 @@ fn scan_path_internal(
         &mut next_cache.entries,
         &mut warnings,
     );
-    cancellation.ensure_current()?;
-
     let cache_publication_started = measurement.as_ref().map(|_| Instant::now());
-    append_cache_maintenance_warning(
-        &mut warnings,
-        scanner_cache::publish_snapshot(
-            &root,
-            &loaded_cache.snapshot,
-            &next_cache,
-            scanner_cache::ScannerCachePublicationScope::Full,
-        ),
-    );
+    complete_full_scan(&cancellation, || {
+        append_cache_maintenance_warning(
+            &mut warnings,
+            scanner_cache::publish_snapshot(
+                &root,
+                &loaded_cache.snapshot,
+                &next_cache,
+                scanner_cache::ScannerCachePublicationScope::Full,
+            ),
+        );
+    })?;
     if let (Some(measurement), Some(started)) = (measurement, cache_publication_started) {
         measurement.cache_publication_duration = started.elapsed();
         measurement.cancellation_result = "completed";
@@ -826,7 +877,7 @@ fn scan_epub_paths_internal(
         &discovered,
         cache,
         &signature_lookup,
-        ScanCancellation::never(),
+        &ScanCancellation::never(),
         measurement.is_some(),
     )?;
     if let (Some(measurement), Some(started)) =
@@ -882,9 +933,16 @@ fn scan_epub_paths_internal(
 pub async fn scan_archive(
     app: tauri::AppHandle,
     root_path: Option<String>,
+    scan_consumer_id: String,
 ) -> Result<ArchiveScan, String> {
+    if scan_consumer_id.trim().is_empty() {
+        return Err("A scan consumer is required.".to_string());
+    }
     let path = archive_root::resolve_archive_root(&app, root_path)?;
-    let cancellation = ScanCancellation::begin_full_scan();
+    let key_root = canonical_scan_root(&path)?;
+    let cancellation = FULL_SCAN_COORDINATOR
+        .get_or_init(FullScanCoordinator::default)
+        .begin(key_root, scan_consumer_id);
     tauri::async_runtime::spawn_blocking(move || scan_path_with_cancellation(path, cancellation))
         .await
         .map_err(|error| error.to_string())?
@@ -918,7 +976,8 @@ mod tests {
 
     use super::{
         super::{filesystem, metadata, scanner_cache},
-        scan_epub_paths, scan_path, ArchiveScan, ScanCancellation,
+        canonical_scan_root, complete_full_scan, scan_epub_paths, scan_path, ArchiveScan,
+        FullScanCoordinator, ScanCancellation,
     };
 
     fn write_minimal_epub(path: &std::path::Path, package_xml: &[u8]) {
@@ -1900,12 +1959,75 @@ mod tests {
     }
 
     #[test]
-    fn newer_full_scan_tokens_cancel_older_scheduling_tokens() {
-        let first = ScanCancellation::begin_full_scan();
+    fn newer_full_scan_for_same_archive_and_consumer_cancels_older_scan() {
+        let coordinator = FullScanCoordinator::default();
+        let root = std::path::PathBuf::from("archive-a");
+        let first = coordinator.begin(root.clone(), "library-main".to_string());
         assert!(!first.is_cancelled());
-        let second = ScanCancellation::begin_full_scan();
+        let second = coordinator.begin(root, "library-main".to_string());
 
         assert!(first.is_cancelled());
+        assert_eq!(
+            first.ensure_current().unwrap_err(),
+            super::SUPERSEDED_SCAN_ERROR
+        );
         assert!(!second.is_cancelled());
+    }
+
+    #[test]
+    fn superseded_during_final_cache_publication_cannot_complete_successfully() {
+        let coordinator = FullScanCoordinator::default();
+        let root = std::path::PathBuf::from("archive-a");
+        let older = coordinator.begin(root.clone(), "library-main".to_string());
+
+        let result = complete_full_scan(&older, || {
+            let newer = coordinator.begin(root, "library-main".to_string());
+            assert!(!newer.is_cancelled());
+        });
+
+        assert_eq!(result.unwrap_err(), super::SUPERSEDED_SCAN_ERROR);
+    }
+
+    #[test]
+    fn a_scan_for_another_archive_does_not_cancel_the_first_archive() {
+        let coordinator = FullScanCoordinator::default();
+        let archive_a = coordinator.begin(
+            std::path::PathBuf::from("archive-a"),
+            "library-main".to_string(),
+        );
+        let archive_b = coordinator.begin(
+            std::path::PathBuf::from("archive-b"),
+            "library-main".to_string(),
+        );
+
+        assert!(!archive_a.is_cancelled());
+        assert!(!archive_b.is_cancelled());
+    }
+
+    #[test]
+    fn settings_and_independent_library_consumers_do_not_cancel_each_other() {
+        let coordinator = FullScanCoordinator::default();
+        let root = std::path::PathBuf::from("archive-a");
+        let library = coordinator.begin(root.clone(), "library-main".to_string());
+        let settings = coordinator.begin(root.clone(), "settings-maintenance".to_string());
+        let other_library = coordinator.begin(root.clone(), "library-other".to_string());
+        let next_settings = coordinator.begin(root, "settings-maintenance".to_string());
+
+        assert!(settings.is_cancelled());
+        assert!(!library.is_cancelled());
+        assert!(!other_library.is_cancelled());
+        assert!(!next_settings.is_cancelled());
+        drop(next_settings);
+        assert!(!library.is_cancelled());
+        assert!(!other_library.is_cancelled());
+    }
+
+    #[test]
+    fn equivalent_archive_paths_share_a_canonical_scan_key() {
+        let root = std::env::temp_dir();
+        let canonical = canonical_scan_root(&root).expect("temporary root should resolve");
+        let alias = canonical_scan_root(&root.join(".")).expect("alias should resolve");
+
+        assert_eq!(canonical, alias);
     }
 }

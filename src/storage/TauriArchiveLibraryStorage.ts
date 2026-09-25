@@ -119,6 +119,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     });
     this.scanSession = new ArchiveScanSession({
       commands: this.commands,
+      scanConsumerId: `library:${globalThis.crypto.randomUUID()}`,
       createScope: () => this.createArchiveCommandScope(),
       isCurrentScope: (scope) => this.isCurrentArchiveScope(scope),
       applyFullScan: (scope, scan, replacementRelativePaths, completion) =>

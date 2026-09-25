@@ -20,7 +20,10 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     const [books, folders] = await Promise.all([storage.listBooks(), storage.listFolders()]);
 
     expect(invokeMock).toHaveBeenCalledTimes(2);
-    expect(invokeMock).toHaveBeenCalledWith("scan_archive");
+    expect(invokeMock).toHaveBeenCalledWith(
+      "scan_archive",
+      expect.objectContaining({ scanConsumerId: expect.stringMatching(/^library:/) }),
+    );
     expect(books[0]).toMatchObject({
       id: "book-1",
       folderId: "folder:Author/Series",
@@ -33,6 +36,23 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
       id: "folder:Author/Series",
       parentId: "folder:Author",
     });
+  });
+
+  it("uses distinct native scan consumers for independent Library storage instances", async () => {
+    const first = new TauriArchiveLibraryStorage();
+    const second = new TauriArchiveLibraryStorage();
+    first.reset("C:/ArchiveA");
+    second.reset("C:/ArchiveA");
+
+    await Promise.all([first.rescan({ quiet: true }), second.rescan({ quiet: true })]);
+
+    const consumers = invokeMock.mock.calls
+      .filter(([command]) => command === "scan_archive")
+      .map(([, args]) => (args as { scanConsumerId: string }).scanConsumerId);
+    expect(consumers).toHaveLength(2);
+    expect(consumers[0]).toMatch(/^library:/);
+    expect(consumers[1]).toMatch(/^library:/);
+    expect(consumers[0]).not.toBe(consumers[1]);
   });
 
   it("stores parsed source metadata without replacing filename titles", async () => {

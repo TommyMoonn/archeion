@@ -9,6 +9,7 @@ type FullScanCompletion = Readonly<{
 
 type ArchiveScanSessionHost = Readonly<{
   commands: ArchiveCommandClient;
+  scanConsumerId: string;
   createScope: () => ArchiveCommandScope;
   isCurrentScope: (scope: ArchiveCommandScope) => boolean;
   applyFullScan: (
@@ -264,7 +265,11 @@ export class ArchiveScanSession {
   ): Promise<boolean | undefined> {
     const epoch = this.epoch;
     if (!this.isCurrent(epoch, scope)) return undefined;
-    const scan = await this.host.commands.invoke("scan_archive", undefined, scope.rootPath);
+    const scan = await this.host.commands.invoke(
+      "scan_archive",
+      { scanConsumerId: this.host.scanConsumerId },
+      scope.rootPath,
+    );
     if (!this.isCurrent(epoch, scope)) return undefined;
     return this.host.applyFullScan(scope, scan, replacementRelativePaths, completion);
   }

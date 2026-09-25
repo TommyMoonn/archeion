@@ -53,7 +53,7 @@ describe("ArchiveCommandClient watcher suppression", () => {
     invokeMock.mockResolvedValue({ books: [], folders: [], warnings: [] });
     const client = new ArchiveCommandClient();
 
-    await client.invoke("scan_archive", undefined, "C:/Archive");
+    await client.invoke("scan_archive", { scanConsumerId: "library:test" }, "C:/Archive");
 
     expect(shouldSuppressWritebackWatcherEvent("C:/Archive", ".archeion/library.json")).toBe(false);
   });
@@ -80,9 +80,12 @@ describe("ArchiveCommandClient watcher suppression", () => {
     });
     const client = new ArchiveCommandClient();
 
-    await client.invoke("scan_archive", undefined, "C:/Archive");
+    await client.invoke("scan_archive", { scanConsumerId: "library:test" }, "C:/Archive");
     expect(invokeMock).toHaveBeenCalledTimes(1);
-    expect(invokeMock).toHaveBeenLastCalledWith("scan_archive", { rootPath: "C:/Archive" });
+    expect(invokeMock).toHaveBeenLastCalledWith("scan_archive", {
+      rootPath: "C:/Archive",
+      scanConsumerId: "library:test",
+    });
 
     const result = await client.invoke(
       "request_epub_duplicate_analysis",

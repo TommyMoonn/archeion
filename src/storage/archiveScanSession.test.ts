@@ -44,6 +44,7 @@ function createSession() {
 
   const session = new ArchiveScanSession({
     commands: new ArchiveCommandClient(),
+    scanConsumerId: "library:test-session",
     createScope: () => ({ generation, rootPath }),
     isCurrentScope: (scope) => scope.generation === generation,
     applyFullScan: async (scope, _scan, _replacementPaths, completion) => {
@@ -103,6 +104,11 @@ describe("ArchiveScanSession", () => {
 
     expect(scanCount).toBe(2);
     expect(appliedFullScans).toEqual(["C:/ArchiveA", "C:/ArchiveA"]);
+    expect(
+      invokeMock.mock.calls
+        .filter(([command]) => command === "scan_archive")
+        .map(([, args]) => (args as { scanConsumerId: string }).scanConsumerId),
+    ).toEqual(["library:test-session", "library:test-session"]);
   });
 
   it("allows a visible request to reveal a quiet session without changing its start time", async () => {

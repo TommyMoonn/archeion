@@ -322,9 +322,10 @@ describe("TauriArchiveLibraryStorage snapshot publication", () => {
     storage.reset("C:/ArchiveA");
     const staleScan = storage.rescan();
     await vi.waitFor(() =>
-      expect(invokeMock).toHaveBeenCalledWith("scan_archive", {
-        rootPath: "C:/ArchiveA",
-      }),
+      expect(invokeMock).toHaveBeenCalledWith(
+        "scan_archive",
+        expect.objectContaining({ rootPath: "C:/ArchiveA" }),
+      ),
     );
 
     storage.reset("C:/ArchiveB");
