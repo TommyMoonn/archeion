@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArchiveRegistry } from "../types/archive";
 import { ArchiveStore } from "./archiveStore";
@@ -1189,5 +1189,236 @@ describe("ArchiveStore", () => {
     });
     expect(consoleError).toHaveBeenCalledWith("open_archive failed", openError);
     consoleError.mockRestore();
+  });
+
+  describe("registry event connection", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("retries a failed subscription without repeating archive initialization", async () => {
+      const unlisten = vi.fn();
+      listenMock
+        .mockRejectedValueOnce(new Error("event bridge unavailable"))
+        .mockResolvedValueOnce(unlisten);
+      const store = new ArchiveStore();
+
+      await store.initialize();
+      expect(store.getSnapshot().status).toBe("setup");
+      expect(listenMock).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(249);
+      expect(listenMock).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(listenMock).toHaveBeenCalledTimes(2);
+      await store.initialize();
+      expect(invokeMock).toHaveBeenCalledTimes(1);
+      expect(listenMock).toHaveBeenCalledTimes(2);
+      store.dispose();
+      expect(unlisten).toHaveBeenCalledOnce();
+    });
+
+    it("backs off repeated failures and never overlaps subscription attempts", async () => {
+      const attempts: ReturnType<typeof deferred<() => void>>[] = [];
+      listenMock.mockImplementation(() => {
+        const attempt = deferred<() => void>();
+        attempts.push(attempt);
+        return attempt.promise;
+      });
+      const store = new ArchiveStore();
+
+      await store.initialize();
+      await store.initialize();
+      expect(attempts).toHaveLength(1);
+      attempts[0].reject(new Error("first failure"));
+      await vi.advanceTimersByTimeAsync(249);
+      expect(attempts).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(attempts).toHaveLength(2);
+      await store.initialize();
+      expect(attempts).toHaveLength(2);
+      attempts[1].reject(new Error("second failure"));
+      await vi.advanceTimersByTimeAsync(499);
+      expect(attempts).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(attempts).toHaveLength(3);
+      attempts[2].resolve(() => undefined);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(attempts).toHaveLength(3);
+      store.dispose();
+    });
+
+    it("caps retry backoff while continuing to recover from transient failures", async () => {
+      listenMock.mockRejectedValue(new Error("event bridge unavailable"));
+      const store = new ArchiveStore();
+      await store.initialize();
+
+      for (const delay of [250, 500, 1_000, 2_000, 4_000, 8_000, 16_000]) {
+        await vi.advanceTimersByTimeAsync(delay);
+      }
+      expect(listenMock).toHaveBeenCalledTimes(8);
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(listenMock).toHaveBeenCalledTimes(8);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(listenMock).toHaveBeenCalledTimes(9);
+      store.dispose();
+    });
+
+    it("cancels a pending reconnect when disposed", async () => {
+      listenMock.mockRejectedValueOnce(new Error("event bridge unavailable"));
+      const store = new ArchiveStore();
+      await store.initialize();
+
+      store.dispose();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(listenMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("unsubscribes a listener that resolves after disposal", async () => {
+      const pending = deferred<() => void>();
+      const unlisten = vi.fn();
+      listenMock.mockImplementationOnce(() => pending.promise);
+      const store = new ArchiveStore();
+      await store.initialize();
+
+      store.dispose();
+      pending.resolve(unlisten);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(unlisten).toHaveBeenCalledOnce();
+      expect(listenMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for subscription success before applying an early registry event", async () => {
+      const pending = deferred<() => void>();
+      let earlyHandler: ((event: ArchiveRegistryEvent) => void) | undefined;
+      listenMock.mockImplementationOnce((_event, handler) => {
+        earlyHandler = handler as (event: ArchiveRegistryEvent) => void;
+        return pending.promise;
+      });
+      invokeMock.mockImplementation(async (command) => {
+        if (command === "load_archive_registry") return registry(booksArchive.id);
+        if (command === "validate_archive_path") return true;
+        return undefined;
+      });
+      const store = new ArchiveStore();
+      await store.initialize();
+
+      earlyHandler?.({ payload: registry(comicsArchive.id, [booksArchive, comicsArchive]) });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+      pending.resolve(() => undefined);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+      store.dispose();
+    });
+
+    it("does not publish a registry transition still validating when disposed", async () => {
+      const validation = deferred<boolean>();
+      invokeMock.mockImplementation(async (command, args) => {
+        if (command === "load_archive_registry") return registry(booksArchive.id);
+        if (command === "validate_archive_path") {
+          return (args as { path: string }).path === comicsArchive.rootPath
+            ? validation.promise
+            : true;
+        }
+        return undefined;
+      });
+      const unlisten = vi.fn();
+      listenMock.mockImplementationOnce(async (_event, handler) => {
+        registryEventHandler = handler as (event: ArchiveRegistryEvent) => void;
+        return unlisten;
+      });
+      const store = new ArchiveStore();
+      await store.initialize();
+
+      registryEventHandler?.({
+        payload: registry(comicsArchive.id, [booksArchive, comicsArchive]),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(invokeMock).toHaveBeenCalledWith("validate_archive_path", {
+        path: comicsArchive.rootPath,
+      });
+      store.dispose();
+      validation.resolve(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(unlisten).toHaveBeenCalledOnce();
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+      expect(invokeMock).not.toHaveBeenCalledWith("initialize_archive_metadata", {
+        rootPath: comicsArchive.rootPath,
+      });
+    });
+
+    it("ignores callbacks from an older failed subscription after reconnect", async () => {
+      invokeMock.mockImplementation(async (command) => {
+        if (command === "load_archive_registry") return registry(booksArchive.id);
+        if (command === "validate_archive_path") return true;
+        return undefined;
+      });
+      let oldHandler: ((event: ArchiveRegistryEvent) => void) | undefined;
+      listenMock.mockImplementationOnce(async (_event, handler) => {
+        oldHandler = handler as (event: ArchiveRegistryEvent) => void;
+        throw new Error("event bridge unavailable");
+      });
+      const store = new ArchiveStore();
+      await store.initialize();
+      await vi.advanceTimersByTimeAsync(250);
+
+      oldHandler?.({ payload: registry(comicsArchive.id, [booksArchive, comicsArchive]) });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+      expect(invokeMock).not.toHaveBeenCalledWith("validate_archive_path", {
+        path: comicsArchive.rootPath,
+      });
+
+      registryEventHandler?.({
+        payload: registry(comicsArchive.id, [booksArchive, comicsArchive]),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+    });
+
+    it("reconciles cross-window create, activate, rename, and forget after retry", async () => {
+      invokeMock.mockImplementation(async (command) => {
+        if (command === "load_archive_registry") return registry(booksArchive.id);
+        if (command === "validate_archive_path") return true;
+        return undefined;
+      });
+      listenMock.mockRejectedValueOnce(new Error("event bridge unavailable"));
+      const store = new ArchiveStore();
+      await store.initialize();
+      await vi.advanceTimersByTimeAsync(250);
+
+      registryEventHandler?.({ payload: registry(booksArchive.id, [booksArchive, comicsArchive]) });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({
+        status: "ready",
+        archive: booksArchive,
+        archives: [booksArchive, comicsArchive],
+      });
+
+      registryEventHandler?.({
+        payload: registry(comicsArchive.id, [booksArchive, comicsArchive]),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+
+      const renamed = { ...comicsArchive, displayName: "Graphic Novels" };
+      registryEventHandler?.({ payload: registry(renamed.id, [booksArchive, renamed]) });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: renamed });
+
+      registryEventHandler?.({ payload: registry(booksArchive.id) });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getSnapshot()).toMatchObject({
+        status: "ready",
+        archive: booksArchive,
+        archives: [booksArchive],
+      });
+    });
   });
 });

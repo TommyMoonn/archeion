@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 
 import type { ArchiveRegistry, KnownArchive } from "../types/archive";
@@ -34,6 +34,8 @@ type Listener = () => void;
 export type ArchiveTransitionGuard = () => boolean | Promise<boolean>;
 
 const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
+const REGISTRY_RECONNECT_BASE_MS = 250;
+const REGISTRY_RECONNECT_MAX_MS = 30_000;
 
 type ArchiveFolderPickerOptions = {
   title: string;
@@ -71,7 +73,12 @@ export class ArchiveStore {
   };
   private listeners = new Set<Listener>();
   private initialization: Promise<void> | null = null;
-  private registryListenerStarted = false;
+  private registryUnlisten: UnlistenFn | null = null;
+  private registryConnecting = false;
+  private registryRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private registryRetryCount = 0;
+  private registryListenerGeneration = 0;
+  private disposed = false;
   private lastOperationError: string | null = null;
   private transitionGuardSequence = 0;
   private transitionGuards = new Map<number, ArchiveTransitionGuard>();
@@ -103,6 +110,18 @@ export class ArchiveStore {
 
     this.initialization = this.loadSavedArchive(this.beginTransition());
     return this.initialization;
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.transitionSequence++;
+    this.registryListenerGeneration++;
+    this.registryConnecting = false;
+    if (this.registryRetryTimer !== null) clearTimeout(this.registryRetryTimer);
+    this.registryRetryTimer = null;
+    this.registryUnlisten?.();
+    this.registryUnlisten = null;
   }
 
   chooseArchive(): Promise<boolean> {
@@ -350,19 +369,59 @@ export class ArchiveStore {
   }
 
   private startRegistryListener(): void {
-    if (this.registryListenerStarted || !isTauri()) {
+    if (
+      this.disposed ||
+      !isTauri() ||
+      this.registryConnecting ||
+      this.registryUnlisten ||
+      this.registryRetryTimer !== null
+    ) {
       return;
     }
 
-    this.registryListenerStarted = true;
+    this.registryConnecting = true;
+    const generation = ++this.registryListenerGeneration;
+    const pendingEvents: ArchiveRegistryEvent[] = [];
+    let connected = false;
     void listen<ArchiveRegistryEvent>(ARCHIVE_REGISTRY_CHANGED_EVENT, (event) => {
-      const { mutationId } = event.payload;
-      if (mutationId?.startsWith(`${this.mutationOrigin}:`)) return;
-      void this.applyRegistryArchiveTransition(event.payload);
-    }).catch((error) => {
-      this.registryListenerStarted = false;
-      console.error("archive registry event listener failed", error);
-    });
+      if (this.disposed || generation !== this.registryListenerGeneration) return;
+      if (!connected) {
+        pendingEvents.push(event.payload);
+        return;
+      }
+      this.receiveRegistryEvent(event.payload);
+    })
+      .then((unlisten) => {
+        if (this.disposed || generation !== this.registryListenerGeneration) {
+          unlisten();
+          return;
+        }
+        this.registryUnlisten = unlisten;
+        this.registryRetryCount = 0;
+        connected = true;
+        for (const registry of pendingEvents) this.receiveRegistryEvent(registry);
+      })
+      .catch((error) => {
+        if (this.disposed || generation !== this.registryListenerGeneration) return;
+        console.error("archive registry event listener failed", error);
+        const delay = Math.min(
+          REGISTRY_RECONNECT_BASE_MS * 2 ** this.registryRetryCount,
+          REGISTRY_RECONNECT_MAX_MS,
+        );
+        this.registryRetryCount = Math.min(this.registryRetryCount + 1, 7);
+        this.registryRetryTimer = setTimeout(() => {
+          this.registryRetryTimer = null;
+          this.startRegistryListener();
+        }, delay);
+      })
+      .finally(() => {
+        if (generation === this.registryListenerGeneration) this.registryConnecting = false;
+      });
+  }
+
+  private receiveRegistryEvent(registry: ArchiveRegistryEvent): void {
+    if (registry.mutationId?.startsWith(`${this.mutationOrigin}:`)) return;
+    void this.applyRegistryArchiveTransition(registry);
   }
 
   private async chooseArchiveFolder({ title }: ArchiveFolderPickerOptions): Promise<boolean> {
@@ -614,3 +673,7 @@ export class ArchiveStore {
 }
 
 export const archiveStore = new ArchiveStore();
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => archiveStore.dispose(), { once: true });
+}
