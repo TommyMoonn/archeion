@@ -115,6 +115,10 @@ if ($null -eq $packageLockRoot) {
     throw "package-lock.json does not contain the root package entry."
 }
 
+if ([string]$packageLock["version"] -ne [string]$packageLockRoot["version"]) {
+    throw "package-lock.json top-level version does not match the root package version."
+}
+
 $versions = [ordered]@{
     "package.json" = [string]$packageJson.version
     "package-lock.json" = [string]$packageLockRoot["version"]

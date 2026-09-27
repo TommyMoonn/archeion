@@ -188,6 +188,20 @@ describeReleaseTooling("release tooling", () => {
     expect(result.status).toBe(0);
   });
 
+  it("rejects a package-lock top-level version that differs from its root package", () => {
+    const root = createFixture();
+    const lockPath = path.join(root, "package-lock.json");
+    const lock = JSON.parse(fs.readFileSync(lockPath, "utf8")) as { version: string };
+    lock.version = "0.2.9";
+    fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+
+    const result = runPowerShell("check-release.ps1", ["--project", root]);
+    expect(result.status).not.toBe(0);
+    expect(combinedOutput(result)).toContain(
+      "package-lock.json top-level version does not match the root package version.",
+    );
+  });
+
   it("keeps legacy PowerShell flags compatible", () => {
     const root = createFixture();
     const result = runPowerShell("check-release.ps1", [
