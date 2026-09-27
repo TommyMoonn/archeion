@@ -18,7 +18,7 @@ Usage: .\scripts\check-release.ps1 [options]
 Options:
   -p, --project <path>          Project root to validate.
   --tag <tag>                   Expected release tag.
-  --require-changelog           Require a matching changelog entry.
+  --require-changelog           Require the matching changelog entry and release note.
   -h, --help                    Show this help.
 
 Legacy PowerShell flags remain accepted for compatibility.
@@ -168,6 +168,11 @@ if ($RequireChangelogEntry) {
 
     if ($changelog -notmatch $linkPattern) {
         throw "CHANGELOG.md does not contain a [$version] comparison link."
+    }
+
+    & node (Join-Path $PSScriptRoot "release-notes.mjs") validate --version $version --project $ProjectRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release note validation failed for v$version."
     }
 }
 
