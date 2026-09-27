@@ -27,11 +27,13 @@ const describeReleaseTooling = hasReleaseToolchain ? describe : describe.skip;
 type FixtureOptions = {
   cargoLockIncludesArcheion?: boolean;
   changelogIncludesRelease?: boolean;
+  releaseNote?: string | null;
 };
 
 function createFixture({
   cargoLockIncludesArcheion = true,
   changelogIncludesRelease = true,
+  releaseNote = "<!-- release-note: v0.3.0; date: 2026-07-12 -->\n\n## Changes\n\n- Fixture release.\n",
 }: FixtureOptions = {}): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "archeion-release-tooling-"));
   temporaryRoots.push(root);
@@ -90,6 +92,11 @@ function createFixture({
       ? `# Changelog\n\n## [Unreleased]\n\n## [0.3.0] - 2026-07-12\n\n- Fixture release.\n\n[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.3.0...HEAD\n[0.3.0]: https://github.com/TommyMoonn/archeion/compare/v0.2.0...v0.3.0\n`
       : `# Changelog\n\n## [Unreleased]\n`,
   );
+
+  if (releaseNote !== null) {
+    fs.mkdirSync(path.join(root, "release-notes"));
+    fs.writeFileSync(path.join(root, "release-notes", "v0.3.0.md"), releaseNote);
+  }
 
   return root;
 }
@@ -244,6 +251,27 @@ describeReleaseTooling("release tooling", () => {
     },
     releaseProcessTimeout,
   );
+
+  it("requires the current version's tracked release note for release readiness", () => {
+    const root = createFixture({ releaseNote: null });
+    const result = runPowerShell("check-release.ps1", ["--project", root, "--require-changelog"]);
+
+    expect(result.status).not.toBe(0);
+    expect(combinedOutput(result)).toContain("v0.3.0.md: release note is missing.");
+  });
+
+  it("rejects release-note metadata that disagrees with the application version", () => {
+    const root = createFixture({
+      releaseNote:
+        "<!-- release-note: v0.4.0; date: 2026-07-12 -->\n\n## Changes\n\n- Fixture release.\n",
+    });
+    const result = runPowerShell("check-release.ps1", ["--project", root, "--require-changelog"]);
+
+    expect(result.status).not.toBe(0);
+    expect(combinedOutput(result)).toContain(
+      "header version v0.4.0 does not match filename v0.3.0",
+    );
+  });
 
   it(
     "stages stable public installer names and matching checksums",
