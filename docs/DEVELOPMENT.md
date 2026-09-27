@@ -87,6 +87,29 @@ npm run lint:fix
 npm run rust:fmt:fix
 ```
 
+### CodeQL baseline and merge-protection promotion
+
+The separate CodeQL workflow scans JavaScript/TypeScript and Rust with the default
+query suite on every pull request and `main` push. Rust analysis runs on Windows
+with the pinned project toolchain. Its two language scans are initially
+informational. `CI Gate` remains a required status check, while CodeQL should
+not yet be selected under `Require code scanning results` in the `Protect main`
+ruleset.
+
+After the workflow is published, verify successful analysis and uploaded results
+for both languages on a representative pull request and on `main`. Review every
+baseline alert, fixing it or recording a justified dismissal in GitHub. A green
+analysis job only means the scan completed; it does not establish an empty alert
+list. If a language is missing, extraction is incomplete, or the results are too
+noisy to act on, correct the scan and repeat this review before promotion.
+
+Only after both language results are stable and the baseline is clean or
+intentionally dispositioned should the repository owner add CodeQL through
+`Require code scanning results`, choosing alert and security-alert thresholds
+based on the observed baseline. Keep `CI Gate` under required status checks.
+Requiring the CodeQL job names as status checks is not a substitute for
+code-scanning merge protection because a successful job can still report alerts.
+
 ## Testing
 
 Frontend tests use Vitest:
