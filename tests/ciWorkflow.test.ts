@@ -15,6 +15,10 @@ const dependencyReviewWorkflow = fs.readFileSync(
   path.join(projectRoot, ".github", "workflows", "dependency-review.yml"),
   "utf8",
 );
+const codeqlWorkflow = fs.readFileSync(
+  path.join(projectRoot, ".github", "workflows", "codeql.yml"),
+  "utf8",
+);
 const tauriConfig = JSON.parse(
   fs.readFileSync(path.join(projectRoot, "src-tauri", "tauri.conf.json"), "utf8"),
 ) as { build: { beforeBuildCommand: string } };
@@ -150,6 +154,33 @@ describe("CI workflow contract", () => {
     expect(dependencyReviewWorkflow).toContain("fail-on-scopes: runtime, development, unknown");
     expect(dependencyReviewWorkflow).toContain("license-check: false");
     expect(dependencyReviewWorkflow).not.toContain("warn-only: true");
+  });
+
+  it("runs SHA-pinned default CodeQL scans for JavaScript/TypeScript and Rust on PRs and main", () => {
+    expect(codeqlWorkflow).toContain("name: CodeQL");
+    expect(codeqlWorkflow).toMatch(
+      /\bon:\r?\n {2}pull_request:\r?\n {2}push:\r?\n {4}branches:\r?\n {6}- main/,
+    );
+    expect(codeqlWorkflow).not.toMatch(/\bpaths(?:-ignore)?:/);
+    expect(codeqlWorkflow).toContain("name: CodeQL (${{ matrix.language }})");
+    expect(codeqlWorkflow).toContain(
+      "- language: javascript-typescript\n            runner: ubuntu-latest",
+    );
+    expect(codeqlWorkflow).toContain("- language: rust\n            runner: windows-latest");
+    expect(codeqlWorkflow.match(/^ {10}- language:/gm)).toHaveLength(2);
+    expect(codeqlWorkflow).toContain("security-events: write");
+    expect(codeqlWorkflow).toContain("build-mode: none");
+    const actionReferences = [...codeqlWorkflow.matchAll(/^\s+uses: ([^\s#]+)/gm)].map(
+      ([, reference]) => reference,
+    );
+    expect(actionReferences).toHaveLength(4);
+    for (const reference of actionReferences) {
+      expect(reference).toMatch(/^[^@]+@[a-f0-9]{40}$/);
+    }
+    expect(actionReferences[2]).toMatch(/^github\/codeql-action\/init@/);
+    expect(actionReferences[3]).toMatch(/^github\/codeql-action\/analyze@/);
+    expect(actionReferences[2].split("@")[1]).toBe(actionReferences[3].split("@")[1]);
+    expect(codeqlWorkflow).not.toMatch(/\b(?:queries|packs|config-file|continue-on-error):/);
   });
 });
 
