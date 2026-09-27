@@ -13,6 +13,14 @@ const releaseWorkflow = fs.readFileSync(
   path.join(projectRoot, ".github", "workflows", "release.yml"),
   "utf8",
 );
+const workflowLines = releaseWorkflow.split(/\r?\n/);
+
+function releaseJob(jobId: string): string {
+  const start = workflowLines.indexOf(`  ${jobId}:`);
+  if (start < 0) throw new Error(`Missing release job: ${jobId}`);
+  const end = workflowLines.findIndex((line, index) => index > start && /^ {2}[\w-]+:$/.test(line));
+  return workflowLines.slice(start, end < 0 ? undefined : end).join("\n");
+}
 const commit = "a".repeat(40);
 const otherCommit = "b".repeat(40);
 const temporaryRoots: string[] = [];
@@ -157,6 +165,52 @@ describe("release-candidate workflow", () => {
     expect(releaseWorkflow).not.toContain("contents: write");
     expect(releaseWorkflow).not.toContain("tags:");
     expect(releaseWorkflow).not.toContain("gh release create");
+  });
+
+  it("builds only a validated candidate from its exact SHA, before any tag can exist", () => {
+    const detection = releaseJob("detect-candidate");
+    const build = releaseJob("build-windows");
+    expect(detection).toContain("candidate: ${{ steps.candidate.outputs.candidate }}");
+    expect(detection).toContain("version: ${{ steps.candidate.outputs.version }}");
+    expect(detection).toContain("sha: ${{ steps.candidate.outputs.sha }}");
+    expect(build).toContain("needs: detect-candidate");
+    expect(build).toContain("if: needs.detect-candidate.outputs.candidate == 'true'");
+    expect(build).toContain("ref: ${{ needs.detect-candidate.outputs.sha }}");
+    expect(build).toContain("CANDIDATE_SHA: ${{ needs.detect-candidate.outputs.sha }}");
+    expect(build).toContain("--require-changelog");
+    expect(build.indexOf("Verify candidate source and release metadata")).toBeLessThan(
+      build.indexOf("Build NSIS and MSI installers"),
+    );
+    expect(build.indexOf("Build NSIS and MSI installers")).toBeLessThan(
+      build.indexOf("Stage installers and checksums"),
+    );
+    expect(build.indexOf("Stage installers and checksums")).toBeLessThan(
+      build.indexOf("Verify staged installers and checksums"),
+    );
+    expect(build.indexOf("Verify staged installers and checksums")).toBeLessThan(
+      build.indexOf("Upload candidate artifact"),
+    );
+    expect(releaseWorkflow).not.toContain("contents: write");
+    expect(releaseWorkflow).not.toMatch(/\b(?:git tag|gh release|gh api -X POST)\b/);
+  });
+
+  it("verifies the SHA-named downloaded artifact and permits an artifact-only rerun", () => {
+    const build = releaseJob("build-windows");
+    const verification = releaseJob("verify-candidate");
+    const artifactName =
+      "archeion-v${{ needs.detect-candidate.outputs.version }}-${{ needs.detect-candidate.outputs.sha }}-windows-x64";
+    expect(build).toContain(`name: ${artifactName}`);
+    expect(build).toContain("overwrite: true");
+    expect(build).toContain("if-no-files-found: error");
+    expect(verification).toContain("needs: [detect-candidate, build-windows]");
+    expect(verification).toContain(`name: ${artifactName}`);
+    expect(verification).toContain("ref: ${{ needs.detect-candidate.outputs.sha }}");
+    expect(verification.indexOf("Download candidate artifact")).toBeLessThan(
+      verification.indexOf("Verify candidate SHA and checksums"),
+    );
+    expect(verification).toContain(
+      "./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows",
+    );
   });
 });
 
