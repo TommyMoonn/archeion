@@ -7,10 +7,14 @@ This guide covers local development, validation, and packaging. The root
 
 Archeion development currently targets Windows and requires:
 
-- Node.js 22.13 or newer.
+- Node.js 22 (at least 22.13). The shared `.node-version` selects the major
+  version for development and CI; `package.json` records the minimum supported
+  version.
 - npm with the committed `package-lock.json`.
-- Rust and Cargo.
-- Rust 1.88 or newer.
+- Rust and Cargo. `rust-toolchain.toml` pins the development and normal CI
+  toolchain to Rust 1.97.1. `src-tauri/Cargo.toml` declares Rust 1.88 as the
+  minimum supported Rust version (MSRV), which CI checks separately; it is not
+  the development toolchain pin.
 - PowerShell 7.
 - The Windows prerequisites required by Tauri 2.
 
@@ -66,6 +70,10 @@ npm run verify
 `verify` runs formatting, linting, TypeScript checks, frontend tests, Rust
 formatting, Clippy, Rust tests, the production frontend build, and bundled Inter
 asset verification.
+
+For release preparation and the post-merge publication procedure, follow the
+[release operator guide](RELEASING.md). The local installer commands below do
+not create a tag or publish a GitHub Release.
 
 Focused commands:
 

@@ -170,10 +170,14 @@ The command otherwise remains zero-config.
 
 ## npm aliases
 
+For the complete preparation and automatic publication procedure, use the
+[release operator guide](../docs/RELEASING.md). These aliases are command
+references, not a manual tagging procedure.
+
 ```powershell
 npm run version:check
-npm run version:set -- 1.3.0
-npm run release:check -- --tag v1.3.0
+npm run version:set -- X.Y.Z
+npm run release:check -- --tag vX.Y.Z
 npm run release:stage
 npm run changes:review -- --files
 npm run changes:package -- --name "phase-1.3.0.16"
