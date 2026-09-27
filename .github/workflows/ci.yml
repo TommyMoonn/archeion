@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -169,3 +169,34 @@ jobs:
 
       - name: Check minimum Rust version
         run: cargo +1.88.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml
+
+  ci-gate:
+    name: CI Gate
+    if: ${{ always() }}
+    needs:
+      - frontend-checks
+      - frontend-build
+      - release-tooling
+      - rust-checks
+      - msrv
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Require every validation job to succeed
+        shell: pwsh
+        env:
+          REQUIRED_JOBS: ${{ toJSON(needs) }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $jobs = $env:REQUIRED_JOBS | ConvertFrom-Json -AsHashtable
+          if ($jobs.Count -eq 0) { throw 'CI Gate has no validation jobs.' }
+
+          $failed = $false
+          foreach ($job in $jobs.GetEnumerator()) {
+            $result = $job.Value['result']
+            Write-Host "$($job.Key): $result"
+            if ($result -ne 'success') { $failed = $true }
+          }
+
+          if ($failed) { throw 'A required CI validation job did not succeed.' }
