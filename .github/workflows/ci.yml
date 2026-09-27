@@ -124,7 +124,7 @@ jobs:
         run: npm ci
 
       - name: Run release tooling tests
-        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts
+        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts
 
   rust-checks:
     name: Rust ${{ matrix.name }}

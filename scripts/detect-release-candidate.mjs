@@ -39,7 +39,7 @@ function compareStableVersions(current, previous) {
   return 0;
 }
 
-function tagTarget(output, tag) {
+export function tagTarget(output, tag) {
   const ref = `refs/tags/${tag}`;
   const entries = output.trim() ? output.trim().split(/\r?\n/) : [];
   const refs = new Map();
@@ -56,7 +56,7 @@ function tagTarget(output, tag) {
   return refs.get(`${ref}^{}`) ?? refs.get(ref) ?? null;
 }
 
-function readRelease(result, tag) {
+export function readRelease(result, tag) {
   if (result.status === 0) {
     try {
       const release = JSON.parse(result.stdout);
@@ -136,10 +136,6 @@ export function detectReleaseCandidate({ projectRoot, commit, repository, run = 
   if (release && !remoteTag) {
     throw new Error(`Release ${tag} exists without a matching remote tag.`);
   }
-  if (release && !release.draft) {
-    return { candidate: false, reason: `${tag} is already published.` };
-  }
-
   return { candidate: true, version: currentVersion, sha: commit };
 }
 

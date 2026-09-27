@@ -149,7 +149,7 @@ afterEach(() => {
 });
 
 describe("release-candidate workflow", () => {
-  it("runs only after successful push CI on the exact main SHA, with read-only permission", () => {
+  it("runs only after successful push CI on the exact main SHA, with read-only detection", () => {
     expect(releaseWorkflow).toContain("workflow_run:");
     expect(releaseWorkflow).toContain("workflows: [CI]");
     expect(releaseWorkflow).toContain("types: [completed]");
@@ -162,7 +162,7 @@ describe("release-candidate workflow", () => {
     expect(releaseWorkflow).toContain("ref: ${{ github.event.workflow_run.head_sha }}");
     expect(releaseWorkflow).toContain("CI_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}");
     expect(releaseWorkflow).toContain("contents: read");
-    expect(releaseWorkflow).not.toContain("contents: write");
+    expect(releaseJob("detect-candidate")).not.toContain("contents: write");
     expect(releaseWorkflow).not.toContain("tags:");
     expect(releaseWorkflow).not.toContain("gh release create");
   });
@@ -190,8 +190,8 @@ describe("release-candidate workflow", () => {
     expect(build.indexOf("Verify staged installers and checksums")).toBeLessThan(
       build.indexOf("Upload candidate artifact"),
     );
-    expect(releaseWorkflow).not.toContain("contents: write");
-    expect(releaseWorkflow).not.toMatch(/\b(?:git tag|gh release|gh api -X POST)\b/);
+    expect(build).not.toContain("contents: write");
+    expect(build).not.toMatch(/\b(?:git tag|gh release|gh api -X POST)\b/);
   });
 
   it("verifies the SHA-named downloaded artifact and permits an artifact-only rerun", () => {
@@ -211,6 +211,29 @@ describe("release-candidate workflow", () => {
     expect(verification).toContain(
       "./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows",
     );
+  });
+
+  it("publishes only after artifact verification, with write permission isolated to publication", () => {
+    const detection = releaseJob("detect-candidate");
+    const build = releaseJob("build-windows");
+    const verification = releaseJob("verify-candidate");
+    const publication = releaseJob("publish-release");
+    expect(releaseWorkflow).toMatch(/permissions:\r?\n {2}contents: read/);
+    for (const job of [detection, build, verification]) {
+      expect(job).not.toContain("contents: write");
+    }
+    expect(releaseWorkflow.match(/contents: write/g) ?? []).toHaveLength(1);
+    expect(publication).toContain("needs: [detect-candidate, verify-candidate]");
+    expect(publication).toContain("if: needs.detect-candidate.outputs.candidate == 'true'");
+    expect(publication).toContain("contents: write");
+    expect(publication).toContain("ref: ${{ needs.detect-candidate.outputs.sha }}");
+    expect(publication).toContain("persist-credentials: false");
+    expect(publication).toContain("GH_TOKEN: ${{ github.token }}");
+    expect(publication).toContain(
+      "name: archeion-v${{ needs.detect-candidate.outputs.version }}-${{ needs.detect-candidate.outputs.sha }}-windows-x64",
+    );
+    expect(publication).toContain("node scripts/publish-release.mjs");
+    expect(publication).not.toContain("personal_access_token");
   });
 });
 
@@ -279,13 +302,13 @@ describe("release-candidate detection", () => {
     );
   });
 
-  it("allows a matching draft for a later idempotent phase but skips a published release", () => {
+  it("routes both matching drafts and published releases to publication verification", () => {
     expect(
       scenario({ remoteTagSha: commit, release: { tag_name: "v1.5.5", draft: true } }).detect(),
     ).toEqual({ candidate: true, version: "1.5.5", sha: commit });
     expect(
       scenario({ remoteTagSha: commit, release: { tag_name: "v1.5.5", draft: false } }).detect(),
-    ).toEqual({ candidate: false, reason: "v1.5.5 is already published." });
+    ).toEqual({ candidate: true, version: "1.5.5", sha: commit });
   });
 
   it("keeps the exact green version bump when main advances, without duplicating it on the next commit", () => {
