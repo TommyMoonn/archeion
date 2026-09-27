@@ -105,7 +105,7 @@ describe("CI workflow contract", () => {
     expect(jobLines("frontend-build")).toContain("        run: npm run build");
     expect(jobLines("frontend-build")).toContain("        run: npm run test:inter-assets");
     expect(jobLines("release-tooling")).toContain(
-      "        run: npm run test -- tests/releaseTooling.test.ts",
+      "        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts",
     );
   });
 

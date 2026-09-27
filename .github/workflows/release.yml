@@ -1,186 +1,46 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-candidate-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
-  verify-release:
-    name: Verify release commit
+  detect-candidate:
+    name: Detect release candidate
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
-    permissions:
-      actions: read
-      contents: read
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout
+      - name: Checkout green main commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-          persist-credentials: false
-
-      - name: Verify tag belongs to main
-        shell: bash
-        run: |
-          set -euo pipefail
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-
-      - name: Require successful CI for tagged commit
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          run_id=""
-          for attempt in {1..12}; do
-            runs_json=$(gh run list \
-              --workflow ci.yml \
-              --commit "$GITHUB_SHA" \
-              --event push \
-              --limit 20 \
-              --json databaseId,headSha)
-
-            run_id=$(jq -r --arg sha "$GITHUB_SHA" \
-              '[.[] | select(.headSha == $sha)] | sort_by(.databaseId) | last | .databaseId // empty' \
-              <<<"$runs_json")
-
-            if [[ -n "$run_id" ]]; then
-              break
-            fi
-
-            echo "No CI run is visible for $GITHUB_SHA yet; retrying in 10 seconds."
-            sleep 10
-          done
-
-          if [[ -z "$run_id" ]]; then
-            echo "No push-triggered CI run was found for tagged commit $GITHUB_SHA." >&2
-            echo "Push the release commit to main and wait for CI before creating the tag." >&2
-            exit 1
-          fi
-
-          echo "Reusing CI run $run_id for tagged commit $GITHUB_SHA."
-          gh run watch "$run_id" --exit-status
-
-  build-windows:
-    name: Build Windows x64 release
-    needs: verify-release
-    runs-on: windows-latest
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
           persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
         with:
           node-version: 22
-          cache: npm
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
-        with:
-          toolchain: 1.97.1
-          targets: x86_64-pc-windows-msvc
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
-        with:
-          workspaces: |
-            src-tauri -> target
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Validate release metadata
-        shell: pwsh
-        run: >-
-          ./scripts/check-release.ps1
-          -Tag "${{ github.ref_name }}"
-          -RequireChangelogEntry
-
-      - name: Build NSIS and MSI installers
-        run: npm run tauri:build:windows -- --ci --target x86_64-pc-windows-msvc
-
-      - name: Stage installers and checksums
-        shell: pwsh
-        run: >-
-          ./scripts/stage-windows-bundles.ps1
-          -BundleRoot ./src-tauri/target/x86_64-pc-windows-msvc/release/bundle
-
-      - name: Upload release assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: archeion-${{ github.ref_name }}-windows-x64
-          path: artifacts/windows
-          if-no-files-found: error
-          retention-days: 7
-
-  create-draft-release:
-    name: Create draft GitHub Release
-    needs: build-windows
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download release assets
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: archeion-${{ github.ref_name }}-windows-x64
-          path: artifacts/windows
-
-      - name: Verify release asset checksums
-        shell: bash
-        working-directory: artifacts/windows
-        run: sha256sum --check SHA256SUMS.txt
-
-      - name: Create or refresh draft release
-        shell: bash
+      - name: Detect release candidate
+        id: candidate
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-
-          tag="${GITHUB_REF_NAME}"
-          title="${tag}"
-          mapfile -t assets < <(find artifacts/windows -maxdepth 1 -type f -print | sort)
-
-          if (( ${#assets[@]} == 0 )); then
-            echo "No release assets were downloaded." >&2
-            exit 1
-          fi
-
-          if release_state=$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null); then
-            if [[ "$release_state" != "true" ]]; then
-              echo "Release $tag is already published; refusing to replace its assets." >&2
-              exit 1
-            fi
-
-            gh release edit "$tag" --title "$title"
-            gh release upload "$tag" "${assets[@]}" --clobber
-          else
-            gh release create "$tag" "${assets[@]}" \
-              --verify-tag \
-              --draft \
-              --title "$title" \
-              --notes ""
-          fi
+          CI_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/detect-release-candidate.mjs --commit "$CI_HEAD_SHA" --repo "$GH_REPO"
