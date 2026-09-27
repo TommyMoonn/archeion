@@ -11,6 +11,10 @@ const desktopWorkflow = fs.readFileSync(
   path.join(projectRoot, ".github", "workflows", "desktop-build.yml"),
   "utf8",
 );
+const dependencyReviewWorkflow = fs.readFileSync(
+  path.join(projectRoot, ".github", "workflows", "dependency-review.yml"),
+  "utf8",
+);
 const tauriConfig = JSON.parse(
   fs.readFileSync(path.join(projectRoot, "src-tauri", "tauri.conf.json"), "utf8"),
 ) as { build: { beforeBuildCommand: string } };
@@ -132,6 +136,20 @@ describe("CI workflow contract", () => {
     expect(desktopWorkflow).not.toContain("run: npm run verify");
     expect(desktopWorkflow).not.toContain("run: npm run build");
     expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
+  });
+
+  it("reviews high severity dependency changes without withholding a check from ordinary PRs", () => {
+    expect(dependencyReviewWorkflow).toContain("name: Dependency Review");
+    expect(dependencyReviewWorkflow).toMatch(/\bon:\r?\n {2}pull_request:/);
+    expect(dependencyReviewWorkflow).not.toMatch(/\bpaths(?:-ignore)?:/);
+    expect(dependencyReviewWorkflow).toMatch(/permissions:\r?\n {2}contents: read/);
+    expect(dependencyReviewWorkflow).toMatch(
+      /uses: actions\/dependency-review-action@[a-f0-9]{40}/,
+    );
+    expect(dependencyReviewWorkflow).toContain("fail-on-severity: high");
+    expect(dependencyReviewWorkflow).toContain("fail-on-scopes: runtime, development, unknown");
+    expect(dependencyReviewWorkflow).toContain("license-check: false");
+    expect(dependencyReviewWorkflow).not.toContain("warn-only: true");
   });
 });
 
