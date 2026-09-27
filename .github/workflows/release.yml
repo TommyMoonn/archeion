@@ -154,3 +154,44 @@ jobs:
             throw "Verifier checkout does not match candidate SHA $env:CANDIDATE_SHA."
           }
           ./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows
+
+  publish-release:
+    name: Publish verified release
+    needs: [detect-candidate, verify-candidate]
+    if: needs.detect-candidate.outputs.candidate == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout exact green candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.detect-candidate.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 22
+
+      - name: Download verified candidate artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: archeion-v${{ needs.detect-candidate.outputs.version }}-${{ needs.detect-candidate.outputs.sha }}-windows-x64
+          path: artifacts/windows
+
+      - name: Publish exact-SHA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ needs.detect-candidate.outputs.sha }}
+          CANDIDATE_VERSION: ${{ needs.detect-candidate.outputs.version }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          node scripts/publish-release.mjs
+          --commit "$CANDIDATE_SHA"
+          --version "$CANDIDATE_VERSION"
+          --repo "$GH_REPO"
+          --artifacts-dir artifacts/windows
