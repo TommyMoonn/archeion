@@ -13,6 +13,9 @@ concurrency:
   group: release-candidate-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: false
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   detect-candidate:
     name: Detect release candidate
@@ -23,6 +26,10 @@ jobs:
           github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      candidate: ${{ steps.candidate.outputs.candidate }}
+      version: ${{ steps.candidate.outputs.version }}
+      sha: ${{ steps.candidate.outputs.sha }}
 
     steps:
       - name: Checkout green main commit
@@ -44,3 +51,106 @@ jobs:
           GH_REPO: ${{ github.repository }}
           CI_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: node scripts/detect-release-candidate.mjs --commit "$CI_HEAD_SHA" --repo "$GH_REPO"
+
+  build-windows:
+    name: Build Windows x64 release candidate
+    needs: detect-candidate
+    if: needs.detect-candidate.outputs.candidate == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout candidate commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.detect-candidate.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: 1.97.1
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+
+      - name: Verify candidate source and release metadata
+        shell: pwsh
+        env:
+          CANDIDATE_SHA: ${{ needs.detect-candidate.outputs.sha }}
+          CANDIDATE_VERSION: ${{ needs.detect-candidate.outputs.version }}
+        run: |
+          if ((git rev-parse HEAD) -ne $env:CANDIDATE_SHA) {
+            throw "Checkout does not match green candidate SHA $env:CANDIDATE_SHA."
+          }
+          ./scripts/check-release.ps1 --tag "v$env:CANDIDATE_VERSION" --require-changelog
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build NSIS and MSI installers
+        run: npm run tauri:build:windows -- --ci --target x86_64-pc-windows-msvc
+
+      - name: Verify bundled frontend assets
+        run: npm run test:inter-assets
+
+      - name: Stage installers and checksums
+        shell: pwsh
+        run: >-
+          ./scripts/stage-windows-release.ps1
+          --bundle-dir ./src-tauri/target/x86_64-pc-windows-msvc/release/bundle
+
+      - name: Verify staged installers and checksums
+        shell: pwsh
+        run: ./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows
+
+      - name: Upload candidate artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: archeion-v${{ needs.detect-candidate.outputs.version }}-${{ needs.detect-candidate.outputs.sha }}-windows-x64
+          path: |
+            artifacts/windows/Archeion-Setup-x64.exe
+            artifacts/windows/Archeion-x64.msi
+            artifacts/windows/SHA256SUMS.txt
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  verify-candidate:
+    name: Verify release candidate artifact
+    needs: [detect-candidate, build-windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout candidate verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.detect-candidate.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download candidate artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: archeion-v${{ needs.detect-candidate.outputs.version }}-${{ needs.detect-candidate.outputs.sha }}-windows-x64
+          path: artifacts/windows
+
+      - name: Verify candidate SHA and checksums
+        shell: pwsh
+        env:
+          CANDIDATE_SHA: ${{ needs.detect-candidate.outputs.sha }}
+        run: |
+          if ((git rev-parse HEAD) -ne $env:CANDIDATE_SHA) {
+            throw "Verifier checkout does not match candidate SHA $env:CANDIDATE_SHA."
+          }
+          ./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows

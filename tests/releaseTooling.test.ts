@@ -101,6 +101,36 @@ function createFixture({
   return root;
 }
 
+function createStagedInstallerFixture() {
+  const root = createFixture();
+  const bundleRoot = path.join(root, "bundle");
+  const outputDirectory = path.join(root, "artifacts", "windows");
+  fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
+  fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
+  fs.writeFileSync(
+    path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"),
+    "fixture NSIS installer",
+  );
+  fs.writeFileSync(
+    path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"),
+    "fixture MSI installer",
+  );
+
+  const result = runPowerShell("stage-windows-release.ps1", [
+    "--project",
+    root,
+    "--bundle-dir",
+    bundleRoot,
+    "--output",
+    outputDirectory,
+  ]);
+  if (result.status !== 0) {
+    throw new Error(`Could not stage installer fixture: ${combinedOutput(result)}`);
+  }
+
+  return { root, bundleRoot, outputDirectory };
+}
+
 function releaseToolingEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const environment = { ...process.env };
 
@@ -331,6 +361,86 @@ describeReleaseTooling("release tooling", () => {
     },
     releaseProcessTimeout,
   );
+
+  it(
+    "verifies the staged installer bundle and accepts an unchanged rerun",
+    () => {
+      const { outputDirectory } = createStagedInstallerFixture();
+      const before = fs
+        .readdirSync(outputDirectory)
+        .map((name) => [name, sha256(fs.readFileSync(path.join(outputDirectory, name), "utf8"))]);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const result = runPowerShell("verify-windows-release.ps1", [
+          "--artifacts-dir",
+          outputDirectory,
+        ]);
+        expect(result.status).toBe(0);
+        expect(combinedOutput(result)).toContain(
+          "Verified Windows release installers and checksums",
+        );
+      }
+
+      const after = fs
+        .readdirSync(outputDirectory)
+        .map((name) => [name, sha256(fs.readFileSync(path.join(outputDirectory, name), "utf8"))]);
+      expect(after).toEqual(before);
+    },
+    releaseProcessTimeout,
+  );
+
+  it.each([
+    [
+      "changed installer",
+      (directory: string) =>
+        fs.appendFileSync(path.join(directory, "Archeion-Setup-x64.exe"), "tampered"),
+    ],
+    [
+      "missing installer",
+      (directory: string) => fs.rmSync(path.join(directory, "Archeion-x64.msi")),
+    ],
+    ["missing checksum", (directory: string) => fs.rmSync(path.join(directory, "SHA256SUMS.txt"))],
+    [
+      "extra asset",
+      (directory: string) => fs.writeFileSync(path.join(directory, "unexpected.txt"), "extra"),
+    ],
+  ])(
+    "rejects a %s before the candidate artifact can be accepted",
+    (_case, modify) => {
+      const { outputDirectory } = createStagedInstallerFixture();
+      modify(outputDirectory);
+      const result = runPowerShell("verify-windows-release.ps1", [
+        "--artifacts-dir",
+        outputDirectory,
+      ]);
+      expect(result.status).not.toBe(0);
+    },
+    releaseProcessTimeout,
+  );
+
+  it("rejects a missing MSI before staging or artifact upload", () => {
+    const root = createFixture();
+    const bundleRoot = path.join(root, "bundle");
+    const outputDirectory = path.join(root, "artifacts", "windows");
+    fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
+    fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
+    fs.writeFileSync(
+      path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"),
+      "fixture NSIS installer",
+    );
+
+    const result = runPowerShell("stage-windows-release.ps1", [
+      "--project",
+      root,
+      "--bundle-dir",
+      bundleRoot,
+      "--output",
+      outputDirectory,
+    ]);
+    expect(result.status).not.toBe(0);
+    expect(combinedOutput(result)).toContain("Expected exactly one MSI installer");
+    expect(fs.existsSync(outputDirectory)).toBe(false);
+  });
 
   it(
     "updates all application version sources as one transaction",
