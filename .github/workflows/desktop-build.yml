@@ -47,11 +47,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run release checks
-        run: npm run verify
+      - name: Run pre-build checks
+        run: npm run check:all
 
       - name: Build NSIS and MSI installers
         run: npm run tauri:build:windows -- --ci --target x86_64-pc-windows-msvc
+
+      - name: Verify bundled frontend assets
+        run: npm run test:inter-assets
 
       - name: Read app version
         shell: pwsh

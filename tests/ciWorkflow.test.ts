@@ -7,6 +7,13 @@ import { describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflow = fs.readFileSync(path.join(projectRoot, ".github", "workflows", "ci.yml"), "utf8");
+const desktopWorkflow = fs.readFileSync(
+  path.join(projectRoot, ".github", "workflows", "desktop-build.yml"),
+  "utf8",
+);
+const tauriConfig = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, "src-tauri", "tauri.conf.json"), "utf8"),
+) as { build: { beforeBuildCommand: string } };
 const lines = workflow.split(/\r?\n/);
 
 function jobLines(jobId: string): string[] {
@@ -23,6 +30,10 @@ function takeWhile<T>(items: T[], predicate: (item: T) => boolean): T[] {
 }
 
 const gate = jobLines("ci-gate");
+const needsStart = gate.indexOf("    needs:");
+const requiredJobIds = takeWhile(gate.slice(needsStart + 1), (line) =>
+  line.startsWith("      - "),
+).map((line) => line.slice("      - ".length));
 const runStart = gate.indexOf("        run: |");
 if (runStart < 0) throw new Error("CI Gate is missing its result check");
 
@@ -64,32 +75,74 @@ describe("CI workflow contract", () => {
     const jobIds = lines
       .slice(jobsStart + 1)
       .flatMap((line) => /^ {2}([\w-]+):$/.exec(line)?.[1] ?? []);
-    const needsStart = gate.indexOf("    needs:");
-    const needs = takeWhile(gate.slice(needsStart + 1), (line) => line.startsWith("      - ")).map(
-      (line) => line.slice("      - ".length),
-    );
 
     expect(needsStart).toBeGreaterThanOrEqual(0);
-    expect(needs.sort()).toEqual(jobIds.filter((jobId) => jobId !== "ci-gate").sort());
+    expect([...requiredJobIds].sort()).toEqual(
+      jobIds.filter((jobId) => jobId !== "ci-gate").sort(),
+    );
     expect(gate).toContain("    if: ${{ always() }}");
     expect(gate).toContain("          REQUIRED_JOBS: ${{ toJSON(needs) }}");
+  });
+
+  it("keeps the cheap frontend checks identifiable while tests and build stay separate", () => {
+    const staticChecks = jobLines("frontend-static").join("\n");
+
+    expect(staticChecks).toContain(
+      "- name: Check architecture\n        run: npm run architecture:check",
+    );
+    expect(staticChecks).toContain("- name: Check formatting\n        run: npm run fmt");
+    expect(staticChecks).toContain("- name: Lint frontend\n        run: npm run lint");
+    expect(staticChecks).toContain("- name: Typecheck frontend\n        run: npm run typecheck");
+    expect(jobLines("frontend-tests")).toContain("        run: npm run test");
+    expect(jobLines("frontend-build")).toContain("        run: npm run build");
+    expect(jobLines("frontend-build")).toContain("        run: npm run test:inter-assets");
+    expect(jobLines("release-tooling")).toContain(
+      "        run: npm run test -- tests/releaseTooling.test.ts",
+    );
+  });
+
+  it("runs Rust formatting inside the Clippy job and retains tests and MSRV", () => {
+    const rustChecks = jobLines("rust-checks");
+    const formatStep = rustChecks.indexOf("      - name: Check Rust formatting");
+    const cacheStep = rustChecks.indexOf("      - name: Cache Rust dependencies");
+
+    expect(rustChecks).toContain("          - name: Clippy");
+    expect(rustChecks).toContain("          - name: Tests");
+    expect(rustChecks).not.toContain("          - name: Format");
+    expect(formatStep).toBeGreaterThanOrEqual(0);
+    expect(formatStep).toBeLessThan(cacheStep);
+    expect(rustChecks[formatStep + 1]).toBe("        if: matrix.name == 'Clippy'");
+    expect(rustChecks[formatStep + 2]).toBe(
+      "        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check",
+    );
+    expect(rustChecks).toContain("        run: ${{ matrix.command }}");
+    expect(jobLines("msrv")).toContain(
+      "        run: cargo +1.88.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml",
+    );
+  });
+
+  it("lets Tauri build the manual installer frontend once and checks its assets afterward", () => {
+    const preflight = desktopWorkflow.indexOf("run: npm run check:all");
+    const build = desktopWorkflow.indexOf("run: npm run tauri:build:windows");
+    const assetCheck = desktopWorkflow.indexOf("run: npm run test:inter-assets");
+
+    expect(preflight).toBeGreaterThanOrEqual(0);
+    expect(build).toBeGreaterThan(preflight);
+    expect(assetCheck).toBeGreaterThan(build);
+    expect(desktopWorkflow).not.toContain("run: npm run verify");
+    expect(desktopWorkflow).not.toContain("run: npm run build");
+    expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
   });
 });
 
 (hasPowerShell ? describe : describe.skip)("CI Gate result check", () => {
-  const successfulJobs = {
-    "frontend-checks": "success",
-    "frontend-build": "success",
-    "release-tooling": "success",
-    "rust-checks": "success",
-    msrv: "success",
-  };
+  const successfulJobs = Object.fromEntries(requiredJobIds.map((jobId) => [jobId, "success"]));
 
   it("passes when all required jobs succeed", () => {
     const result = runGate(successfulJobs);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("frontend-checks: success");
+    expect(result.stdout).toContain("frontend-static: success");
   });
 
   it.each(["failure", "cancelled", "skipped"])("fails when a required job is %s", (status) => {
