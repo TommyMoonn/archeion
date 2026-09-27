@@ -17,24 +17,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  frontend-checks:
-    name: Frontend ${{ matrix.name }}
+  frontend-static:
+    name: Frontend static checks
     runs-on: windows-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Architecture
-            command: npm run architecture:check
-          - name: Format
-            command: npm run fmt
-          - name: Lint
-            command: npm run lint
-          - name: Typecheck
-            command: npm run typecheck
-          - name: Tests
-            command: npm run test
 
     steps:
       - name: Checkout
@@ -51,8 +37,40 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ${{ matrix.name }}
-        run: ${{ matrix.command }}
+      - name: Check architecture
+        run: npm run architecture:check
+
+      - name: Check formatting
+        run: npm run fmt
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+  frontend-tests:
+    name: Frontend tests
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm run test
 
   frontend-build:
     name: Frontend build and assets
@@ -116,8 +134,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Format
-            command: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
           - name: Clippy
             command: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
           - name: Tests
@@ -134,6 +150,10 @@ jobs:
         with:
           toolchain: 1.97.1
           components: rustfmt, clippy
+
+      - name: Check Rust formatting
+        if: matrix.name == 'Clippy'
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
@@ -174,7 +194,8 @@ jobs:
     name: CI Gate
     if: ${{ always() }}
     needs:
-      - frontend-checks
+      - frontend-static
+      - frontend-tests
       - frontend-build
       - release-tooling
       - rust-checks
