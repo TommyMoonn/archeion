@@ -127,6 +127,25 @@ npm run test
 npm run test:watch
 ```
 
+### Real-browser contracts
+
+The small Chromium suite checks rendered navigation, focus, ARIA values, and
+responsive presentation that the `happy-dom` tests cannot verify. It uses the
+real public pages and a Vite fixture mounting production Reader, Library, and
+dialog components. It does not launch Tauri or replace the lower-level tests.
+
+Install the pinned browser once, then run the suite locally:
+
+```powershell
+npm ci
+npm run test:browser:install
+npm run test:browser
+```
+
+CI runs the same suite as a separate `CI Gate` dependency. On failure, its
+`browser-contract-failure` artifact contains the HTML report, screenshot, and
+retry trace where available. Browser outputs are ignored by Git.
+
 ### Library windowing evidence
 
 `libraryPerformanceEvidence.test.ts` retains deterministic structural measurements for a

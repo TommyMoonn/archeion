@@ -104,6 +104,13 @@ describe("CI workflow contract", () => {
     expect(jobLines("frontend-tests")).toContain("        run: npm run test");
     expect(jobLines("frontend-build")).toContain("        run: npm run build");
     expect(jobLines("frontend-build")).toContain("        run: npm run test:inter-assets");
+    const browserContracts = jobLines("browser-contracts");
+    expect(browserContracts).toContain("    runs-on: ubuntu-latest");
+    expect(browserContracts).toContain(
+      "        run: npx playwright install --with-deps chromium --only-shell",
+    );
+    expect(browserContracts).toContain("        run: npm run test:browser");
+    expect(browserContracts).toContain("          name: browser-contract-failure");
     expect(jobLines("release-tooling")).toContain(
       "        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts",
     );

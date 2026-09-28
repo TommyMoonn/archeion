@@ -72,6 +72,43 @@ jobs:
       - name: Run frontend tests
         run: npm run test
 
+  browser-contracts:
+    name: Browser accessibility and layout contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium headless shell
+        run: npx playwright install --with-deps chromium --only-shell
+
+      - name: Run browser contracts
+        run: npm run test:browser
+
+      - name: Upload browser failure evidence
+        if: ${{ failure() && !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: browser-contract-failure
+          path: |
+            test-results/browser/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
   frontend-build:
     name: Frontend build and assets
     runs-on: windows-latest
@@ -196,6 +233,7 @@ jobs:
     needs:
       - frontend-static
       - frontend-tests
+      - browser-contracts
       - frontend-build
       - release-tooling
       - rust-checks
