@@ -66,4 +66,19 @@ describe("tracked release documentation and toolchain sources", () => {
       expect(fs.existsSync(path.resolve(projectRoot, "docs", target))).toBe(true);
     }
   });
+
+  it("documents creation-allowed release tags without restoring the bypass requirement", () => {
+    const guide = read("docs/RELEASING.md").replace(/\s+/g, " ");
+    expect(guide).toContain("allows creation of new `v*` tags");
+    expect(guide).toContain(
+      "blocks updates, deletions, and non-fast-forward pushes to existing `v*` tags through the normal protected path",
+    );
+    expect(guide).toContain("no GitHub Actions/App bypass is required for release-tag creation");
+    expect(guide).toContain(
+      "any actor with ordinary tag-creation permission to create a new version-shaped tag manually",
+    );
+    expect(guide).toContain("fails closed on a conflict instead of moving or deleting it");
+    expect(guide).not.toContain("protects creation");
+    expect(guide).not.toContain("integration bypass needed");
+  });
 });

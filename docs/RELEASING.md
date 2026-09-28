@@ -60,12 +60,25 @@ and review requirements. Do not bypass the main ruleset. An ordinary
 `workflow_dispatch` Windows installer build is separate from release
 publication and does not substitute for the successful `main` CI run.
 
-Before relying on automatic publication, confirm the `v*` tag ruleset still
-protects creation, update, deletion, and non-fast-forward changes and has the
-scoped GitHub Actions integration bypass needed by the publication job. This
-guide does not authorize changing the ruleset or using a personal access token
-to work around it. If that prerequisite is absent, stop and coordinate the
+## Release tag authorization
+
+Before relying on automatic publication, confirm the active `Protect tag`
+ruleset targets `refs/tags/v*`, allows creation of new `v*` tags, and blocks
+updates, deletions, and non-fast-forward pushes to existing `v*` tags through
+the normal protected path. The publication job uses its job-scoped
+`GITHUB_TOKEN` with `contents: write`; no GitHub Actions/App bypass is required
+for release-tag creation. Do not introduce a personal access token to work
+around the ruleset. If this policy is not live, stop and coordinate the
 repository setting change before merging a release-preparation PR.
+
+This policy permits any actor with ordinary tag-creation permission to create
+a new version-shaped tag manually. It does not, by itself, prove that every
+new `v*` tag came from the release workflow. Existing `v*` tags cannot be
+moved or deleted through the normal protected path; actors with an explicit
+ruleset bypass remain an exception. The publication tool checks an existing
+tag's exact SHA and fails closed on a conflict instead of moving or deleting
+it. Release operators must still let the workflow create the tag, not create
+one manually.
 
 ## After merge
 
@@ -81,11 +94,11 @@ For a valid candidate, the workflow builds the Windows NSIS and MSI installers
 from that exact SHA, stages `Archeion-Setup-x64.exe`, `Archeion-x64.msi`, and
 `SHA256SUMS.txt`, then verifies the downloaded candidate artifact before the
 publication job receives `contents: write`. Publication rechecks the source,
-metadata, and artifact; creates the protected `vX.Y.Z` tag at the candidate
-SHA; creates or resumes a draft with the tracked release-note body; verifies
-the exact asset set, sizes, and GitHub-reported SHA-256 digests; and only then
-publishes it. The tag, draft, and release are not created by local validation
-or PR CI.
+metadata, and artifact; creates the new `vX.Y.Z` tag at the candidate SHA
+under the creation-allowed policy; creates or resumes a draft with the tracked
+release-note body; verifies the exact asset set, sizes, and GitHub-reported
+SHA-256 digests; and only then publishes it. The tag, draft, and release are
+not created by local validation or PR CI.
 
 Inspect the hosted Release run and resulting GitHub Release. Confirm the tag
 resolves to the green candidate SHA, the title and body match the tracked
