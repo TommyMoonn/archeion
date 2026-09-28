@@ -29,6 +29,9 @@
     "architecture:check": "node scripts/check-architecture.mjs",
     "test:architecture": "vitest run tests/architectureBoundaries.test.ts",
     "test": "vitest run",
+    "test:browser": "npm run test:browser:typecheck && playwright test",
+    "test:browser:typecheck": "tsc -p tsconfig.browser.json",
+    "test:browser:install": "playwright install chromium --only-shell",
     "test:summary": "vitest run --reporter=dot",
     "test:verbose": "vitest run --reporter=verbose",
     "test:inter-assets": "node scripts/verify-inter-build-assets.mjs",
@@ -85,6 +88,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^26.4.0",
     "@types/react": "^19.3.0",

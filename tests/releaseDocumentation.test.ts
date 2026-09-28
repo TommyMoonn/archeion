@@ -27,7 +27,7 @@ describe("tracked release documentation and toolchain sources", () => {
         /uses: actions\/setup-node@[a-f0-9]{40}(?:[^\r\n]*)\r?\n {8}with:\r?\n((?: {10}.+\r?\n)+)/g,
       ),
     ]);
-    expect(setupSteps).toHaveLength(8);
+    expect(setupSteps).toHaveLength(9);
     for (const [, inputs] of setupSteps) {
       expect(inputs).toContain("node-version-file: .node-version");
       expect(inputs).not.toMatch(/\bnode-version:/);
