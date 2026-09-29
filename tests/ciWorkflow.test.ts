@@ -111,6 +111,11 @@ describe("CI workflow contract", () => {
     );
     expect(browserContracts).toContain("        run: npm run test:browser");
     expect(browserContracts).toContain("          name: browser-contract-failure");
+    const windowsRuntime = jobLines("windows-runtime");
+    expect(windowsRuntime).toContain("    runs-on: windows-2022");
+    expect(windowsRuntime).toContain("        run: npm run test:runtime:windows");
+    expect(windowsRuntime).toContain("          name: windows-runtime-smoke-failure");
+    expect(requiredJobIds).toContain("windows-runtime");
     expect(jobLines("release-tooling")).toContain(
       "        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts",
     );
