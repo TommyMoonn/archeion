@@ -154,8 +154,8 @@ WebDriver bridge. It covers archive creation/opening, EPUB import/read, settings
 after restart, annotation metadata/export, a disposable EPUB replacement, and a
 secondary window. The test build uses a unique application identifier and a
 temporary archive, so it does not use the normal Archeion settings or archives.
-It does not install an MSI or NSIS package; installer verification is a separate
-maintenance phase.
+It does not install an MSI or NSIS package; the separate installer smoke below
+covers packaging without duplicating these runtime flows.
 
 On Windows, install the Tauri WebDriver bridge and run the smoke:
 
@@ -339,6 +339,15 @@ SHA256SUMS.txt
 ```
 
 Generated build output and staged artifacts are ignored by Git.
+
+The manual Windows installer workflow and automatic release-candidate build both
+verify staged checksums, then use `scripts/smoke-windows-installer.ps1` to silently
+install and uninstall the per-user NSIS bundle before upload. The smoke requires
+a clean Windows runner: it refuses any existing Archeion installation or default
+data directory. It verifies the installed executable and its product metadata,
+the uninstaller and registration, then checks that uninstall removes the
+installed state. The MSI remains staged and checksum-verified, but is not the
+format exercised by this bounded install/uninstall smoke.
 
 ## Project utilities
 

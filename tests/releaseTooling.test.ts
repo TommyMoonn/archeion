@@ -494,3 +494,94 @@ describeReleaseTooling("release tooling", () => {
     releaseProcessTimeout,
   );
 });
+
+const describeWindowsInstallerSmoke =
+  hasReleaseToolchain && process.platform === "win32" ? describe : describe.skip;
+
+function runPreviousLocationCleanupFixture(location: string, expected: string) {
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    ". $env:SMOKE_SCRIPT --help | Out-Null",
+    "$fixtureKey = 'HKCU:\\Software\\ArcheionSmokeFixture-' + [guid]::NewGuid().ToString('N')",
+    "try {",
+    "  if (Test-Path -LiteralPath $fixtureKey) { throw 'Fixture key already exists.' }",
+    "  New-Item -Path $fixtureKey -Force | Out-Null",
+    "  Set-Item -LiteralPath $fixtureKey -Value $env:FIXTURE_LOCATION",
+    "  New-ItemProperty -LiteralPath $fixtureKey -Name 'Installer Language' -Value '1033' -PropertyType String | Out-Null",
+    "  try {",
+    "    Remove-OwnedPreviousLocation -RegistryPath $fixtureKey -InstallDirectory $env:EXPECTED_LOCATION",
+    "    Write-Output 'cleanup: removed'",
+    "  } catch {",
+    "    Write-Output ('cleanup: rejected ' + $_.Exception.Message)",
+    "  }",
+    "  Write-Output ('key-present: ' + (Test-Path -LiteralPath $fixtureKey))",
+    "} finally {",
+    "  if (Test-Path -LiteralPath $fixtureKey) { Remove-Item -LiteralPath $fixtureKey -Force -ErrorAction Stop }",
+    "}",
+  ].join("\n");
+
+  return spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      SMOKE_SCRIPT: path.join(scriptsRoot, "smoke-windows-installer.ps1"),
+      FIXTURE_LOCATION: location,
+      EXPECTED_LOCATION: expected,
+    },
+    windowsHide: true,
+  });
+}
+
+describeWindowsInstallerSmoke("Windows installer smoke", () => {
+  it("requires previous-location cleanup and final absence before reporting success", () => {
+    const script = fs.readFileSync(path.join(scriptsRoot, "smoke-windows-installer.ps1"), "utf8");
+
+    expect(script).toContain(
+      "Remove-OwnedPreviousLocation -RegistryPath $previousLocationKey -InstallDirectory $installDirectory",
+    );
+    expect(script).toContain("elseif (Test-Path -LiteralPath $previousLocationKey)");
+    expect(
+      script.indexOf("Remove-OwnedPreviousLocation -RegistryPath $previousLocationKey"),
+    ).toBeLessThan(script.indexOf("Write-Host 'Windows NSIS install/uninstall smoke passed.'"));
+  });
+
+  it("rejects a missing staged installer without touching installation state", () => {
+    const root = createFixture();
+    const missingInstaller = path.join(root, "missing-setup.exe");
+    const result = runPowerShell("smoke-windows-installer.ps1", ["--installer", missingInstaller]);
+
+    expect(result.status).not.toBe(0);
+    expect(combinedOutput(result)).toContain("NSIS installer does not exist:");
+    expect(combinedOutput(result)).toContain("missing-setup.exe");
+  });
+
+  it("rejects an invalid installer fixture before executing it", () => {
+    const root = createFixture();
+    const invalidInstaller = path.join(root, "invalid-setup.exe");
+    fs.writeFileSync(invalidInstaller, "not a Windows executable");
+    const result = runPowerShell("smoke-windows-installer.ps1", ["--installer", invalidInstaller]);
+
+    expect(result.status).not.toBe(0);
+    expect(combinedOutput(result)).toContain("NSIS installer is not a Windows executable");
+  });
+
+  it("removes only a previous-location marker owned by the isolated install", () => {
+    const isolatedInstall = path.join(os.tmpdir(), "archeion-smoke-fixture", "installed");
+    const result = runPreviousLocationCleanupFixture(isolatedInstall, isolatedInstall);
+
+    expect(result.status).toBe(0);
+    expect(combinedOutput(result)).toContain("cleanup: removed");
+    expect(combinedOutput(result)).toContain("key-present: False");
+  });
+
+  it("refuses to remove a previous-location marker pointing outside the isolated install", () => {
+    const isolatedInstall = path.join(os.tmpdir(), "archeion-smoke-fixture", "installed");
+    const otherInstall = path.join(os.tmpdir(), "different-install");
+    const result = runPreviousLocationCleanupFixture(otherInstall, isolatedInstall);
+
+    expect(result.status).toBe(0);
+    expect(combinedOutput(result)).toContain("cleanup: rejected Refusing to clean");
+    expect(combinedOutput(result)).toContain("key-present: True");
+  });
+});
