@@ -114,6 +114,10 @@ jobs:
         shell: pwsh
         run: ./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows
 
+      - name: Smoke test staged NSIS installer
+        shell: pwsh
+        run: ./scripts/smoke-windows-installer.ps1 --installer artifacts/windows/Archeion-Setup-x64.exe
+
       - name: Upload candidate artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

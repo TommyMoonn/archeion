@@ -188,6 +188,9 @@ describe("release-candidate workflow", () => {
       build.indexOf("Verify staged installers and checksums"),
     );
     expect(build.indexOf("Verify staged installers and checksums")).toBeLessThan(
+      build.indexOf("Smoke test staged NSIS installer"),
+    );
+    expect(build.indexOf("Smoke test staged NSIS installer")).toBeLessThan(
       build.indexOf("Upload candidate artifact"),
     );
     expect(build).not.toContain("contents: write");

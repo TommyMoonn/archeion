@@ -154,6 +154,28 @@ describe("CI workflow contract", () => {
     expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
   });
 
+  it("smoke tests the same staged NSIS installer before either workflow uploads it", () => {
+    const releaseWorkflow = fs.readFileSync(
+      path.join(projectRoot, ".github", "workflows", "release.yml"),
+      "utf8",
+    );
+    const smokeCommand =
+      "./scripts/smoke-windows-installer.ps1 --installer artifacts/windows/Archeion-Setup-x64.exe";
+
+    for (const [name, source, upload] of [
+      ["manual", desktopWorkflow, "Upload Windows installers"],
+      ["automatic release", releaseWorkflow, "Upload candidate artifact"],
+    ]) {
+      expect(source, name).toContain(smokeCommand);
+      expect(source.indexOf("Verify staged installers and checksums"), name).toBeLessThan(
+        source.indexOf("Smoke test staged NSIS installer"),
+      );
+      expect(source.indexOf("Smoke test staged NSIS installer"), name).toBeLessThan(
+        source.indexOf(upload),
+      );
+    }
+  });
+
   it("reviews high severity dependency changes without withholding a check from ordinary PRs", () => {
     expect(dependencyReviewWorkflow).toContain("name: Dependency Review");
     expect(dependencyReviewWorkflow).toMatch(/\bon:\r?\n {2}pull_request:/);
