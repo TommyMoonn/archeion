@@ -201,6 +201,52 @@ jobs:
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.command }}
 
+  windows-runtime:
+    name: Windows Tauri runtime smoke
+    runs-on: windows-2022
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: 1.97.1
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Tauri WebDriver bridge
+        run: cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
+
+      - name: Run real Windows runtime smoke
+        run: npm run test:runtime:windows
+
+      - name: Upload runtime failure evidence
+        if: ${{ failure() && !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-runtime-smoke-failure
+          path: test-results/runtime-smoke/
+          if-no-files-found: ignore
+          retention-days: 7
+
   msrv:
     name: Rust 1.88 check
     runs-on: windows-latest
@@ -237,6 +283,7 @@ jobs:
       - frontend-build
       - release-tooling
       - rust-checks
+      - windows-runtime
       - msrv
     runs-on: ubuntu-latest
     timeout-minutes: 5

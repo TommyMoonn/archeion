@@ -146,6 +146,32 @@ CI runs the same suite as a separate `CI Gate` dependency. On failure, its
 `browser-contract-failure` artifact contains the HTML report, screenshot, and
 retry trace where available. Browser outputs are ignored by Git.
 
+### Windows Tauri runtime smoke
+
+The separate Windows smoke lane builds an unbundled release-profile test executable
+from the current sources and drives its real WebView2 instance through Tauri's
+WebDriver bridge. It covers archive creation/opening, EPUB import/read, settings
+after restart, annotation metadata/export, a disposable EPUB replacement, and a
+secondary window. The test build uses a unique application identifier and a
+temporary archive, so it does not use the normal Archeion settings or archives.
+It does not install an MSI or NSIS package; installer verification is a separate
+maintenance phase.
+
+On Windows, install the Tauri WebDriver bridge and run the smoke:
+
+```powershell
+cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
+npm run test:runtime:windows
+```
+
+The runner downloads the Microsoft Edge WebDriver version matching the installed
+**WebView2 Runtime**, which can differ from the Edge browser version. It removes
+its temporary archive, roaming settings, and local WebView2 test-identity state
+on success or failure. If a
+step fails, inspect `test-results/runtime-smoke/failure.txt`, the driver log,
+and any captured page or screenshot. CI uploads those files as the
+`windows-runtime-smoke-failure` artifact. Build and test outputs are ignored by Git.
+
 ### Library windowing evidence
 
 `libraryPerformanceEvidence.test.ts` retains deterministic structural measurements for a
