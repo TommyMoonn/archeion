@@ -341,8 +341,9 @@ performance
   }));
 ```
 
-The full Phase 0.9.0.1 structural and machine-specific baseline is recorded in
-`.project/v0.9.0/0.9.0.1/PERFORMANCE_ARCHITECTURE_BASELINE.md`.
+The durable structural evidence and measurement limitations are recorded in the
+[performance architecture baseline](performance/architecture-baseline.md). Raw
+machine-specific phase notes remain local and are not required from a clean clone.
 
 Release-tool integration tests invoke PowerShell, npm, and Cargo against temporary
 fixtures. They never modify the real project version files.
