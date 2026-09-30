@@ -49,7 +49,7 @@ async function waitForIpc(driver) {
   );
 }
 
-export async function runRuntimeFlows({ startSession, fixtureRoot, logStep }) {
+export async function runRuntimeFlows({ startSession, closeSession, fixtureRoot, logStep }) {
   const sourcePath = path.join(fixtureRoot, "smoke.epub");
   const sourceBytes = await createEpubFixture(sourcePath);
   let driver = await startSession();
@@ -140,7 +140,7 @@ export async function runRuntimeFlows({ startSession, fixtureRoot, logStep }) {
     });
     assert.equal(changed.preferences.reader.fontSize, 21);
     assert.ok(changed.revision > before.revision);
-    await driver.quit();
+    await closeSession(driver);
     driver = await startSession();
     await waitForIpc(driver);
     const persisted = await invoke(driver, "load_app_settings_snapshot");

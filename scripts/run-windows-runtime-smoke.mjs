@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { lstat, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { inspect, promisify } from "node:util";
 
 import JSZip from "jszip";
 import { Builder, Capabilities } from "selenium-webdriver";
 
+import { cleanupOwnedRuntime, requireContained } from "./runtime-smoke-cleanup.mjs";
 import { runRuntimeFlows } from "../tests/runtime/windowsRuntimeSmoke.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -32,17 +33,6 @@ const binaryPath = path.join(
   "ArcheionRuntimeSmoke.exe",
 );
 
-function requireContained(target, parent) {
-  const relative = path.relative(path.resolve(parent), path.resolve(target));
-  assert.ok(
-    relative &&
-      relative !== ".." &&
-      !relative.startsWith(`..${path.sep}`) &&
-      !path.isAbsolute(relative),
-    `Refusing to clean a path outside ${parent}: ${target}`,
-  );
-}
-
 async function assertAbsent(target) {
   try {
     await lstat(target);
@@ -50,22 +40,6 @@ async function assertAbsent(target) {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
-}
-
-async function removeOwnedDirectory(target, parent) {
-  let entry;
-  try {
-    entry = await lstat(target);
-  } catch (error) {
-    if (error.code === "ENOENT") return;
-    throw error;
-  }
-  assert.ok(
-    entry.isDirectory() && !entry.isSymbolicLink(),
-    `Refusing to remove unexpected path: ${target}`,
-  );
-  requireContained(await realpath(target), await realpath(parent));
-  await rm(target, { recursive: true });
 }
 
 async function freePort() {
@@ -138,8 +112,8 @@ async function installMatchingEdgeDriver(runRoot) {
 async function awaitDriver(port, processHandle) {
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
-    if (processHandle.exitCode !== null)
-      throw new Error(`tauri-driver exited: ${processHandle.exitCode}`);
+    if (processHandle.exitCode !== null || processHandle.signalCode !== null)
+      throw new Error(`tauri-driver exited: ${processHandle.exitCode ?? processHandle.signalCode}`);
     try {
       const response = await fetch(`http://127.0.0.1:${port}/status`, {
         signal: AbortSignal.timeout(1_000),
@@ -197,6 +171,10 @@ async function main() {
   let activeSession;
   let primaryError;
   let currentStep = "setup";
+  const closeSession = async (session) => {
+    await session.quit();
+    if (activeSession === session) activeSession = undefined;
+  };
   const logStep = async (name, action) => {
     currentStep = name;
     console.log(`Runtime smoke: ${name}`);
@@ -250,8 +228,8 @@ async function main() {
       { cwd: projectRoot, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
     );
     driverClosed = new Promise((resolve) => {
-      driverProcess.once("close", resolve);
-      driverProcess.once("error", resolve);
+      driverProcess.once("close", () => resolve({}));
+      driverProcess.once("error", (error) => resolve({ error }));
     });
     const driverLog = createWriteStream(path.join(evidenceRoot, "tauri-driver.log"));
     driverProcess.stdout.pipe(driverLog, { end: false });
@@ -274,10 +252,10 @@ async function main() {
     };
     await runRuntimeFlows({
       startSession,
+      closeSession,
       fixtureRoot: path.join(runRoot, "fixtures"),
       logStep,
     });
-    console.log("Windows Tauri runtime smoke passed.");
   } catch (error) {
     primaryError = error;
     await captureFailure(activeSession, "failure");
@@ -287,47 +265,35 @@ async function main() {
     );
     throw error;
   } finally {
-    await activeSession?.quit().catch(() => {});
-    let shutdownFailure;
-    if (driverProcess?.pid && driverProcess.exitCode === null) {
-      await execFileAsync("taskkill.exe", ["/PID", String(driverProcess.pid), "/T", "/F"], {
-        windowsHide: true,
-      }).catch((error) => console.error(`Could not stop owned tauri-driver tree: ${error}`));
-    }
-    if (driverClosed) {
-      let timer;
+    try {
+      await cleanupOwnedRuntime({
+        session: activeSession,
+        closeSession,
+        processHandle: driverProcess,
+        closed: driverClosed,
+        directories: [
+          { target: runRoot, parent: scratchRoot },
+          { target: appConfigPath, parent: process.env.APPDATA },
+          { target: webViewDataPath, parent: process.env.LOCALAPPDATA },
+        ],
+      });
+    } catch (cleanupError) {
+      let evidenceError;
       try {
-        await Promise.race([
-          driverClosed,
-          new Promise((_, reject) => {
-            timer = setTimeout(
-              () => reject(new Error("tauri-driver did not close after shutdown")),
-              10_000,
-            );
-          }),
-        ]);
+        await writeFile(
+          path.join(evidenceRoot, "cleanup-failure.txt"),
+          `Step: cleanup\n${inspect(cleanupError, { depth: 4 })}\n`,
+        );
       } catch (error) {
-        shutdownFailure = error;
-      } finally {
-        clearTimeout(timer);
+        evidenceError = error;
       }
-    }
-    const cleanup = await Promise.allSettled([
-      removeOwnedDirectory(runRoot, scratchRoot),
-      removeOwnedDirectory(appConfigPath, process.env.APPDATA),
-      removeOwnedDirectory(webViewDataPath, process.env.LOCALAPPDATA),
-    ]);
-    const failures = cleanup.flatMap((result) =>
-      result.status === "rejected" ? [result.reason] : [],
-    );
-    if (shutdownFailure) failures.unshift(shutdownFailure);
-    if (failures.length > 0) {
       throw new AggregateError(
-        primaryError ? [primaryError, ...failures] : failures,
+        [primaryError, cleanupError, evidenceError].filter(Boolean),
         "Runtime smoke cleanup failed",
       );
     }
   }
+  console.log("Windows Tauri runtime smoke passed.");
 }
 
 main().catch((error) => {
