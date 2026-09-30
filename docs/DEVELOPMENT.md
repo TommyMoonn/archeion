@@ -95,28 +95,34 @@ npm run lint:fix
 npm run rust:fmt:fix
 ```
 
-### CodeQL baseline and merge-protection promotion
+### CodeQL diagnostic scanning and future promotion
 
 The separate CodeQL workflow scans JavaScript/TypeScript and Rust with the default
-query suite on every pull request and `main` push. Rust analysis runs on Windows
-with the pinned project toolchain. Its two language scans are initially
-informational. `CI Gate` remains a required status check, while CodeQL should
-not yet be selected under `Require code scanning results` in the `Protect main`
-ruleset.
+query suite every Tuesday at 06:17 UTC and can also be started manually from
+the Actions tab. Scheduled scans run on the default branch; a manual dispatch
+can select a ref after the workflow exists on the default branch. CodeQL does
+not run on ordinary pull requests or `main` pushes. Rust analysis runs on
+Windows with the pinned project toolchain. Its two language scans remain
+informational and outside `CI Gate`. `CI Gate` remains a required status check,
+while CodeQL must not be selected under `Require code scanning results` in the
+`Protect main` ruleset on this cadence.
 
-After the workflow is published, verify successful analysis and uploaded results
-for both languages on a representative pull request and on `main`. Review every
-baseline alert, fixing it or recording a justified dismissal in GitHub. A green
-analysis job only means the scan completed; it does not establish an empty alert
-list. If a language is missing, extraction is incomplete, or the results are too
-noisy to act on, correct the scan and repeat this review before promotion.
+After the workflow is published on the default branch, verify a scheduled or
+manually dispatched run uploads results for both languages. Review every alert,
+fixing it or recording a justified dismissal in GitHub. A green analysis job
+only means the scan completed; it does not establish an empty alert list. If a
+language is missing, extraction is incomplete, or the results are too noisy to
+act on, correct the scan and repeat this review before promotion.
 
-Only after both language results are stable and the baseline is clean or
-intentionally dispositioned should the repository owner add CodeQL through
-`Require code scanning results`, choosing alert and security-alert thresholds
-based on the observed baseline. Keep `CI Gate` under required status checks.
-Requiring the CodeQL job names as status checks is not a substitute for
-code-scanning merge protection because a successful job can still report alerts.
+If CodeQL is later considered for merge protection, first restore pull-request
+scanning and verify both language results on representative pull requests. Only
+after that and a clean or intentionally dispositioned baseline should the
+repository owner add CodeQL through `Require code scanning results`, choosing
+alert and security-alert thresholds based on the observed baseline. Keep
+`CI Gate` under required status checks. Requiring the CodeQL job names as status
+checks is not a substitute for code-scanning merge protection because a
+successful job can still report alerts. Dependency Review remains the separate
+pull-request gate for newly introduced dependency vulnerabilities.
 
 ## Testing
 
