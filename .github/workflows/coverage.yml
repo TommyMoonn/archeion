@@ -1,0 +1,71 @@
+name: Coverage diagnostics
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/coverage.yml
+      - package.json
+      - package-lock.json
+      - vitest.config.ts
+      - scripts/coverage-rust.ps1
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend coverage
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate frontend coverage
+        run: npm run test:coverage:frontend
+      - name: Upload frontend coverage
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: frontend-coverage
+          path: coverage/frontend/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  rust:
+    name: Rust coverage
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Rust coverage toolchain
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: 1.97.1
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --version 0.9.0 --locked
+      - name: Generate Rust coverage
+        run: ./scripts/coverage-rust.ps1
+      - name: Upload Rust coverage
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: rust-coverage
+          path: coverage/rust/
+          if-no-files-found: ignore
+          retention-days: 7
