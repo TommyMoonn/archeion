@@ -190,12 +190,13 @@ describe("CI workflow contract", () => {
     expect(dependencyReviewWorkflow).not.toContain("warn-only: true");
   });
 
-  it("runs SHA-pinned default CodeQL scans for JavaScript/TypeScript and Rust on PRs and main", () => {
+  it("runs SHA-pinned default CodeQL scans for both languages weekly or on manual dispatch", () => {
     expect(codeqlWorkflow).toContain("name: CodeQL");
     expect(codeqlWorkflow).toMatch(
-      /\bon:\r?\n {2}pull_request:\r?\n {2}push:\r?\n {4}branches:\r?\n {6}- main/,
+      /\bon:\r?\n {2}workflow_dispatch:\r?\n {2}schedule:\r?\n {4}- cron: "17 6 \* \* 2"/,
     );
-    expect(codeqlWorkflow).not.toMatch(/\bpaths(?:-ignore)?:/);
+    expect(codeqlWorkflow).not.toMatch(/^ {2}(?:pull_request|push):/m);
+    expect(workflow).not.toContain("CodeQL");
     expect(codeqlWorkflow).toContain("name: CodeQL (${{ matrix.language }})");
     expect(codeqlWorkflow).toContain(
       "- language: javascript-typescript\n            runner: ubuntu-latest",
