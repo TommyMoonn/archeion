@@ -95,6 +95,32 @@ npm run lint:fix
 npm run rust:fmt:fix
 ```
 
+### Diagnostic coverage
+
+Coverage is an execution map, not a merge threshold. The normal `CI Gate` does
+not depend on coverage percentages. Run the frontend report after `npm ci`:
+
+```powershell
+npm run test:coverage:frontend
+```
+
+This writes a browsable report to `coverage/frontend/index.html` and LCOV data
+to `coverage/frontend/lcov.info`. For Rust, install the coverage tool and the
+LLVM tools component for the pinned development toolchain, then run:
+
+```powershell
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov --version 0.9.0 --locked
+npm run test:coverage:rust
+```
+
+The Rust command runs the normal Cargo tests with instrumentation and writes
+`coverage/rust/html/index.html` and `coverage/rust/lcov.info`. Both report trees
+are Git-ignored. The separate Coverage diagnostics workflow runs weekly, on
+manual request, and when coverage tooling changes in a pull request. It uploads
+the reports as short-lived Actions artifacts. Neither report covers the real
+browser or Windows runtime smoke lanes.
+
 ### CodeQL diagnostic scanning and future promotion
 
 The separate CodeQL workflow scans JavaScript/TypeScript and Rust with the default
