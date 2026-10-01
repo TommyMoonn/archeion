@@ -113,6 +113,74 @@ describe("frontend architecture boundaries", () => {
     expect(report.violations).toEqual([]);
   });
 
+  it("finds module dependencies in static, re-exported, dynamic, and CommonJS forms", () => {
+    const imports = [
+      ["sideEffect.ts", 'import "../features/library/target";'],
+      ["named.ts", 'import { target } from "../features/library/target";'],
+      ["typeOnly.ts", 'import type { Target } from "../features/library/target";'],
+      ["exportNamed.ts", 'export { target } from "../features/library/target";'],
+      ["exportStar.ts", 'export * from "../features/library/target";'],
+      ["exportType.ts", 'export type { Target } from "../features/library/target";'],
+      ["dynamic.tsx", 'void import("../features/library/target");'],
+      ["commonJs.cjs", 'const target = require("../features/library/target");'],
+      ["importEquals.ts", 'import target = require("../features/library/target");'],
+      ["importType.mts", 'type Target = typeof import("../features/library/target");'],
+      ["escaped.js", 'import "../features/library/ta\\u0072get";'],
+    ] as const;
+    const root = createFixture({
+      "src/features/library/target.ts":
+        "export const target = true; export type Target = boolean;\n",
+      ...Object.fromEntries(imports.map(([file, source]) => [`src/storage/${file}`, source])),
+    });
+    const result = runArchitecture(root, true);
+    const report = JSON.parse(result.stdout) as {
+      productionEdgeCount: number;
+      violations: { importer: string; imported: string; rule: string }[];
+    };
+
+    expect(result.status).toBe(1);
+    expect(report.productionEdgeCount).toBe(imports.length);
+    expect(report.violations.map(({ importer }) => importer).sort()).toEqual(
+      imports.map(([file]) => `src/storage/${file}`).sort(),
+    );
+    expect(
+      report.violations.every(
+        ({ imported, rule }) =>
+          imported === "src/features/library/target.ts" && rule === "forbidden-direction",
+      ),
+    ).toBe(true);
+  });
+
+  it("ignores import-like text and nonliteral dynamic module expressions", () => {
+    const root = createFixture({
+      "src/features/library/target.ts": "export const target = true;\n",
+      "src/storage/decoys.ts": [
+        '// import "../features/library/target";',
+        '/* export * from "../features/library/target"; */',
+        "const quoted = 'require(\"../features/library/target\")';",
+        'const templated = `import("../features/library/target")`;',
+        'const importProperty = { import: "../features/library/target" };',
+        'const exportProperty = { export: { from: "../features/library/target" } };',
+        'const specifier = "../features/library/target";',
+        "void import(specifier);",
+        "const loader = { import: (_path: string) => {} };",
+        'loader.import("../features/library/target");',
+        "void import.meta;",
+      ].join("\n"),
+    });
+    const result = runArchitecture(root, true);
+    const report = JSON.parse(result.stdout) as {
+      ok: boolean;
+      productionEdgeCount: number;
+      violations: unknown[];
+    };
+
+    expect(result.status).toBe(0);
+    expect(report.ok).toBe(true);
+    expect(report.productionEdgeCount).toBe(0);
+    expect(report.violations).toEqual([]);
+  });
+
   it("excludes test-only imports from the production graph", () => {
     const root = createFixture({
       "src/features/library/library.test.ts": 'import "../../storage/internalStorage";\n',
