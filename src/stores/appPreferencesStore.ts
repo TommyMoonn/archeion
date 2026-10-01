@@ -649,7 +649,7 @@ function createFilesAndMetadataSettingsMutations(
     .map(({ mutation }) => ({ area: "filesAndMetadataField", value: mutation }));
 }
 
-function createAppSettingsMutations(
+export function createAppSettingsMutations(
   persisted: AppPreferences,
   target: AppPreferences,
 ): AppSettingsMutation[] {
@@ -806,7 +806,7 @@ function applyLibrarySettingsMutation(
   }
 }
 
-function applyAppSettingsMutation(
+export function applyAppSettingsMutation(
   preferences: AppPreferences,
   mutation: AppSettingsMutation,
 ): AppPreferences {

@@ -1884,20 +1884,9 @@ mod tests {
         normalize_reader_settings, read_settings, write_settings, write_theme_migration_receipt,
         AppPreferences, AppSettingsMutation, AppSettingsService, AppThemeSelection,
         AppearanceSettings, BuiltInAppThemeId, BuiltInReaderThemeId, KeyboardBinding,
-        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings, ReaderSettings,
-        ReaderSettingsMutation, ReaderThemeSelection, THEME_MIGRATION_RECEIPT_FILE,
+        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
+        ReaderThemeSelection, THEME_MIGRATION_RECEIPT_FILE,
     };
-
-    fn preference_field_mutation(area: &str, field: &str, value: Value) -> AppSettingsMutation {
-        serde_json::from_value(serde_json::json!({
-            "area": area,
-            "value": {
-                "field": field,
-                "value": value,
-            }
-        }))
-        .unwrap_or_else(|error| panic!("{area}.{field} mutation should deserialize: {error}"))
-    }
 
     fn merge_expected(base: &mut Value, patch: &Value) {
         match (base, patch) {
@@ -1944,6 +1933,91 @@ mod tests {
             let round_tripped: AppPreferences = serde_json::from_value(serialized)
                 .unwrap_or_else(|error| panic!("{name} should round trip: {error}"));
             assert_eq!(round_tripped, normalized, "{name}");
+        }
+    }
+
+    #[test]
+    fn app_settings_mutations_match_the_shared_cross_language_fixture_corpus() {
+        let corpus: Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/app-settings-mutations/v1.json"
+        ))
+        .expect("shared mutation fixtures should parse");
+        let settings_corpus: Value =
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v2.json"))
+                .expect("shared settings defaults should parse");
+        assert_eq!(corpus["version"], 1);
+
+        for fixture in corpus["cases"]
+            .as_array()
+            .expect("cases should be an array")
+        {
+            let name = fixture["name"].as_str().expect("case should have a name");
+            let root = temporary_settings_root(name);
+            let path = root.join("settings.json");
+            let service = AppSettingsService::new(path.clone());
+            let published = RefCell::new(Vec::new());
+
+            for (index, step) in fixture["steps"]
+                .as_array()
+                .expect("steps should be an array")
+                .iter()
+                .enumerate()
+            {
+                let mutation: AppSettingsMutation =
+                    serde_json::from_value(step["mutation"].clone()).unwrap_or_else(|error| {
+                        panic!("{name} mutation should deserialize: {error}")
+                    });
+                let snapshot = service
+                    .mutate(mutation, |event| published.borrow_mut().push(event.clone()))
+                    .unwrap_or_else(|error| panic!("{name} mutation should persist: {error}"));
+                let mut expected_preferences = settings_corpus["defaults"].clone();
+                merge_expected(
+                    &mut expected_preferences,
+                    &step["expected"]["preferencesPatch"],
+                );
+                let expected = serde_json::json!({
+                    "revision": step["expected"]["revision"],
+                    "preferences": expected_preferences,
+                });
+                assert_eq!(
+                    serde_json::to_value(&snapshot).expect("snapshot should serialize"),
+                    expected,
+                    "{name}"
+                );
+                assert_eq!(
+                    serde_json::to_value(read_settings(&path).expect("settings should persist"))
+                        .expect("persisted settings should serialize"),
+                    expected_preferences,
+                    "{name} persisted preferences"
+                );
+                assert_eq!(published.borrow().len(), index + 1, "{name} event count");
+                assert_eq!(published.borrow().last(), Some(&snapshot), "{name} event");
+            }
+            std::fs::remove_dir_all(root).expect("settings root should be removed");
+        }
+
+        let root = temporary_settings_root("invalid-mutation-corpus");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let before = service.snapshot().expect("initial snapshot should load");
+        for fixture in corpus["invalid"]
+            .as_array()
+            .expect("invalid cases should be an array")
+        {
+            let name = fixture["name"].as_str().expect("case should have a name");
+            assert!(
+                serde_json::from_value::<AppSettingsMutation>(fixture["mutation"].clone()).is_err(),
+                "{name} should be rejected"
+            );
+            assert_eq!(
+                service
+                    .snapshot()
+                    .expect("rejection should not change state"),
+                before,
+                "{name} should not advance revision"
+            );
+        }
+        if root.exists() {
+            std::fs::remove_dir_all(root).expect("settings root should be removed");
         }
     }
 
@@ -2592,222 +2666,6 @@ mod tests {
     }
 
     #[test]
-    fn typed_mutations_preserve_unrelated_preference_areas() {
-        let root = temporary_settings_root("typed-areas");
-        let service = AppSettingsService::new(root.join("settings.json"));
-        let published = std::cell::RefCell::new(Vec::new());
-
-        let first = service
-            .mutate(
-                AppSettingsMutation::Density("compact".to_string()),
-                |event| {
-                    published.borrow_mut().push(event.clone());
-                },
-            )
-            .expect("density should update");
-        let second = service
-            .mutate(
-                AppSettingsMutation::ReaderField(ReaderSettingsMutation::Mode(
-                    "continuous".to_string(),
-                )),
-                |event| published.borrow_mut().push(event.clone()),
-            )
-            .expect("reader settings should update");
-
-        assert_eq!(first.revision, 1);
-        assert_eq!(second.revision, 2);
-        assert_eq!(second.preferences.density, "compact");
-        assert_eq!(second.preferences.reader.mode, "continuous");
-        assert_eq!(published.borrow().as_slice(), &[first, second.clone()]);
-        assert_eq!(
-            read_settings(&root.join("settings.json")).expect("settings should persist"),
-            second.preferences
-        );
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn library_field_mutations_merge_against_the_latest_native_snapshot() {
-        let root = temporary_settings_root("library-field-merge");
-        let service = AppSettingsService::new(root.join("settings.json"));
-        let published = std::cell::RefCell::new(Vec::new());
-        let view_mode = preference_field_mutation(
-            "libraryField",
-            "booksViewMode",
-            Value::String("list".to_string()),
-        );
-        let favorites =
-            preference_field_mutation("libraryField", "filterFavoritesOnly", Value::Bool(true));
-
-        let first = service
-            .mutate(view_mode, |event| {
-                published.borrow_mut().push(event.clone())
-            })
-            .expect("book view mode should update");
-        let second = service
-            .mutate(favorites, |event| {
-                published.borrow_mut().push(event.clone())
-            })
-            .expect("favorites filter should update");
-
-        assert_eq!(first.revision, 1);
-        assert_eq!(second.revision, 2);
-        assert_eq!(
-            second.preferences.library.collections.books.view_mode,
-            "list"
-        );
-        assert!(second.preferences.library.filters.favorites_only);
-        assert_eq!(published.borrow().as_slice(), &[first, second.clone()]);
-        assert_eq!(
-            read_settings(&root.join("settings.json")).expect("settings should persist"),
-            second.preferences
-        );
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn reader_field_mutations_merge_against_the_latest_native_snapshot() {
-        let root = temporary_settings_root("reader-field-merge");
-        let service = AppSettingsService::new(root.join("settings.json"));
-        let font_size = preference_field_mutation(
-            "readerField",
-            "fontSize",
-            Value::Number(serde_json::Number::from(22)),
-        );
-        let mode = preference_field_mutation(
-            "readerField",
-            "mode",
-            Value::String("continuous".to_string()),
-        );
-
-        service
-            .mutate(font_size, |_| {})
-            .expect("font size should update");
-        let snapshot = service
-            .mutate(mode, |_| {})
-            .expect("reader mode should update");
-
-        assert_eq!(snapshot.revision, 2);
-        assert_eq!(snapshot.preferences.reader.font_size, 22.0);
-        assert_eq!(snapshot.preferences.reader.mode, "continuous");
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn files_and_metadata_field_mutations_merge_against_the_latest_native_snapshot() {
-        let root = temporary_settings_root("files-field-merge");
-        let service = AppSettingsService::new(root.join("settings.json"));
-        let keep_backup = preference_field_mutation(
-            "filesAndMetadataField",
-            "keepEpubWritebackBackup",
-            Value::Bool(true),
-        );
-        let scan_on_startup =
-            preference_field_mutation("filesAndMetadataField", "scanOnStartup", Value::Bool(false));
-
-        service
-            .mutate(keep_backup, |_| {})
-            .expect("backup preference should update");
-        let snapshot = service
-            .mutate(scan_on_startup, |_| {})
-            .expect("startup scan preference should update");
-
-        assert_eq!(snapshot.revision, 2);
-        assert!(
-            snapshot
-                .preferences
-                .files_and_metadata
-                .keep_epub_writeback_backup
-        );
-        assert!(!snapshot.preferences.files_and_metadata.scan_on_startup);
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn same_leaf_mutations_use_serialized_last_intent_wins() {
-        let root = temporary_settings_root("same-leaf-last-intent");
-        let service = AppSettingsService::new(root.join("settings.json"));
-        let first = preference_field_mutation(
-            "readerField",
-            "mode",
-            Value::String("continuous".to_string()),
-        );
-        let second =
-            preference_field_mutation("readerField", "mode", Value::String("paged".to_string()));
-
-        service
-            .mutate(first, |_| {})
-            .expect("first reader mode should update");
-        let snapshot = service
-            .mutate(second, |_| {})
-            .expect("second reader mode should update");
-
-        assert_eq!(snapshot.revision, 2);
-        assert_eq!(snapshot.preferences.reader.mode, "paged");
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn invalid_preference_field_operations_are_rejected() {
-        let unknown_field = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
-            "area": "libraryField",
-            "value": {
-                "field": "unknownField",
-                "value": true,
-            }
-        }));
-        let invalid_value = serde_json::from_value::<AppSettingsMutation>(serde_json::json!({
-            "area": "filesAndMetadataField",
-            "value": {
-                "field": "scanOnStartup",
-                "value": "yes",
-            }
-        }));
-
-        assert!(unknown_field.is_err());
-        assert!(invalid_value.is_err());
-    }
-
-    #[test]
-    fn typed_global_theme_mutations_preserve_independent_selections() {
-        let root = temporary_settings_root("typed-global-themes");
-        let service = AppSettingsService::new(root.join("settings.json"));
-
-        let app = service
-            .mutate(
-                AppSettingsMutation::AppTheme(AppThemeSelection::Custom {
-                    id: "moon-ink".to_string(),
-                }),
-                |_| {},
-            )
-            .expect("application theme should update");
-        let reader = service
-            .mutate(
-                AppSettingsMutation::ReaderTheme(ReaderThemeSelection::Builtin {
-                    id: BuiltInReaderThemeId::Sepia,
-                }),
-                |_| {},
-            )
-            .expect("Reader theme should update");
-
-        assert_eq!(app.revision, 1);
-        assert_eq!(reader.revision, 2);
-        assert_eq!(
-            reader.preferences.app_theme,
-            AppThemeSelection::Custom {
-                id: "moon-ink".to_string()
-            }
-        );
-        assert_eq!(
-            reader.preferences.reader_theme,
-            ReaderThemeSelection::Builtin {
-                id: BuiltInReaderThemeId::Sepia
-            }
-        );
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
     fn failed_typed_mutation_does_not_advance_or_publish_revision() {
         let root = temporary_settings_root("typed-failure");
         let path = root.join("settings.json");
@@ -2845,7 +2703,7 @@ mod tests {
     }
 
     #[test]
-    fn typed_mutation_input_uses_canonical_normalization() {
+    fn unsupported_density_mutation_uses_canonical_normalization() {
         let root = temporary_settings_root("typed-normalization");
         let service = AppSettingsService::new(root.join("settings.json"));
 
@@ -2857,21 +2715,8 @@ mod tests {
         let density = service
             .mutate(density_mutation, |_| {})
             .expect("density mutation should normalize");
-        let reader_mutation: AppSettingsMutation = serde_json::from_value(serde_json::json!({
-            "area": "readerField",
-            "value": {
-                "field": "fontSize",
-                "value": 500
-            }
-        }))
-        .expect("typed reader mutation should deserialize");
-        let reader = service
-            .mutate(reader_mutation, |_| {})
-            .expect("reader mutation should normalize");
-
         assert_eq!(density.preferences.density, "comfortable");
-        assert_eq!(reader.revision, 2);
-        assert_eq!(reader.preferences.reader, ReaderSettings::default());
+        assert_eq!(density.revision, 1);
         std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
 
