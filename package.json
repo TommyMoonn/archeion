@@ -78,7 +78,8 @@
     "changes:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/package-changes.ps1",
     "changes:restore": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/restore-changes.ps1",
     "changes:review": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/review-changes.ps1",
-    "zip": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1"
+    "zip:repo": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1 --mode repo",
+    "zip:workspace": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1 --mode workspace"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
