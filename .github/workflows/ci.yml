@@ -40,6 +40,9 @@ jobs:
       - name: Check architecture
         run: npm run architecture:check
 
+      - name: Check Tauri command parity
+        run: npm run ipc:check
+
       - name: Check formatting
         run: npm run fmt
 

@@ -549,7 +549,7 @@ export class ArchiveStore {
 
   private async commitRegistryChange(
     transition: number,
-    command: string,
+    command: "create_empty_archive" | "open_archive" | "activate_archive" | "forget_archive",
     args: Record<string, string>,
   ): Promise<ArchiveRegistry | null> {
     const precedingCommit = this.nativeCommitTail;
