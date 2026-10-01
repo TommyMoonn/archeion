@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const defaultProjectRoot = path.resolve(scriptDirectory, "..");
@@ -154,164 +155,42 @@ function isSourceFile(filePath) {
   return sourceExtensions.some((extension) => filePath.endsWith(extension));
 }
 
-function tokenizeModuleSyntax(sourceText) {
-  const tokens = [];
-  let index = 0;
-
-  function isIdentifierStart(character) {
-    return /[A-Za-z_$]/.test(character);
-  }
-
-  function isIdentifierPart(character) {
-    return /[A-Za-z0-9_$-]/.test(character);
-  }
-
-  function readQuotedString(quote) {
-    index += 1;
-    let value = "";
-
-    while (index < sourceText.length) {
-      const character = sourceText[index];
-      if (character === "\\") {
-        const next = sourceText[index + 1];
-        if (next !== undefined) {
-          value += next;
-          index += 2;
-          continue;
-        }
-      }
-      if (character === quote) {
-        index += 1;
-        return value;
-      }
-      value += character;
-      index += 1;
-    }
-
-    return value;
-  }
-
-  function skipTemplateLiteral() {
-    index += 1;
-    while (index < sourceText.length) {
-      const character = sourceText[index];
-      if (character === "\\") {
-        index += 2;
-        continue;
-      }
-      if (character === "`") {
-        index += 1;
-        return;
-      }
-      index += 1;
-    }
-  }
-
-  while (index < sourceText.length) {
-    const character = sourceText[index];
-    const next = sourceText[index + 1];
-
-    if (/\s/.test(character)) {
-      index += 1;
-      continue;
-    }
-
-    if (character === "/" && next === "/") {
-      index += 2;
-      while (index < sourceText.length && sourceText[index] !== "\n") index += 1;
-      continue;
-    }
-
-    if (character === "/" && next === "*") {
-      index += 2;
-      while (
-        index < sourceText.length &&
-        !(sourceText[index] === "*" && sourceText[index + 1] === "/")
-      ) {
-        index += 1;
-      }
-      index += 2;
-      continue;
-    }
-
-    if (character === '"' || character === "'") {
-      tokens.push({ type: "string", value: readQuotedString(character) });
-      continue;
-    }
-
-    if (character === "`") {
-      skipTemplateLiteral();
-      continue;
-    }
-
-    if (isIdentifierStart(character)) {
-      const start = index;
-      index += 1;
-      while (index < sourceText.length && isIdentifierPart(sourceText[index])) index += 1;
-      tokens.push({ type: "identifier", value: sourceText.slice(start, index) });
-      continue;
-    }
-
-    tokens.push({ type: "punctuation", value: character });
-    index += 1;
-  }
-
-  return tokens;
-}
-
 function readModuleSpecifiers(filePath) {
-  const tokens = tokenizeModuleSyntax(fs.readFileSync(filePath, "utf8"));
-  const specifiers = [];
+  const source = ts.createSourceFile(
+    filePath,
+    fs.readFileSync(filePath, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const specifiers = new Set();
 
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (token.type !== "identifier") continue;
-
-    if (token.value === "import") {
-      if (tokens[index + 1]?.value === ".") continue;
-
-      if (tokens[index + 1]?.value === "(") {
-        if (tokens[index + 2]?.type === "string") specifiers.push(tokens[index + 2].value);
-        continue;
-      }
-
-      for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
-        const candidate = tokens[cursor];
-        if (candidate.value === ";") break;
-        if (candidate.type === "string") {
-          specifiers.push(candidate.value);
-          break;
-        }
-      }
-      continue;
-    }
-
-    if (token.value === "export") {
-      for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
-        const candidate = tokens[cursor];
-        if (candidate.value === ";") break;
-        if (
-          candidate.type === "identifier" &&
-          candidate.value === "from" &&
-          tokens[cursor + 1]?.type === "string"
-        ) {
-          specifiers.push(tokens[cursor + 1].value);
-          break;
-        }
-      }
-      continue;
-    }
-
-    if (
-      token.value === "require" &&
-      tokens[index + 1]?.value === "(" &&
-      tokens[index + 2]?.type === "string"
-    ) {
-      specifiers.push(tokens[index + 2].value);
-    }
+  function addStringLiteral(node) {
+    if (node && ts.isStringLiteral(node)) specifiers.add(node.text);
   }
 
-  return [...new Set(specifiers)];
+  function visit(node) {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      addStringLiteral(node.moduleSpecifier);
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      ts.isExternalModuleReference(node.moduleReference)
+    ) {
+      addStringLiteral(node.moduleReference.expression);
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument)) {
+      addStringLiteral(node.argument.literal);
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === "require"))
+    ) {
+      addStringLiteral(node.arguments[0]);
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(source);
+  return [...specifiers];
 }
 
 function resolveLocalModule(importerPath, specifier) {
