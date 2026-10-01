@@ -43,6 +43,9 @@ jobs:
       - name: Check Tauri command parity
         run: npm run ipc:check
 
+      - name: Check settings mutation contract
+        run: npm run settings:contract:check
+
       - name: Check formatting
         run: npm run fmt
 
