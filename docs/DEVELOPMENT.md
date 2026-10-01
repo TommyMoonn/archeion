@@ -394,8 +394,11 @@ npm run changes:package -- --name "task-name"
 npm run changes:restore
 npm run clean
 npm run clean:all -- --dry-run
-npm run zip
+npm run zip:repo
+npm run zip:workspace
 ```
 
 See [scripts/README.md](../scripts/README.md) for complete flags and safety
-behavior.
+behavior. The repo export uses committed Git source; the workspace export also
+includes filtered local records. Both contain `EXPORT_MANIFEST.json` with their
+source revision and provenance.
