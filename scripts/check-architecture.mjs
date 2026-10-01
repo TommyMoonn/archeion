@@ -229,17 +229,104 @@ function classifyModule(projectPath) {
   for (const layer of layers) {
     const exactFiles = layer.files ?? [];
     if (exactFiles.includes(projectPath)) {
-      return { layer: layer.name, feature: null };
+      return { layer: layer.name };
     }
 
     for (const root of layer.roots ?? []) {
       if (projectPath === root || projectPath.startsWith(`${root}/`)) {
-        return { layer: layer.name };
+        const featureDomain =
+          layer.name === "features"
+            ? /^src\/features\/([^/]+)\//.exec(projectPath)?.[1]
+            : undefined;
+        return { layer: layer.name, featureDomain };
       }
     }
   }
 
   return null;
+}
+
+function edgeKey(importer, imported) {
+  return `${importer}\u0000${imported}`;
+}
+
+function readFeatureBaseline(projectRoot) {
+  const baselinePath = path.join(projectRoot, "scripts", "feature-domain-baseline.json");
+  if (!fs.existsSync(baselinePath)) {
+    return { allowedEdges: new Set(), allowedCyclicPairs: new Set() };
+  }
+
+  const baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+  if (baseline.version !== 1 || !Array.isArray(baseline.groups)) {
+    throw new Error("Invalid feature-domain baseline: expected version 1 and groups array.");
+  }
+  if (!Array.isArray(baseline.cyclicDomainPairs)) {
+    throw new Error("Invalid feature-domain baseline: expected cyclicDomainPairs array.");
+  }
+
+  const allowedEdges = new Set();
+  const groupPairs = new Set();
+  for (const group of baseline.groups) {
+    const { from, to, reason, files } = group;
+    const validDomain = (value) => typeof value === "string" && /^[a-z][a-z0-9-]*$/.test(value);
+    if (
+      !validDomain(from) ||
+      !validDomain(to) ||
+      from === to ||
+      typeof reason !== "string" ||
+      !reason.trim() ||
+      !Array.isArray(files) ||
+      files.length === 0
+    ) {
+      throw new Error("Invalid feature-domain baseline group.");
+    }
+
+    const pair = edgeKey(from, to);
+    if (groupPairs.has(pair))
+      throw new Error(`Duplicate feature-domain baseline group: ${from} -> ${to}.`);
+    groupPairs.add(pair);
+
+    for (const filesPair of files) {
+      if (!Array.isArray(filesPair) || filesPair.length !== 2) {
+        throw new Error(`Invalid feature-domain baseline file pair: ${from} -> ${to}.`);
+      }
+      for (const relativePath of filesPair) {
+        if (
+          typeof relativePath !== "string" ||
+          relativePath
+            .split("/")
+            .some((segment) => !segment || segment === "." || segment === "..") ||
+          relativePath.includes("\\")
+        ) {
+          throw new Error(`Invalid feature-domain baseline path: ${relativePath}.`);
+        }
+      }
+      const key = edgeKey(
+        `src/features/${from}/${filesPair[0]}`,
+        `src/features/${to}/${filesPair[1]}`,
+      );
+      if (allowedEdges.has(key)) {
+        throw new Error(
+          `Duplicate feature-domain baseline edge: ${key.replace("\u0000", " -> ")}.`,
+        );
+      }
+      allowedEdges.add(key);
+    }
+  }
+
+  const allowedCyclicPairs = new Set();
+  for (const pair of baseline.cyclicDomainPairs) {
+    if (!Array.isArray(pair) || pair.length !== 2 || !groupPairs.has(edgeKey(...pair))) {
+      throw new Error(`Invalid cyclic feature-domain baseline pair: ${JSON.stringify(pair)}.`);
+    }
+    const key = edgeKey(...pair);
+    if (allowedCyclicPairs.has(key)) {
+      throw new Error(`Duplicate cyclic feature-domain baseline pair: ${pair.join(" -> ")}.`);
+    }
+    allowedCyclicPairs.add(key);
+  }
+
+  return { allowedEdges, allowedCyclicPairs };
 }
 
 function isPublicCrossLayerModule(importer, imported) {
@@ -345,13 +432,15 @@ function findCycles(nodes, edges) {
     return search(start) ?? [...component.sort(), start];
   }
 
-  return components
-    .filter((component) => {
-      if (component.length > 1) return true;
-      return adjacency.get(component[0])?.includes(component[0]);
-    })
+  const cyclicComponents = components.filter((component) => {
+    if (component.length > 1) return true;
+    return adjacency.get(component[0])?.includes(component[0]);
+  });
+  const cycles = cyclicComponents
     .map(findCyclePath)
     .sort((left, right) => left.join("\u0000").localeCompare(right.join("\u0000")));
+
+  return { cycles, cyclicComponents };
 }
 
 function analyze(projectRoot) {
@@ -392,7 +481,7 @@ function analyze(projectRoot) {
   }
 
   const uniqueEdges = [
-    ...new Map(allEdges.map((edge) => [`${edge.importer}\u0000${edge.imported}`, edge])).values(),
+    ...new Map(allEdges.map((edge) => [edgeKey(edge.importer, edge.imported), edge])).values(),
   ].sort(
     (left, right) =>
       left.importer.localeCompare(right.importer) || left.imported.localeCompare(right.imported),
@@ -400,10 +489,55 @@ function analyze(projectRoot) {
   const productionModules = modules.filter((module) => !module.isTest);
   const productionEdges = uniqueEdges.filter((edge) => !moduleByPath.get(edge.importer).isTest);
   const testEdges = uniqueEdges.filter((edge) => moduleByPath.get(edge.importer).isTest);
-  const cycles = findCycles(
+  const { cycles } = findCycles(
     new Set(productionModules.map((module) => module.path)),
     productionEdges,
   );
+  const featureEdges = productionEdges.filter((edge) => {
+    const from = moduleByPath.get(edge.importer).classification.featureDomain;
+    const to = moduleByPath.get(edge.imported).classification.featureDomain;
+    return from && to && from !== to;
+  });
+  const featureDomainPairs = [
+    ...new Map(
+      featureEdges.map((edge) => {
+        const from = moduleByPath.get(edge.importer).classification.featureDomain;
+        const to = moduleByPath.get(edge.imported).classification.featureDomain;
+        return [edgeKey(from, to), { importer: from, imported: to }];
+      }),
+    ).values(),
+  ];
+  const { cycles: featureCycles, cyclicComponents } = findCycles(
+    new Set(productionModules.map((module) => module.classification.featureDomain).filter(Boolean)),
+    featureDomainPairs,
+  );
+  const cyclicComponentByDomain = new Map(
+    cyclicComponents.flatMap((component, index) => component.map((domain) => [domain, index])),
+  );
+  const cyclicDomainPairs = featureDomainPairs.filter(
+    (pair) =>
+      cyclicComponentByDomain.has(pair.importer) &&
+      cyclicComponentByDomain.get(pair.importer) === cyclicComponentByDomain.get(pair.imported),
+  );
+  const baseline = readFeatureBaseline(projectRoot);
+  const featureEdgeKeys = new Set(
+    featureEdges.map((edge) => edgeKey(edge.importer, edge.imported)),
+  );
+  for (const key of baseline.allowedEdges) {
+    if (!featureEdgeKeys.has(key)) {
+      throw new Error(`Stale feature-domain baseline edge: ${key.replace("\u0000", " -> ")}.`);
+    }
+  }
+  const cyclicPairKeys = new Set(
+    cyclicDomainPairs.map((pair) => edgeKey(pair.importer, pair.imported)),
+  );
+  for (const key of baseline.allowedCyclicPairs) {
+    if (!cyclicPairKeys.has(key)) {
+      throw new Error(
+        `Stale cyclic feature-domain baseline pair: ${key.replace("\u0000", " -> ")}.`,
+      );
+    }
+  }
 
   const violations = [];
   for (const edge of productionEdges) {
@@ -413,12 +547,32 @@ function analyze(projectRoot) {
     if (!violation) continue;
     violations.push({ ...edge, ...violation });
   }
+  for (const edge of featureEdges) {
+    if (baseline.allowedEdges.has(edgeKey(edge.importer, edge.imported))) continue;
+    violations.push({
+      ...edge,
+      rule: "unapproved-feature-edge",
+      hint: "Review the cross-domain dependency and add the exact edge with a reason to the feature baseline if justified.",
+    });
+  }
+  for (const pair of cyclicDomainPairs) {
+    if (baseline.allowedCyclicPairs.has(edgeKey(pair.importer, pair.imported))) continue;
+    violations.push({
+      importer: `src/features/${pair.importer}`,
+      imported: `src/features/${pair.imported}`,
+      rule: "new-feature-cycle",
+      hint: "Break the new domain cycle or explicitly review its domain pair in the cycle baseline.",
+    });
+  }
 
   return {
     modules,
     productionModules,
     productionEdges,
     testEdges,
+    featureEdges,
+    featureDomainPairs,
+    featureCycles,
     cycles,
     violations,
   };
@@ -447,7 +601,8 @@ function printHumanReport(result) {
       `\nArchitecture ${hasErrors ? "check failed" : "check passed"}:`,
       `${result.productionModules.length} production modules,`,
       `${result.productionEdges.length} production edges,`,
-      `${result.testEdges.length} test-only edges.`,
+      `${result.testEdges.length} test-only edges,`,
+      `${result.featureEdges.length} cross-domain feature edges.`,
     ].join(" "),
   );
 }
@@ -460,6 +615,9 @@ function main() {
     productionModuleCount: result.productionModules.length,
     productionEdgeCount: result.productionEdges.length,
     testOnlyEdgeCount: result.testEdges.length,
+    featureDomainEdgeCount: result.featureEdges.length,
+    featureDomainPairCount: result.featureDomainPairs.length,
+    featureCycles: result.featureCycles,
     cycleCount: result.cycles.length,
     cycles: result.cycles,
     violations: result.violations,

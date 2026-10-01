@@ -40,6 +40,13 @@ function combinedOutput(result: ReturnType<typeof runArchitecture>): string {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
+function featureBaseline(
+  groups: { from: string; to: string; reason: string; files: [string, string][] }[],
+  cyclicDomainPairs: [string, string][] = [],
+): string {
+  return JSON.stringify({ version: 1, groups, cyclicDomainPairs });
+}
+
 afterEach(() => {
   for (const root of temporaryRoots.splice(0)) {
     fs.rmSync(root, { force: true, recursive: true });
@@ -53,6 +60,8 @@ describe("frontend architecture boundaries", () => {
       const result = runArchitecture(projectRoot, true);
       const report = JSON.parse(result.stdout) as {
         cycleCount: number;
+        featureDomainEdgeCount: number;
+        featureDomainPairCount: number;
         ok: boolean;
         violations: unknown[];
       };
@@ -60,6 +69,8 @@ describe("frontend architecture boundaries", () => {
       expect(result.status).toBe(0);
       expect(report.ok).toBe(true);
       expect(report.cycleCount).toBe(0);
+      expect(report.featureDomainEdgeCount).toBeGreaterThan(0);
+      expect(report.featureDomainPairCount).toBeGreaterThan(0);
       expect(report.violations).toEqual([]);
     },
     architectureProcessTimeout,
@@ -92,6 +103,20 @@ describe("frontend architecture boundaries", () => {
 
   it("accepts valid production directions and established Reader-facing contracts", () => {
     const root = createFixture({
+      "scripts/feature-domain-baseline.json": featureBaseline([
+        {
+          from: "reader",
+          to: "archive",
+          reason: "Reader uses the archive session contract.",
+          files: [["ReaderPage.ts", "readerArchiveSession.ts"]],
+        },
+        {
+          from: "reader",
+          to: "series",
+          reason: "Reader uses the series continuation contract.",
+          files: [["ReaderPage.ts", "readerSeriesContinuation.ts"]],
+        },
+      ]),
       "src/app/root.ts": 'import "../features/reader/ReaderPage";\n',
       "src/features/archive/readerArchiveSession.ts": "export const readerArchiveSession = true;\n",
       "src/features/reader/ReaderPage.ts": [
@@ -111,6 +136,137 @@ describe("frontend architecture boundaries", () => {
     expect(result.status).toBe(0);
     expect(report.ok).toBe(true);
     expect(report.violations).toEqual([]);
+  });
+
+  it("rejects a new cross-domain import within an already baselined domain pair", () => {
+    const root = createFixture({
+      "scripts/feature-domain-baseline.json": featureBaseline([
+        {
+          from: "library",
+          to: "folders",
+          reason: "Library composes the folder browser.",
+          files: [["LibraryPage.ts", "FolderBrowser.ts"]],
+        },
+      ]),
+      "src/features/library/LibraryPage.ts": 'import "../folders/FolderBrowser";\n',
+      "src/features/library/NewLibraryAction.ts": 'import "../folders/FolderBrowser";\n',
+      "src/features/folders/FolderBrowser.ts": "export const folderBrowser = true;\n",
+    });
+    const result = runArchitecture(root, true);
+    const report = JSON.parse(result.stdout) as {
+      violations: { importer: string; imported: string; rule: string }[];
+    };
+
+    expect(result.status).toBe(1);
+    expect(report.violations).toEqual([
+      expect.objectContaining({
+        importer: "src/features/library/NewLibraryAction.ts",
+        imported: "src/features/folders/FolderBrowser.ts",
+        rule: "unapproved-feature-edge",
+      }),
+    ]);
+  });
+
+  it("rejects a new domain cycle even when its file edges are approved", () => {
+    const root = createFixture({
+      "scripts/feature-domain-baseline.json": featureBaseline([
+        {
+          from: "library",
+          to: "archive",
+          reason: "Library uses the archive API.",
+          files: [["root.ts", "api.ts"]],
+        },
+        {
+          from: "archive",
+          to: "library",
+          reason: "Archive uses the library API.",
+          files: [["root.ts", "api.ts"]],
+        },
+      ]),
+      "src/features/library/root.ts": 'import "../archive/api";\n',
+      "src/features/archive/root.ts": 'import "../library/api";\n',
+      "src/features/library/api.ts": "export const libraryApi = true;\n",
+      "src/features/archive/api.ts": "export const archiveApi = true;\n",
+    });
+    const result = runArchitecture(root, true);
+    const report = JSON.parse(result.stdout) as {
+      cycleCount: number;
+      featureCycles: string[][];
+      violations: { rule: string }[];
+    };
+
+    expect(result.status).toBe(1);
+    expect(report.cycleCount).toBe(0);
+    expect(report.featureCycles).toEqual([["archive", "library", "archive"]]);
+    expect(report.violations.map(({ rule }) => rule)).toEqual([
+      "new-feature-cycle",
+      "new-feature-cycle",
+    ]);
+  });
+
+  it("requires obsolete edge exceptions to be removed from the baseline", () => {
+    const root = createFixture({
+      "scripts/feature-domain-baseline.json": featureBaseline([
+        {
+          from: "library",
+          to: "folders",
+          reason: "Former folder integration.",
+          files: [["LibraryPage.ts", "FolderBrowser.ts"]],
+        },
+      ]),
+      "src/features/library/LibraryPage.ts": "export const libraryPage = true;\n",
+      "src/features/folders/FolderBrowser.ts": "export const folderBrowser = true;\n",
+    });
+    const result = runArchitecture(root);
+
+    expect(result.status).toBe(1);
+    expect(combinedOutput(result)).toContain(
+      "Stale feature-domain baseline edge: src/features/library/LibraryPage.ts -> src/features/folders/FolderBrowser.ts",
+    );
+  });
+
+  it("requires obsolete cycle exceptions to be removed from the baseline", () => {
+    const root = createFixture({
+      "scripts/feature-domain-baseline.json": featureBaseline(
+        [
+          {
+            from: "library",
+            to: "folders",
+            reason: "Library composes the folder browser.",
+            files: [["LibraryPage.ts", "FolderBrowser.ts"]],
+          },
+        ],
+        [["library", "folders"]],
+      ),
+      "src/features/library/LibraryPage.ts": 'import "../folders/FolderBrowser";\n',
+      "src/features/folders/FolderBrowser.ts": "export const folderBrowser = true;\n",
+    });
+    const result = runArchitecture(root);
+
+    expect(result.status).toBe(1);
+    expect(combinedOutput(result)).toContain(
+      "Stale cyclic feature-domain baseline pair: library -> folders",
+    );
+  });
+
+  it("does not baseline same-domain or test-only feature imports", () => {
+    const root = createFixture({
+      "src/features/library/LibraryPage.ts": 'import "./libraryModel";\n',
+      "src/features/library/libraryModel.ts": "export const libraryModel = true;\n",
+      "src/features/library/library.test.ts": 'import "../folders/FolderBrowser";\n',
+      "src/features/folders/FolderBrowser.ts": "export const folderBrowser = true;\n",
+    });
+    const result = runArchitecture(root, true);
+    const report = JSON.parse(result.stdout) as {
+      featureDomainEdgeCount: number;
+      ok: boolean;
+      testOnlyEdgeCount: number;
+    };
+
+    expect(result.status).toBe(0);
+    expect(report.ok).toBe(true);
+    expect(report.featureDomainEdgeCount).toBe(0);
+    expect(report.testOnlyEdgeCount).toBe(1);
   });
 
   it("finds module dependencies in static, re-exported, dynamic, and CommonJS forms", () => {

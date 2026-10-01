@@ -1,0 +1,287 @@
+{
+  "version": 1,
+  "groups": [
+    {
+      "from": "archive",
+      "to": "library",
+      "reason": "The archive gate scopes library cover URLs to the active archive.",
+      "files": [["ArchiveGate.tsx", "coverUrlCacheScope.ts"]]
+    },
+    {
+      "from": "library",
+      "to": "about",
+      "reason": "The library route opens the About window.",
+      "files": [["LibraryPage.tsx", "aboutWindowLifecycle.ts"]]
+    },
+    {
+      "from": "library",
+      "to": "archive",
+      "reason": "Library surfaces control archive selection, scanning, and scan status.",
+      "files": [
+        ["LibraryPage.tsx", "useArchive.ts"],
+        ["LibraryToolbar.tsx", "RescanArchiveButton.tsx"],
+        ["useLibraryBookActions.ts", "useArchiveScanActivity.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "commands",
+      "reason": "Library interactions use the shared command vocabulary and bindings.",
+      "files": [
+        ["LibraryPage.tsx", "appCommands.ts"],
+        ["LibraryPage.tsx", "commandBindings.ts"],
+        ["LibraryWorkspaceSurface.tsx", "commandBindings.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "filesystem",
+      "reason": "Library workflows invoke the existing import, drop, file-action, and dialog owners.",
+      "files": [
+        ["LibraryPage.tsx", "archiveImport.ts"],
+        ["LibraryPage.tsx", "useExternalEpubDrop.ts"],
+        ["LibrarySidebar.tsx", "archiveImport.ts"],
+        ["libraryFeedback.ts", "archiveImport.ts"],
+        ["libraryLazySurfaces.ts", "AddEpubDialog.tsx"],
+        ["libraryLazySurfaces.ts", "MoveToFolderDialog.tsx"],
+        ["libraryLazySurfaces.ts", "RenameFileDialog.tsx"],
+        ["useLibraryBookActions.ts", "destructiveActionPolicy.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "folders",
+      "reason": "Library surfaces compose folder browsing, sorting, dialogs, and mutation focus.",
+      "files": [
+        ["LibrarySidebar.tsx", "FolderTree.tsx"],
+        ["LibrarySidebar.tsx", "folderBrowserReadModel.ts"],
+        ["LibrarySidebar.tsx", "folderSortOptions.ts"],
+        ["LibraryWorkspaceSurface.tsx", "FolderBrowser.tsx"],
+        ["libraryCollectionQuickActions.ts", "folderSortOptions.ts"],
+        ["libraryDerivedState.ts", "folderBrowserReadModel.ts"],
+        ["libraryIndex.ts", "folderBrowserReadModel.ts"],
+        ["libraryLazySurfaces.ts", "FolderCreateDialog.tsx"],
+        ["libraryLazySurfaces.ts", "FolderRenameDialog.tsx"],
+        ["useFolderPathMutationContinuity.ts", "folderMutationFocus.ts"],
+        ["useLibraryMutationFocus.ts", "folderMutationFocus.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "quick-actions",
+      "reason": "Library integrates collection actions and quick-action navigation.",
+      "files": [
+        ["LibraryPage.tsx", "QuickActionsContext.ts"],
+        ["LibraryPage.tsx", "quickActions.ts"],
+        ["LibraryWorkspaceSurface.tsx", "QuickActionsContext.ts"],
+        ["LibraryWorkspaceSurface.tsx", "quickActions.ts"],
+        ["libraryCollectionQuickActions.ts", "quickActionModes.ts"],
+        ["libraryCollectionQuickActions.ts", "quickActions.ts"],
+        ["useLibraryWorkspaceNavigation.ts", "quickActions.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "reader",
+      "reason": "Library bulk actions use Reader-owned annotation export.",
+      "files": [
+        ["useLibraryBulkActions.ts", "readerAnnotationExport.ts"],
+        ["useLibraryBulkActions.ts", "readerAnnotationExportFile.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "reading",
+      "reason": "Library filters and index derive stored reading progress.",
+      "files": [
+        ["libraryFilters.ts", "readingProgress.ts"],
+        ["libraryIndex.ts", "readingProgress.ts"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "series",
+      "reason": "Library composes series state, derivation, sorting, and views.",
+      "files": [
+        ["LibraryPage.tsx", "useLibrarySeriesState.ts"],
+        ["libraryCollectionQuickActions.ts", "seriesSortOptions.ts"],
+        ["libraryFilters.ts", "seriesDerivation.ts"],
+        ["libraryIndex.ts", "seriesDerivation.ts"],
+        ["libraryIndex.ts", "seriesSorting.ts"],
+        ["libraryLazySurfaces.ts", "SeriesDetail.tsx"],
+        ["libraryLazySurfaces.ts", "SeriesOverview.tsx"]
+      ]
+    },
+    {
+      "from": "library",
+      "to": "settings",
+      "reason": "Collection quick actions reuse settings option labels.",
+      "files": [["libraryCollectionQuickActions.ts", "settingsOptions.ts"]]
+    },
+    {
+      "from": "quick-actions",
+      "to": "commands",
+      "reason": "Quick Actions resolves the shared command vocabulary and key bindings.",
+      "files": [
+        ["QuickActionsContext.ts", "appCommands.ts"],
+        ["QuickActionsContext.ts", "commandBindings.ts"],
+        ["QuickActionsPalette.tsx", "commandBindings.ts"],
+        ["QuickActionsPalette.tsx", "commandResolver.ts"],
+        ["QuickActionsProvider.tsx", "appCommands.ts"],
+        ["QuickActionsProvider.tsx", "commandBindings.ts"],
+        ["QuickActionsProvider.tsx", "commandResolver.ts"],
+        ["quickActionModes.ts", "appCommands.ts"],
+        ["quickActions.ts", "appCommands.ts"]
+      ]
+    },
+    {
+      "from": "quick-actions",
+      "to": "settings",
+      "reason": "Quick Actions opens settings and reuses the density option labels.",
+      "files": [
+        ["QuickActionsProvider.tsx", "settingsWindow.ts"],
+        ["quickActionDensityMode.ts", "settingsOptions.ts"]
+      ]
+    },
+    {
+      "from": "reader",
+      "to": "archive",
+      "reason": "Reader lifecycle uses the archive-owned session contract.",
+      "files": [["ReaderPage.tsx", "readerArchiveSession.ts"]]
+    },
+    {
+      "from": "reader",
+      "to": "commands",
+      "reason": "Reader keyboard behavior uses shared command bindings.",
+      "files": [["ReaderPage.tsx", "commandBindings.ts"]]
+    },
+    {
+      "from": "reader",
+      "to": "quick-actions",
+      "reason": "Reader publishes its actions through the Quick Actions contract.",
+      "files": [
+        ["ReaderPage.tsx", "QuickActionsContext.ts"],
+        ["ReaderPage.tsx", "quickActions.ts"]
+      ]
+    },
+    {
+      "from": "reader",
+      "to": "reading",
+      "reason": "Reader continuation reads the shared reading-progress model.",
+      "files": [["useReaderSeriesContinuation.ts", "readingProgress.ts"]]
+    },
+    {
+      "from": "reader",
+      "to": "series",
+      "reason": "Reader continuation uses the Series-owned continuation contract.",
+      "files": [["useReaderSeriesContinuation.ts", "readerSeriesContinuation.ts"]]
+    },
+    {
+      "from": "reader",
+      "to": "themes",
+      "reason": "Reader composes theme catalog and selection surfaces.",
+      "files": [
+        ["ReaderPage.tsx", "useThemeCatalogEntries.ts"],
+        ["ReaderSettingsPanel.tsx", "ReaderThemeSelect.tsx"]
+      ]
+    },
+    {
+      "from": "series",
+      "to": "library",
+      "reason": "Series views reuse library cover presentation and its index type.",
+      "files": [
+        ["SeriesDetail.tsx", "BookCover.tsx"],
+        ["SeriesOverview.tsx", "BookCover.tsx"],
+        ["useLibrarySeriesState.ts", "libraryIndex.ts"]
+      ]
+    },
+    {
+      "from": "series",
+      "to": "reading",
+      "reason": "Series presentation derives stored reading progress.",
+      "files": [
+        ["SeriesDetail.tsx", "readingProgress.ts"],
+        ["seriesDerivation.ts", "readingProgress.ts"],
+        ["seriesDisplay.ts", "readingProgress.ts"]
+      ]
+    },
+    {
+      "from": "settings",
+      "to": "commands",
+      "reason": "Settings displays and edits shared keyboard command bindings.",
+      "files": [
+        ["KeyboardShortcutSettings.tsx", "commandBindings.ts"],
+        ["SettingsSurface.tsx", "commandBindings.ts"],
+        ["keyboardShortcutDocumentation.ts", "commandBindings.ts"],
+        ["settingsItems/keyboardSettingsItems.tsx", "commandBindings.ts"]
+      ]
+    },
+    {
+      "from": "settings",
+      "to": "filesystem",
+      "reason": "Settings offers the archive import action.",
+      "files": [["settingsItems.tsx", "archiveImport.ts"]]
+    },
+    {
+      "from": "settings",
+      "to": "folders",
+      "reason": "Settings presents Folder-owned sort options.",
+      "files": [["settingsOptions.ts", "folderSortOptions.ts"]]
+    },
+    {
+      "from": "settings",
+      "to": "library",
+      "reason": "Settings presents Library-owned sort options.",
+      "files": [["settingsOptions.ts", "librarySortOptions.ts"]]
+    },
+    {
+      "from": "settings",
+      "to": "quick-actions",
+      "reason": "Settings mounts Quick Actions context and provider in its surfaces.",
+      "files": [
+        ["SettingsSurface.tsx", "QuickActionsContext.ts"],
+        ["StandaloneSettingsWindow.tsx", "QuickActionsProvider.tsx"]
+      ]
+    },
+    {
+      "from": "settings",
+      "to": "reader",
+      "reason": "Settings presents Reader-owned typeface options.",
+      "files": [["settingsOptions.ts", "readerFonts.ts"]]
+    },
+    {
+      "from": "settings",
+      "to": "series",
+      "reason": "Settings presents Series-owned sort options.",
+      "files": [["settingsOptions.ts", "seriesSortOptions.ts"]]
+    },
+    {
+      "from": "settings",
+      "to": "themes",
+      "reason": "Settings composes theme management and selection surfaces.",
+      "files": [
+        ["SettingsSurface.tsx", "themeManagerWindowLifecycle.ts"],
+        ["SettingsSurface.tsx", "useThemeCatalogEntries.ts"],
+        ["settingsItems/appearanceSettingsItems.tsx", "ReaderThemeSelect.tsx"],
+        ["settingsItems/appearanceSettingsItems.tsx", "themeSelectionOptions.ts"]
+      ]
+    }
+  ],
+  "cyclicDomainPairs": [
+    ["archive", "library"],
+    ["library", "archive"],
+    ["library", "quick-actions"],
+    ["library", "reader"],
+    ["library", "series"],
+    ["library", "settings"],
+    ["quick-actions", "settings"],
+    ["reader", "archive"],
+    ["reader", "quick-actions"],
+    ["reader", "series"],
+    ["series", "library"],
+    ["settings", "library"],
+    ["settings", "quick-actions"],
+    ["settings", "reader"],
+    ["settings", "series"]
+  ]
+}
