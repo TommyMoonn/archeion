@@ -87,6 +87,14 @@ npm run test:inter-assets
 npm run check:rust
 ```
 
+The frontend test suite checks byte parity for physical asset copies shared by
+the desktop app and public site. `src-tauri/icons/128x128.png` is the canonical
+128-pixel icon for the frontend and site copies; the frontend Latin Atkinson and
+Literata font files are canonical for the site's four matching font copies.
+Run the focused check with `npm run test -- tests/sharedAssetParity.test.ts`.
+Resized platform icons, the favicon, and distinct site imagery are not parity
+targets.
+
 Commands that apply automatic formatting or lint fixes:
 
 ```powershell
