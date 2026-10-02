@@ -4,11 +4,14 @@ import { act, useLayoutEffect, type MutableRefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, BookmarkAnnotation } from "../../types/annotation";
-import { useReaderAnnotationCollection } from "./useReaderAnnotationCollection";
+import {
+  useReaderAnnotationCollection,
+  type ReaderAnnotationCollectionStorage,
+} from "./useReaderAnnotationCollection";
 
 type CollectionApi = ReturnType<typeof useReaderAnnotationCollection>;
+type ListAnnotations = ReaderAnnotationCollectionStorage["listAnnotations"];
 
 function bookmark(id: string): BookmarkAnnotation {
   return {
@@ -39,7 +42,7 @@ function Harness({
   activeArchiveId: string;
   apiRef: MutableRefObject<CollectionApi | undefined>;
   bookId?: string;
-  storage: LibraryStorage;
+  storage: ReaderAnnotationCollectionStorage;
 }) {
   const collection = useReaderAnnotationCollection({
     activeArchiveId,
@@ -56,7 +59,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 async function render(
-  storage: LibraryStorage,
+  storage: ReaderAnnotationCollectionStorage,
   bookId: string | undefined,
   apiRef: MutableRefObject<CollectionApi | undefined>,
   activeArchiveId = "archive-a",
@@ -90,10 +93,10 @@ describe("useReaderAnnotationCollection", () => {
     const archiveBLoad = deferred<Annotation[]>();
     const storage = {
       listAnnotations: vi
-        .fn()
+        .fn<ListAnnotations>()
         .mockResolvedValueOnce([bookmark("archive-a")])
         .mockReturnValueOnce(archiveBLoad.promise),
-    } as unknown as LibraryStorage;
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "shared-book", apiRef, "archive-a");
     const staleSync = apiRef.current?.sync;
@@ -115,8 +118,8 @@ describe("useReaderAnnotationCollection", () => {
 
   it("loads one authoritative collection and updates it through sync and forget", async () => {
     const storage = {
-      listAnnotations: vi.fn(async () => [bookmark("first")]),
-    } as unknown as LibraryStorage;
+      listAnnotations: vi.fn<ListAnnotations>(async () => [bookmark("first")]),
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "book-a", apiRef);
 
@@ -129,7 +132,9 @@ describe("useReaderAnnotationCollection", () => {
   });
 
   it("loads an empty collection without storage access when no book is active", async () => {
-    const storage = { listAnnotations: vi.fn() } as unknown as LibraryStorage;
+    const storage = {
+      listAnnotations: vi.fn<ListAnnotations>(),
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, undefined, apiRef);
 
@@ -141,11 +146,11 @@ describe("useReaderAnnotationCollection", () => {
   it("owns load failure, dismissal, retry success, and retry failure", async () => {
     const storage = {
       listAnnotations: vi
-        .fn()
+        .fn<ListAnnotations>()
         .mockRejectedValueOnce(new Error("first failure"))
         .mockRejectedValueOnce(new Error("retry failure"))
         .mockResolvedValueOnce([bookmark("recovered")]),
-    } as unknown as LibraryStorage;
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "book-a", apiRef);
 
@@ -164,10 +169,10 @@ describe("useReaderAnnotationCollection", () => {
     const second = deferred<Annotation[]>();
     const storage = {
       listAnnotations: vi
-        .fn()
+        .fn<ListAnnotations>()
         .mockReturnValueOnce(first.promise)
         .mockReturnValueOnce(second.promise),
-    } as unknown as LibraryStorage;
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "book-a", apiRef);
 
@@ -185,10 +190,10 @@ describe("useReaderAnnotationCollection", () => {
     const firstLoad = deferred<Annotation[]>();
     const storage = {
       listAnnotations: vi
-        .fn()
+        .fn<ListAnnotations>()
         .mockImplementationOnce(() => firstLoad.promise)
         .mockResolvedValueOnce([bookmark("book-b")]),
-    } as unknown as LibraryStorage;
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "book-a", apiRef);
     await render(storage, "book-b", apiRef);
@@ -204,11 +209,11 @@ describe("useReaderAnnotationCollection", () => {
     const secondA = bookmark("second-a");
     const storage = {
       listAnnotations: vi
-        .fn()
+        .fn<ListAnnotations>()
         .mockResolvedValueOnce([firstA])
         .mockResolvedValueOnce([bookB])
         .mockResolvedValueOnce([secondA]),
-    } as unknown as LibraryStorage;
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "book-a", apiRef);
     const staleApi = apiRef.current;
@@ -226,8 +231,8 @@ describe("useReaderAnnotationCollection", () => {
 
   it("rejects stale sync and forget callbacks after a book-session change", async () => {
     const storage = {
-      listAnnotations: vi.fn(async (bookId: string) => [bookmark(`${bookId}-annotation`)]),
-    } as unknown as LibraryStorage;
+      listAnnotations: vi.fn<ListAnnotations>(async (bookId) => [bookmark(`${bookId}-annotation`)]),
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     const rendered = await render(storage, "book-a", apiRef);
     const staleApi = apiRef.current;
@@ -242,7 +247,9 @@ describe("useReaderAnnotationCollection", () => {
 
   it("ignores load settlement after unmount", async () => {
     const pending = deferred<Annotation[]>();
-    const storage = { listAnnotations: vi.fn(() => pending.promise) } as unknown as LibraryStorage;
+    const storage = {
+      listAnnotations: vi.fn<ListAnnotations>(() => pending.promise),
+    } satisfies ReaderAnnotationCollectionStorage;
     const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
     await render(storage, "book-a", apiRef);
     const staleApi = apiRef.current;

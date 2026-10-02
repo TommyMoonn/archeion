@@ -8,6 +8,8 @@ import {
   type ReaderAnnotationSession,
 } from "./readerAnnotationState";
 
+export type ReaderAnnotationCollectionStorage = Pick<LibraryStorage, "listAnnotations">;
+
 export type ReaderAnnotationLoadStatus = "loading" | "ready" | "error";
 
 const EMPTY_ANNOTATIONS: Annotation[] = [];
@@ -34,7 +36,7 @@ export function useReaderAnnotationCollection({
 }: {
   activeArchiveId: string | null;
   bookId?: string;
-  storage: LibraryStorage;
+  storage: ReaderAnnotationCollectionStorage;
 }) {
   const mountedRef = useRef(true);
   const session = useMemo<ReaderAnnotationSession>(
