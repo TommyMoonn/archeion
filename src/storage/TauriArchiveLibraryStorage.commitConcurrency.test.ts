@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReadonlyBook } from "../types/book";
 import type { LibraryMetadata, MetadataBundle, ProgressMetadata } from "./metadataFiles";
 import type { ArchiveEpubScan, ArchiveScan } from "./reconcileLibraryState";
-import { deferred, invokeMock, setupDefaultStorageMock } from "./tauri/storageTestSupport";
+import { deferred, invokeMock, mockStorageCommands } from "./tauri/storageTestSupport";
 import { TauriArchiveLibraryStorage } from "./TauriArchiveLibraryStorage";
 
 const ROOT = "C:/ArchiveA";
@@ -77,10 +77,9 @@ function concurrentArchive(): { metadata: MetadataBundle; scan: ArchiveScan } {
 
 async function loadedStorage() {
   const archive = concurrentArchive();
-  invokeMock.mockImplementation(async (command) => {
-    if (command === "scan_archive") return structuredClone(archive.scan);
-    if (command === "load_archive_metadata") return structuredClone(archive.metadata);
-    return undefined;
+  mockStorageCommands({
+    scan_archive: () => structuredClone(archive.scan),
+    load_archive_metadata: () => structuredClone(archive.metadata),
   });
   const storage = new TauriArchiveLibraryStorage();
   storage.reset(ROOT);
@@ -104,7 +103,10 @@ async function waitForCalls(command: string, count: number): Promise<void> {
 }
 
 describe("TauriArchiveLibraryStorage archive-model commit serialization", () => {
-  beforeEach(setupDefaultStorageMock);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockStorageCommands();
+  });
 
   it("composes two simultaneous book moves against the latest committed state", async () => {
     const { storage } = await loadedStorage();
@@ -112,24 +114,21 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     const releaseFirstSave = deferred<void>();
     const savedLibraries: LibraryMetadata[] = [];
     let saveCount = 0;
-    invokeMock.mockImplementation(async (command, args) => {
-      const commandArgs = args as Record<string, unknown>;
-      if (command === "move_archive_epub_file") {
-        const relativePath = String(commandArgs.relativePath);
+    mockStorageCommands({
+      move_archive_epub_file: ({ relativePath }) => {
         return {
           oldRelativePath: relativePath,
           newRelativePath: relativePath === "Source/One.epub" ? "DestA/One.epub" : "DestB/Two.epub",
         };
-      }
-      if (command === "save_library_metadata") {
+      },
+      save_library_metadata: async ({ metadata }) => {
         saveCount += 1;
-        savedLibraries.push(structuredClone(commandArgs.metadata as LibraryMetadata));
+        savedLibraries.push(structuredClone(metadata));
         if (saveCount === 1) {
           firstSaveStarted.resolve();
           await releaseFirstSave.promise;
         }
-      }
-      return undefined;
+      },
     });
 
     const before = await storage.listBooks();
@@ -176,27 +175,25 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     const savedLibraries: LibraryMetadata[] = [];
     const savedProgress: ProgressMetadata[] = [];
     let saveCount = 0;
-    invokeMock.mockImplementation(async (command, args) => {
-      const commandArgs = args as Record<string, unknown>;
-      if (command === "move_archive_epub_file") {
+    mockStorageCommands({
+      move_archive_epub_file: () => {
         return {
           oldRelativePath: "Source/One.epub",
           newRelativePath: "DestA/One.epub",
         };
-      }
-      if (command === "delete_archive_epub_file") return {};
-      if (command === "save_library_metadata") {
+      },
+      delete_archive_epub_file: () => ({}),
+      save_library_metadata: async ({ metadata }) => {
         saveCount += 1;
-        savedLibraries.push(structuredClone(commandArgs.metadata as LibraryMetadata));
+        savedLibraries.push(structuredClone(metadata));
         if (saveCount === 1) {
           firstSaveStarted.resolve();
           await releaseFirstSave.promise;
         }
-      }
-      if (command === "save_progress_metadata") {
-        savedProgress.push(structuredClone(commandArgs.metadata as ProgressMetadata));
-      }
-      return undefined;
+      },
+      save_progress_metadata: ({ metadata }) => {
+        savedProgress.push(structuredClone(metadata));
+      },
     });
 
     const move = storage.moveBookToFolder("book-1", "folder:DestA");
@@ -221,10 +218,9 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     const { archive, storage } = await loadedStorage();
     const moveResult = deferred<{ oldRelativePath: string; newRelativePath: string }>();
     const targetedResult = deferred<ArchiveEpubScan>();
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "move_archive_epub_file") return moveResult.promise;
-      if (command === "scan_archive_epub_paths") return targetedResult.promise;
-      return undefined;
+    mockStorageCommands({
+      move_archive_epub_file: () => moveResult.promise,
+      scan_archive_epub_paths: () => targetedResult.promise,
     });
 
     const move = storage.moveBookToFolder("book-1", "folder:DestA");
@@ -265,16 +261,15 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
   it("applies a pending delta after an older full scan reaches reconciliation", async () => {
     const { archive, storage } = await loadedStorage();
     const scanResult = deferred<ArchiveScan>();
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_archive") return scanResult.promise;
-      if (command === "load_archive_metadata") return structuredClone(archive.metadata);
-      if (command === "move_archive_epub_file") {
+    mockStorageCommands({
+      scan_archive: () => scanResult.promise,
+      load_archive_metadata: () => structuredClone(archive.metadata),
+      move_archive_epub_file: () => {
         return {
           oldRelativePath: "Source/One.epub",
           newRelativePath: "DestA/One.epub",
         };
-      }
-      return undefined;
+      },
     });
 
     const rescan = storage.rescan({ quiet: true });
@@ -302,15 +297,14 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
   it("commits a successful delta after an overlapping repair scan fails", async () => {
     const { storage } = await loadedStorage();
     const scanResult = deferred<ArchiveScan>();
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_archive") return scanResult.promise;
-      if (command === "move_archive_epub_file") {
+    mockStorageCommands({
+      scan_archive: () => scanResult.promise,
+      move_archive_epub_file: () => {
         return {
           oldRelativePath: "Source/One.epub",
           newRelativePath: "DestA/One.epub",
         };
-      }
-      return undefined;
+      },
     });
 
     const rescan = storage.rescan({ quiet: true });
@@ -336,11 +330,10 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
       modifiedAt: 1_700_000_010_000,
       sourceMetadata: { identifier: "urn:book-2", title: "Scanned change" },
     };
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "move_archive_epub_file") return moveResult.promise;
-      if (command === "scan_archive") return structuredClone(changedScan);
-      if (command === "load_archive_metadata") return structuredClone(archive.metadata);
-      return undefined;
+    mockStorageCommands({
+      move_archive_epub_file: () => moveResult.promise,
+      scan_archive: () => structuredClone(changedScan),
+      load_archive_metadata: () => structuredClone(archive.metadata),
     });
 
     const move = storage.moveBookToFolder("book-1", "folder:DestA");
@@ -371,18 +364,17 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
       },
     });
     let saveAttempts = 0;
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "move_archive_epub_file") {
+    mockStorageCommands({
+      move_archive_epub_file: () => {
         return {
           oldRelativePath: "Source/One.epub",
           newRelativePath: "DestA/One.epub",
         };
-      }
-      if (command === "save_library_metadata") {
+      },
+      save_library_metadata: () => {
         saveAttempts += 1;
         throw new Error("disk unavailable");
-      }
-      return undefined;
+      },
     });
 
     const move = storage.moveBookToFolder("book-1", "folder:DestA");
@@ -404,30 +396,27 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     const firstSaveStarted = deferred<void>();
     const releaseFirstSave = deferred<void>();
     let saveCount = 0;
-    invokeMock.mockImplementation(async (command, args) => {
-      const commandArgs = args as Record<string, unknown>;
-      if (command === "move_archive_epub_file") {
-        const relativePath = String(commandArgs.relativePath);
+    mockStorageCommands({
+      move_archive_epub_file: ({ relativePath }) => {
         return {
           oldRelativePath: relativePath,
           newRelativePath: relativePath === "Source/One.epub" ? "DestA/One.epub" : "DestB/Two.epub",
         };
-      }
-      if (command === "save_library_metadata") {
+      },
+      save_library_metadata: async () => {
         saveCount += 1;
         if (saveCount === 1) {
           firstSaveStarted.resolve();
           await releaseFirstSave.promise;
         }
-      }
-      if (command === "scan_archive") return { books: [], folders: [], warnings: [] };
-      if (command === "load_archive_metadata") {
+      },
+      scan_archive: () => ({ books: [], folders: [], warnings: [] }),
+      load_archive_metadata: () => {
         return {
           library: { version: 1, books: {} },
           progress: { version: 1, progress: {} },
         };
-      }
-      return undefined;
+      },
     });
 
     const firstMove = storage.moveBookToFolder("book-1", "folder:DestA");
@@ -438,13 +427,10 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     const settled = await Promise.allSettled([firstMove, secondMove]);
 
     expect(settled.every((result) => result.status === "rejected")).toBe(true);
-    expect(
-      invokeMock.mock.calls.filter(
-        ([command, args]) =>
-          command === "save_library_metadata" &&
-          (args as { rootPath?: string } | undefined)?.rootPath === "C:/ArchiveB",
-      ),
-    ).toHaveLength(0);
+    const librarySaves = invokeMock.mock.calls
+      .filter(([command]) => command === "save_library_metadata")
+      .map(([, args]) => args);
+    expect(librarySaves).not.toContainEqual(expect.objectContaining({ rootPath: "C:/ArchiveB" }));
     await expect(storage.listBooks()).resolves.toEqual([]);
   });
 });
