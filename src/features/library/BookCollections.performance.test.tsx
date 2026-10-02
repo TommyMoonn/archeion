@@ -94,6 +94,35 @@ afterEach(() => {
 });
 
 describe.each(["grid", "list"] as const)("%s selection rendering", (view) => {
+  it("keeps favorite and selection names stable through state changes", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    activeContainer = container;
+    activeRoot = createRoot(container);
+    const Collection = view === "grid" ? BookGrid : BookList;
+    for (const active of [false, true, false]) {
+      await act(async () => {
+        activeRoot?.render(
+          <Collection
+            {...callbacks}
+            books={[{ ...createBook("one"), isFavorite: active }]}
+            selectedBookIds={new Set(active ? ["one"] : [])}
+            selectionMode
+          />,
+        );
+      });
+      const favorite = container.querySelector<HTMLButtonElement>('[aria-label="Favorite one"]');
+      const selection = container.querySelector<HTMLButtonElement>('[aria-label="Select one"]');
+      expect(favorite?.getAttribute("aria-pressed")).toBe(String(active));
+      expect(selection?.getAttribute("aria-pressed")).toBe(String(active));
+      act(() => {
+        favorite?.click();
+        selection?.click();
+      });
+    }
+    expect(callbacks.onToggleFavorite).toHaveBeenCalledTimes(3);
+    expect(callbacks.onSelectionChange).toHaveBeenCalledTimes(3);
+  });
   it("does not commit an unaffected book when one selection changes", async () => {
     const collection = await renderCollection(view, new Set());
 

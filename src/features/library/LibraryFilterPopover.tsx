@@ -262,7 +262,7 @@ export function LibraryFilterTokens({
   }
 
   return (
-    <div className="library-filter-tokens" aria-label="Active filters">
+    <div className="library-filter-tokens" aria-label="Active filters" role="group">
       {tokens.map((token) => (
         <span className="library-filter-token" key={token.id}>
           <span>{token.label}</span>

@@ -362,7 +362,7 @@ export function clickBook(
   modifiers: MouseEventInit = {},
 ): void {
   const button = container.querySelector<HTMLButtonElement>(
-    `button[aria-label="View details for ${title}"], button[aria-label="Select ${title}"], button[aria-label="Deselect ${title}"]`,
+    `button[aria-label="View details for ${title}"], button[aria-label="Select ${title}"]`,
   );
   if (!button) throw new Error(`Book button for ${title} was not rendered.`);
   button.dispatchEvent(new MouseEvent("click", { bubbles: true, ...modifiers }));

@@ -235,7 +235,7 @@ export function ReaderToolbar({
           aria-busy={bookmarkBusy || undefined}
           disabled={bookmarkToggleDisabled}
           disabledReason={bookmarkToggleDisabledReason}
-          label={bookmarkActive ? "Remove bookmark" : "Add bookmark"}
+          label="Bookmark"
           onClick={onToggleBookmark}
           size="compact"
           tooltip={

@@ -53,6 +53,7 @@ function renderInteractiveToolbar({
   onFilterChange = vi.fn(),
   onQueryChange = vi.fn(),
   onToggleSelectionMode = vi.fn(),
+  selectionMode = false,
 }: {
   filters?: LibraryFilterState;
   onClearFilters?: () => void;
@@ -60,6 +61,7 @@ function renderInteractiveToolbar({
   onFilterChange?: (filters: LibraryFilterState) => void;
   onQueryChange?: (query: string) => void;
   onToggleSelectionMode?: () => void;
+  selectionMode?: boolean;
 } = {}) {
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -87,7 +89,7 @@ function renderInteractiveToolbar({
         onViewChange={vi.fn()}
         query="Dune"
         resultCount={1}
-        selectionMode={false}
+        selectionMode={selectionMode}
         sort="title"
         title="Library"
         view="grid"
@@ -101,6 +103,20 @@ function renderInteractiveToolbar({
 let activeRoot: Root | null = null;
 
 describe("LibraryToolbar", () => {
+  it.each([false, true])(
+    "keeps the selection-mode name stable when pressed is %s",
+    (selectionMode) => {
+      const onToggleSelectionMode = vi.fn();
+      const session = renderInteractiveToolbar({ selectionMode, onToggleSelectionMode });
+      activeRoot = session.root;
+      const toggle = session.container.querySelector<HTMLButtonElement>(
+        '[aria-label="Select books"]',
+      );
+      expect(toggle?.getAttribute("aria-pressed")).toBe(String(selectionMode));
+      act(() => toggle?.click());
+      expect(onToggleSelectionMode).toHaveBeenCalledOnce();
+    },
+  );
   afterEach(() => {
     if (activeRoot) {
       act(() => activeRoot?.unmount());
@@ -310,6 +326,12 @@ describe("LibraryToolbar", () => {
     };
     const session = renderInteractiveToolbar({ filters, onClearFilters, onFilterChange });
     activeRoot = session.root;
+
+    expect(
+      session.container
+        .querySelector('[role="group"][aria-label="Active filters"]')
+        ?.querySelectorAll("button"),
+    ).toHaveLength(2);
 
     expect(session.container.querySelector('[aria-label="Active filters"]')?.textContent).toContain(
       "Series: Star Saga",

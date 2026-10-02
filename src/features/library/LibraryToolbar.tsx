@@ -116,7 +116,7 @@ export function LibraryToolbar({
           <IconButton
             aria-pressed={selectionMode}
             className="library-select-button"
-            label={selectionMode ? "Finish selecting books" : "Select books"}
+            label="Select books"
             onClick={onToggleSelectionMode}
             tooltip={selectionMode ? "Finish selecting books" : "Select books"}
             tooltipPlacement="bottom"

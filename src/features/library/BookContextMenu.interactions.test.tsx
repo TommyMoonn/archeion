@@ -223,9 +223,7 @@ describe("book contextual invocation", () => {
     expect(view.querySelector(".book-row__file")?.textContent).toBe(longBook.fileName);
 
     const rename = view.querySelector<HTMLButtonElement>(`[aria-label="Rename file for ${title}"]`);
-    const favorite = view.querySelector<HTMLButtonElement>(
-      `[aria-label="Add ${title} to favorites"]`,
-    );
+    const favorite = view.querySelector<HTMLButtonElement>(`[aria-label="Favorite ${title}"]`);
     const actions = view.querySelector<HTMLButtonElement>(`[aria-label="Actions for ${title}"]`);
 
     act(() => {

@@ -247,7 +247,7 @@ function InstalledDictionaryRow({
         <Toggle
           checked={dictionary.enabled}
           disabled={busy || unavailable}
-          label={`${dictionary.enabled ? "Disable" : "Enable"} ${dictionary.displayName}`}
+          label={`Enable ${dictionary.displayName}`}
           onChange={(enabled) => void controller.setEnabled(dictionary.id, enabled)}
           size="standard"
         />
