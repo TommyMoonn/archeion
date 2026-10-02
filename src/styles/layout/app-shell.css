@@ -361,6 +361,7 @@ html[data-density="compact"] .nav-item {
     position: static;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    grid-auto-rows: max-content;
     align-items: center;
     width: 100%;
     height: auto;
@@ -377,22 +378,14 @@ html[data-density="compact"] .nav-item {
 
   .sidebar__nav {
     display: flex;
+    flex-wrap: wrap;
     grid-column: 1 / -1;
     width: auto;
     margin: 0;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
   }
 
   .sidebar__nav .nav-item {
-    grid-template-columns: 1fr;
-    place-items: center;
-    width: 40px;
-    padding: 0;
-  }
-
-  .sidebar__nav .nav-item span {
-    display: none;
+    flex: 1 0 auto;
   }
 
   .sidebar__section {
