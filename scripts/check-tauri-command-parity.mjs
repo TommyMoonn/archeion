@@ -7,10 +7,6 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"]);
 const testFile = /(?:^|\/)test\/|\.(?:test|spec|testUtils)\.[cm]?[jt]sx?$/;
 
-// These registrations have no supported frontend caller and are retired in C.6.
-// An exception must fail when its registration disappears so it cannot linger.
-export const backendOnlyCommands = new Set(["load_app_settings", "save_app_settings"]);
-
 // These are typed forwarding boundaries. Their command vocabulary is obtained
 // from the adjacent command map, a typed union, or their literal call sites.
 const dynamicInvocations = new Map([
@@ -188,20 +184,15 @@ export function extractRegisteredCommands(rustSource) {
   return commands;
 }
 
-export function compareCommands(frontend, registered, exceptions = backendOnlyCommands) {
+export function compareCommands(frontend, registered) {
   const errors = [];
   for (const name of [...frontend].sort()) {
     if (!registered.has(name)) errors.push(`Frontend command is not registered: ${name}`);
-    if (exceptions.has(name))
-      errors.push(`Backend-only exception now has a frontend caller: ${name}`);
   }
   for (const name of [...registered].sort()) {
-    if (!frontend.has(name) && !exceptions.has(name)) {
+    if (!frontend.has(name)) {
       errors.push(`Registration has no frontend command: ${name}`);
     }
-  }
-  for (const name of [...exceptions].sort()) {
-    if (!registered.has(name)) errors.push(`Stale backend-only exception: ${name}`);
   }
   return errors;
 }
@@ -232,7 +223,6 @@ export function checkProject(root = projectRoot) {
   return {
     frontend: frontend.size,
     registered: registered.size,
-    backendOnly: backendOnlyCommands.size,
   };
 }
 
@@ -240,7 +230,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     const result = checkProject();
     console.log(
-      `Tauri command parity: ${result.frontend} frontend, ${result.registered} registered, ${result.backendOnly} scheduled legacy exceptions.`,
+      `Tauri command parity: ${result.frontend} frontend, ${result.registered} registered.`,
     );
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);

@@ -15,7 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const files = readProductionFiles(root);
 const rust = fs.readFileSync(path.join(root, "src-tauri", "src", "lib.rs"), "utf8");
 
-test("production command vocabulary matches Rust except scheduled legacy commands", () => {
+test("production command vocabulary matches Rust exactly", () => {
   const frontend = extractFrontendCommands(files);
   const registered = extractRegisteredCommands(rust);
   assert.deepEqual(compareCommands(frontend, registered), []);
@@ -69,7 +69,7 @@ test("an unclassified dynamic invoke cannot evade extraction", () => {
   assert.throws(() => extractFrontendCommands(changed), /Unclassified dynamic invoke/);
 });
 
-test("backend-only registration needs an explicit exception", () => {
+test("unclaimed backend registration fails parity", () => {
   const registered = extractRegisteredCommands(rust);
   registered.add("unclaimed_fixture");
   assert.ok(
@@ -79,21 +79,23 @@ test("backend-only registration needs an explicit exception", () => {
   );
 });
 
-test("legacy exceptions fail if removed or used by the frontend", () => {
+test("retired settings commands cannot return on only one side of the contract", () => {
   const frontend = extractFrontendCommands(files);
   const registered = extractRegisteredCommands(rust);
-  registered.delete("load_app_settings");
-  assert.ok(
-    compareCommands(frontend, registered).includes(
-      "Stale backend-only exception: load_app_settings",
-    ),
-  );
-  frontend.add("save_app_settings");
-  assert.ok(
-    compareCommands(frontend, registered).includes(
-      "Backend-only exception now has a frontend caller: save_app_settings",
-    ),
-  );
+  for (const name of ["load_app_settings", "save_app_settings"]) {
+    assert.ok(!frontend.has(name));
+    assert.ok(!registered.has(name));
+    assert.ok(
+      compareCommands(frontend, new Set([...registered, name])).includes(
+        `Registration has no frontend command: ${name}`,
+      ),
+    );
+    assert.ok(
+      compareCommands(new Set([...frontend, name]), registered).includes(
+        `Frontend command is not registered: ${name}`,
+      ),
+    );
+  }
 });
 
 test("malformed or duplicated Rust registrations fail extraction", () => {
