@@ -133,7 +133,6 @@ pub enum DictionarySourceKind {
 }
 
 impl DictionarySourceKind {
-    #[allow(dead_code)]
     fn as_database_value(self) -> &'static str {
         match self {
             Self::Catalog => "catalog",
@@ -181,7 +180,6 @@ impl DictionaryIndexState {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
 pub(crate) struct DictionaryRegistration {
     pub display_name: String,
     pub source_language: String,
@@ -307,7 +305,6 @@ impl From<std::io::Error> for DictionaryStoreError {
 pub(crate) struct DictionaryStoragePaths {
     root: PathBuf,
     database: PathBuf,
-    #[allow(dead_code)]
     installed: PathBuf,
 }
 
@@ -329,7 +326,6 @@ impl DictionaryStoragePaths {
         &self.database
     }
 
-    #[allow(dead_code)]
     pub(crate) fn installed_path(
         &self,
         dictionary_id: &str,
@@ -338,7 +334,6 @@ impl DictionaryStoragePaths {
         Ok(self.installed.join(dictionary_id))
     }
 
-    #[allow(dead_code)]
     fn relative_installed_path(&self, dictionary_id: &str) -> Result<String, DictionaryStoreError> {
         owned_storage_relative_path(dictionary_id)
     }
@@ -351,7 +346,6 @@ pub(crate) enum DictionaryStoreOpen {
 
 pub(crate) struct DictionaryStore {
     connection: Connection,
-    #[allow(dead_code)]
     paths: DictionaryStoragePaths,
 }
 
@@ -551,7 +545,8 @@ impl DictionaryStore {
         commit_with_recovery_registry(transaction, recovery)
     }
 
-    #[allow(dead_code)]
+    // Fixtures can register metadata before creating resources; runtime installs activate a package.
+    #[cfg(test)]
     pub(crate) fn register(
         &mut self,
         registration: DictionaryRegistration,
@@ -908,7 +903,6 @@ impl DictionaryStore {
             .map_err(DictionaryStoreError::from)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn installed_path(
         &self,
         dictionary_id: &str,
@@ -935,7 +929,6 @@ impl DictionaryStore {
         commit_with_recovery_registry(transaction, recovery)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn lookup_exact(
         &self,
         headword: &str,
@@ -952,7 +945,6 @@ impl DictionaryStore {
         dictionary_index::lookup_english_lemmas(&self.connection, lemmas, maximum_results)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn rebuild_index(
         &mut self,
         dictionary_id: &str,
@@ -1370,7 +1362,6 @@ fn to_sql_conversion_error(error: DictionaryStoreError) -> rusqlite::Error {
     )
 }
 
-#[allow(dead_code)]
 fn generate_dictionary_id(transaction: &Transaction<'_>) -> Result<String, DictionaryStoreError> {
     for _ in 0..8 {
         let random_hex: String =
