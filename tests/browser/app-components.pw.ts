@@ -71,8 +71,14 @@ test("narrow Library navigation keeps names and positions its collapsed tooltip"
 
   await page.setViewportSize({ width: 480, height: 800 });
   await expect(series).toBeVisible();
-  await expect(series.locator("span")).toBeHidden();
+  await expect(series.locator("span")).toBeVisible();
   await expect(navigation.getByRole("button", { name: "Library" })).toBeVisible();
+
+  await page.setViewportSize({ width: 700, height: 800 });
+  await expect(series.locator("span")).toBeHidden();
+  await page.keyboard.press("Tab");
+  await series.focus();
+  await expect(tooltip).toHaveText("Series");
 });
 
 test("Dialog moves focus inside and returns it to its opener on Escape", async ({ page }) => {
