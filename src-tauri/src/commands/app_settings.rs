@@ -1775,11 +1775,6 @@ impl AppSettingsService {
             .ok_or_else(|| "App settings state is unavailable.".to_string())
     }
 
-    fn load(&self) -> Result<AppPreferences, String> {
-        let mut state = self.lock_state()?;
-        Ok(self.load_preferences(&mut state)?.clone())
-    }
-
     fn snapshot(&self) -> Result<AppSettingsSnapshot, String> {
         let mut state = self.lock_state()?;
         let preferences = self.load_preferences(&mut state)?.clone();
@@ -1787,13 +1782,6 @@ impl AppSettingsService {
             revision: state.revision,
             preferences,
         })
-    }
-
-    fn save(&self, preferences: AppPreferences) -> Result<AppPreferences, String> {
-        let mut state = self.lock_state()?;
-        write_settings(&self.path, &preferences)?;
-        state.preferences = Some(preferences.clone());
-        Ok(preferences)
     }
 
     fn mutate(
@@ -1828,13 +1816,6 @@ impl AppSettingsService {
 }
 
 #[tauri::command]
-pub fn load_app_settings(
-    service: tauri::State<'_, AppSettingsService>,
-) -> Result<AppPreferences, String> {
-    service.load()
-}
-
-#[tauri::command]
 pub fn load_app_settings_snapshot(
     service: tauri::State<'_, AppSettingsService>,
 ) -> Result<AppSettingsSnapshot, String> {
@@ -1852,14 +1833,6 @@ pub fn update_app_settings(
             eprintln!("app settings change event failed: {error}");
         }
     })
-}
-
-#[tauri::command]
-pub fn save_app_settings(
-    service: tauri::State<'_, AppSettingsService>,
-    preferences: AppPreferences,
-) -> Result<AppPreferences, String> {
-    service.save(preferences)
 }
 
 #[cfg(test)]
@@ -2574,14 +2547,15 @@ mod tests {
         .expect("settings should be written");
         let service = AppSettingsService::new(path.clone());
 
-        let loaded = service.load().expect("settings should load");
+        let loaded = service.snapshot().expect("settings should load");
         std::fs::write(&path, br#"{ "density": "compact" }"#)
             .expect("settings should be changed outside the service");
-        let reloaded = service.load().expect("cached settings should load");
+        let reloaded = service.snapshot().expect("cached settings should load");
 
-        assert_eq!(loaded.density, "comfortable");
-        assert!(!loaded.show_continue_reading);
-        assert_eq!(loaded.reader.mode, "continuous");
+        assert_eq!(loaded.revision, 0);
+        assert_eq!(loaded.preferences.density, "comfortable");
+        assert!(!loaded.preferences.show_continue_reading);
+        assert_eq!(loaded.preferences.reader.mode, "continuous");
         assert_eq!(reloaded, loaded);
         std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
@@ -2594,74 +2568,16 @@ mod tests {
         std::fs::write(&path, b"{not-json").expect("corrupt settings should be written");
         let service = AppSettingsService::new(path.clone());
 
-        let loaded = service.load().expect("settings should recover");
+        let loaded = service.snapshot().expect("settings should recover");
 
-        assert_eq!(loaded, AppPreferences::default());
+        assert_eq!(loaded.revision, 0);
+        assert_eq!(loaded.preferences, AppPreferences::default());
         assert!(path.is_file());
         assert!(root
             .read_dir()
             .expect("settings root should be readable")
             .filter_map(Result::ok)
             .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn app_settings_service_persists_with_atomic_replacement() {
-        let root = temporary_settings_root("service-replace");
-        let path = root.join("settings.json");
-        let service = AppSettingsService::new(path.clone());
-        let first = AppPreferences {
-            density: "compact".to_string(),
-            ..AppPreferences::default()
-        };
-        let second = AppPreferences {
-            restore_last_reader: true,
-            ..AppPreferences::default()
-        };
-
-        service.save(first).expect("initial settings should save");
-        service
-            .save(second.clone())
-            .expect("replacement settings should save");
-
-        assert_eq!(read_settings(&path).expect("settings should read"), second);
-        assert_eq!(
-            root.read_dir()
-                .expect("settings root should be readable")
-                .count(),
-            1
-        );
-        std::fs::remove_dir_all(root).expect("settings root should be removed");
-    }
-
-    #[test]
-    fn app_settings_service_keeps_snapshot_when_persistence_fails() {
-        let root = temporary_settings_root("service-failure");
-        let path = root.join("settings.json");
-        let service = AppSettingsService::new(path.clone());
-        let accepted = AppPreferences {
-            density: "compact".to_string(),
-            ..AppPreferences::default()
-        };
-        service
-            .save(accepted.clone())
-            .expect("initial settings should save");
-        std::fs::remove_file(&path).expect("settings file should be removed");
-        std::fs::create_dir(&path).expect("conflicting destination should be created");
-
-        let rejected = AppPreferences {
-            restore_last_reader: true,
-            ..AppPreferences::default()
-        };
-        assert_eq!(
-            service.save(rejected).expect_err("replacement should fail"),
-            "App settings path is not a file."
-        );
-        assert_eq!(
-            service.load().expect("last valid snapshot should remain"),
-            accepted
-        );
         std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
 
@@ -2802,7 +2718,10 @@ mod tests {
         )
         .expect("a receipt failure must not block service construction");
 
-        assert_eq!(service.load().unwrap(), AppPreferences::default());
+        assert_eq!(
+            service.snapshot().unwrap().preferences,
+            AppPreferences::default()
+        );
         assert_eq!(
             std::fs::read(app_data.join("themes/moon-ink/theme.json")).unwrap(),
             source_manifest
