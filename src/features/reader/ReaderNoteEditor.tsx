@@ -150,7 +150,6 @@ export function ReaderNoteEditor({
           >
             <span>Delete this note?</span>
             <Button
-              autoFocus
               busy={deleting}
               disabled={deleting}
               onClick={onDelete}
@@ -160,6 +159,7 @@ export function ReaderNoteEditor({
               Delete
             </Button>
             <Button
+              autoFocus
               disabled={deleting}
               onClick={() => cancelDeleteConfirmation()}
               size="compact"

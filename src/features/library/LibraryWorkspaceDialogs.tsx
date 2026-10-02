@@ -376,6 +376,7 @@ export function LibraryWorkspaceDialogs({
         footer={
           <>
             <Button
+              autoFocus
               disabled={isClearingProgress}
               onClick={() => dialogActions.openBookDetailsById(dialog.book.id, "clear-progress")}
               variant="secondary"
@@ -383,7 +384,6 @@ export function LibraryWorkspaceDialogs({
               Cancel
             </Button>
             <Button
-              autoFocus
               disabled={isClearingProgress}
               onClick={() => void onConfirmClearProgress(dialog.book)}
             >
