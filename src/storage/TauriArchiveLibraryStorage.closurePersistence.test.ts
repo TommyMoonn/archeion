@@ -5,33 +5,34 @@ import {
   firstScan,
   invokeMock,
   metadata,
-  setupDefaultStorageMock,
+  mockStorageCommands,
   twoBookArchive,
 } from "./tauri/storageTestSupport";
 import { TauriArchiveLibraryStorage } from "./TauriArchiveLibraryStorage";
-import type { ProgressMetadata } from "./metadataFiles";
+import type { MetadataBundle, ProgressMetadata } from "./metadataFiles";
 import type { ArchiveScan } from "./reconcileLibraryState";
 
 describe("TauriArchiveLibraryStorage closure persistence", () => {
   beforeEach(() => {
-    setupDefaultStorageMock();
+    vi.clearAllMocks();
+    mockStorageCommands();
   });
 
   it("retries a failed deletion metadata save without writing progress metadata", async () => {
     let currentScan = structuredClone(firstScan);
-    let currentMetadata = structuredClone(metadata);
+    let currentMetadata: MetadataBundle = structuredClone(metadata);
     let remainingLibraryFailures = 1;
     let librarySaveCount = 0;
     let progressSaveCount = 0;
 
-    invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_archive") return structuredClone(currentScan);
-      if (command === "load_archive_metadata") return structuredClone(currentMetadata);
-      if (command === "delete_archive_epub_file") {
+    mockStorageCommands({
+      scan_archive: () => structuredClone(currentScan),
+      load_archive_metadata: () => structuredClone(currentMetadata),
+      delete_archive_epub_file: () => {
         currentScan = { ...currentScan, books: [] };
         return {};
-      }
-      if (command === "save_library_metadata") {
+      },
+      save_library_metadata: ({ metadata: library }) => {
         librarySaveCount += 1;
         if (remainingLibraryFailures > 0) {
           remainingLibraryFailures -= 1;
@@ -39,17 +40,16 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
         }
         currentMetadata = {
           ...currentMetadata,
-          library: (args as { metadata: typeof currentMetadata.library }).metadata,
+          library,
         };
-      }
-      if (command === "save_progress_metadata") {
+      },
+      save_progress_metadata: ({ metadata: progress }) => {
         progressSaveCount += 1;
         currentMetadata = {
           ...currentMetadata,
-          progress: (args as { metadata: typeof currentMetadata.progress }).metadata,
+          progress,
         };
-      }
-      return undefined;
+      },
     });
 
     const storage = new TauriArchiveLibraryStorage();
@@ -72,17 +72,16 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
     const currentMetadata = structuredClone(metadata);
     const warnings: unknown[] = [];
 
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_archive") return structuredClone(currentScan);
-      if (command === "load_archive_metadata") return structuredClone(currentMetadata);
-      if (command === "delete_archive_epub_file") {
+    mockStorageCommands({
+      scan_archive: () => structuredClone(currentScan),
+      load_archive_metadata: () => structuredClone(currentMetadata),
+      delete_archive_epub_file: () => {
         currentScan = { ...currentScan, books: [] };
         return {};
-      }
-      if (command === "save_library_metadata") {
+      },
+      save_library_metadata: () => {
         throw new Error("library metadata is read-only");
-      }
-      return undefined;
+      },
     });
 
     const storage = new TauriArchiveLibraryStorage();
@@ -142,30 +141,29 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
       },
     };
     let currentScan = structuredClone(currentArchiveScan);
-    let currentMetadata = structuredClone(archive.metadata);
+    let currentMetadata: MetadataBundle = structuredClone(archive.metadata);
     let progressSaveCount = 0;
 
-    invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_archive") return structuredClone(currentScan);
-      if (command === "load_archive_metadata") return structuredClone(currentMetadata);
-      if (command === "delete_archive_folder") {
+    mockStorageCommands({
+      scan_archive: () => structuredClone(currentScan),
+      load_archive_metadata: () => structuredClone(currentMetadata),
+      delete_archive_folder: () => {
         currentScan = { books: [], folders: [] };
         return {};
-      }
-      if (command === "save_library_metadata") {
+      },
+      save_library_metadata: ({ metadata: library }) => {
         currentMetadata = {
           ...currentMetadata,
-          library: (args as { metadata: typeof currentMetadata.library }).metadata,
+          library,
         };
-      }
-      if (command === "save_progress_metadata") {
+      },
+      save_progress_metadata: ({ metadata: progress }) => {
         progressSaveCount += 1;
         currentMetadata = {
           ...currentMetadata,
-          progress: (args as { metadata: typeof currentMetadata.progress }).metadata,
+          progress,
         };
-      }
-      return undefined;
+      },
     });
 
     const storage = new TauriArchiveLibraryStorage();
@@ -187,15 +185,12 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
     const releaseSave = deferred<void>();
     const warnings: unknown[] = [];
 
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_archive") return structuredClone(firstScan);
-      if (command === "load_archive_metadata") return structuredClone(metadata);
-      if (command === "delete_archive_epub_file") return {};
-      if (command === "save_library_metadata") {
+    mockStorageCommands({
+      delete_archive_epub_file: () => ({}),
+      save_library_metadata: async () => {
         saveStarted.resolve();
         await releaseSave.promise;
-      }
-      return undefined;
+      },
     });
 
     const storage = new TauriArchiveLibraryStorage();
@@ -221,11 +216,10 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
   it("aggregates repeated bulk cache warnings into one operation warning", async () => {
     const archive = twoBookArchive("Author/Series");
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_archive") return structuredClone(archive.scan);
-      if (command === "load_archive_metadata") return structuredClone(archive.metadata);
-      if (command === "move_archive_epub_file") {
-        const relativePath = (args as { relativePath: string }).relativePath;
+    mockStorageCommands({
+      scan_archive: () => structuredClone(archive.scan),
+      load_archive_metadata: () => structuredClone(archive.metadata),
+      move_archive_epub_file: ({ relativePath }) => {
         return {
           oldRelativePath: relativePath,
           newRelativePath: relativePath.replace("Author/Series/", ""),
@@ -234,8 +228,7 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
             repairRequired: false,
           },
         };
-      }
-      return undefined;
+      },
     });
 
     const storage = new TauriArchiveLibraryStorage();

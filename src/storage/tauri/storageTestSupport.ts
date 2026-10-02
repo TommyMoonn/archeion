@@ -3,6 +3,11 @@ import { expect, vi } from "vitest";
 
 import { TauriArchiveLibraryStorage } from "../TauriArchiveLibraryStorage";
 import type { LibraryMetadata } from "../metadataFiles";
+import type {
+  ArchiveCommandArgs,
+  ArchiveCommandName,
+  ArchiveCommandResult,
+} from "./archiveCommandClient";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -10,6 +15,41 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 export const invokeMock = vi.mocked(invoke);
+
+type StorageCommandArgs<Name extends ArchiveCommandName> =
+  ArchiveCommandArgs<Name> extends undefined
+    ? { rootPath?: string } | undefined
+    : ArchiveCommandArgs<Name> & { rootPath?: string };
+
+type StorageCommandHandlers = {
+  [Name in ArchiveCommandName]?: (
+    args: StorageCommandArgs<Name>,
+  ) => ArchiveCommandResult<Name> | Promise<ArchiveCommandResult<Name>>;
+};
+
+export function mockStorageCommands(overrides: StorageCommandHandlers = {}): void {
+  const handlers: StorageCommandHandlers = {
+    scan_archive: () => firstScan,
+    load_archive_metadata: () => structuredClone(metadata),
+    save_library_metadata: () => undefined,
+    save_progress_metadata: () => undefined,
+    save_annotations_metadata: () => undefined,
+    invalidate_scanner_cache_entries: () => undefined,
+    invalidate_cover_cache_entries: () => undefined,
+    ...overrides,
+  };
+
+  invokeMock.mockImplementation(async (command, args) => {
+    const handler = Object.hasOwn(handlers, command)
+      ? handlers[command as ArchiveCommandName]
+      : undefined;
+    if (!handler) {
+      throw new Error(`Unexpected archive command "${command}". Configure a storage test handler.`);
+    }
+    // The native transport erases the command/argument correlation; overrides are checked above.
+    return (handler as (args: unknown) => unknown)(args);
+  });
+}
 
 export const firstScan = {
   folders: [
@@ -153,60 +193,50 @@ export function metadataWritebackResult(input: {
 
 export function setupDefaultStorageMock(): void {
   vi.clearAllMocks();
-  invokeMock.mockImplementation(async (command) => {
-    if (command === "scan_archive") return firstScan;
-    if (command === "load_archive_metadata") return structuredClone(metadata);
-    if (command === "read_epub_file") return new Uint8Array([80, 75, 3, 4]).buffer;
-    if (command === "load_epub_cover") return new Uint8Array([255, 216, 255]).buffer;
-    if (command === "add_epub_files_to_archive") return { results: [] };
-    if (command === "cleanup_archive_import_artifacts") {
-      return { removedCount: 0, failures: [] };
-    }
-    if (command === "delete_archive_epub_file" || command === "delete_archive_folder") return {};
-    if (command === "rename_archive_epub_file") {
-      return {
-        oldRelativePath: "Author/Series/Volume_01.epub",
-        newRelativePath: "Author/Series/Renamed.epub",
-      };
-    }
-    if (command === "move_archive_epub_file") {
-      return {
-        oldRelativePath: "Author/Series/Volume_01.epub",
-        newRelativePath: "Author/Volume_01.epub",
-      };
-    }
-    if (command === "create_archive_folder") return "New Folder";
-    if (command === "rename_archive_folder") {
-      return {
-        oldRelativePath: "Author/Series",
-        newRelativePath: "Author/Renamed",
-      };
-    }
-    if (command === "move_archive_folder") {
-      return {
-        oldRelativePath: "Author/Series",
-        newRelativePath: "Series",
-      };
-    }
-    if (command === "cover_cache_status" || command === "clear_cover_cache") {
-      return { fileCount: 0, totalBytes: 0 };
-    }
-    return undefined;
+  mockStorageCommands({
+    read_epub_file: () => new Uint8Array([80, 75, 3, 4]).buffer,
+    load_epub_cover: () => new Uint8Array([255, 216, 255]).buffer,
+    add_epub_files_to_archive: () => ({ results: [] }),
+    cleanup_archive_import_artifacts: () => ({ removedCount: 0, failures: [] }),
+    delete_archive_epub_file: () => ({}),
+    delete_archive_folder: () => ({}),
+    rename_archive_epub_file: () => ({
+      oldRelativePath: "Author/Series/Volume_01.epub",
+      newRelativePath: "Author/Series/Renamed.epub",
+    }),
+    move_archive_epub_file: () => ({
+      oldRelativePath: "Author/Series/Volume_01.epub",
+      newRelativePath: "Author/Volume_01.epub",
+    }),
+    create_archive_folder: () => "New Folder",
+    rename_archive_folder: () => ({
+      oldRelativePath: "Author/Series",
+      newRelativePath: "Author/Renamed",
+    }),
+    move_archive_folder: () => ({
+      oldRelativePath: "Author/Series",
+      newRelativePath: "Series",
+    }),
+    cover_cache_status: () => ({ fileCount: 0, totalBytes: 0 }),
+    clear_cover_cache: () => ({ fileCount: 0, totalBytes: 0 }),
+    reveal_epub_file: () => undefined,
+    reveal_archive_folder: () => undefined,
+    reveal_archeion_folder: () => undefined,
+    clear_scanner_cache: () => undefined,
+    maintain_cover_cache: () => undefined,
+    initialize_archive_metadata: () => undefined,
+    export_archive_epub_file: () => undefined,
   });
 }
 
 export function setupBulkStorageMock(): void {
   vi.clearAllMocks();
-  invokeMock.mockImplementation(async (command) => {
-    if (command === "scan_archive") return firstScan;
-    if (command === "load_archive_metadata") return structuredClone(metadata);
-    if (command === "move_archive_epub_file") {
-      return {
-        oldRelativePath: "Author/Series/Volume_01.epub",
-        newRelativePath: "Author/Volume_01.epub",
-      };
-    }
-    return undefined;
+  mockStorageCommands({
+    export_archive_epub_file: () => undefined,
+    move_archive_epub_file: () => ({
+      oldRelativePath: "Author/Series/Volume_01.epub",
+      newRelativePath: "Author/Volume_01.epub",
+    }),
   });
 }
 
