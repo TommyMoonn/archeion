@@ -112,7 +112,7 @@ export function BookDetailsDrawer({
             <IconButton
               aria-pressed={book.isFavorite}
               className="details-favorite-button"
-              label={book.isFavorite ? "Remove from favorites" : "Add to favorites"}
+              label={`Favorite ${title}`}
               onClick={() => onToggleFavorite(book)}
             >
               <Heart aria-hidden="true" fill={book.isFavorite ? "currentColor" : "none"} />

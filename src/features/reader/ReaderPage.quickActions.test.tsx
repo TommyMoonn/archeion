@@ -1524,7 +1524,7 @@ describe("ReaderPage Quick Actions", () => {
       type: "bookmark",
     });
     const removeBookmark = rendered.container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Remove bookmark"]',
+      'button[aria-label="Bookmark"]',
     );
     expect(removeBookmark?.getAttribute("aria-pressed")).toBe("true");
     expect(rendered.container.querySelector(".reader-annotation-feedback")).toBeNull();
@@ -1538,8 +1538,9 @@ describe("ReaderPage Quick Actions", () => {
 
     expect(storage.deleteAnnotation).toHaveBeenCalledWith("book", createdBookmark.id);
     const addBookmark = rendered.container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Add bookmark"]',
+      'button[aria-label="Bookmark"]',
     );
+    expect(addBookmark).toBe(removeBookmark);
     expect(addBookmark?.getAttribute("aria-pressed")).toBe("false");
     expect(rendered.container.querySelector(".reader-annotation-feedback")).toBeNull();
     expect(
@@ -1563,7 +1564,7 @@ describe("ReaderPage Quick Actions", () => {
     });
 
     const addBookmark = rendered.container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Add bookmark"]',
+      'button[aria-label="Bookmark"]',
     );
     expect(addBookmark?.getAttribute("aria-pressed")).toBe("false");
     const feedback = rendered.container.querySelector<HTMLElement>(".reader-annotation-feedback");

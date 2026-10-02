@@ -104,6 +104,12 @@ afterEach(() => {
 });
 
 describe("BookDetailsDrawer", () => {
+  it.each([false, true])("keeps the favorite name stable when pressed is %s", (isFavorite) => {
+    const container = document.createElement("div");
+    container.innerHTML = renderDetails({ ...book, isFavorite });
+    const toggle = container.querySelector('[aria-label="Favorite Volume 01"]');
+    expect(toggle?.getAttribute("aria-pressed")).toBe(String(isFavorite));
+  });
   it("renders progress as a compact identity pill instead of a bulky progress block", () => {
     const markup = renderDetails();
 
@@ -202,7 +208,7 @@ describe("BookDetailsDrawer", () => {
     expect(markup).toContain("Replace cover");
     expect(markup).toContain("details-cover__replace");
     expect(markup).toContain("details-favorite-button");
-    expect(markup).toContain("Add to favorites");
+    expect(markup).toContain('aria-label="Favorite Volume 01"');
     expect(markup).not.toContain(">Favorite</span>");
   });
 

@@ -124,7 +124,11 @@ export function ReaderNavigationPanel({
       title={singleCollectionTitle}
     >
       {navigation.status === "ready" && availableCollections.length > 1 ? (
-        <div aria-label="Book navigation collections" className="reader-navigation__collections">
+        <div
+          role="group"
+          aria-label="Book navigation collections"
+          className="reader-navigation__collections"
+        >
           {availableCollections.map((collection) => (
             <button
               aria-pressed={activeCollection === collection}

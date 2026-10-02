@@ -138,6 +138,13 @@ describe("ReaderNavigationPanel", () => {
 
     expect(tabs).toEqual(["Contents", "Pages"]);
     expect(tabs).not.toContain("Landmarks");
+    const group = container.querySelector(
+      '[role="group"][aria-label="Book navigation collections"]',
+    );
+    expect(group?.querySelectorAll("button")).toHaveLength(2);
+    expect(group?.querySelector('[aria-pressed="true"]')?.textContent).toBe("Contents");
+    clickButtonByText(container, "Pages");
+    expect(group?.querySelector('[aria-pressed="true"]')?.textContent).toBe("Pages");
   });
 
   it("shows semantic landmark information and navigates the selected landmark", async () => {

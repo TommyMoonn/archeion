@@ -110,11 +110,7 @@ function BookCardComponent({
     >
       <button
         aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
-        aria-label={
-          selectionMode
-            ? `${selected ? "Deselect" : "Select"} ${title}`
-            : `View details for ${title}`
-        }
+        aria-label={selectionMode ? `Select ${title}` : `View details for ${title}`}
         aria-pressed={selectionMode ? selected : undefined}
         className="book-card__select"
         onClick={activateBook}
@@ -146,11 +142,7 @@ function BookCardComponent({
         aria-pressed={book.isFavorite}
         className="book-favorite"
         data-active={book.isFavorite || undefined}
-        label={
-          book.isFavorite
-            ? `Remove ${bookTitle(book)} from favorites`
-            : `Add ${bookTitle(book)} to favorites`
-        }
+        label={`Favorite ${title}`}
         onClick={() => onToggleFavorite(book)}
       >
         <Heart aria-hidden="true" fill={book.isFavorite ? "currentColor" : "none"} />

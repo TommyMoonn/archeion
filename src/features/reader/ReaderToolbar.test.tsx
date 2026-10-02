@@ -82,6 +82,14 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe("ReaderToolbar", () => {
+  it.each([false, true])("keeps the bookmark name stable when pressed is %s", (bookmarkActive) => {
+    const onToggleBookmark = vi.fn();
+    const { container } = renderToolbar({ bookmarkActive, onToggleBookmark });
+    const toggle = button(container, "Bookmark");
+    expect(toggle.getAttribute("aria-pressed")).toBe(String(bookmarkActive));
+    act(() => toggle.click());
+    expect(onToggleBookmark).toHaveBeenCalledOnce();
+  });
   it("keeps one focused top-panel toggle mounted while its state and label change", () => {
     function ToggleHarness() {
       const [expanded, setExpanded] = useState(true);
@@ -209,7 +217,7 @@ describe("ReaderToolbar", () => {
       bookmarkToggleDisabledReason: "Current reading location is still loading.",
     });
 
-    const toggle = button(container, "Add bookmark");
+    const toggle = button(container, "Bookmark");
     const reasonId = toggle.getAttribute("aria-describedby");
     expect(toggle.disabled).toBe(false);
     expect(toggle.getAttribute("aria-disabled")).toBe("true");
@@ -231,7 +239,7 @@ describe("ReaderToolbar", () => {
     expect(button(container, "Find in book").getAttribute("aria-keyshortcuts")).toBe("Control+F");
     expect(button(container, "Book navigation").getAttribute("aria-keyshortcuts")).toBe("T");
     expect(button(container, "Annotations").getAttribute("aria-keyshortcuts")).toBe("A");
-    expect(button(container, "Add bookmark").getAttribute("aria-keyshortcuts")).toBe("B");
+    expect(button(container, "Bookmark").getAttribute("aria-keyshortcuts")).toBe("B");
     expect(button(container, "Reader settings").getAttribute("aria-keyshortcuts")).toBe("S");
   });
 
@@ -242,7 +250,7 @@ describe("ReaderToolbar", () => {
       "Find in book",
       "Book navigation",
       "Annotations",
-      "Add bookmark",
+      "Bookmark",
       "Reader settings",
     ]) {
       expect(button(container, label).hasAttribute("aria-keyshortcuts")).toBe(false);
@@ -286,7 +294,7 @@ describe("ReaderToolbar", () => {
     });
 
     const list = button(container, "Annotations");
-    const toggle = button(container, "Remove bookmark");
+    const toggle = button(container, "Bookmark");
     expect(list.getAttribute("aria-expanded")).toBe("true");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
 

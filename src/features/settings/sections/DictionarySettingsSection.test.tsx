@@ -200,6 +200,17 @@ afterEach(() => {
 });
 
 describe("DictionarySettingsView", () => {
+  it.each([false, true])("keeps dictionary switch names stable when checked is %s", (enabled) => {
+    const value = controller({
+      registry: { dictionaries: [installed({ enabled })], recovery: null, status: "ready" },
+    });
+    const container = renderView(value);
+    const toggle = button(container, "Enable English Core");
+    expect(toggle.getAttribute("role")).toBe("switch");
+    expect(toggle.getAttribute("aria-checked")).toBe(String(enabled));
+    act(() => toggle.click());
+    expect(value.setEnabled).toHaveBeenCalledWith("dict-a", !enabled);
+  });
   it("shows the current installed count when registry state is already known", () => {
     const container = renderView(controller());
 
@@ -540,7 +551,7 @@ describe("DictionarySettingsView", () => {
     const installedRegion = container.querySelector('[aria-label="Installed dictionaries"]');
     expect(installedRegion?.getAttribute("role")).toBe("region");
 
-    const toggle = button(container, "Disable English Core");
+    const toggle = button(container, "Enable English Core");
     const moveLater = button(container, "Move English Core later");
     const rebuild = button(container, "Rebuild index");
     const remove = button(container, "Remove English Core");
@@ -656,7 +667,7 @@ describe("DictionarySettingsView", () => {
 
     expect(value.installCatalog).toHaveBeenCalledWith("english-core");
     expect(value.importDictionary).toHaveBeenCalledOnce();
-    expect(button(container, "Disable English Core").disabled).toBe(true);
+    expect(button(container, "Enable English Core").disabled).toBe(true);
   });
 
   it("offers a retry when native dictionary recovery cannot settle automatically", () => {
