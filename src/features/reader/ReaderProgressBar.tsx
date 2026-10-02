@@ -246,9 +246,8 @@ export function ReaderProgressBar({
   );
 
   const visiblePreview = seekable ? preview : null;
-  const accessiblePreview = visiblePreview ?? currentPreview;
-  const valueText = accessiblePreview
-    ? previewLabel(accessiblePreview)
+  const valueText = currentPreview
+    ? previewLabel(currentPreview)
     : `${Math.round(currentPercentage)}%`;
   const previewStyle = visiblePreview
     ? ({
@@ -262,7 +261,7 @@ export function ReaderProgressBar({
       aria-orientation={seekable ? (placement === "side" ? "vertical" : "horizontal") : undefined}
       aria-valuemax={100}
       aria-valuemin={0}
-      aria-valuenow={Math.round(accessiblePreview?.percentage ?? currentPercentage)}
+      aria-valuenow={Math.round(currentPercentage)}
       aria-valuetext={seekable ? valueText : undefined}
       className="reader-progress"
       data-placement={placement}

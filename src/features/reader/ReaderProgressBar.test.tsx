@@ -29,22 +29,24 @@ function renderProgress(overrides: Partial<React.ComponentProps<typeof ReaderPro
     percentage,
   }));
 
-  act(() => {
-    root?.render(
-      <ReaderProgressBar
-        onSeek={onSeek}
-        percentage={32}
-        placement="top"
-        resolveSeekPreview={resolveSeekPreview}
-        seekable
-        {...overrides}
-      />,
-    );
-  });
+  const props: React.ComponentProps<typeof ReaderProgressBar> = {
+    onSeek,
+    percentage: 32,
+    placement: "top",
+    resolveSeekPreview,
+    seekable: true,
+    ...overrides,
+  };
+  const rerender = (changes: Partial<typeof props> = {}) => {
+    Object.assign(props, changes);
+    act(() => root?.render(<ReaderProgressBar {...props} />));
+  };
+  rerender();
 
   return {
     onSeek,
     progress: container.querySelector<HTMLElement>(".reader-progress")!,
+    rerender,
     resolveSeekPreview,
   };
 }
@@ -150,8 +152,8 @@ describe("ReaderProgressBar", () => {
     expect(onSeek).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("25%");
     expect(container?.textContent).toContain("Chapter One");
-    expect(progress.getAttribute("aria-valuenow")).toBe("25");
-    expect(progress.getAttribute("aria-valuetext")).toBe("25% · Chapter One");
+    expect(progress.getAttribute("aria-valuenow")).toBe("32");
+    expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
     expect(previewPosition(progress, ".reader-progress__preview")).toBe("25%");
     expect(previewPosition(progress, ".reader-progress__handle")).toBe("25%");
     expect(progress.querySelector<HTMLElement>(".reader-progress__fill")?.style.width).toBe("32%");
@@ -169,6 +171,9 @@ describe("ReaderProgressBar", () => {
     expect(onSeek).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("60%");
     expect(container?.textContent).toContain("Chapter Two");
+    expect(progress.getAttribute("aria-valuenow")).toBe("32");
+    expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
+    expect(progress.querySelector<HTMLElement>(".reader-progress__fill")?.style.height).toBe("32%");
     expect(previewPosition(progress, ".reader-progress__preview")).toBe("60%");
     expect(previewPosition(progress, ".reader-progress__handle")).toBe("60%");
   });
@@ -235,8 +240,8 @@ describe("ReaderProgressBar", () => {
     expect(onSeek).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("75%");
     expect(container?.textContent).toContain("Chapter Two");
-    expect(progress.getAttribute("aria-valuenow")).toBe("75");
-    expect(progress.getAttribute("aria-valuetext")).toBe("75% · Chapter Two");
+    expect(progress.getAttribute("aria-valuenow")).toBe("32");
+    expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
     expect(progress.querySelector<HTMLElement>(".reader-progress__fill")?.style.width).toBe("32%");
     expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
 
@@ -247,7 +252,71 @@ describe("ReaderProgressBar", () => {
 
     expect(onSeek).toHaveBeenCalledTimes(1);
     expect(onSeek).toHaveBeenCalledWith(75);
+    expect(progress.getAttribute("aria-valuenow")).toBe("32");
+    expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
   });
+
+  it.each(["top", "side"] as const)(
+    "updates %s semantics only from committed location, even while a different preview remains",
+    async (placement) => {
+      let finishSeek!: (succeeded: boolean) => void;
+      const seek = vi.fn(() => new Promise<boolean>((resolve) => (finishSeek = resolve)));
+      const { progress, rerender } = renderProgress({ onSeek: seek, placement });
+      mockProgressRect(progress, placement);
+      const position = placement === "side" ? { clientY: 150 } : { clientX: 150 };
+
+      act(() => {
+        progress.dispatchEvent(
+          pointerEvent("pointerdown", { button: 0, pointerId: 8, ...position }),
+        );
+        progress.dispatchEvent(pointerEvent("pointerup", { pointerId: 8, ...position }));
+      });
+
+      expect(seek).toHaveBeenCalledExactlyOnceWith(75);
+      expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
+      expect(progress.getAttribute("aria-valuenow")).toBe("32");
+      expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
+
+      await act(async () => finishSeek(true));
+      expect(progress.getAttribute("aria-valuenow")).toBe("32");
+
+      // The Reader owns relocation and may commit a different location than the requested target.
+      rerender({ percentage: 72 });
+      expect(progress.getAttribute("aria-valuenow")).toBe("72");
+      expect(progress.getAttribute("aria-valuetext")).toBe("72% · Chapter Two");
+      const fill = progress.querySelector<HTMLElement>(".reader-progress__fill")!;
+      expect(placement === "side" ? fill.style.height : fill.style.width).toBe("72%");
+      expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
+    },
+  );
+
+  it.each(["unsuccessful", "rejected"])(
+    "keeps keyboard seek semantics committed after %s navigation",
+    async (outcome) => {
+      const seek = vi.fn(() =>
+        outcome === "rejected"
+          ? Promise.reject(new Error("Navigation failed"))
+          : Promise.resolve(false),
+      );
+      const { progress } = renderProgress({ onSeek: seek });
+      act(() => progress.focus());
+
+      act(() => {
+        progress.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
+      });
+      expect(previewPosition(progress, ".reader-progress__handle")).toBe("100%");
+      expect(progress.getAttribute("aria-valuenow")).toBe("32");
+      expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(seek).toHaveBeenCalledExactlyOnceWith(100);
+      expect(progress.getAttribute("aria-valuenow")).toBe("32");
+      expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
+      expect(previewPosition(progress, ".reader-progress__handle")).toBe("32%");
+    },
+  );
 
   it("does not depend on hover support for touch seeking", async () => {
     const { onSeek, progress } = renderProgress();
