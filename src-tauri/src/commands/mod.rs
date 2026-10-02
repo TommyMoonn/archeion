@@ -9,7 +9,6 @@ pub mod dictionaries;
 pub(crate) mod dictionary_archive;
 pub(crate) mod dictionary_catalog;
 pub(crate) mod dictionary_download;
-#[allow(dead_code)]
 pub(crate) mod dictionary_index;
 pub(crate) mod dictionary_install;
 pub(crate) mod dictionary_language;
@@ -21,7 +20,6 @@ pub(crate) mod dictionary_request;
 pub(crate) mod dictionary_store;
 pub mod epub;
 pub(crate) mod epub_analysis;
-#[allow(dead_code)]
 pub(crate) mod epub_analysis_cache;
 mod epub_cover_cache;
 mod epub_cover_requests;
@@ -41,7 +39,6 @@ pub mod illustration_export;
 pub mod metadata;
 pub mod scanner;
 pub(crate) mod scanner_cache;
-#[allow(dead_code)]
 pub(crate) mod stardict_validation;
 pub mod theme_migration;
 pub mod themes;

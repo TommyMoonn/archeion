@@ -77,6 +77,7 @@ impl Default for EpubAnalysisCache {
 }
 
 impl EpubAnalysisCache {
+    #[cfg(test)]
     pub(crate) fn insert(
         &mut self,
         relative_path: &str,
@@ -208,6 +209,7 @@ impl EpubAnalysisCache {
     }
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EpubAnalysisCacheLoadStatus {
     Current,
@@ -216,6 +218,7 @@ pub(crate) enum EpubAnalysisCacheLoadStatus {
 
 pub(crate) struct EpubAnalysisCacheLoad {
     pub(crate) cache: EpubAnalysisCache,
+    #[cfg(test)]
     pub(crate) status: EpubAnalysisCacheLoadStatus,
 }
 
@@ -244,15 +247,18 @@ pub(crate) fn load_at(root: &Path) -> Result<EpubAnalysisCacheLoad, String> {
         Ok(contents) => match serde_json::from_slice::<EpubAnalysisCache>(&contents) {
             Ok(cache) if cache.is_valid() => Ok(EpubAnalysisCacheLoad {
                 cache,
+                #[cfg(test)]
                 status: EpubAnalysisCacheLoadStatus::Current,
             }),
             _ => Ok(EpubAnalysisCacheLoad {
                 cache: EpubAnalysisCache::default(),
+                #[cfg(test)]
                 status: EpubAnalysisCacheLoadStatus::Rebuildable,
             }),
         },
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(EpubAnalysisCacheLoad {
             cache: EpubAnalysisCache::default(),
+            #[cfg(test)]
             status: EpubAnalysisCacheLoadStatus::Rebuildable,
         }),
         Err(error) => Err(error.to_string()),

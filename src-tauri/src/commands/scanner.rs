@@ -204,7 +204,6 @@ struct MetadataResolutions {
     values: Vec<MetadataResolution>,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Default)]
 struct ScannerMeasurement {
     cache_load_duration: Duration,
