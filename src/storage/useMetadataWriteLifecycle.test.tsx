@@ -6,8 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArchiveTransitionGuard } from "../stores/archiveStore";
 import { CoalescedWriteQueue } from "./CoalescedWriteQueue";
-import type { LibraryStorage } from "./LibraryStorage";
-import { flushMetadataWrites, useMetadataWriteLifecycle } from "./useMetadataWriteLifecycle";
+import {
+  flushMetadataWrites,
+  useMetadataWriteLifecycle,
+  type MetadataWriteStorage,
+} from "./useMetadataWriteLifecycle";
 
 const mocks = vi.hoisted(() => ({
   destroy: vi.fn<() => Promise<void>>(),
@@ -41,7 +44,7 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-function Harness({ storage }: { storage: LibraryStorage }) {
+function Harness({ storage }: { storage: MetadataWriteStorage }) {
   useMetadataWriteLifecycle(storage);
   return null;
 }
@@ -52,7 +55,7 @@ describe("useMetadataWriteLifecycle", () => {
   let guard: ArchiveTransitionGuard;
   let closeHandler: (event: { preventDefault: () => void }) => Promise<void>;
   let storageFlush: ReturnType<typeof vi.fn<() => Promise<void>>>;
-  let storage: LibraryStorage;
+  let storage: MetadataWriteStorage;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -60,7 +63,7 @@ describe("useMetadataWriteLifecycle", () => {
     mocks.destroy.mockResolvedValue(undefined);
     mocks.preferenceFlush.mockResolvedValue(undefined);
     storageFlush = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    storage = { flushPendingWrites: storageFlush } as unknown as LibraryStorage;
+    storage = { flushPendingWrites: storageFlush };
     mocks.registerTransitionGuard.mockImplementation((candidate: ArchiveTransitionGuard) => {
       guard = candidate;
       return vi.fn();

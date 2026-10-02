@@ -4,17 +4,13 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  LibrarySnapshot,
-  LibraryStorage,
-  ScanStatus,
-  StorageObserver,
-} from "../../storage/LibraryStorage";
+import type { LibrarySnapshot, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
 import {
   isArchiveScanActive,
   releaseArchiveScanOperation,
   tryAcquireArchiveScanOperation,
   useArchiveScanActivity,
+  type ArchiveScanActivityStorage,
 } from "./useArchiveScanActivity";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -38,7 +34,7 @@ function createScanStatusSource() {
       observer = nextObserver;
       return unsubscribe;
     }),
-  } as unknown as LibraryStorage;
+  } satisfies ArchiveScanActivityStorage;
 
   return {
     emit(status: ScanStatus) {
@@ -53,7 +49,7 @@ function createScanStatusSource() {
   };
 }
 
-function Harness({ storage }: Readonly<{ storage: LibraryStorage }>) {
+function Harness({ storage }: Readonly<{ storage: ArchiveScanActivityStorage }>) {
   const first = useArchiveScanActivity(storage);
   const second = useArchiveScanActivity(storage);
   return (

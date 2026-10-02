@@ -6,14 +6,16 @@ import { archiveStore } from "../stores/archiveStore";
 import { appPreferencesStore } from "../stores/appPreferencesStore";
 import type { LibraryStorage } from "./LibraryStorage";
 
+export type MetadataWriteStorage = Pick<LibraryStorage, "flushPendingWrites">;
+
 export async function flushMetadataWrites(
-  storage: Pick<LibraryStorage, "flushPendingWrites">,
+  storage: MetadataWriteStorage,
   preferences: Pick<typeof appPreferencesStore, "flushPendingWrites"> = appPreferencesStore,
 ): Promise<void> {
   await Promise.all([storage.flushPendingWrites(), preferences.flushPendingWrites()]);
 }
 
-export function useMetadataWriteLifecycle(storage: LibraryStorage): void {
+export function useMetadataWriteLifecycle(storage: MetadataWriteStorage): void {
   useEffect(
     () =>
       archiveStore.registerTransitionGuard(async () => {

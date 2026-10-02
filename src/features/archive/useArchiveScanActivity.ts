@@ -2,6 +2,11 @@ import { useCallback, useSyncExternalStore } from "react";
 
 import type { LibraryStorage, ScanStatus } from "../../storage/LibraryStorage";
 
+export type ArchiveScanActivityStorage = Pick<
+  LibraryStorage,
+  "getLibrarySnapshot" | "observeLibrarySnapshot"
+>;
+
 type ArchiveScanActivityStore = {
   claim: ArchiveScanOperationClaim | null;
   listeners: Set<() => void>;
@@ -15,13 +20,13 @@ export type ArchiveScanOperationClaim = {
   readonly [archiveScanOperationClaimBrand]: true;
 };
 
-const activityStores = new WeakMap<LibraryStorage, ArchiveScanActivityStore>();
+const activityStores = new WeakMap<ArchiveScanActivityStorage, ArchiveScanActivityStore>();
 const claimedStores = new WeakMap<
   ArchiveScanOperationClaim,
-  { storage: LibraryStorage; store: ArchiveScanActivityStore }
+  { storage: ArchiveScanActivityStorage; store: ArchiveScanActivityStore }
 >();
 
-function getOrCreateStore(storage: LibraryStorage): ArchiveScanActivityStore {
+function getOrCreateStore(storage: ArchiveScanActivityStorage): ArchiveScanActivityStore {
   const existing = activityStores.get(storage);
   if (existing) return existing;
 
@@ -44,7 +49,7 @@ function publishActivityChange(store: ArchiveScanActivityStore, wasActive: boole
   store.listeners.forEach((listener) => listener());
 }
 
-function releaseUnusedStore(storage: LibraryStorage, store: ArchiveScanActivityStore) {
+function releaseUnusedStore(storage: ArchiveScanActivityStorage, store: ArchiveScanActivityStore) {
   if (store.listeners.size > 0 || store.claim || store.observedScanning) return;
 
   store.unsubscribe?.();
@@ -53,7 +58,7 @@ function releaseUnusedStore(storage: LibraryStorage, store: ArchiveScanActivityS
 }
 
 function publishScanStatus(
-  storage: LibraryStorage,
+  storage: ArchiveScanActivityStorage,
   store: ArchiveScanActivityStore,
   status: ScanStatus,
 ) {
@@ -63,7 +68,10 @@ function publishScanStatus(
   releaseUnusedStore(storage, store);
 }
 
-function ensureStatusSubscription(storage: LibraryStorage, store: ArchiveScanActivityStore) {
+function ensureStatusSubscription(
+  storage: ArchiveScanActivityStorage,
+  store: ArchiveScanActivityStore,
+) {
   if (store.unsubscribe) return;
 
   let active = true;
@@ -78,7 +86,7 @@ function ensureStatusSubscription(storage: LibraryStorage, store: ArchiveScanAct
   };
 }
 
-function subscribeToArchiveScanActivity(storage: LibraryStorage, listener: () => void) {
+function subscribeToArchiveScanActivity(storage: ArchiveScanActivityStorage, listener: () => void) {
   const store = getOrCreateStore(storage);
   store.listeners.add(listener);
   ensureStatusSubscription(storage, store);
@@ -89,13 +97,13 @@ function subscribeToArchiveScanActivity(storage: LibraryStorage, listener: () =>
   };
 }
 
-export function isArchiveScanActive(storage: LibraryStorage): boolean {
+export function isArchiveScanActive(storage: ArchiveScanActivityStorage): boolean {
   const store = activityStores.get(storage);
   return store ? storeIsActive(store) : false;
 }
 
 export function tryAcquireArchiveScanOperation(
-  storage: LibraryStorage,
+  storage: ArchiveScanActivityStorage,
 ): ArchiveScanOperationClaim | null {
   const store = getOrCreateStore(storage);
   if (storeIsActive(store)) return null;
@@ -124,7 +132,7 @@ export function releaseArchiveScanOperation(claim: ArchiveScanOperationClaim): v
   releaseUnusedStore(storage, store);
 }
 
-export function useArchiveScanActivity(storage: LibraryStorage | null): boolean {
+export function useArchiveScanActivity(storage: ArchiveScanActivityStorage | null): boolean {
   const subscribe = useCallback(
     (listener: () => void) =>
       storage ? subscribeToArchiveScanActivity(storage, listener) : () => undefined,
