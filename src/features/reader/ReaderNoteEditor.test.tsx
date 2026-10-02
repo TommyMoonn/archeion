@@ -110,6 +110,7 @@ describe("ReaderNoteEditor", () => {
     clickButton("Delete note");
     expect(container?.querySelector('[role="group"]')?.textContent).toContain("Delete this note?");
     expect(onDelete).not.toHaveBeenCalled();
+    expect(document.activeElement?.textContent?.trim()).toBe("Cancel");
 
     clickButton("Delete");
     expect(onDelete).toHaveBeenCalledOnce();
@@ -124,6 +125,7 @@ describe("ReaderNoteEditor", () => {
 
     expect(container?.querySelector('[role="group"]')).toBeNull();
     expect(onBack).not.toHaveBeenCalled();
+    expect(document.activeElement?.textContent?.trim()).toBe("Delete note");
   });
 
   it("propagates Reader dismissal focus intent to the note close owner", async () => {

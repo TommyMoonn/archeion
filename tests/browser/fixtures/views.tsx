@@ -8,6 +8,7 @@ import { useLibrarySidebarState } from "../../../src/features/library/useLibrary
 import { ReaderProgressBar } from "../../../src/features/reader/ReaderProgressBar";
 import type { KnownArchive } from "../../../src/types/archive";
 import type { LibraryLocation } from "../../../src/types/library";
+import { LibraryConfirmationFixture, ReaderNoteConfirmationFixture } from "./confirmation-views";
 
 const archive: KnownArchive = {
   id: "browser-fixture",
@@ -112,5 +113,7 @@ export function BrowserFixture() {
   if (view === "reader") return <ReaderFixture />;
   if (view === "library") return <LibraryFixture />;
   if (view === "dialog") return <DialogFixture />;
+  if (view === "note-confirmation") return <ReaderNoteConfirmationFixture />;
+  if (view === "library-confirmations") return <LibraryConfirmationFixture />;
   return <main>Unknown browser fixture</main>;
 }

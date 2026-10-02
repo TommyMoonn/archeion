@@ -302,6 +302,8 @@ describe("LibraryPage dialogs and book actions", () => {
     });
 
     expect(session.container.textContent).toContain("Clear reading progress?");
+    expect(document.activeElement?.textContent?.trim()).toBe("Cancel");
+    expect(updateBook).not.toHaveBeenCalled();
 
     await act(async () => {
       buttonWithText(session.container, "Clear progress").click();
