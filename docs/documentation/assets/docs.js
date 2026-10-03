@@ -301,23 +301,65 @@
   if (headings.length === 0)
     document.querySelector("[data-mobile-outline]")?.setAttribute("hidden", "");
 
-  const desktopTocLinks = [...document.querySelectorAll("[data-toc] a")];
-  if ("IntersectionObserver" in window && headings.length) {
-    const visible = new Map();
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => visible.set(entry.target.id, entry.isIntersecting));
-        const active =
-          headings.find((heading) => visible.get(heading.id)) ||
-          [...headings].reverse().find((heading) => heading.getBoundingClientRect().top < 150) ||
-          headings[0];
-        desktopTocLinks.forEach((link) =>
-          link.classList.toggle("is-active", link.hash === `#${active.id}`),
-        );
-      },
-      { rootMargin: "-90px 0px -72% 0px", threshold: [0, 1] },
-    );
-    headings.forEach((heading) => observer.observe(heading));
+  if (headings.length) {
+    const desktopToc = document.querySelector("[data-toc]");
+    const outlineLinks = tocTargets.map((toc) => [...toc.querySelectorAll("a")]);
+    const indicator = desktopToc ? document.createElement("span") : null;
+    if (indicator) {
+      indicator.className = "docs-outline-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      desktopToc.append(indicator);
+    }
+
+    function updateOutline() {
+      // Use the same clearance as native fragments, not a narrow intersection band.
+      const anchor = Math.max(
+        document.querySelector(".docs-header")?.getBoundingClientRect().bottom || 0,
+        parseFloat(getComputedStyle(root).scrollPaddingTop) || 0,
+      );
+      let activeIndex = 0;
+      for (const [index, heading] of headings.entries()) {
+        // Native fragment scrolling rounds to CSS pixels while heading geometry is fractional.
+        if (Math.round(heading.getBoundingClientRect().top) <= Math.round(anchor))
+          activeIndex = index;
+        else break;
+      }
+      // A short final section may never reach the anchor before scrolling ends.
+      if (window.scrollY > 0 && window.scrollY + window.innerHeight >= root.scrollHeight - 1)
+        activeIndex = headings.length - 1;
+
+      for (const links of outlineLinks) {
+        links.forEach((link, index) => {
+          if (index === activeIndex) link.setAttribute("aria-current", "location");
+          else link.removeAttribute("aria-current");
+        });
+      }
+      const activeLink = desktopToc?.querySelector('a[aria-current="location"]');
+      if (indicator && activeLink) {
+        indicator.style.transform = `translateY(${activeLink.offsetTop}px)`;
+        indicator.style.height = `${activeLink.offsetHeight}px`;
+      }
+    }
+
+    let framePending = false;
+    function scheduleOutline() {
+      if (framePending) return;
+      framePending = true;
+      window.requestAnimationFrame(() => {
+        framePending = false;
+        updateOutline();
+      });
+    }
+
+    updateOutline();
+    window.addEventListener("scroll", scheduleOutline, { passive: true });
+    for (const event of ["resize", "hashchange", "pageshow", "load"])
+      window.addEventListener(event, scheduleOutline);
+    if ("ResizeObserver" in window) {
+      const observer = new ResizeObserver(scheduleOutline);
+      observer.observe(article);
+      if (desktopToc) observer.observe(desktopToc);
+    }
   }
 
   document.querySelectorAll("pre").forEach((pre) => {
