@@ -99,70 +99,85 @@ if (-not (Test-Path -LiteralPath $BackupPath -PathType Container)) {
     throw "Backup directory does not exist: $BackupPath"
 }
 
-$backupFiles = @(Get-ChildItem -LiteralPath $BackupPath -File -Recurse -Force)
+$backupFiles = @(Get-ChildItem -LiteralPath $BackupPath -File -Recurse -Force | Sort-Object FullName)
 $backupDirectories = @(Get-ChildItem -LiteralPath $BackupPath -Directory -Recurse -Force |
-    Sort-Object { $_.FullName.Length })
+    Sort-Object { $_.FullName.Length }, FullName)
 
 if ($backupFiles.Count -eq 0 -and $backupDirectories.Count -eq 0) {
     throw "Backup directory is empty: $BackupPath"
 }
 
-Write-Host "Backup:  $BackupPath"
-Write-Host "Project: $ProjectRoot"
-Write-Host ""
-
-$createdDirectoryCount = 0
-$restoredFileCount = 0
-
+$directoryOperations = [System.Collections.Generic.List[object]]::new()
 foreach ($directory in $backupDirectories) {
     $relativePath = [System.IO.Path]::GetRelativePath($BackupPath, $directory.FullName)
     $targetPath = Resolve-SafeProjectPath -RelativePath $relativePath
 
-    if (Test-Path -LiteralPath $targetPath -PathType Container) {
-        continue
+    if (-not (Test-Path -LiteralPath $targetPath -PathType Container)) {
+        $directoryOperations.Add([pscustomobject]@{
+            RelativePath = $relativePath
+            TargetPath = $targetPath
+        })
     }
-
-    if ($DryRun) {
-        Write-Host "WOULD CREATE  $relativePath"
-    }
-    else {
-        New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
-        Write-Host "CREATED       $relativePath"
-    }
-
-    $createdDirectoryCount++
 }
 
+$fileOperations = [System.Collections.Generic.List[object]]::new()
 foreach ($file in $backupFiles) {
     $relativePath = [System.IO.Path]::GetRelativePath($BackupPath, $file.FullName)
     $targetPath = Resolve-SafeProjectPath -RelativePath $relativePath
+    $fileOperations.Add([pscustomobject]@{
+        RelativePath = $relativePath
+        SourcePath = $file.FullName
+        TargetPath = $targetPath
+    })
+}
 
+Write-CliHeading -Text $(if ($DryRun) { "Backup restore preview" } else { "Restore changed-files backup" })
+Write-CliDetail -Label "Backup" -Value $BackupPath -ValueTone 'Important'
+Write-CliDetail -Label "Project" -Value $ProjectRoot -ValueTone 'Important'
+Write-CliText -Text ""
+
+$createdDirectoryCount = 0
+foreach ($operation in $directoryOperations) {
     if ($DryRun) {
-        Write-Host "WOULD RESTORE $relativePath"
-        $restoredFileCount++
+        Write-CliStatus -Label "CREATE" -Message $operation.RelativePath -Tone 'Important'
         continue
     }
 
-    $targetParent = Split-Path $targetPath -Parent
-    New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-    Copy-Item -LiteralPath $file.FullName -Destination $targetPath -Force
-    Write-Host "RESTORED      $relativePath"
-    $restoredFileCount++
+    New-Item -ItemType Directory -Path $operation.TargetPath -Force | Out-Null
+    $createdDirectoryCount++
+    Write-CliStatus -Label "CREATE" -Message $operation.RelativePath -Tone 'Important'
 }
 
-Write-Host ""
-Write-Host "Restored files:     $restoredFileCount"
-Write-Host "Created directories: $createdDirectoryCount"
+$restoredFileCount = 0
+foreach ($operation in $fileOperations) {
+    if ($DryRun) {
+        Write-CliStatus -Label "RESTORE" -Message $operation.RelativePath -Tone 'Important'
+        continue
+    }
 
+    $targetParent = Split-Path $operation.TargetPath -Parent
+    New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+    Copy-Item -LiteralPath $operation.SourcePath -Destination $operation.TargetPath -Force
+    $restoredFileCount++
+    Write-CliStatus -Label "RESTORE" -Message $operation.RelativePath -Tone 'Important'
+}
+
+Write-CliText -Text ""
 if ($DryRun) {
-    Write-Host "Mode: dry run, no project files were changed"
+    Write-CliSuccess -Message "Preview complete"
+    Write-CliDetail -Label "Would create" -Value "$($directoryOperations.Count) directories"
+    Write-CliDetail -Label "Would restore" -Value "$($fileOperations.Count) files"
+    Write-CliDetail -Label "Mode" -Value "dry run"
 }
 else {
-    Write-Warning "The current importer does not record newly added files. This restore only reinstates overwritten or deleted paths from the backup. Review untracked files before considering the import fully reverted."
+    Write-CliSuccess -Message "Restore complete"
+    Write-CliDetail -Label "Created" -Value "$createdDirectoryCount directories"
+    Write-CliDetail -Label "Restored" -Value "$restoredFileCount files"
+    Write-CliWarning -Message "The current importer does not record newly added files. This restore reinstates overwritten or deleted paths only. Review untracked files before considering the import fully reverted."
 
     if (Test-Path -LiteralPath (Join-Path $ProjectRoot ".git")) {
-        Write-Host ""
-        Write-Host "Git status:"
+        Write-CliText -Text ""
+        Write-CliHeading -Text "Git status"
         & git -C $ProjectRoot status --short
     }
 }
