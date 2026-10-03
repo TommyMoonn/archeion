@@ -186,6 +186,46 @@ CI runs the same suite as a separate `CI Gate` dependency. On failure, its
 `browser-contract-failure` artifact contains the HTML report, screenshot, and
 retry trace where available. Browser outputs are ignored by Git.
 
+### Documentation pages and navigation
+
+The public documentation is static HTML. Its navigation source of truth is
+`docs/documentation/page-registry.json`, not the repeated sidebar or pager markup.
+Each page records a stable ID, a documentation-root-relative route, its sidebar/pager
+title, navigation group and order, explicit page type, and project-relative source path.
+The article's `h1` and prose remain authored in its HTML file.
+
+To add or update a page:
+
+1. Create or edit its `index.html`, retaining the shared shell and article header.
+2. Add or update its registry entry. Routes start and end with `/`; `/` is the
+   overview. Source paths must match `docs/documentation<route>index.html`.
+3. Choose the type by content, not directory: `overview`, `getting-started`, `guide`,
+   `reference`, `troubleshooting`, or `changelog`. Supporting the `changelog` type
+   does not create a route before its content exists.
+4. Set a unique order within the navigation group. Group order followed by page
+   order defines both sidebar order and the previous/next sequence. Update the
+   explicit first/last IDs when an endpoint changes.
+5. Regenerate navigation and run the checks below. Commit the registry and all
+   changed HTML together.
+
+```powershell
+npm run docs:sync
+npm run docs:check
+npm run test -- tests/documentationNavigation.test.ts tests/libraryReaderDocumentationCoverage.test.ts
+```
+
+The sync step generates the marked `docs-navigation` and `docs-pager` regions and
+the article's `data-page-type`. It derives the existing sidebar search metadata from
+each target article's title and intro, without storing article text in the registry.
+Keep edits to generated navigation in the renderer, not individual pages. The first
+page omits Previous and the last omits Next; no interior page may skip a neighbor.
+
+`docs:check` validates registry coverage and reports drift without writing files.
+It runs in the frontend quality gate and CI. Every documentation `index.html` must
+be registered exactly once. Navigation is committed as ordinary links and remains
+usable before JavaScript executes. Shell styling and runtime focus behavior remain
+owned by `docs.css` and `docs.js`.
+
 ### Windows Tauri runtime smoke
 
 The separate Windows smoke lane builds an unbundled release-profile test executable

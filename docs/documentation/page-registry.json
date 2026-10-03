@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "sequence": { "first": "overview", "last": "about-resources" },
+  "groups": [
+    { "id": "overview", "title": "Overview", "order": 0 },
+    { "id": "getting-started", "title": "Getting started", "order": 1 },
+    { "id": "using-archeion", "title": "Using Archeion", "order": 2 },
+    { "id": "customization", "title": "Customization", "order": 3 },
+    { "id": "reference", "title": "Reference", "order": 4 }
+  ],
+  "pages": [
+    {
+      "id": "overview",
+      "route": "/",
+      "title": "Overview",
+      "group": "overview",
+      "order": 0,
+      "type": "overview",
+      "sourcePath": "docs/documentation/index.html"
+    },
+    {
+      "id": "installing",
+      "route": "/getting-started/installing/",
+      "title": "Installation",
+      "group": "getting-started",
+      "order": 0,
+      "type": "getting-started",
+      "sourcePath": "docs/documentation/getting-started/installing/index.html"
+    },
+    {
+      "id": "archives",
+      "route": "/getting-started/archives/",
+      "title": "Open or create an archive",
+      "group": "getting-started",
+      "order": 1,
+      "type": "getting-started",
+      "sourcePath": "docs/documentation/getting-started/archives/index.html"
+    },
+    {
+      "id": "adding-books",
+      "route": "/getting-started/adding-books/",
+      "title": "Add EPUB files",
+      "group": "getting-started",
+      "order": 2,
+      "type": "getting-started",
+      "sourcePath": "docs/documentation/getting-started/adding-books/index.html"
+    },
+    {
+      "id": "library",
+      "route": "/guides/library/",
+      "title": "Library",
+      "group": "using-archeion",
+      "order": 0,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/library/index.html"
+    },
+    {
+      "id": "series",
+      "route": "/guides/series/",
+      "title": "Series",
+      "group": "using-archeion",
+      "order": 1,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/series/index.html"
+    },
+    {
+      "id": "reading",
+      "route": "/guides/reading/",
+      "title": "Reader and annotations",
+      "group": "using-archeion",
+      "order": 2,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/reading/index.html"
+    },
+    {
+      "id": "reader-navigation",
+      "route": "/guides/reader-navigation/",
+      "title": "Reader navigation and progress",
+      "group": "using-archeion",
+      "order": 3,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/reader-navigation/index.html"
+    },
+    {
+      "id": "reader-media",
+      "route": "/guides/reader-media/",
+      "title": "Footnotes and illustrations",
+      "group": "using-archeion",
+      "order": 4,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/reader-media/index.html"
+    },
+    {
+      "id": "file-management",
+      "route": "/guides/file-management/",
+      "title": "File management",
+      "group": "using-archeion",
+      "order": 5,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/file-management/index.html"
+    },
+    {
+      "id": "settings",
+      "route": "/guides/settings/",
+      "title": "Settings",
+      "group": "using-archeion",
+      "order": 6,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/settings/index.html"
+    },
+    {
+      "id": "dictionaries",
+      "route": "/guides/dictionaries/",
+      "title": "Dictionaries and Define",
+      "group": "using-archeion",
+      "order": 7,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/dictionaries/index.html"
+    },
+    {
+      "id": "keyboard-shortcuts",
+      "route": "/guides/keyboard-shortcuts/",
+      "title": "Keyboard shortcuts",
+      "group": "using-archeion",
+      "order": 8,
+      "type": "reference",
+      "sourcePath": "docs/documentation/guides/keyboard-shortcuts/index.html"
+    },
+    {
+      "id": "appearance",
+      "route": "/customization/appearance/",
+      "title": "Appearance",
+      "group": "customization",
+      "order": 0,
+      "type": "guide",
+      "sourcePath": "docs/documentation/customization/appearance/index.html"
+    },
+    {
+      "id": "custom-themes",
+      "route": "/customization/custom-themes/",
+      "title": "Custom themes",
+      "group": "customization",
+      "order": 1,
+      "type": "guide",
+      "sourcePath": "docs/documentation/customization/custom-themes/index.html"
+    },
+    {
+      "id": "theme-manager",
+      "route": "/customization/theme-manager/",
+      "title": "Theme Manager",
+      "group": "customization",
+      "order": 2,
+      "type": "guide",
+      "sourcePath": "docs/documentation/customization/theme-manager/index.html"
+    },
+    {
+      "id": "archive-storage",
+      "route": "/reference/archive-storage/",
+      "title": "Archive storage",
+      "group": "reference",
+      "order": 0,
+      "type": "reference",
+      "sourcePath": "docs/documentation/reference/archive-storage/index.html"
+    },
+    {
+      "id": "about-resources",
+      "route": "/reference/about-resources/",
+      "title": "About and resources",
+      "group": "reference",
+      "order": 1,
+      "type": "reference",
+      "sourcePath": "docs/documentation/reference/about-resources/index.html"
+    }
+  ]
+}

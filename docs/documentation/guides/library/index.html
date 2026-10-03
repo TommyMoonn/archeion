@@ -125,7 +125,8 @@
           <svg aria-hidden="true"><use href="#icon-close"></use></svg>
         </button>
       </div>
-      <nav>
+      <!-- docs-navigation:start -->
+      <nav data-doc-navigation="" aria-label="Documentation sidebar">
         <section class="sidebar-group" data-sidebar-group="">
           <h2>
             <button
@@ -141,7 +142,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-0">
             <a
               data-doc-link=""
-              data-search="overview find installation, archive setup, reading, organization, and customization guides."
+              data-search="overview archeion documentation guides for installing archeion, setting up an archive, reading, organizing files, and customizing the app."
               href="../../"
               ><span>Overview</span></a
             >
@@ -163,17 +164,17 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-1">
             <a
               data-doc-link=""
-              data-search="installation download and install archeion on windows."
+              data-search="installation install archeion download and install archeion on windows."
               href="../../getting-started/installing/"
               ><span>Installation</span></a
             ><a
               data-doc-link=""
-              data-search="open or create an archive choose an existing epub folder or create a new one."
+              data-search="open or create an archive open or create an archive choose the folder archeion will use for your epub library."
               href="../../getting-started/archives/"
               ><span>Open or create an archive</span></a
             ><a
               data-doc-link=""
-              data-search="add epub files copy or move books into an archive folder."
+              data-search="add epub files add epub files add books to the active archive by copying or moving them."
               href="../../getting-started/adding-books/"
               ><span>Add EPUB files</span></a
             >
@@ -196,48 +197,47 @@
             <a
               aria-current="page"
               data-doc-link=""
-              data-search="library find books, use folders, change views, and manage multiple books."
+              data-search="library browse and organize the library find books, use folders and series, change the layout, and manage one or more books."
               href="./"
               ><span>Library</span></a
             ><a
               data-doc-link=""
-              data-search="series organize volumes, continue reading, and review volume order."
+              data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
               href="../series/"
               ><span>Series</span></a
             ><a
               data-doc-link=""
-              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
+              data-search="reader and annotations read and annotate navigate books, adjust the reader, and manage bookmarks, highlights, and notes."
               href="../reading/"
               ><span>Reader and annotations</span></a
             ><a
               data-doc-link=""
-              data-search="reader navigation and progress find in book, history, contents, landmarks, pages, and seeking."
+              data-search="reader navigation and progress navigate and track reading progress find text, move through epub navigation, retrace reader jumps, and seek by progress."
               href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
-              data-search="footnotes and illustrations open notes, inspect images, zoom, pan, and save originals."
+              data-search="footnotes and illustrations open footnotes and illustrations read linked notes without losing your place and inspect supported book images closely."
               href="../reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
               data-doc-link=""
-              data-search="file management rename, move, reveal, export, and delete books and folders."
+              data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
               href="../file-management/"
               ><span>File management</span></a
-            >
-            <a
+            ><a
               data-doc-link=""
-              data-search="settings application-wide preferences standalone window sections"
+              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
               href="../settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries define installed local lookup all installed not installed"
+              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
               href="../dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts search configurable fixed interaction keys"
+              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
               href="../keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -259,18 +259,17 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance change app colors, reader typography, and library layout."
+              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
               data-doc-link=""
-              data-search="custom themes create, import, preview, and fix custom color themes."
+              data-search="custom themes custom themes create and manage json color themes for the app and reader."
               href="../../customization/custom-themes/"
               ><span>Custom themes</span></a
-            >
-            <a
+            ><a
               data-doc-link=""
-              data-search="theme manager import preview use theme reload application data"
+              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -291,19 +290,19 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-4">
             <a
               data-doc-link=""
-              data-search="archive storage back up, move, and inspect the files stored with an archive."
+              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and which storage actions operate on the active archive."
               href="../../reference/archive-storage/"
               ><span>Archive storage</span></a
-            >
-            <a
+            ><a
               data-doc-link=""
-              data-search="about archeion version website documentation source code standalone window"
+              data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
               href="../../reference/about-resources/"
               ><span>About and resources</span></a
             >
           </div>
         </section>
       </nav>
+      <!-- docs-navigation:end -->
       <div class="docs-sidebar__footer">
         <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
@@ -315,7 +314,7 @@
           <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Using Archeion</span
           ><span aria-hidden="true">/</span><span aria-current="page">Library</span>
         </div>
-        <article class="doc-article" data-doc-article="">
+        <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
             <h1>Browse and organize the Library</h1>
@@ -410,15 +409,18 @@
             expose their current view, sort, and card-size commands when applicable.
           </p>
         </article>
+        <!-- docs-pager:start -->
         <nav aria-label="Documentation pages" class="article-pager">
           <a
             class="article-pager__item article-pager__item--previous"
+            rel="prev"
             href="../../getting-started/adding-books/"
             ><span>Previous</span><strong>Add EPUB files</strong></a
-          ><a class="article-pager__item article-pager__item--next" href="../series/"
+          ><a class="article-pager__item article-pager__item--next" rel="next" href="../series/"
             ><span>Next</span><strong>Series</strong></a
           >
         </nav>
+        <!-- docs-pager:end -->
         <footer class="docs-footer">
           <span>Archeion documentation</span>
           <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"
