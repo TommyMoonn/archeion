@@ -47,6 +47,21 @@ Use the same long names when a command exposes the same concept:
 
 Short aliases are command-specific. `-p`, `-o`, `-f`, and `-h` keep their obvious meanings where exposed; `-n` is `--dry-run` on previewable commands but `--name` on `package-changes.ps1`. Prefer long flags in scripts and documentation when ambiguity matters.
 
+## CLI presentation
+
+`scripts/Cli.Common.ps1` owns the shared presentation primitives used by
+human-facing PowerShell commands. Semantic color is optional: success is green,
+warnings are yellow, important paths are cyan, and muted detail is dark gray
+when the host supports color. Setting `NO_COLOR` disables color and transient
+progress rendering without removing permanent headings, steps, warnings, or
+summaries.
+
+Transient progress is reserved for measurable work such as copying a known
+number of files. Indeterminate work such as source snapshot creation and archive
+finalization is reported as permanent step text instead of a fabricated
+percentage. Redirected and CI output therefore remains readable as ordinary
+text.
+
 ## `apply-changes.ps1`
 
 ```text
@@ -187,9 +202,13 @@ share a workspace export without inspecting those local records.
 
 The manifest records the export mode, source commit, Git working-tree dirty
 state, tracked-source baseline, presence of local-only planning/project files,
-and UTC creation time. Dirty state describes Git-visible changes; ignored local
-records are reported separately. Both modes refuse to replace an existing ZIP,
-and `--output` must point outside the repository.
+and precise UTC creation time. Dirty state describes Git-visible changes; ignored
+local records are reported separately. When `--output` is omitted, the archive
+uses the local wall-clock filename `archeion-repo(yyMMddHHmm).zip` or
+`archeion-workspace(yyMMddHHmm).zip`, for example
+`archeion-repo(2610031858).zip` or `archeion-workspace(2610031858).zip`. Both
+modes refuse to replace an existing ZIP, and `--output` must point outside the
+repository.
 
 ## npm aliases
 

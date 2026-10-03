@@ -55,16 +55,12 @@ if ($LASTEXITCODE -eq 0 -and $gitRoot -and [System.IO.Path]::GetFullPath($gitRoo
 }
 
 $ProjectName = Split-Path $ProjectRoot -Leaf
-$ProjectSlug = ($ProjectName.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
-if ([string]::IsNullOrWhiteSpace($ProjectSlug)) {
-    throw "Could not derive a project slug from '$ProjectName'."
-}
 
 $OutputPath = if ($cli['output']) {
     [System.IO.Path]::GetFullPath([string]$cli['output'])
 } else {
-    $timestamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssZ')
-    Join-Path (Split-Path $ProjectRoot -Parent) "$ProjectSlug-$Mode-$timestamp.zip"
+    $timestamp = (Get-Date).ToString('yyMMddHHmm')
+    Join-Path (Split-Path $ProjectRoot -Parent) "archeion-$Mode($timestamp).zip"
 }
 if (-not [System.IO.Path]::GetExtension($OutputPath).Equals('.zip', [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Output path must end in .zip: $OutputPath"
@@ -78,14 +74,23 @@ if (Test-Path -LiteralPath $OutputPath) {
 }
 
 $ManifestName = 'EXPORT_MANIFEST.json'
+$sourceArchive = Join-Path ([System.IO.Path]::GetTempPath()) ("archeion-source-$([Guid]::NewGuid().ToString('N')).zip")
 $temporaryArchive = Join-Path ([System.IO.Path]::GetTempPath()) ("archeion-export-$([Guid]::NewGuid().ToString('N')).zip")
 $fileList = $null
+$entryCount = 0
+$progressId = 1
+$progressActivity = "Packaging $ProjectName export"
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+Write-CliHeading -Text "Exporting $ProjectName ($Mode)"
 
 try {
+    Write-CliStep -Message 'Creating source snapshot'
+
     Push-Location $ProjectRoot
     try {
         if ($Mode -eq 'repo') {
-            & git archive --format=zip --output=$temporaryArchive $SourceCommit
+            & git archive --format=zip --output=$sourceArchive $SourceCommit
             if ($LASTEXITCODE -ne 0) {
                 throw "Git archive failed for $SourceCommit."
             }
@@ -95,7 +100,7 @@ try {
             }
             $fileList = [System.IO.Path]::GetTempFileName()
             Get-ChildItem -Force -Name | Set-Content -LiteralPath $fileList -Encoding utf8
-            & tar -a -cf $temporaryArchive --exclude-from=.zipignore -T $fileList
+            & tar -a -cf $sourceArchive --exclude-from=.zipignore -T $fileList
             if ($LASTEXITCODE -ne 0) {
                 throw "Workspace ZIP creation failed for $ProjectRoot."
             }
@@ -104,10 +109,13 @@ try {
         Pop-Location
     }
 
+    # Rebuild instead of updating the source ZIP in place. Streamed ZIPs can use data
+    # descriptors that ZipArchive Update does not preserve reliably across tools.
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [System.IO.Compression.ZipFile]::Open($temporaryArchive, [System.IO.Compression.ZipArchiveMode]::Update)
+    $inputArchive = [System.IO.Compression.ZipFile]::OpenRead($sourceArchive)
     try {
-        $paths = @($archive.Entries | ForEach-Object { $_.FullName.Replace('\', '/') })
+        $sourceEntries = @($inputArchive.Entries)
+        $paths = @($sourceEntries | ForEach-Object { $_.FullName.Replace('\', '/') })
         if ($paths -contains $ManifestName) {
             throw "Export already contains reserved manifest path $ManifestName."
         }
@@ -130,26 +138,107 @@ try {
             }
             createdAt = (Get-Date).ToUniversalTime().ToString('o')
         }
-        $entry = $archive.CreateEntry($ManifestName)
-        $writer = [System.IO.StreamWriter]::new($entry.Open(), [System.Text.UTF8Encoding]::new($false))
+
+        $fileEntries = @($sourceEntries | Where-Object { -not $_.FullName.EndsWith('/') })
+        $fileCount = $fileEntries.Count
+        $progressUpdateEvery = [Math]::Max(1, [int][Math]::Ceiling($fileCount / 100.0))
+        $processedFiles = 0
+
+        Write-CliStep -Message "Packaging $fileCount files"
+
+        $outputArchive = [System.IO.Compression.ZipFile]::Open(
+            $temporaryArchive,
+            [System.IO.Compression.ZipArchiveMode]::Create
+        )
         try {
-            $writer.WriteLine(($manifest | ConvertTo-Json -Depth 4))
+            foreach ($sourceEntry in $sourceEntries) {
+                $destinationEntry = $outputArchive.CreateEntry(
+                    $sourceEntry.FullName,
+                    [System.IO.Compression.CompressionLevel]::Optimal
+                )
+                $destinationEntry.LastWriteTime = $sourceEntry.LastWriteTime
+                $destinationEntry.ExternalAttributes = $sourceEntry.ExternalAttributes
+
+                if ($sourceEntry.FullName.EndsWith('/')) {
+                    continue
+                }
+
+                $sourceStream = $sourceEntry.Open()
+                $destinationStream = $destinationEntry.Open()
+                try {
+                    $sourceStream.CopyTo($destinationStream)
+                } finally {
+                    $destinationStream.Dispose()
+                    $sourceStream.Dispose()
+                }
+
+                $processedFiles++
+                if (
+                    $processedFiles -eq 1 -or
+                    $processedFiles -eq $fileCount -or
+                    ($processedFiles % $progressUpdateEvery) -eq 0
+                ) {
+                    Write-CliProgress `
+                        -Id $progressId `
+                        -Activity $progressActivity `
+                        -Status 'Files' `
+                        -Current $processedFiles `
+                        -Total $fileCount
+                }
+            }
+
+            Complete-CliProgress -Id $progressId -Activity $progressActivity
+            Write-CliStep -Message 'Writing export manifest'
+
+            $entry = $outputArchive.CreateEntry($ManifestName)
+            $writer = [System.IO.StreamWriter]::new($entry.Open(), [System.Text.UTF8Encoding]::new($false))
+            try {
+                $writer.WriteLine(($manifest | ConvertTo-Json -Depth 4))
+            } finally {
+                $writer.Dispose()
+            }
+
+            $entryCount = $fileCount + 1
         } finally {
-            $writer.Dispose()
+            $outputArchive.Dispose()
         }
     } finally {
-        $archive.Dispose()
+        $inputArchive.Dispose()
     }
+
+    Write-CliStep -Message 'Finalizing archive'
 
     $outputParent = Split-Path $OutputPath -Parent
     New-Item -ItemType Directory -Path $outputParent -Force | Out-Null
     Move-Item -LiteralPath $temporaryArchive -Destination $OutputPath
-    Write-Host "Created: $OutputPath"
-    Write-Host "Mode: $Mode"
-    Write-Host "Source commit: $SourceCommit"
+
+    $stopwatch.Stop()
+    $outputInfo = Get-Item -LiteralPath $OutputPath
+    $commitDisplay = if ($SourceCommit) { $SourceCommit.Substring(0, 12) } else { 'unavailable' }
+
+    Write-Host ''
+    Write-CliSuccess -Message 'Export complete'
+    Write-CliDetail -Label 'Archive' -Value $OutputPath -ValueTone 'Important'
+    Write-CliDetail -Label 'Size' -Value (Format-CliByteSize -Bytes $outputInfo.Length)
+    Write-CliDetail -Label 'Files' -Value ([string]$entryCount)
+    Write-CliDetail -Label 'Mode' -Value $Mode
+    Write-CliDetail -Label 'Commit' -Value $commitDisplay
+    if ($null -ne $WorkingTreeDirty) {
+        $treeState = if ($WorkingTreeDirty) { 'dirty' } else { 'clean' }
+        $treeTone = if ($WorkingTreeDirty) { 'Warning' } else { 'Success' }
+        Write-CliDetail -Label 'Tree' -Value $treeState -ValueTone $treeTone
+    }
+    Write-CliDetail -Label 'Elapsed' -Value ("{0:0.0} s" -f $stopwatch.Elapsed.TotalSeconds)
 } finally {
+    Complete-CliProgress -Id $progressId -Activity $progressActivity
+    if ($stopwatch.IsRunning) {
+        $stopwatch.Stop()
+    }
     if ($fileList -and (Test-Path -LiteralPath $fileList)) {
         Remove-Item -LiteralPath $fileList -Force
+    }
+    if (Test-Path -LiteralPath $sourceArchive) {
+        Remove-Item -LiteralPath $sourceArchive -Force
     }
     if (Test-Path -LiteralPath $temporaryArchive) {
         Remove-Item -LiteralPath $temporaryArchive -Force

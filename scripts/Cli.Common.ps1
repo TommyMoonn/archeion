@@ -1,5 +1,10 @@
 #requires -Version 7.0
 
+# Keep captured Unicode text independent of the inherited Windows console code page.
+if ([Console]::IsOutputRedirected) {
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+}
+
 function ConvertTo-CliBoolean {
     param(
         [Parameter(Mandatory)]
@@ -274,4 +279,260 @@ function Write-CliHelp {
     )
 
     Write-Host $Text.Trim()
+}
+
+if (-not (Get-Variable -Name CliActiveProgressIds -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:CliActiveProgressIds = [System.Collections.Generic.HashSet[int]]::new()
+}
+
+function Test-CliColorEnabled {
+    if ($null -ne $env:NO_COLOR) {
+        return $false
+    }
+
+    try {
+        if ([Console]::IsOutputRedirected) {
+            return $false
+        }
+
+        $null = $Host.UI.RawUI.ForegroundColor
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Test-CliProgressEnabled {
+    if ($null -ne $env:NO_COLOR -or -not [string]::IsNullOrWhiteSpace($env:CI)) {
+        return $false
+    }
+
+    try {
+        if ([Console]::IsOutputRedirected) {
+            return $false
+        }
+
+        $null = $Host.UI.RawUI
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Get-CliToneColor {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet('Normal', 'Success', 'Warning', 'Important', 'Muted')]
+        [string]$Tone
+    )
+
+    switch ($Tone) {
+        'Success' { return [System.ConsoleColor]::Green }
+        'Warning' { return [System.ConsoleColor]::Yellow }
+        'Important' { return [System.ConsoleColor]::Cyan }
+        'Muted' { return [System.ConsoleColor]::DarkGray }
+        default { return $null }
+    }
+}
+
+function Write-CliText {
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Text,
+
+        [ValidateSet('Normal', 'Success', 'Warning', 'Important', 'Muted')]
+        [string]$Tone = 'Normal',
+
+        [switch]$NoNewline
+    )
+
+    $color = if (Test-CliColorEnabled) { Get-CliToneColor -Tone $Tone } else { $null }
+    if ($null -ne $color) {
+        if ($NoNewline) {
+            Write-Host $Text -ForegroundColor $color -NoNewline
+        } else {
+            Write-Host $Text -ForegroundColor $color
+        }
+        return
+    }
+
+    if ($NoNewline) {
+        Write-Host $Text -NoNewline
+    } else {
+        Write-Host $Text
+    }
+}
+
+function Format-CliByteSize {
+    param(
+        [Parameter(Mandatory)]
+        [long]$Bytes
+    )
+
+    if ($Bytes -lt 0) {
+        throw 'Byte size cannot be negative.'
+    }
+
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    if ($Bytes -ge 1GB) {
+        return [string]::Format($culture, '{0:0.00} GiB', ($Bytes / 1GB))
+    }
+    if ($Bytes -ge 1MB) {
+        return [string]::Format($culture, '{0:0.0} MiB', ($Bytes / 1MB))
+    }
+    if ($Bytes -ge 1KB) {
+        return [string]::Format($culture, '{0:0.0} KiB', ($Bytes / 1KB))
+    }
+
+    return "$Bytes B"
+}
+
+function Write-CliHeading {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text
+    )
+
+    Write-CliText -Text $Text
+}
+
+function Write-CliDetail {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Value,
+
+        [ValidateSet('Normal', 'Success', 'Warning', 'Important', 'Muted')]
+        [string]$ValueTone = 'Normal'
+    )
+
+    Write-CliText -Text ("  {0,-12} " -f $Label) -Tone 'Muted' -NoNewline
+    Write-CliText -Text $Value -Tone $ValueTone
+}
+
+function Write-CliStatus {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Label,
+
+        [Parameter(Mandatory)]
+        [AllowEmptyString()]
+        [string]$Message,
+
+        [ValidateSet('Normal', 'Success', 'Warning', 'Important', 'Muted')]
+        [string]$Tone = 'Normal',
+
+        [ValidateSet('Normal', 'Success', 'Warning', 'Important', 'Muted')]
+        [string]$MessageTone = 'Normal'
+    )
+
+    Write-CliText -Text ("  {0,-12} " -f $Label) -Tone $Tone -NoNewline
+    Write-CliText -Text $Message -Tone $MessageTone
+}
+
+function Write-CliSuccess {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message
+    )
+
+    Write-CliText -Text "✓ $Message" -Tone 'Success'
+}
+
+function Write-CliWarning {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message
+    )
+
+    Write-CliText -Text "! $Message" -Tone 'Warning'
+}
+
+function Write-CliStep {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+
+        [int]$Current,
+
+        [int]$Total
+    )
+
+    $hasCurrent = $PSBoundParameters.ContainsKey('Current')
+    $hasTotal = $PSBoundParameters.ContainsKey('Total')
+    if ($hasCurrent -ne $hasTotal) {
+        throw 'Write-CliStep requires both -Current and -Total when numbering steps.'
+    }
+
+    if ($hasCurrent) {
+        if ($Current -lt 1 -or $Total -lt 1 -or $Current -gt $Total) {
+            throw 'Write-CliStep requires 1 <= Current <= Total.'
+        }
+        Write-CliText -Text "[$Current/$Total] $Message"
+        return
+    }
+
+    Write-CliText -Text $Message
+}
+
+function Write-CliProgress {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Activity,
+
+        [Parameter(Mandatory)]
+        [string]$Status,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(0, 2147483647)]
+        [int]$Current,
+
+        [Parameter(Mandatory)]
+        [ValidateRange(1, 2147483647)]
+        [int]$Total,
+
+        [ValidateRange(0, 2147483647)]
+        [int]$Id = 1
+    )
+
+    if ($Current -gt $Total -or -not (Test-CliProgressEnabled)) {
+        return
+    }
+
+    $percentComplete = [Math]::Min(100, [Math]::Floor(100 * ($Current / [double]$Total)))
+    try {
+        Write-Progress `
+            -Id $Id `
+            -Activity $Activity `
+            -Status "$Status $Current / $Total" `
+            -PercentComplete $percentComplete
+        [void]$script:CliActiveProgressIds.Add($Id)
+    } catch {
+        # Progress is presentation-only. Unsupported host rendering must not fail the command.
+    }
+}
+
+function Complete-CliProgress {
+    param(
+        [ValidateRange(0, 2147483647)]
+        [int]$Id = 1,
+
+        [string]$Activity = 'Working'
+    )
+
+    if (-not $script:CliActiveProgressIds.Contains($Id)) {
+        return
+    }
+
+    try {
+        Write-Progress -Id $Id -Activity $Activity -Completed
+    } catch {
+        # Completion is safe from finally paths even when the host cannot render progress.
+    } finally {
+        [void]$script:CliActiveProgressIds.Remove($Id)
+    }
 }

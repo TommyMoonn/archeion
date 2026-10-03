@@ -12,10 +12,11 @@ const script = path.join(projectRoot, "scripts/zip-project.ps1");
 const temporaryRoots: string[] = [];
 const exportTestTimeout = 30_000;
 
-function run(command: string, args: string[], cwd?: string) {
+function run(command: string, args: string[], cwd?: string, env?: NodeJS.ProcessEnv) {
   const result = spawnSync(command, args, {
     cwd,
     encoding: "utf8",
+    env: env ? { ...process.env, ...env } : process.env,
     timeout: 30_000,
     windowsHide: true,
   });
@@ -122,6 +123,11 @@ describe("project ZIP export provenance", () => {
         includedLocalOnly: { planning: false, project: false },
       });
       expect(Number.isNaN(Date.parse(manifest.createdAt))).toBe(false);
+      expect(manifest.createdAt).toMatch(/Z$/);
+      expect(result.stdout).toContain("✓ Export complete");
+      expect(result.stdout).toContain("Archive");
+      expect(result.stdout).toContain("Files");
+      expect(result.stdout).toContain("Commit");
     },
     exportTestTimeout,
   );
@@ -189,6 +195,68 @@ describe("project ZIP export provenance", () => {
         trackedSourceBaseline: "working-tree",
       });
       expect(exportZip(root, path.join(parent, "repo.zip"), "repo").status).not.toBe(0);
+    },
+    exportTestTimeout,
+  );
+
+  it.each(["repo", "workspace"] as const)(
+    "uses the fixed Archeion prefix and compact local timestamp in %s default output names",
+    (mode) => {
+      const { parent, root } = fixture();
+      const result = run("pwsh", [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        script,
+        "--mode",
+        mode,
+        "--project",
+        root,
+      ]);
+      expect(result.status, result.stderr).toBe(0);
+
+      const exports = fs.readdirSync(parent).filter((name) => name.endsWith(".zip"));
+      expect(exports).toHaveLength(1);
+      expect(exports[0]).toMatch(new RegExp(`^archeion-${mode}\\(\\d{10}\\)\\.zip$`));
+    },
+    exportTestTimeout,
+  );
+
+  it(
+    "cleans temporary source and rebuilt archives when finalization fails",
+    () => {
+      const { parent, root } = fixture();
+      const tempRoot = path.join(parent, "script-temp");
+      fs.mkdirSync(tempRoot);
+
+      const blockedParent = path.join(parent, "blocked-parent");
+      fs.writeFileSync(blockedParent, "not a directory\n");
+      const output = path.join(blockedParent, "failed.zip");
+      const result = run(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          script,
+          "--mode",
+          "workspace",
+          "--project",
+          root,
+          "--output",
+          output,
+        ],
+        undefined,
+        { TMPDIR: tempRoot, TMP: tempRoot, TEMP: tempRoot },
+      );
+
+      expect(result.status).not.toBe(0);
+      expect(fs.existsSync(output)).toBe(false);
+      expect(
+        fs.readdirSync(tempRoot).filter((name) => /^archeion-(source|export)-/.test(name)),
+      ).toEqual([]);
     },
     exportTestTimeout,
   );
