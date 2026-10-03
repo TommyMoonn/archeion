@@ -77,7 +77,9 @@ text.
 -h, --help
 ```
 
-Without `--zip`, the newest ZIP matching `archeion*.zip` in Downloads is used.
+Without `--zip`, the newest ZIP matching `archeion*.zip` in Downloads is used. A dry run prints every path that would be copied or deleted and every already-absent deletion target, while unchanged filenames are summarized by count only. Real apply output likewise lists actual copies, deletions, and skips rather than every unchanged file.
+
+New changed-files packages surface their project and source commit before apply. Source-commit presence in a Git target is advisory: a missing commit produces a warning but does not block legitimate shallow, forked, or rebased workflows. Legacy packages without provenance metadata remain supported and are identified as having unavailable provenance. `--allow-dirty` and `--no-backup` print explicit safety warnings when used.
 
 ```powershell
 .\scripts\apply-changes.ps1 --dry-run
@@ -95,7 +97,9 @@ Without `--zip`, the newest ZIP matching `archeion*.zip` in Downloads is used.
 -h, --help
 ```
 
-Untracked files are included by default. `--tracked-only` excludes them.
+Untracked files are included by default. `--tracked-only` excludes them. New archives include `.archeion-change-package.json` with versioned package provenance: project name, source `HEAD`, tracked-only mode, included/deleted counts, and a precise UTC creation time. The manifest contains no remote URL or local absolute project path and is never copied into the target project. `.chatgpt-delete-manifest.txt` remains the deletion list when deleted paths are present.
+
+Packaging shows measurable staging progress for included files, reports compression as an indeterminate permanent step, and finishes with archive size and counts. If there are no changes, it exits successfully without creating an archive.
 
 ```powershell
 .\scripts\package-changes.ps1 --name "phase-1.3.0.16"
@@ -120,7 +124,7 @@ Untracked files are included by default. `--tracked-only` excludes them.
 -h, --help
 ```
 
-Without `--backup`, the newest import backup for the project is used.
+Without `--backup`, the newest import backup for the project is used. Dry run lists every directory that would be created and every file that would be restored without changing the project. A real restore keeps the existing warning that import backups do not record newly introduced files, so those files are not removed automatically.
 
 ## `clean-generated.ps1`
 

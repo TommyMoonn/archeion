@@ -37,6 +37,10 @@ $ExcludeUntracked = [bool]$cli['tracked-only']
 $Force = [bool]$cli['force']
 
 $DeleteManifestName = ".chatgpt-delete-manifest.txt"
+$PackageManifestName = ".archeion-change-package.json"
+$PackageKind = "archeion-change-package"
+$PackageSchemaVersion = 1
+$PackageProjectName = "Archeion"
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 $PathComparison = [System.StringComparison]::OrdinalIgnoreCase
 $DirectorySeparator = [System.IO.Path]::DirectorySeparatorChar
@@ -172,8 +176,7 @@ if ($insideWorkTree -ne "true") {
     throw "Project root is not inside a Git working tree: $ProjectRoot"
 }
 
-[void](Invoke-GitRaw -Arguments @("rev-parse", "--verify", "HEAD"))
-
+$sourceCommit = (Invoke-GitRaw -Arguments @("rev-parse", "--verify", "HEAD")).Trim()
 $projectName = Split-Path $ProjectRoot -Leaf
 $cleanName = $Name.Trim()
 $cleanName = $cleanName -replace '\.zip$', ''
@@ -195,6 +198,10 @@ else {
         $OutputPath = "$OutputPath.zip"
     }
 }
+
+Write-CliHeading -Text "Changed-files package"
+Write-CliDetail -Label "Project" -Value $ProjectRoot -ValueTone 'Important'
+Write-CliDetail -Label "Tracked only" -Value $(if ($ExcludeUntracked) { 'yes' } else { 'no' })
 
 $copyPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 $deletePaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -231,7 +238,10 @@ foreach ($path in @($deletePaths)) {
 }
 
 if ($copyPaths.Count -eq 0 -and $deletePaths.Count -eq 0) {
-    throw "No changed files were found."
+    Write-CliSuccess -Message "No changes to package"
+    Write-CliDetail -Label "Included" -Value "0 files"
+    Write-CliDetail -Label "Deleted" -Value "0 paths"
+    return
 }
 
 if (Test-Path -LiteralPath $OutputPath) {
@@ -245,16 +255,25 @@ if (Test-Path -LiteralPath $OutputPath) {
 $outputParent = Split-Path $OutputPath -Parent
 New-Item -ItemType Directory -Path $outputParent -Force | Out-Null
 
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $stagingRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("archeion-package-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $stagingRoot -Force | Out-Null
+$progressId = 21
 
 try {
-    foreach ($relativePath in ($copyPaths | Sort-Object)) {
+    $sortedCopyPaths = @($copyPaths | Sort-Object)
+    if ($sortedCopyPaths.Count -gt 0) {
+        Write-CliStep -Message "Staging $($sortedCopyPaths.Count) file(s)"
+    }
+
+    for ($index = 0; $index -lt $sortedCopyPaths.Count; $index++) {
+        $relativePath = $sortedCopyPaths[$index]
         $sourcePath = Resolve-SafeProjectPath -RelativePath $relativePath
         $destinationPath = Join-Path $stagingRoot $relativePath
         $destinationParent = Split-Path $destinationPath -Parent
         New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
         Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+        Write-CliProgress -Activity "Packaging changes" -Status "Staging files" -Current ($index + 1) -Total $sortedCopyPaths.Count -Id $progressId
     }
 
     if ($deletePaths.Count -gt 0) {
@@ -267,6 +286,24 @@ try {
         )
     }
 
+    $packageManifest = [ordered]@{
+        schemaVersion = $PackageSchemaVersion
+        packageKind = $PackageKind
+        projectName = $PackageProjectName
+        sourceCommit = $sourceCommit
+        trackedOnly = $ExcludeUntracked
+        includedFiles = $copyPaths.Count
+        deletedPaths = $deletePaths.Count
+        createdAt = [DateTime]::UtcNow.ToString("o")
+    }
+    $packageManifestJson = $packageManifest | ConvertTo-Json -Depth 4
+    [System.IO.File]::WriteAllText(
+        (Join-Path $stagingRoot $PackageManifestName),
+        "$packageManifestJson`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    Write-CliStep -Message "Compressing archive"
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::CreateFromDirectory(
         $stagingRoot,
@@ -276,15 +313,18 @@ try {
     )
 }
 finally {
+    Complete-CliProgress -Id $progressId -Activity "Packaging changes"
+
     if (Test-Path -LiteralPath $stagingRoot) {
         Remove-Item -LiteralPath $stagingRoot -Recurse -Force
     }
 }
 
-Write-Host "Created:  $OutputPath"
-Write-Host "Included: $($copyPaths.Count) file(s)"
-Write-Host "Deleted:  $($deletePaths.Count) path(s)"
-
-if ($deletePaths.Count -gt 0) {
-    Write-Host "Manifest: $DeleteManifestName"
-}
+$stopwatch.Stop()
+$archiveSize = (Get-Item -LiteralPath $OutputPath).Length
+Write-CliSuccess -Message "Package created"
+Write-CliDetail -Label "Archive" -Value $OutputPath -ValueTone 'Important'
+Write-CliDetail -Label "Size" -Value (Format-CliByteSize -Bytes $archiveSize)
+Write-CliDetail -Label "Included" -Value "$($copyPaths.Count) file(s)"
+Write-CliDetail -Label "Deleted" -Value "$($deletePaths.Count) path(s)"
+Write-CliDetail -Label "Elapsed" -Value ("{0:0.0}s" -f $stopwatch.Elapsed.TotalSeconds)

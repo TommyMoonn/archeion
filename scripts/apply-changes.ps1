@@ -49,6 +49,9 @@ $NoBackup = [bool]$cli['no-backup']
 $AllowDirectoryDeletion = [bool]$cli['allow-directory-deletion']
 
 $DeleteManifestName = ".chatgpt-delete-manifest.txt"
+$PackageManifestName = ".archeion-change-package.json"
+$PackageKind = "archeion-change-package"
+$PackageSchemaVersion = 1
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 $PathComparison = [System.StringComparison]::OrdinalIgnoreCase
 $DirectorySeparator = [System.IO.Path]::DirectorySeparatorChar
@@ -92,6 +95,15 @@ function Resolve-SafeProjectPath {
     return $targetPath
 }
 
+function Test-IsPackageMetadata {
+    param(
+        [Parameter(Mandatory)]
+        [System.IO.FileSystemInfo]$Item
+    )
+
+    return $Item.Name -eq $DeleteManifestName -or $Item.Name -eq $PackageManifestName
+}
+
 function Get-ProjectMatchScore {
     param(
         [Parameter(Mandatory)]
@@ -100,7 +112,7 @@ function Get-ProjectMatchScore {
 
     $score = 0
     $files = Get-ChildItem -LiteralPath $CandidateRoot -File -Recurse -Force |
-        Where-Object { $_.Name -ne $DeleteManifestName } |
+        Where-Object { -not (Test-IsPackageMetadata -Item $_) } |
         Select-Object -First 500
 
     foreach ($file in $files) {
@@ -138,6 +150,116 @@ function Test-FileContentEqual {
     $leftHash = (Get-FileHash -LiteralPath $Left -Algorithm SHA256).Hash
     $rightHash = (Get-FileHash -LiteralPath $Right -Algorithm SHA256).Hash
     return $leftHash -eq $rightHash
+}
+
+function Read-PackageManifest {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    try {
+        # Use PowerShell's bundled JSON parser without date coercion on every supported version.
+        Add-Type -AssemblyName Newtonsoft.Json
+        $jsonSettings = [Newtonsoft.Json.JsonSerializerSettings]::new()
+        $jsonSettings.DateParseHandling = [Newtonsoft.Json.DateParseHandling]::None
+        $manifest = [pscustomobject][Newtonsoft.Json.JsonConvert]::DeserializeObject(
+            (Get-Content -LiteralPath $Path -Raw),
+            [hashtable],
+            $jsonSettings
+        )
+    }
+    catch {
+        throw "Package provenance manifest is malformed: $($_.Exception.Message)"
+    }
+
+    $requiredProperties = @(
+        'schemaVersion',
+        'packageKind',
+        'projectName',
+        'sourceCommit',
+        'trackedOnly',
+        'includedFiles',
+        'deletedPaths',
+        'createdAt'
+    )
+
+    foreach ($property in $requiredProperties) {
+        if ($manifest.PSObject.Properties.Name -notcontains $property) {
+            throw "Package provenance manifest is malformed: missing '$property'."
+        }
+    }
+
+    if ($manifest.schemaVersion -ne $PackageSchemaVersion) {
+        throw "Unsupported package provenance schema version: $($manifest.schemaVersion)"
+    }
+
+    if ([string]$manifest.packageKind -ne $PackageKind) {
+        throw "Unsupported package kind: $($manifest.packageKind)"
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$manifest.projectName)) {
+        throw "Package provenance manifest is malformed: projectName is empty."
+    }
+
+    if ([string]$manifest.sourceCommit -notmatch '^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$') {
+        throw "Package provenance manifest is malformed: sourceCommit is not a Git object ID."
+    }
+
+    if ($manifest.trackedOnly -isnot [bool]) {
+        throw "Package provenance manifest is malformed: trackedOnly must be boolean."
+    }
+
+    foreach ($countName in @('includedFiles', 'deletedPaths')) {
+        $count = $manifest.$countName
+        if ($count -is [bool] -or $count -isnot [ValueType] -or [decimal]$count -ne [Math]::Truncate([decimal]$count) -or [decimal]$count -lt 0) {
+            throw "Package provenance manifest is malformed: $countName must be a non-negative integer."
+        }
+    }
+
+    $createdAt = [DateTimeOffset]::MinValue
+    if (
+        $manifest.createdAt -isnot [string] -or
+        -not [DateTimeOffset]::TryParse(
+            $manifest.createdAt,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::None,
+            [ref]$createdAt
+        ) -or
+        -not $manifest.createdAt.EndsWith('Z')
+    ) {
+        throw "Package provenance manifest is malformed: createdAt must be a UTC timestamp."
+    }
+
+    return $manifest
+}
+
+function Test-GitContainsCommit {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Commit
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = "git"
+    $startInfo.WorkingDirectory = $ProjectRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    [void]$startInfo.ArgumentList.Add("cat-file")
+    [void]$startInfo.ArgumentList.Add("-e")
+    [void]$startInfo.ArgumentList.Add("$Commit^{commit}")
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    if (-not $process.Start()) {
+        throw "Unable to start Git for the provenance check."
+    }
+
+    $null = $process.StandardOutput.ReadToEnd()
+    $null = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    return $process.ExitCode -eq 0
 }
 
 $backupRoot = $null
@@ -184,7 +306,8 @@ if (-not (Test-Path -LiteralPath $ProjectRoot -PathType Container)) {
     throw "Project root does not exist: $ProjectRoot"
 }
 
-if (-not $AllowDirty -and (Test-Path -LiteralPath (Join-Path $ProjectRoot ".git"))) {
+$targetIsGit = Test-Path -LiteralPath (Join-Path $ProjectRoot ".git")
+if ($targetIsGit -and -not $AllowDirty) {
     $gitStatus = & git -C $ProjectRoot status --porcelain --untracked-files=no 2>&1
 
     if ($LASTEXITCODE -ne 0) {
@@ -230,7 +353,7 @@ try {
 
     $contentRoot = $tempRoot
     $topLevelContent = @(Get-ChildItem -LiteralPath $tempRoot -Force |
-        Where-Object { $_.Name -ne $DeleteManifestName })
+        Where-Object { -not (Test-IsPackageMetadata -Item $_) })
 
     if ($topLevelContent.Count -eq 1 -and $topLevelContent[0].PSIsContainer) {
         $rootScore = Get-ProjectMatchScore -CandidateRoot $tempRoot
@@ -247,57 +370,56 @@ try {
         }
     }
 
+    $packageManifestCandidates = @(Get-ChildItem -LiteralPath $tempRoot -File -Recurse -Force -Filter $PackageManifestName)
+
+    if ($packageManifestCandidates.Count -gt 1) {
+        throw "The ZIP contains multiple package provenance manifests."
+    }
+
+    $packageManifest = if ($packageManifestCandidates.Count -eq 1) {
+        Read-PackageManifest -Path $packageManifestCandidates[0].FullName
+    }
+    else {
+        $null
+    }
+
     $files = @(Get-ChildItem -LiteralPath $contentRoot -File -Recurse -Force |
-        Where-Object { $_.Name -ne $DeleteManifestName })
+        Where-Object { -not (Test-IsPackageMetadata -Item $_) } |
+        Sort-Object FullName)
 
-    $manifestCandidates = @(
-        (Join-Path $contentRoot $DeleteManifestName),
-        (Join-Path $tempRoot $DeleteManifestName)
-    ) | Select-Object -Unique
+    $deleteManifestCandidates = @(Get-ChildItem -LiteralPath $tempRoot -File -Recurse -Force -Filter $DeleteManifestName)
 
-    $manifestPath = $manifestCandidates |
-        Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
-        Select-Object -First 1
+    if ($deleteManifestCandidates.Count -gt 1) {
+        throw "The ZIP contains multiple deletion manifests."
+    }
 
-    if ($files.Count -eq 0 -and -not $manifestPath) {
+    $deleteManifestPath = if ($deleteManifestCandidates.Count -eq 1) { $deleteManifestCandidates[0].FullName } else { $null }
+
+    if ($files.Count -eq 0 -and -not $deleteManifestPath) {
         throw "The ZIP does not contain any files or deletion manifest to apply."
     }
 
-    $copiedCount = 0
+    $copyOperations = [System.Collections.Generic.List[object]]::new()
     $unchangedCount = 0
-    $deletedCount = 0
-
-    Write-Host "ZIP:     $ZipPath"
-    Write-Host "Project: $ProjectRoot"
-    Write-Host "Source:  $contentRoot"
-    Write-Host ""
-
     foreach ($file in $files) {
         $relativePath = [System.IO.Path]::GetRelativePath($contentRoot, $file.FullName)
         $targetPath = Resolve-SafeProjectPath -RelativePath $relativePath
 
         if (Test-FileContentEqual -Left $file.FullName -Right $targetPath) {
             $unchangedCount++
-            Write-Host "UNCHANGED  $relativePath"
             continue
         }
 
-        if ($DryRun) {
-            Write-Host "WOULD COPY $relativePath"
-            $copiedCount++
-            continue
-        }
-
-        Backup-ExistingPath -TargetPath $targetPath -RelativePath $relativePath
-        $targetParent = Split-Path $targetPath -Parent
-        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
-        Copy-Item -LiteralPath $file.FullName -Destination $targetPath -Force
-        $copiedCount++
-        Write-Host "COPIED     $relativePath"
+        $copyOperations.Add([pscustomobject]@{
+            RelativePath = $relativePath
+            SourcePath = $file.FullName
+            TargetPath = $targetPath
+        })
     }
 
-    if ($manifestPath) {
-        $manifestEntries = Get-Content -LiteralPath $manifestPath |
+    $deleteOperations = [System.Collections.Generic.List[object]]::new()
+    if ($deleteManifestPath) {
+        $manifestEntries = Get-Content -LiteralPath $deleteManifestPath |
             ForEach-Object { $_.Trim() } |
             Where-Object { $_ -and -not $_.StartsWith("#") }
 
@@ -305,13 +427,8 @@ try {
             $isDirectoryDeletion = $entry.StartsWith("dir:", [System.StringComparison]::OrdinalIgnoreCase)
             $relativePath = if ($isDirectoryDeletion) { $entry.Substring(4).Trim() } else { $entry }
             $targetPath = Resolve-SafeProjectPath -RelativePath $relativePath
-
-            if (-not (Test-Path -LiteralPath $targetPath)) {
-                Write-Host "MISSING     $relativePath"
-                continue
-            }
-
-            $targetIsDirectory = Test-Path -LiteralPath $targetPath -PathType Container
+            $targetExists = Test-Path -LiteralPath $targetPath
+            $targetIsDirectory = $targetExists -and (Test-Path -LiteralPath $targetPath -PathType Container)
 
             if ($targetIsDirectory -and -not $isDirectoryDeletion) {
                 throw "Refusing to delete directory without an explicit 'dir:' prefix: $relativePath"
@@ -321,34 +438,122 @@ try {
                 throw "Directory deletion requested for '$relativePath'. Rerun with --allow-directory-deletion after reviewing the manifest."
             }
 
-            if ($DryRun) {
-                Write-Host "WOULD DELETE $relativePath"
-                $deletedCount++
-                continue
-            }
-
-            Backup-ExistingPath -TargetPath $targetPath -RelativePath $relativePath
-            Remove-Item -LiteralPath $targetPath -Recurse:$targetIsDirectory -Force
-            $deletedCount++
-            Write-Host "DELETED    $relativePath"
+            $deleteOperations.Add([pscustomobject]@{
+                RelativePath = $relativePath
+                TargetPath = $targetPath
+                Exists = $targetExists
+                IsDirectory = $targetIsDirectory
+            })
         }
     }
 
-    Write-Host ""
-    Write-Host "Applied:   $copiedCount"
-    Write-Host "Deleted:   $deletedCount"
-    Write-Host "Unchanged: $unchangedCount"
+    if ($null -ne $packageManifest) {
+        if ([int64]$packageManifest.includedFiles -ne $files.Count) {
+            throw "Package provenance manifest is malformed: includedFiles does not match archive contents."
+        }
+        if ([int64]$packageManifest.deletedPaths -ne $deleteOperations.Count) {
+            throw "Package provenance manifest is malformed: deletedPaths does not match the deletion manifest."
+        }
+    }
+
+    Write-CliHeading -Text $(if ($DryRun) { "Changed-files preview" } else { "Changed-files apply" })
+    Write-CliDetail -Label "Archive" -Value $ZipPath -ValueTone 'Important'
+    Write-CliDetail -Label "Project" -Value $ProjectRoot -ValueTone 'Important'
+
+    if ($null -eq $packageManifest) {
+        Write-CliDetail -Label "Provenance" -Value "unavailable (legacy package)" -ValueTone 'Muted'
+    }
+    else {
+        Write-CliDetail -Label "Package" -Value ([string]$packageManifest.projectName)
+        Write-CliDetail -Label "Source commit" -Value ([string]$packageManifest.sourceCommit)
+
+        if ($targetIsGit) {
+            if (Test-GitContainsCommit -Commit ([string]$packageManifest.sourceCommit)) {
+                Write-CliDetail -Label "Baseline" -Value "source commit present in target" -ValueTone 'Success'
+            }
+            else {
+                Write-CliWarning -Message "Source commit is not present in the target repository. Review that this package belongs to the intended baseline before applying it."
+            }
+        }
+    }
+
+    if ($AllowDirty) {
+        Write-CliWarning -Message "--allow-dirty is enabled. Tracked local changes are allowed and may overlap with imported paths."
+    }
+    if ($NoBackup -and -not $DryRun) {
+        Write-CliWarning -Message "--no-backup is enabled. Overwritten and deleted paths will not be backed up."
+    }
+
+    Write-CliText -Text ""
+
+    $copiedCount = 0
+    foreach ($operation in $copyOperations) {
+        if ($DryRun) {
+            Write-CliStatus -Label "COPY" -Message $operation.RelativePath -Tone 'Important'
+            continue
+        }
+
+        Backup-ExistingPath -TargetPath $operation.TargetPath -RelativePath $operation.RelativePath
+        $targetParent = Split-Path $operation.TargetPath -Parent
+        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+        Copy-Item -LiteralPath $operation.SourcePath -Destination $operation.TargetPath -Force
+        $copiedCount++
+        Write-CliStatus -Label "COPY" -Message $operation.RelativePath -Tone 'Important'
+    }
+
+    $deletedCount = 0
+    $skippedCount = 0
+    foreach ($operation in $deleteOperations) {
+        if (-not $operation.Exists) {
+            Write-CliStatus -Label "SKIP" -Message "$($operation.RelativePath) (already absent)" -Tone 'Muted' -MessageTone 'Muted'
+            $skippedCount++
+            continue
+        }
+
+        if ($DryRun) {
+            Write-CliStatus -Label "DELETE" -Message $operation.RelativePath -Tone 'Warning'
+            continue
+        }
+
+        Backup-ExistingPath -TargetPath $operation.TargetPath -RelativePath $operation.RelativePath
+        Remove-Item -LiteralPath $operation.TargetPath -Recurse:$operation.IsDirectory -Force
+        $deletedCount++
+        Write-CliStatus -Label "DELETE" -Message $operation.RelativePath -Tone 'Warning'
+    }
 
     if ($DryRun) {
-        Write-Host "Mode:      dry run, no project files were changed"
+        $existingDeleteCount = @($deleteOperations | Where-Object { $_.Exists }).Count
+        Write-CliText -Text ""
+        Write-CliSuccess -Message "Preview complete"
+        Write-CliDetail -Label "Would copy" -Value "$($copyOperations.Count) files"
+        Write-CliDetail -Label "Would delete" -Value "$existingDeleteCount paths"
+        Write-CliDetail -Label "Skipped" -Value "$skippedCount paths"
+        Write-CliDetail -Label "Unchanged" -Value "$unchangedCount files"
+        Write-CliDetail -Label "Mode" -Value "dry run"
     }
-    elseif ($backupRoot) {
-        Write-Host "Backup:    $backupRoot"
+    elseif ($copiedCount -eq 0 -and $deletedCount -eq 0) {
+        Write-CliText -Text ""
+        Write-CliSuccess -Message "No changes needed"
+        Write-CliDetail -Label "Updated" -Value "0 files"
+        Write-CliDetail -Label "Deleted" -Value "0 paths"
+        Write-CliDetail -Label "Skipped" -Value "$skippedCount paths"
+        Write-CliDetail -Label "Unchanged" -Value "$unchangedCount files"
+    }
+    else {
+        Write-CliText -Text ""
+        Write-CliSuccess -Message "Changes applied"
+        Write-CliDetail -Label "Updated" -Value "$copiedCount files"
+        Write-CliDetail -Label "Deleted" -Value "$deletedCount paths"
+        Write-CliDetail -Label "Skipped" -Value "$skippedCount paths"
+        Write-CliDetail -Label "Unchanged" -Value "$unchangedCount files"
+        if ($backupRoot) {
+            Write-CliDetail -Label "Backup" -Value $backupRoot -ValueTone 'Important'
+        }
     }
 
-    if (-not $DryRun -and (Test-Path -LiteralPath (Join-Path $ProjectRoot ".git"))) {
-        Write-Host ""
-        Write-Host "Git status:"
+    if (-not $DryRun -and $targetIsGit) {
+        Write-CliText -Text ""
+        Write-CliHeading -Text "Git status"
         & git -C $ProjectRoot status --short
     }
 }
