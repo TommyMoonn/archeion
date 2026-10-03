@@ -99,9 +99,43 @@
   navOpen?.addEventListener("click", () => setNav(true));
   navClose?.addEventListener("click", () => setNav(false));
   navBackdrop?.addEventListener("click", () => setNav(false));
-  sidebar
-    ?.querySelectorAll("a")
-    .forEach((link) => link.addEventListener("click", () => setNav(false)));
+  sidebar?.querySelectorAll("a[href]").forEach((link) =>
+    link.addEventListener("click", (event) => {
+      if (
+        !mobileNavigation.matches ||
+        !body.classList.contains("nav-open") ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey ||
+        link.hasAttribute("download") ||
+        (link.target && link.target !== "_self")
+      )
+        return;
+
+      setNav(false, false);
+      const destination = new URL(link.href);
+      if (
+        destination.origin !== location.origin ||
+        destination.pathname !== location.pathname ||
+        destination.search !== location.search ||
+        !destination.hash
+      )
+        return;
+
+      let target;
+      try {
+        target = document.getElementById(decodeURIComponent(destination.hash.slice(1)));
+      } catch {
+        return;
+      }
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.hasAttribute("tabindex") && target.tabIndex < 0) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+    }),
+  );
 
   document.querySelectorAll("[data-sidebar-group-toggle]").forEach((button) => {
     const panelId = button.getAttribute("aria-controls");

@@ -1,14 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Window } from "happy-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const landingScript = fs.readFileSync(path.join(process.cwd(), "docs/js/main.js"), "utf8");
 
 type MediaListener = (event: { matches: boolean; media: string }) => void;
+const windows: Window[] = [];
+
+afterEach(async () => {
+  await Promise.all(windows.splice(0).map((window) => window.happyDOM.abort()));
+});
 
 function createLandingWindow({ mobile = true }: { mobile?: boolean } = {}) {
   const window = new Window({ url: "https://archeion.test/" });
+  windows.push(window);
   let mobileMatches = mobile;
   const mobileListeners = new Set<MediaListener>();
 
@@ -127,7 +133,7 @@ describe("landing mobile navigation", () => {
     expect(window.document.activeElement).toBe(toggle);
   });
 
-  it("restores focus when navigation activation closes the mobile menu", () => {
+  it("moves focus to the chosen same-page destination instead of the opener", () => {
     const { window, toggle, nav, links } = createLandingWindow();
 
     toggle.focus();
@@ -136,14 +142,64 @@ describe("landing mobile navigation", () => {
 
     expect(nav.classList.contains("is-open")).toBe(false);
     expect(nav.inert).toBe(true);
+    expect(window.document.activeElement).toBe(window.document.getElementById("library"));
+    expect(window.document.getElementById("library")?.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("restores opener focus when the toggle explicitly closes navigation", () => {
+    const { window, toggle, nav } = createLandingWindow();
+    toggle.click();
+    toggle.click();
+    expect(nav.inert).toBe(true);
     expect(window.document.activeElement).toBe(toggle);
   });
+
+  it.each(["ctrlKey", "metaKey", "shiftKey", "altKey"] as const)(
+    "leaves modified %s link activation native without closing navigation",
+    (modifier) => {
+      const { window, toggle, nav, links } = createLandingWindow();
+      toggle.click();
+      links[0].dispatchEvent(new window.MouseEvent("click", { bubbles: true, [modifier]: true }));
+      expect(nav.inert).toBe(false);
+      expect(window.document.activeElement).toBe(links[0]);
+    },
+  );
+
+  it.each(["#missing", "#%invalid"])("closes safely for an unresolved anchor %s", (href) => {
+    const { window, toggle, nav, links } = createLandingWindow();
+    links[0].href = href;
+    toggle.click();
+    links[0].click();
+    expect(nav.inert).toBe(true);
+    expect(window.document.activeElement).not.toBe(toggle);
+  });
+
+  it.each(["new-tab", "download", "prevented", "middle-button"])(
+    "preserves the open navigation for %s activation",
+    (mode) => {
+      const { window, toggle, nav, links } = createLandingWindow();
+      if (mode === "new-tab") links[0].target = "_blank";
+      if (mode === "download") links[0].download = "fixture";
+      toggle.click();
+      const event = new window.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        button: mode === "middle-button" ? 1 : 0,
+      });
+      if (mode === "prevented") event.preventDefault();
+      links[0].dispatchEvent(event);
+      expect(nav.inert).toBe(false);
+      expect(window.document.activeElement).toBe(links[0]);
+    },
+  );
 
   it("does not leave focus inside the navigation after outside-pointer dismissal", () => {
     const { window, toggle, nav, outside } = createLandingWindow();
 
     toggle.focus();
     toggle.click();
+    outside.tabIndex = -1;
+    outside.focus();
     outside.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
 
     expect(nav.classList.contains("is-open")).toBe(false);

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Window } from "happy-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const docsScript = fs.readFileSync(
   path.join(process.cwd(), "docs/documentation/assets/docs.js"),
@@ -9,9 +9,15 @@ const docsScript = fs.readFileSync(
 );
 
 type MediaListener = (event: { matches: boolean; media: string }) => void;
+const windows: Window[] = [];
+
+afterEach(async () => {
+  await Promise.all(windows.splice(0).map((window) => window.happyDOM.abort()));
+});
 
 function createDocsWindow({ mobile = true }: { mobile?: boolean } = {}) {
   const window = new Window({ url: "https://archeion.test/documentation/" });
+  windows.push(window);
   let mobileMatches = mobile;
   const mobileListeners = new Set<MediaListener>();
 
@@ -70,7 +76,11 @@ function createDocsWindow({ mobile = true }: { mobile?: boolean } = {}) {
       </nav>
     </aside>
     <div class="docs-layout">
-      <main id="main-content"><div id="outside">Outside</div></main>
+      <main id="main-content">
+        <h1 id="overview">Overview</h1>
+        <h2 id="reading" tabindex="-1">Reading</h2>
+        <div id="outside">Outside</div>
+      </main>
     </div>
   `;
 
@@ -179,6 +189,81 @@ describe("documentation mobile drawer", () => {
     expect(backdrop.hidden).toBe(true);
     expect(window.document.activeElement).toBe(opener);
   });
+
+  it("restores focus after explicit close", () => {
+    const { window, opener, close, sidebar } = createDocsWindow();
+    opener.click();
+    close.click();
+    expect(sidebar.inert).toBe(true);
+    expect(window.document.activeElement).toBe(opener);
+  });
+
+  it("releases the modal background before focusing a same-page destination", () => {
+    const { window, opener, sidebar, links, header, layout, backdrop } = createDocsWindow();
+    opener.click();
+    links[0].click();
+    expect(sidebar.inert).toBe(true);
+    expect(sidebar.hasAttribute("aria-modal")).toBe(false);
+    expect(header.inert).toBe(false);
+    expect(layout.inert).toBe(false);
+    expect(backdrop.hidden).toBe(true);
+    expect(window.document.activeElement).toBe(window.document.getElementById("overview"));
+    expect(window.document.getElementById("overview")?.getAttribute("tabindex")).toBe("-1");
+    opener.click();
+    links[1].click();
+    expect(window.document.activeElement).toBe(window.document.getElementById("reading"));
+  });
+
+  it.each([
+    "other.html#overview",
+    "https://example.test/#overview",
+    "?different#overview",
+    "#missing",
+    "#%invalid",
+  ])("does not restore opener or focus a local target when activating %s", (href) => {
+    const { window, opener, sidebar, links, layout } = createDocsWindow();
+    links[0].href = href;
+    opener.click();
+    links[0].click();
+    expect(sidebar.inert).toBe(true);
+    expect(layout.inert).toBe(false);
+    expect(window.document.activeElement).not.toBe(opener);
+    expect(window.document.activeElement).not.toBe(window.document.getElementById("overview"));
+  });
+
+  it.each(["ctrlKey", "metaKey", "shiftKey", "altKey"] as const)(
+    "preserves modal ownership for modified %s navigation",
+    (modifier) => {
+      const { window, opener, sidebar, links, layout } = createDocsWindow();
+      opener.click();
+      links[0].focus();
+      links[0].dispatchEvent(new window.MouseEvent("click", { bubbles: true, [modifier]: true }));
+      expect(sidebar.inert).toBe(false);
+      expect(layout.inert).toBe(true);
+      expect(window.document.activeElement).toBe(links[0]);
+    },
+  );
+
+  it.each(["new-tab", "download", "prevented", "middle-button"])(
+    "preserves drawer modal ownership for %s activation",
+    (mode) => {
+      const { window, opener, sidebar, layout, links } = createDocsWindow();
+      if (mode === "new-tab") links[0].target = "_blank";
+      if (mode === "download") links[0].download = "fixture";
+      opener.click();
+      links[0].focus();
+      const event = new window.MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        button: mode === "middle-button" ? 1 : 0,
+      });
+      if (mode === "prevented") event.preventDefault();
+      links[0].dispatchEvent(event);
+      expect(sidebar.inert).toBe(false);
+      expect(layout.inert).toBe(true);
+      expect(window.document.activeElement).toBe(links[0]);
+    },
+  );
 
   it("always re-enters at the drawer owner instead of a formerly focused descendant", () => {
     const { window, opener, close, backdrop, links } = createDocsWindow();
