@@ -43,10 +43,41 @@
     setNavigationOpen(willOpen, !willOpen && siteNav.contains(document.activeElement));
   });
 
-  navLinks.forEach((link) =>
-    link.addEventListener("click", () => {
-      if (!siteNav || !mobileNavigation.matches) return;
-      closeNavigation(siteNav.contains(document.activeElement));
+  siteNav?.querySelectorAll("a[href]").forEach((link) =>
+    link.addEventListener("click", (event) => {
+      if (
+        !mobileNavigation.matches ||
+        !siteNav.classList.contains("is-open") ||
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        event.altKey ||
+        link.hasAttribute("download") ||
+        (link.target && link.target !== "_self")
+      )
+        return;
+
+      closeNavigation(false);
+      const destination = new URL(link.href);
+      if (
+        destination.origin !== location.origin ||
+        destination.pathname !== location.pathname ||
+        destination.search !== location.search ||
+        !destination.hash
+      )
+        return;
+
+      let target;
+      try {
+        target = document.getElementById(decodeURIComponent(destination.hash.slice(1)));
+      } catch {
+        return;
+      }
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.hasAttribute("tabindex") && target.tabIndex < 0) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
     }),
   );
 
@@ -61,7 +92,7 @@
     const target = event.target;
     if (!(target instanceof Node)) return;
     if (!siteNav.contains(target) && !navToggle.contains(target)) {
-      closeNavigation(siteNav.contains(document.activeElement));
+      closeNavigation(true);
     }
   });
 
