@@ -46,6 +46,9 @@ jobs:
       - name: Check settings mutation contract
         run: npm run settings:contract:check
 
+      - name: Check static documentation navigation
+        run: npm run docs:check
+
       - name: Check formatting
         run: npm run fmt
 
