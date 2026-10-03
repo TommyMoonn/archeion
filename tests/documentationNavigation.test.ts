@@ -40,22 +40,37 @@ function documentFor(route: string) {
   );
 }
 
-function createFixture() {
+function createFixture(data = registry) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "archeion-doc-nav-"));
   fixtureRoots.push(root);
   for (const sourcePath of [
-    ...registry.pages.map((page) => page.sourcePath),
+    ...data.pages.map((page) => page.sourcePath),
     "docs/documentation/page-registry.json",
     ".prettierrc.json",
   ]) {
     fs.mkdirSync(path.dirname(path.join(root, sourcePath)), { recursive: true });
     fs.copyFileSync(path.join(projectRoot, sourcePath), path.join(root, sourcePath));
   }
+  fs.writeFileSync(path.join(root, "docs/documentation/page-registry.json"), JSON.stringify(data));
   return root;
 }
 
-function sourceBytes(root: string) {
-  return registry.pages.map((page) => fs.readFileSync(path.join(root, page.sourcePath), "utf8"));
+function sourceBytes(root: string, pages = registry.pages) {
+  return pages.map((page) => fs.readFileSync(path.join(root, page.sourcePath), "utf8"));
+}
+
+async function createRepairFixture() {
+  // Link repair needs adjacent pages and multiple groups, not repeated full-site formatting.
+  // The committed-output and new-page tests retain the complete registry contract.
+  const data = structuredClone(registry);
+  data.pages = data.pages.filter((page) =>
+    ["overview", "settings", "dictionaries"].includes(page.id),
+  );
+  data.groups = data.groups.filter((group) => data.pages.some((page) => page.group === group.id));
+  data.sequence = { first: data.pages[0].id, last: data.pages.at(-1)!.id };
+  const root = createFixture(data);
+  await syncDocumentationNavigation(root, { check: false });
+  return { root, pages: data.pages };
 }
 
 describe("documentation navigation contract", () => {
@@ -260,14 +275,14 @@ describe("documentation navigation contract", () => {
   });
 
   it("detects drift without writing, repairs only generated markup, and is idempotent", async () => {
-    const root = createFixture();
-    const sourcePath = registry.pages.find((page) => page.id === "settings")!.sourcePath;
+    const { root, pages } = await createRepairFixture();
+    const sourcePath = pages.find((page) => page.id === "settings")!.sourcePath;
     const file = path.join(root, sourcePath);
     const original = fs.readFileSync(file, "utf8");
     fs.writeFileSync(file, original.replace('href="../dictionaries/"', 'href="../reading/"'));
-    const before = sourceBytes(root);
+    const before = sourceBytes(root, pages);
     expect((await syncDocumentationNavigation(root)).changedPaths).toEqual([sourcePath]);
-    expect(sourceBytes(root)).toEqual(before);
+    expect(sourceBytes(root, pages)).toEqual(before);
     expect((await syncDocumentationNavigation(root, { check: false })).changedPaths).toEqual([
       sourcePath,
     ]);
@@ -275,7 +290,23 @@ describe("documentation navigation contract", () => {
     expect((await syncDocumentationNavigation(root, { check: false })).changedPaths).toEqual([]);
   });
 
-  it.each(["unregistered page", "missing page", "malformed region"])(
+  it("detects header destination drift without writing and restores generated native links", async () => {
+    const { root, pages } = await createRepairFixture();
+    const sourcePath = pages[0].sourcePath;
+    const source = path.join(root, sourcePath);
+    const original = fs.readFileSync(source, "utf8");
+    fs.writeFileSync(
+      source,
+      original.replace('class="docs-brand" href="./"', 'class="docs-brand" href="../"'),
+    );
+    const before = sourceBytes(root, pages);
+    expect((await syncDocumentationNavigation(root)).changedPaths).toEqual([sourcePath]);
+    expect(sourceBytes(root, pages)).toEqual(before);
+    await syncDocumentationNavigation(root, { check: false });
+    expect(fs.readFileSync(source, "utf8")).toBe(original);
+  });
+
+  it.each(["unregistered page", "missing page", "malformed region", "malformed header"])(
     "rejects %s before writing any HTML",
     async (mode) => {
       const root = createFixture();
@@ -293,12 +324,15 @@ describe("documentation navigation contract", () => {
           last,
           fs
             .readFileSync(last, "utf8")
-            .replace("<!-- docs-pager:end -->", "<!-- broken marker -->"),
+            .replace(
+              mode === "malformed header" ? "<!-- docs-header:end -->" : "<!-- docs-pager:end -->",
+              "<!-- broken marker -->",
+            ),
         );
       }
       const before = fs.readFileSync(first, "utf8");
       await expect(syncDocumentationNavigation(root, { check: false })).rejects.toThrow(
-        mode === "malformed region" ? /markers/ : /coverage mismatch/,
+        mode.startsWith("malformed") ? /markers/ : /coverage mismatch/,
       );
       expect(fs.readFileSync(first, "utf8")).toBe(before);
     },
@@ -333,6 +367,11 @@ describe("documentation navigation contract", () => {
     );
     expect((await syncDocumentationNavigation(root)).changedPaths).toEqual([]);
     const html = fs.readFileSync(source, "utf8");
+    const generatedDocument = parseHtml(html);
+    expect(generatedDocument.querySelector(".docs-brand")?.getAttribute("href")).toBe("../../");
+    expect(generatedDocument.querySelector(".docs-home-link")?.getAttribute("href")).toBe(
+      "../../../",
+    );
     expect(
       html.match(/<article[\s\S]*?<\/article>/)![0].replace(/ data-page-type="[^"]*"/, ""),
     ).toBe(article);

@@ -214,11 +214,15 @@ npm run docs:check
 npm run test -- tests/documentationNavigation.test.ts tests/libraryReaderDocumentationCoverage.test.ts
 ```
 
-The sync step generates the marked `docs-navigation` and `docs-pager` regions and
+The sync step generates the marked `docs-header`, `docs-navigation`, and `docs-pager` regions and
 the article's `data-page-type`. It derives the existing sidebar search metadata from
 each target article's title and intro, without storing article text in the registry.
-Keep edits to generated navigation in the renderer, not individual pages. The first
-page omits Previous and the last omits Next; no interior page may skip a neighbor.
+Keep edits to generated chrome in the renderer, not individual pages. The header's
+`Archeion Docs` brand returns to the overview; `Home ↗` returns to the public landing
+page. Keep one article intro: omit a lead when it repeats the header summary. All
+callouts use `.notice`; retain their meaningful labels and advice instead of using
+color variants to convey their purpose. The first page omits Previous and the last
+omits Next; no interior page may skip a neighbor.
 
 `docs:check` validates registry coverage and reports drift without writing files.
 It runs in the frontend quality gate and CI. Every documentation `index.html` must
