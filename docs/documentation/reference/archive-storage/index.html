@@ -41,6 +41,7 @@
         <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>
       </symbol>
     </svg>
+    <!-- docs-header:start -->
     <header class="docs-header">
       <div class="docs-header__inner">
         <button
@@ -53,9 +54,9 @@
         >
           <svg aria-hidden="true"><use href="#icon-menu"></use></svg>
         </button>
-        <a aria-label="Archeion website" class="docs-brand" href="../../../">
+        <a class="docs-brand" href="../../">
           <img alt="" height="32" src="../../../assets/images/archeion-icon.png" width="32" />
-          <span>Archeion</span>
+          <span>Archeion Docs</span>
         </a>
         <button
           aria-label="Search documentation"
@@ -67,6 +68,7 @@
           ><span>Search documentation</span><kbd>Ctrl K</kbd>
         </button>
         <div class="docs-header__actions">
+          <a class="docs-home-link" href="../../../">Home <span aria-hidden="true">↗</span></a>
           <button
             aria-label="Change documentation theme"
             class="icon-button"
@@ -78,16 +80,18 @@
           </button>
           <a
             aria-label="Archeion on GitHub"
-            class="icon-button"
+            class="icon-button docs-github-link"
             href="https://github.com/TommyMoonn/archeion"
             rel="noreferrer"
             target="_blank"
             title="GitHub"
-            ><svg aria-hidden="true"><use href="#icon-github"></use></svg
-          ></a>
+          >
+            <svg aria-hidden="true"><use href="#icon-github"></use></svg>
+          </a>
         </div>
       </div>
     </header>
+    <!-- docs-header:end -->
     <dialog aria-labelledby="docs-search-title" class="docs-search-dialog" data-search-dialog="">
       <div class="docs-search-dialog__header">
         <h2 id="docs-search-title">Search documentation</h2>
@@ -303,20 +307,11 @@
         </section>
       </nav>
       <!-- docs-navigation:end -->
-      <div class="docs-sidebar__footer">
-        <span>Archeion documentation</span>
-        <a href="../../../">Back to website</a>
-      </div>
     </aside>
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
-        <div aria-label="Breadcrumb" class="breadcrumbs">
-          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Reference</span
-          ><span aria-hidden="true">/</span><span aria-current="page">Archive storage</span>
-        </div>
         <article class="doc-article" data-doc-article="" data-page-type="reference">
           <header class="article-header">
-            <p class="eyebrow">Reference</p>
             <h1>Archive storage, ownership, and maintenance</h1>
             <p>
               Know which data travels with an archive, which preferences live in application data,

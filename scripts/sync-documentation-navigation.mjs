@@ -151,9 +151,7 @@ async function searchText(html, page) {
     );
     const header = window.document.querySelector("[data-doc-article] .article-header");
     requireCondition(header?.querySelector("h1"), `${page.sourcePath} needs an article title.`);
-    const summary = [...header.querySelectorAll("p")]
-      .filter((paragraph) => !paragraph.classList.contains("eyebrow"))
-      .map((paragraph) => paragraph.textContent);
+    const summary = [...header.querySelectorAll("p")].map((paragraph) => paragraph.textContent);
     return [page.title, header.querySelector("h1").textContent, ...summary]
       .join(" ")
       .replace(/\s+/g, " ")
@@ -162,6 +160,34 @@ async function searchText(html, page) {
   } finally {
     await window.happyDOM.abort();
   }
+}
+
+function renderHeader(current) {
+  const overview = relativeHref(current, { sourcePath: `${documentationDirectory}/index.html` });
+  const home = relativeHref(current, { sourcePath: "docs/index.html" });
+  return `<header class="docs-header">
+    <div class="docs-header__inner">
+      <button aria-controls="docs-sidebar" aria-expanded="false" aria-label="Open documentation navigation" class="icon-button mobile-menu-button" data-nav-open="" type="button">
+        <svg aria-hidden="true"><use href="#icon-menu"></use></svg>
+      </button>
+      <a class="docs-brand" href="${overview}">
+        <img alt="" height="32" src="${home}assets/images/archeion-icon.png" width="32" />
+        <span>Archeion Docs</span>
+      </a>
+      <button aria-label="Search documentation" class="docs-search-trigger" data-search-trigger="" type="button">
+        <svg aria-hidden="true"><use href="#icon-search"></use></svg><span>Search documentation</span><kbd>Ctrl K</kbd>
+      </button>
+      <div class="docs-header__actions">
+        <a class="docs-home-link" href="${home}">Home <span aria-hidden="true">↗</span></a>
+        <button aria-label="Change documentation theme" class="icon-button" data-theme-toggle="" title="Change theme" type="button">
+          <svg aria-hidden="true"><use href="#icon-theme"></use></svg>
+        </button>
+        <a aria-label="Archeion on GitHub" class="icon-button docs-github-link" href="https://github.com/TommyMoonn/archeion" rel="noreferrer" target="_blank" title="GitHub">
+          <svg aria-hidden="true"><use href="#icon-github"></use></svg>
+        </a>
+      </div>
+    </div>
+  </header>`;
 }
 
 function renderSidebar(current, groups, pages, searches) {
@@ -212,7 +238,7 @@ function replaceRegion(html, name, content, legacyPattern) {
   const matches = [...html.matchAll(legacyPattern)];
   requireCondition(matches.length <= 1, `Ambiguous legacy ${name} region.`);
   if (matches.length === 1) return html.replace(legacyPattern, replacement);
-  requireCondition(name === "pager", "Documentation sidebar navigation region is missing.");
+  requireCondition(name === "pager", `Documentation ${name} region is missing.`);
   const footer = /<footer\b[^>]*class="[^"]*\bdocs-footer\b[^"]*"[^>]*>/g;
   requireCondition(
     [...html.matchAll(footer)].length === 1,
@@ -251,6 +277,12 @@ export async function syncDocumentationNavigation(
   // Validate and render every page before changing any source file.
   for (const page of pages) {
     let html = originals.get(page.id);
+    html = replaceRegion(
+      html,
+      "header",
+      renderHeader(page),
+      /<header\b[^>]*class="[^"]*\bdocs-header\b[^"]*"[^>]*>[\s\S]*?<\/header>/g,
+    );
     html = replaceRegion(
       html,
       "navigation",
