@@ -1,13 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Window } from "happy-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const landingHtml = fs.readFileSync(path.join(process.cwd(), "docs/index.html"), "utf8");
 const landingScript = fs.readFileSync(path.join(process.cwd(), "docs/js/main.js"), "utf8");
 
-function createReaderDemoWindow() {
+const windows: Window[] = [];
+
+afterEach(async () => {
+  await Promise.all(windows.splice(0).map((window) => window.happyDOM.abort()));
+});
+
+function createReaderDemoWindow(initialize?: (window: Window) => void) {
   const window = new Window({ url: "https://archeion.test/" });
+  windows.push(window);
 
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -26,6 +33,7 @@ function createReaderDemoWindow() {
   const body = landingHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1];
   if (!body) throw new Error("Landing page body was not found.");
   window.document.body.innerHTML = body;
+  initialize?.(window);
 
   window.eval(landingScript);
 
@@ -50,6 +58,213 @@ function openWithKeyboard(window: Window, target: HTMLElement, key: "Enter" | " 
 }
 
 describe("landing Reader highlight demo keyboard contract", () => {
+  it("keeps passage text as the identity while highlight and note guidance is described separately", () => {
+    const { window, target, colorButtons, noteButton } = createReaderDemoWindow();
+    const quote = target.textContent;
+    const description = () => {
+      expect(target.getAttribute("aria-label")).toBeNull();
+      expect(target.getAttribute("aria-labelledby")).toBeNull();
+      expect(target.textContent).toBe(quote);
+      const id = target.getAttribute("aria-describedby");
+      expect(id).toBeTruthy();
+      expect(
+        window.document
+          .querySelector("[data-reader-page-copy]")
+          ?.contains(window.document.getElementById(id!)),
+      ).toBe(false);
+      return window.document.getElementById(id!)?.textContent;
+    };
+    expect(description()).toBe("Select to highlight this passage or add a note.");
+    target.click();
+    colorButtons[1].click();
+    expect(description()).toBe("Green highlight. Select to change the highlight or add a note.");
+    target.click();
+    noteButton.click();
+    const input = window.document.querySelector<HTMLTextAreaElement>("[data-reader-note-input]")!;
+    input.value = "Fixture note";
+    input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    expect(description()).toBe(
+      "Green highlight with note. Select to change the highlight or edit the note.",
+    );
+    window.document.querySelector<HTMLButtonElement>("[data-reader-note-delete]")!.click();
+    expect(description()).toBe("Green highlight. Select to change the highlight or add a note.");
+    target.click();
+    colorButtons[4].click();
+    expect(description()).toBe("Select to highlight this passage or add a note.");
+  });
+
+  it("describes every demo page without replacing its passage text or retaining old descriptions", () => {
+    const { window } = createReaderDemoWindow();
+    const previous = window.document.querySelector<HTMLButtonElement>(
+      '[data-reader-page="previous"]',
+    )!;
+    const next = window.document.querySelector<HTMLButtonElement>('[data-reader-page="next"]')!;
+    previous.click();
+    for (let index = 0; index < 4; index++) {
+      const passage = window.document.querySelector<HTMLElement>("[data-reader-annotatable]")!;
+      expect(passage.textContent?.trim()).toBeTruthy();
+      expect(passage.getAttribute("aria-label")).toBeNull();
+      const descriptionId = passage.getAttribute("aria-describedby")!;
+      expect(window.document.getElementById(descriptionId)?.textContent).toContain(
+        "highlight this passage",
+      );
+      expect(window.document.querySelectorAll("[data-reader-passage-description]")).toHaveLength(1);
+      next.click();
+    }
+  });
+
+  it("keeps bookmark identity stable through toggles and page changes", () => {
+    const { window } = createReaderDemoWindow();
+    const bookmark = window.document.querySelector<HTMLButtonElement>(
+      "[data-reader-bookmark-toggle]",
+    )!;
+    for (const pressed of [false, true, false]) {
+      expect(bookmark.getAttribute("aria-label")).toBe("Bookmark");
+      expect(bookmark.getAttribute("aria-pressed")).toBe(String(pressed));
+      bookmark.click();
+    }
+    window.document.querySelector<HTMLButtonElement>('[data-reader-page="previous"]')!.click();
+    expect(bookmark.getAttribute("aria-label")).toBe("Bookmark");
+    expect(bookmark.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("exposes one selected theme and supports radio-group keyboard navigation", () => {
+    const { window } = createReaderDemoWindow();
+    const group = window.document.querySelector('[aria-label="Reader theme"]')!;
+    const themes = Array.from(group.querySelectorAll<HTMLButtonElement>("[data-reader-theme]"));
+    expect(group.getAttribute("role")).toBe("radiogroup");
+    const assertSelected = (theme: string) => {
+      expect(group.querySelectorAll('[role="radio"][aria-checked="true"]')).toHaveLength(1);
+      expect(themes.filter((button) => button.tabIndex === 0)).toHaveLength(1);
+      for (const button of themes) {
+        expect(button.getAttribute("aria-checked")).toBe(
+          String(button.dataset.readerTheme === theme),
+        );
+        expect(button.classList.contains("active")).toBe(button.dataset.readerTheme === theme);
+      }
+      expect(window.document.querySelector("[data-reader-demo]")?.getAttribute("data-theme")).toBe(
+        theme,
+      );
+    };
+    assertSelected("dark");
+    themes[2].click();
+    assertSelected("light");
+    for (const [key, theme] of [
+      ["ArrowRight", "dark"],
+      ["ArrowLeft", "light"],
+      ["Home", "dark"],
+      ["End", "light"],
+      ["ArrowUp", "sepia"],
+      ["ArrowDown", "light"],
+    ]) {
+      const selected = themes.find((button) => button.tabIndex === 0)!;
+      selected.dispatchEvent(
+        new window.KeyboardEvent("keydown", { bubbles: true, key, cancelable: true }),
+      );
+      assertSelected(theme);
+      expect(window.document.activeElement).toBe(
+        themes.find((button) => button.dataset.readerTheme === theme),
+      );
+    }
+  });
+
+  it.each(["success", "failure"] as const)(
+    "announces clipboard %s in a stable polite region",
+    async (outcome) => {
+      const writeText = vi.fn(async () => {
+        if (outcome === "failure") throw new Error("Clipboard denied");
+      });
+      const { window } = createReaderDemoWindow((window) => {
+        Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+        Object.defineProperty(window.navigator, "clipboard", {
+          configurable: true,
+          value: { writeText },
+        });
+      });
+      const status = window.document.querySelector<HTMLElement>("[data-copy-status]");
+      expect(status?.getAttribute("role")).toBe("status");
+      expect(status?.getAttribute("aria-live")).toBe("polite");
+      expect(status?.textContent).toBe("");
+      const copy = window.document.querySelector<HTMLButtonElement>("[data-copy-command]")!;
+      copy.focus();
+      copy.click();
+      await vi.waitFor(() =>
+        expect(status?.textContent).toBe(
+          outcome === "success"
+            ? "Setup commands copied."
+            : "Unable to copy setup commands. Select the commands and copy them manually.",
+        ),
+      );
+      expect(writeText).toHaveBeenCalledOnce();
+      expect(window.document.activeElement).toBe(copy);
+      expect(window.document.querySelector("[data-copy-status]")).toBe(status);
+    },
+  );
+  it.each(["success", "denied", "throws"] as const)(
+    "announces legacy clipboard %s and removes its temporary textarea",
+    async (outcome) => {
+      const execCommand = vi.fn(() => {
+        if (outcome === "throws") throw new Error("Copy unavailable");
+        return outcome === "success";
+      });
+      const { window } = createReaderDemoWindow((window) => {
+        Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
+        Object.defineProperty(window.document, "execCommand", {
+          configurable: true,
+          value: execCommand,
+        });
+      });
+      const copy = window.document.querySelector<HTMLButtonElement>("[data-copy-command]")!;
+      copy.focus();
+      copy.click();
+      await vi.waitFor(() =>
+        expect(window.document.querySelector("[data-copy-status]")?.textContent).toBe(
+          outcome === "success"
+            ? "Setup commands copied."
+            : "Unable to copy setup commands. Select the commands and copy them manually.",
+        ),
+      );
+      expect(execCommand).toHaveBeenCalledWith("copy");
+      expect(window.document.querySelector("textarea[readonly]")).toBeNull();
+      expect(window.document.activeElement).toBe(copy);
+      expect(copy.hasAttribute("aria-busy")).toBe(false);
+    },
+  );
+
+  it("keeps one clipboard operation pending and supports another attempt after it settles", async () => {
+    let finishCopy: () => void = () => {
+      throw new Error("Copy did not start.");
+    };
+    const writeText = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCopy = resolve;
+        }),
+    );
+    const { window } = createReaderDemoWindow((window) => {
+      Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
+      Object.defineProperty(window.navigator, "clipboard", {
+        configurable: true,
+        value: { writeText },
+      });
+    });
+    const copy = window.document.querySelector<HTMLButtonElement>("[data-copy-command]")!;
+    const status = window.document.querySelector<HTMLElement>("[data-copy-status]")!;
+    copy.click();
+    copy.click();
+    expect(writeText).toHaveBeenCalledOnce();
+    expect(copy.getAttribute("aria-busy")).toBe("true");
+    expect(status.textContent).toBe("Copying setup commands…");
+    finishCopy();
+    await vi.waitFor(() => expect(status.textContent).toBe("Setup commands copied."));
+    expect(copy.hasAttribute("aria-busy")).toBe(false);
+    copy.click();
+    expect(writeText).toHaveBeenCalledTimes(2);
+    expect(status.textContent).toBe("Copying setup commands…");
+    finishCopy();
+    await vi.waitFor(() => expect(status.textContent).toBe("Setup commands copied."));
+  });
+
   it("uses a simple named button group and input-neutral instruction copy", () => {
     const { palette, colorButtons, noteButton, hint } = createReaderDemoWindow();
 
