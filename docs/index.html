@@ -512,7 +512,7 @@
                   <button
                     type="button"
                     data-reader-bookmark-toggle
-                    aria-label="Add bookmark"
+                    aria-label="Bookmark"
                     aria-controls="reader-preview-annotations"
                     aria-pressed="false"
                   >
@@ -696,6 +696,7 @@
                 </footer>
               </aside>
 
+              <div data-reader-passage-descriptions></div>
               <div class="sr-only" data-reader-annotation-status aria-live="polite"></div>
               <div class="reader-demo__page-count" data-reader-page-count>68% · 214 / 315</div>
             </div>
@@ -704,19 +705,36 @@
               <p>Reading controls</p>
               <div class="reader-console__group">
                 <span>Theme</span>
-                <div class="reader-theme-switch" role="group" aria-label="Reader theme">
+                <div class="reader-theme-switch" role="radiogroup" aria-label="Reader theme">
                   <button
                     type="button"
                     class="active"
                     data-reader-theme="dark"
+                    role="radio"
+                    aria-checked="true"
+                    tabindex="0"
                     aria-label="Dark theme"
                   >
                     <svg aria-hidden="true"><use href="#icon-moon" /></svg>
                   </button>
-                  <button type="button" data-reader-theme="sepia" aria-label="Sepia theme">
+                  <button
+                    type="button"
+                    data-reader-theme="sepia"
+                    role="radio"
+                    aria-checked="false"
+                    tabindex="-1"
+                    aria-label="Sepia theme"
+                  >
                     S
                   </button>
-                  <button type="button" data-reader-theme="light" aria-label="Light theme">
+                  <button
+                    type="button"
+                    data-reader-theme="light"
+                    role="radio"
+                    aria-checked="false"
+                    tabindex="-1"
+                    aria-label="Light theme"
+                  >
                     <svg aria-hidden="true"><use href="#icon-sun" /></svg>
                   </button>
                 </div>
@@ -863,6 +881,13 @@
 <span class="prompt">❯</span> cd archeion
 <span class="prompt">❯</span> npm install
 <span class="prompt">❯</span> npm run tauri:dev</code></pre>
+            <p
+              class="sr-only"
+              data-copy-status
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            ></p>
             <div class="terminal-card__status">
               <span></span>Prefer the source? Clone, install, and run Archeion locally.
             </div>

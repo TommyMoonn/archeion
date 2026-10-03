@@ -438,11 +438,34 @@
   const readerSize = document.querySelector("#reader-size");
   const readerSizeOutput = document.querySelector("#reader-size-output");
 
-  themeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const theme = button.dataset.readerTheme || "dark";
-      readerDemo?.setAttribute("data-theme", theme);
-      themeButtons.forEach((item) => item.classList.toggle("active", item === button));
+  const selectReaderTheme = (button) => {
+    readerDemo?.setAttribute("data-theme", button.dataset.readerTheme || "dark");
+    themeButtons.forEach((item) => {
+      const selected = item === button;
+      item.classList.toggle("active", selected);
+      item.setAttribute("aria-checked", String(selected));
+      item.tabIndex = selected ? 0 : -1;
+    });
+  };
+
+  themeButtons.forEach((button, index) => {
+    button.addEventListener("click", () => selectReaderTheme(button));
+    button.addEventListener("keydown", (event) => {
+      let nextIndex;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        nextIndex = (index + 1) % themeButtons.length;
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        nextIndex = (index - 1 + themeButtons.length) % themeButtons.length;
+      } else if (event.key === "Home") {
+        nextIndex = 0;
+      } else if (event.key === "End") {
+        nextIndex = themeButtons.length - 1;
+      } else {
+        return;
+      }
+      event.preventDefault();
+      selectReaderTheme(themeButtons[nextIndex]);
+      themeButtons[nextIndex].focus();
     });
   });
 
@@ -544,6 +567,7 @@
   const noteStatus = document.querySelector("[data-reader-note-status]");
   const noteDeleteButton = document.querySelector("[data-reader-note-delete]");
   const annotationStatus = document.querySelector("[data-reader-annotation-status]");
+  const passageDescriptions = document.querySelector("[data-reader-passage-descriptions]");
   const annotationHint = document.querySelector("[data-reader-annotation-hint]");
 
   const highlightColors = {
@@ -596,26 +620,36 @@
     if (!(bookmarkButton instanceof HTMLButtonElement)) return;
     const active = bookmarks.has(readerPageIndex);
     bookmarkButton.setAttribute("aria-pressed", String(active));
-    bookmarkButton.setAttribute("aria-label", active ? "Remove bookmark" : "Add bookmark");
     bookmarkButton.title = active ? "Remove bookmark" : "Add bookmark";
   };
 
   const hydrateReaderAnnotations = () => {
     readerPageCopy?.querySelectorAll("[data-reader-annotatable]").forEach((target) => {
-      if (!(target instanceof HTMLElement)) return;
+      if (!(target instanceof HTMLElement) || !(passageDescriptions instanceof HTMLElement)) return;
       const key = target.dataset.annotationKey;
-      const annotation = key ? highlights.get(key) : undefined;
+      if (!key) return;
+      const annotation = highlights.get(key);
+      const descriptionId = `reader-passage-${key}-description`;
+      let description = document.getElementById(descriptionId);
+      if (!description) {
+        description = document.createElement("span");
+        description.id = descriptionId;
+        description.className = "sr-only";
+        description.setAttribute("data-reader-passage-description", "");
+        passageDescriptions.append(description);
+      }
+      target.setAttribute("aria-describedby", descriptionId);
       if (annotation) {
         target.dataset.highlight = annotation.color;
         target.dataset.hasNote = annotation.note ? "true" : "false";
-        target.setAttribute(
-          "aria-label",
-          annotation.note ? "Highlighted passage with note" : "Highlighted passage",
-        );
+        const color = annotation.color[0].toUpperCase() + annotation.color.slice(1);
+        description.textContent = annotation.note
+          ? `${color} highlight with note. Select to change the highlight or edit the note.`
+          : `${color} highlight. Select to change the highlight or add a note.`;
       } else {
         delete target.dataset.highlight;
         delete target.dataset.hasNote;
-        target.setAttribute("aria-label", "Highlight this passage");
+        description.textContent = "Select to highlight this passage or add a note.";
       }
     });
   };
@@ -800,6 +834,7 @@
     closeHighlightPalette();
     readerPageCopy.dataset.readerPageVariant = page.variant;
     readerPageCopy.innerHTML = page.content;
+    passageDescriptions?.replaceChildren();
     if (readerChapterLabel) readerChapterLabel.textContent = page.chapterLabel;
     if (readerProgress instanceof HTMLElement) readerProgress.style.width = `${page.progress}%`;
     if (readerPageCount)
@@ -1002,6 +1037,8 @@
   renderReaderPage(readerPageIndex);
 
   const copyButton = document.querySelector("[data-copy-command]");
+  const copyStatus = document.querySelector("[data-copy-status]");
+  let copyResetTimer = 0;
   const setupCommand = [
     "git clone https://github.com/TommyMoonn/archeion.git",
     "cd archeion",
@@ -1021,26 +1058,44 @@
     textarea.style.position = "fixed";
     textarea.style.opacity = "0";
     document.body.append(textarea);
-    textarea.select();
-    const copied = document.execCommand("copy");
-    textarea.remove();
-    if (!copied) throw new Error("Copy command was unavailable.");
+    const previousFocus = document.activeElement;
+    try {
+      textarea.select();
+      if (!document.execCommand("copy")) throw new Error("Copy command was unavailable.");
+    } finally {
+      textarea.remove();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    }
   };
 
   copyButton?.addEventListener("click", async () => {
+    if (copyButton.getAttribute("aria-busy") === "true") return;
+    copyButton.setAttribute("aria-busy", "true");
+    window.clearTimeout(copyResetTimer);
     const label = copyButton.querySelector("span");
     const use = copyButton.querySelector("use");
+    if (label) label.textContent = "Copy";
+    use?.setAttribute("href", "#icon-copy");
+    if (copyStatus) copyStatus.textContent = "Copying setup commands…";
     try {
       await writeClipboard(setupCommand);
       if (label) label.textContent = "Copied";
+      if (copyStatus) copyStatus.textContent = "Setup commands copied.";
       use?.setAttribute("href", "#icon-check");
-      window.setTimeout(() => {
+      copyResetTimer = window.setTimeout(() => {
         if (label) label.textContent = "Copy";
         use?.setAttribute("href", "#icon-copy");
       }, 1800);
     } catch {
       if (label) label.textContent = "Select text";
-      document.querySelector("#setup-command")?.parentElement?.focus?.();
+      if (copyStatus) {
+        copyStatus.textContent =
+          "Unable to copy setup commands. Select the commands and copy them manually.";
+      }
+    } finally {
+      copyButton.removeAttribute("aria-busy");
     }
   });
 })();
