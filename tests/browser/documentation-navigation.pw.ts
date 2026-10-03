@@ -88,9 +88,9 @@ test("generated sidebar metadata remains usable by documentation search", async 
   await page.goto("/docs/documentation/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Search documentation", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Search documentation", exact: true });
-  await dialog
-    .getByRole("searchbox", { name: "Search documentation pages", exact: true })
-    .fill("application-wide preferences");
+  const input = dialog.getByRole("searchbox", { name: "Search documentation pages", exact: true });
+  await expect(input).toBeFocused();
+  await input.fill("application-wide preferences");
   const result = dialog.getByRole("link", { name: /Settings/ });
   await expect(result).toHaveCount(1);
   await result.press("Enter");
