@@ -49,7 +49,8 @@ describe("semantic documentation articles", () => {
       expect(text(callout.querySelector("strong")!)).toBeTruthy();
     }
     for (const instruction of article.querySelectorAll("ol li > strong:first-child")) {
-      expect(instruction.nextSibling?.textContent).toMatch(/^\s/);
+      // Inline labels may end a sentence; punctuation separates words just as whitespace does.
+      expect(instruction.nextSibling?.textContent).toMatch(/^(?:\s|[.,:;!?])/);
     }
     let level = 1;
     for (const heading of article.querySelectorAll("h2, h3")) {

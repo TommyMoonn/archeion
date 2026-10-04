@@ -406,7 +406,12 @@ describe("documentation navigation contract", () => {
       route: "/guides/new-guide/",
       title: "New guide & details",
       group: "using-archeion",
-      order: 9,
+      order:
+        Math.max(
+          ...data.pages
+            .filter((entry) => entry.group === "using-archeion")
+            .map((entry) => entry.order),
+        ) + 1,
       type: "troubleshooting",
       sourcePath: "docs/documentation/guides/new-guide/index.html",
     };

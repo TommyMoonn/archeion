@@ -4,9 +4,12 @@
   <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
-    <meta content="Copy or move EPUB files into the active archive." name="description" />
+    <meta
+      content="Find and run commands for the current Library, Reader, or Settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
+      name="description"
+    />
     <meta content="#171717" name="theme-color" />
-    <title>Add EPUB files | Archeion Docs</title>
+    <title>Quick Actions | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -167,18 +170,17 @@
             <a
               data-doc-link=""
               data-search="installation install archeion download and install archeion on windows."
-              href="../installing/"
+              href="../../getting-started/installing/"
               ><span>Installation</span></a
             ><a
               data-doc-link=""
               data-search="open or create an archive open or create an archive choose the folder archeion will use for your epub library."
-              href="../archives/"
+              href="../../getting-started/archives/"
               ><span>Open or create an archive</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="add epub files add epub files add books to the active archive by copying or moving them."
-              href="./"
+              href="../../getting-started/adding-books/"
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -200,57 +202,58 @@
             <a
               data-doc-link=""
               data-search="library browse and organize the library find books, use folders and series, change the layout, and manage one or more books."
-              href="../../guides/library/"
+              href="../library/"
               ><span>Library</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
-              href="../../guides/quick-actions/"
+              href="./"
               ><span>Quick Actions</span></a
             ><a
               data-doc-link=""
               data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
-              href="../../guides/metadata-covers/"
+              href="../metadata-covers/"
               ><span>Metadata and covers</span></a
             ><a
               data-doc-link=""
               data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
-              href="../../guides/series/"
+              href="../series/"
               ><span>Series</span></a
             ><a
               data-doc-link=""
               data-search="reader and annotations read and annotate navigate books, adjust the reader, and manage bookmarks, highlights, and notes."
-              href="../../guides/reading/"
+              href="../reading/"
               ><span>Reader and annotations</span></a
             ><a
               data-doc-link=""
               data-search="reader navigation and progress navigate and track reading progress find text, move through epub navigation, retrace reader jumps, and seek by progress."
-              href="../../guides/reader-navigation/"
+              href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
               data-search="footnotes and illustrations open footnotes and illustrations read linked notes without losing your place and inspect supported book images closely."
-              href="../../guides/reader-media/"
+              href="../reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
               data-doc-link=""
               data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="../../guides/file-management/"
+              href="../file-management/"
               ><span>File management</span></a
             ><a
               data-doc-link=""
               data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
-              href="../../guides/settings/"
+              href="../settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
               data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
-              href="../../guides/dictionaries/"
+              href="../dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
               data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
-              href="../../guides/keyboard-shortcuts/"
+              href="../keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
           </div>
@@ -318,142 +321,176 @@
     </aside>
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
-        <article class="doc-article" data-doc-article="" data-page-type="getting-started">
+        <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
-            <h1>Add EPUB files</h1>
-            <p>Add books to the active archive by copying or moving them.</p>
+            <h1>Quick Actions</h1>
+            <p>
+              Find and run commands for the current Library, Reader, or Settings window, switch
+              archives, and choose collection or appearance options without leaving the keyboard.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Use <strong>Add EPUB</strong> when you want Archeion to place books in the archive for
-            you.
-          </p>
           <div class="article-heading">
-            <h2 id="add-in-archeion">Add books in Archeion</h2>
+            <h2 id="open">Open Quick Actions</h2>
             <a
               class="heading-permalink"
-              href="#add-in-archeion"
-              aria-label="Link to section: Add books in Archeion"
+              href="#open"
+              aria-label="Link to section: Open Quick Actions"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <p>
+            Press <kbd>Ctrl + Shift + P</kbd> to open Quick Actions. In the Library, you can also
+            select <strong>Open Quick Actions</strong> in the titlebar. The Reader uses the shortcut
+            rather than a dedicated palette button. Focus starts in
+            <strong>Search Quick Actions</strong>, ready for you to type a command or destination.
+          </p>
+          <p>
+            The shortcut is configurable under <strong>Settings → Keyboard</strong>. If you have
+            changed or cleared it, use your current binding or the Library titlebar control. See
+            <a href="../keyboard-shortcuts/#customize">Keyboard shortcuts</a> for rebinding,
+            conflicts, and resets.
+          </p>
           <div class="article-heading">
-            <h3 id="choose-files">Choose files and a destination</h3>
+            <h2 id="run">Find and run a command</h2>
             <a
               class="heading-permalink"
-              href="#choose-files"
-              aria-label="Link to section: Choose files and a destination"
+              href="#run"
+              aria-label="Link to section: Find and run a command"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <ol>
-            <li><strong>Select Add EPUB.</strong> The button is in the Library toolbar.</li>
             <li>
-              <strong>Choose one or more files.</strong> Select the <code>.epub</code> files you
-              want to add.
+              Type part of an action or destination, such as <strong>Search books</strong> or
+              <strong>Go to Library</strong>. An empty search shows commands, including recently
+              used actions.
             </li>
             <li>
-              <strong>Choose a destination.</strong> Add EPUB starts at the archive root. Choose an
-              existing folder if this import belongs there.
+              Use <kbd>Up Arrow</kbd> and <kbd>Down Arrow</kbd> to move through results.
+              <kbd>Home</kbd> and <kbd>End</kbd> select the first and last result;
+              <kbd>Page Up</kbd> and <kbd>Page Down</kbd> move by a visible group of results.
             </li>
             <li>
-              <strong>Choose what to do with filename conflicts.</strong> Select the option you want
-              when a file with the same name already exists.
-            </li>
-            <li>
-              <strong>Select Copy or Move.</strong> Copy keeps the original file. Move transfers it
-              into the archive.
-            </li>
-            <li>
-              <strong>Confirm Add EPUB.</strong> Archeion adds the files and refreshes the Library.
+              Press <kbd>Enter</kbd> to run the selected command, or select its result with a
+              pointer. A navigation command takes you to its destination; other commands can open an
+              existing dialog or a list of options.
             </li>
           </ol>
-          <div class="article-heading">
-            <h3 id="copy-or-move">Copy or move</h3>
-            <a
-              class="heading-permalink"
-              href="#copy-or-move"
-              aria-label="Link to section: Copy or move"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
           <p>
-            Use <strong>Copy</strong> when you want to keep the original file. Use
-            <strong>Move</strong> when the archive should become the file's new location. The
-            default import mode and filename-conflict choice come from application-wide
-            <strong>Archives</strong> settings. A destination chosen in the dialog applies to that
-            import only.
+            An unavailable command shows a reason and cannot run. Availability changes with the
+            active archive, Library view, Reader state, and operations already in progress. If there
+            are no matching commands, shorten or clear the search.
           </p>
-          <div class="notice" role="note">
-            <strong>Check the destination before moving files</strong>
-            <p>A move removes the source file after it has been placed in the archive.</p>
-          </div>
-          <div class="article-heading">
-            <h2 id="existing-filenames">Handle existing filenames</h2>
-            <a
-              class="heading-permalink"
-              href="#existing-filenames"
-              aria-label="Link to section: Handle existing filenames"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
           <p>
-            When the destination already contains the same filename, use the conflict option shown
-            in the dialog. Review replacement confirmations carefully because replacing a file is
-            destructive.
+            Press <kbd>Escape</kbd> in the command list to close the palette. Dismissal returns
+            focus to the originating control when it is still available; running a command lets its
+            destination or dialog take focus. Selecting the backdrop also closes the palette.
           </p>
           <div class="article-heading">
-            <h2 id="organize-books">Organize books</h2>
+            <h2 id="context">Choose an action for the current context</h2>
             <a
               class="heading-permalink"
-              href="#organize-books"
-              aria-label="Link to section: Organize books"
+              href="#context"
+              aria-label="Link to section: Choose an action for the current context"
               ><span aria-hidden="true">#</span></a
             >
           </div>
-          <div class="article-heading">
-            <h3 id="create-folders">Create a folder first</h3>
-            <a
-              class="heading-permalink"
-              href="#create-folders"
-              aria-label="Link to section: Create a folder first"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
+          <ul>
+            <li>
+              <strong>Archive and settings</strong>: <strong>Open current archive folder</strong>,
+              <strong>Switch archive…</strong>, <strong>Open Archive Manager</strong>, and
+              <strong>Open Settings</strong>. Revealing the current archive requires an open
+              archive; switching offers other registered archives.
+            </li>
+            <li>
+              <strong>Library</strong>: navigation to Library, Favorites, Folders, and Series;
+              <strong>Search books</strong>, <strong>Add EPUBs</strong>,
+              <strong>Create folder</strong>, and <strong>Rescan archive</strong>. Continue,
+              Duplicates, and EPUB Issues navigation appears only when those destinations are
+              enabled. Search and collection display commands depend on the current view.
+            </li>
+            <li>
+              <strong>Collection display</strong>: <strong>Change view…</strong>,
+              <strong>Change sort…</strong>, and <strong>Change card size…</strong> for books, with
+              Folder and Series variants in their respective views. Card size is offered in Grid
+              view, not List view.
+            </li>
+            <li>
+              <strong>Reader</strong>: navigation back to Library destinations, book navigation,
+              annotations, bookmarks, and Reader settings. Commands that need a usable book location
+              are unavailable until that state exists. Reading-history and page-turn controls stay
+              in the Reader rather than palette results. See
+              <a href="../reader-navigation/">Reader navigation and progress</a> for the reading
+              actions themselves.
+            </li>
+            <li>
+              <strong>Settings window</strong>: the opening shortcut also works in standalone
+              Settings after it has loaded. Shared archive and appearance actions remain available
+              where their requirements are met; Library and Reader commands are absent. To find a
+              setting rather than run a command, use the window's settings search.
+            </li>
+            <li>
+              <strong>Appearance</strong>: <strong>Change theme…</strong>,
+              <strong>Change display density…</strong>, and <strong>Turn animations on</strong> or
+              <strong>Turn animations off</strong>. Theme selection requires an active archive.
+            </li>
+          </ul>
           <p>
-            Use the plus button beside <strong>Folders</strong> in the Library sidebar. The new
-            folder can then be selected as the destination when adding books.
+            The palette is not a fixed inventory of every app control. Its commands follow the
+            active Library, Reader, or Settings window. <strong>Open Settings</strong> opens the
+            standalone Settings window; <strong>Search shortcuts</strong> in its Keyboard section
+            finds bindings, not commands to execute.
           </p>
           <div class="article-heading">
-            <h3 id="add-with-explorer">Add files with Windows Explorer</h3>
+            <h2 id="options">Select options and confirm previews</h2>
             <a
               class="heading-permalink"
-              href="#add-with-explorer"
-              aria-label="Link to section: Add files with Windows Explorer"
+              href="#options"
+              aria-label="Link to section: Select options and confirm previews"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            You can copy EPUB files directly into the archive folder. Archeion normally detects the
-            change. Use <strong>Rescan archive</strong> from the Library toolbar when a new or moved
-            file does not appear.
+            Commands ending in an ellipsis can open a nested option list. Search and navigate it
+            with the same keys, then press <kbd>Enter</kbd> to select an option.
+            <kbd>Escape</kbd> returns to the command list; press it again to close the palette.
+            <kbd>Backspace</kbd> also returns to the command list when the option search is empty.
+          </p>
+          <p>
+            <strong>Change theme…</strong> previews the highlighted theme. A preview is not a saved
+            choice: confirm the option to keep it. Leaving the theme list or dismissing the palette
+            discards an unconfirmed preview. If contrast warnings appear on confirmation, review the
+            warning and select the same theme again only if you intend to apply it anyway. See
+            <a href="../../customization/theme-manager/">Theme Manager</a> for managing installed
+            themes.
+          </p>
+          <p>
+            Collection display and density options commit on selection rather than merely on
+            highlighting. If an archive cannot open, check that its folder is available and retry.
+            If a setting works for this session but cannot be saved, read the feedback and retry
+            before closing if you want it retained. The palette keeps retryable failures visible
+            instead of reporting success.
+          </p>
+          <p>
+            The keys used inside the palette are fixed interaction keys, separate from configurable
+            command shortcuts. The
+            <a href="../keyboard-shortcuts/#fixed">Keyboard shortcuts reference</a> explains that
+            distinction.
           </p>
         </article>
         <!-- docs-pager:start -->
         <nav aria-label="Documentation pages" class="article-pager">
-          <a
-            class="article-pager__item article-pager__item--previous"
-            rel="prev"
-            href="../archives/"
-            ><span>Previous</span><strong>Open or create an archive</strong></a
+          <a class="article-pager__item article-pager__item--previous" rel="prev" href="../library/"
+            ><span>Previous</span><strong>Library</strong></a
           ><a
             class="article-pager__item article-pager__item--next"
             rel="next"
-            href="../../guides/library/"
-            ><span>Next</span><strong>Library</strong></a
+            href="../metadata-covers/"
+            ><span>Next</span><strong>Metadata and covers</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -463,7 +500,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/getting-started/adding-books/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/quick-actions/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a

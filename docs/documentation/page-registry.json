@@ -55,11 +55,29 @@
       "sourcePath": "docs/documentation/guides/library/index.html"
     },
     {
+      "id": "quick-actions",
+      "route": "/guides/quick-actions/",
+      "title": "Quick Actions",
+      "group": "using-archeion",
+      "order": 1,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/quick-actions/index.html"
+    },
+    {
+      "id": "metadata-covers",
+      "route": "/guides/metadata-covers/",
+      "title": "Metadata and covers",
+      "group": "using-archeion",
+      "order": 2,
+      "type": "guide",
+      "sourcePath": "docs/documentation/guides/metadata-covers/index.html"
+    },
+    {
       "id": "series",
       "route": "/guides/series/",
       "title": "Series",
       "group": "using-archeion",
-      "order": 1,
+      "order": 3,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/series/index.html"
     },
@@ -68,7 +86,7 @@
       "route": "/guides/reading/",
       "title": "Reader and annotations",
       "group": "using-archeion",
-      "order": 2,
+      "order": 4,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/reading/index.html"
     },
@@ -77,7 +95,7 @@
       "route": "/guides/reader-navigation/",
       "title": "Reader navigation and progress",
       "group": "using-archeion",
-      "order": 3,
+      "order": 5,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/reader-navigation/index.html"
     },
@@ -86,7 +104,7 @@
       "route": "/guides/reader-media/",
       "title": "Footnotes and illustrations",
       "group": "using-archeion",
-      "order": 4,
+      "order": 6,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/reader-media/index.html"
     },
@@ -95,7 +113,7 @@
       "route": "/guides/file-management/",
       "title": "File management",
       "group": "using-archeion",
-      "order": 5,
+      "order": 7,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/file-management/index.html"
     },
@@ -104,7 +122,7 @@
       "route": "/guides/settings/",
       "title": "Settings",
       "group": "using-archeion",
-      "order": 6,
+      "order": 8,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/settings/index.html"
     },
@@ -113,7 +131,7 @@
       "route": "/guides/dictionaries/",
       "title": "Dictionaries and Define",
       "group": "using-archeion",
-      "order": 7,
+      "order": 9,
       "type": "guide",
       "sourcePath": "docs/documentation/guides/dictionaries/index.html"
     },
@@ -122,7 +140,7 @@
       "route": "/guides/keyboard-shortcuts/",
       "title": "Keyboard shortcuts",
       "group": "using-archeion",
-      "order": 8,
+      "order": 10,
       "type": "reference",
       "sourcePath": "docs/documentation/guides/keyboard-shortcuts/index.html"
     },
