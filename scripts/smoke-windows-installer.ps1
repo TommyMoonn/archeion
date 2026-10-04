@@ -124,11 +124,15 @@ function Invoke-SilentExecutable {
     }
 }
 
+Write-CliHeading 'Windows installer smoke'
+Write-CliDetail -Label 'Installer' -Value $installer -ValueTone 'Important'
+
 try {
     New-Item -ItemType Directory -Path $scratch -ErrorAction Stop | Out-Null
-    Write-Host "Installing $installer into $installDirectory"
+    Write-CliStep -Current 1 -Total 4 -Message 'Installing isolated copy'
     Invoke-SilentExecutable -FilePath $installer -Arguments @('/S', '/NS', "/D=$installDirectory") -Operation 'NSIS install'
 
+    Write-CliStep -Current 2 -Total 4 -Message 'Verifying installation'
     foreach ($path in @($application, $uninstaller)) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -eq 0) {
             throw "NSIS install did not create the expected file: $path"
@@ -148,7 +152,6 @@ try {
     if ($versionInfo.ProductName -ne 'Archeion') {
         throw "Installed executable has unexpected product metadata: '$($versionInfo.ProductName)'."
     }
-    Write-Host "Verified installed executable, embedded product metadata, uninstaller, and registry at $installDirectory"
 }
 catch {
     $failure = $_
@@ -163,7 +166,7 @@ finally {
             if (-not [string]::Equals($registeredLocation, $installDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
                 throw "Refusing to uninstall: registered location '$registeredLocation' is not the isolated smoke location."
             }
-            Write-Host "Uninstalling $installDirectory"
+            Write-CliStep -Current 3 -Total 4 -Message 'Uninstalling'
             Invoke-SilentExecutable -FilePath $uninstaller -Arguments @('/S') -Operation 'NSIS uninstall'
             # NSIS can finish deleting its copied uninstaller shortly after the parent exits.
             for ($attempt = 0; $attempt -lt 50; $attempt++) {
@@ -187,6 +190,7 @@ finally {
     }
 
     if (-not $cleanupFailure) {
+        Write-CliStep -Current 4 -Total 4 -Message 'Verifying cleanup'
         if ((Test-Path -LiteralPath $application) -or (Test-Path -LiteralPath $uninstallKey)) {
             $cleanupFailure = 'Uninstall left the Archeion executable or uninstall registration behind.'
         }
@@ -213,4 +217,4 @@ if ($cleanupFailure) {
 if ($failure) {
     throw $failure
 }
-Write-Host 'Windows NSIS install/uninstall smoke passed.'
+Write-CliSuccess 'Windows installer smoke passed'

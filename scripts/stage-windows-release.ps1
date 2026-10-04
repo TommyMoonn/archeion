@@ -32,6 +32,8 @@ $ProjectRoot = $cli['project']
 
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 
+Write-CliHeading "Stage Windows release"
+Write-CliStep -Current 1 -Total 4 -Message "Validating release metadata"
 & (Join-Path $PSScriptRoot "check-release.ps1") '--project' $ProjectRoot
 
 if ([string]::IsNullOrWhiteSpace($BundleRoot)) {
@@ -50,6 +52,7 @@ if ([string]::IsNullOrWhiteSpace($version)) {
     throw "package.json does not contain a release version."
 }
 
+Write-CliStep -Current 2 -Total 4 -Message "Locating Windows installers"
 $nsisDirectory = Join-Path $BundleRoot "nsis"
 $msiDirectory = Join-Path $BundleRoot "msi"
 $nsisInstallers = @(Get-ChildItem -Path $nsisDirectory -Filter "*-setup.exe" -File -ErrorAction Stop)
@@ -69,6 +72,7 @@ foreach ($installer in @($nsisInstallers[0], $msiInstallers[0])) {
     }
 }
 
+Write-CliStep -Current 3 -Total 4 -Message "Staging installers"
 if (Test-Path $OutputDirectory) {
     Remove-Item -Path $OutputDirectory -Recurse -Force
 }
@@ -90,6 +94,7 @@ foreach ($file in $stagedFiles) {
     Copy-Item -Path $file.Source -Destination (Join-Path $OutputDirectory $file.Name)
 }
 
+Write-CliStep -Current 4 -Total 4 -Message "Writing checksum manifest"
 $checksumLines = foreach ($file in $stagedFiles) {
     $stagedPath = Join-Path $OutputDirectory $file.Name
     $hash = (Get-FileHash -Path $stagedPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -99,5 +104,12 @@ $checksumLines = foreach ($file in $stagedFiles) {
 $checksumPath = Join-Path $OutputDirectory "SHA256SUMS.txt"
 Set-Content -Path $checksumPath -Value $checksumLines -Encoding ascii
 
-Write-Host "Staged Windows release artifacts in $OutputDirectory"
-Get-ChildItem -Path $OutputDirectory -File | Select-Object Name, Length
+$stagedExe = Get-Item -LiteralPath (Join-Path $OutputDirectory "Archeion-Setup-x64.exe")
+$stagedMsi = Get-Item -LiteralPath (Join-Path $OutputDirectory "Archeion-x64.msi")
+$stagedChecksums = Get-Item -LiteralPath $checksumPath
+
+Write-CliSuccess "Windows release staged"
+Write-CliDetail -Label "EXE" -Value "$($stagedExe.Name) ($(Format-CliByteSize -Bytes $stagedExe.Length))"
+Write-CliDetail -Label "MSI" -Value "$($stagedMsi.Name) ($(Format-CliByteSize -Bytes $stagedMsi.Length))"
+Write-CliDetail -Label "Checksums" -Value "$($stagedChecksums.Name) ($(Format-CliByteSize -Bytes $stagedChecksums.Length))"
+Write-CliDetail -Label "Output" -Value $OutputDirectory -ValueTone 'Important'

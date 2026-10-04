@@ -95,13 +95,17 @@ $cargoLockVersionPattern = [regex]::new(
 )
 $tauriVersionPattern = [regex]::new('(?m)(^\s*"version"\s*:\s*")[^"]+("\s*,?\s*$)')
 
+Write-CliHeading "Updating Archeion to $Version"
+
 Push-Location $ProjectRoot
 try {
-    & npm version $Version --no-git-tag-version --allow-same-version | Out-Host
+    Write-CliStep -Current 1 -Total 4 -Message "Updating npm metadata"
+    & npm version $Version --no-git-tag-version --allow-same-version | Out-Null
     if ($LASTEXITCODE -ne 0) {
         throw "npm failed to update package.json and package-lock.json."
     }
 
+    Write-CliStep -Current 2 -Total 4 -Message "Updating Cargo metadata"
     $cargoToml = Get-Content -Raw -LiteralPath $paths.CargoToml
     $updatedCargoToml = Set-FirstRegexValue `
         -Source $cargoToml `
@@ -118,6 +122,7 @@ try {
         -Description "src-tauri/Cargo.lock Archeion package.version"
     [System.IO.File]::WriteAllText($paths.CargoLock, $updatedCargoLock, $utf8WithoutBom)
 
+    Write-CliStep -Current 3 -Total 4 -Message "Updating Tauri configuration"
     $tauriConfig = Get-Content -Raw -LiteralPath $paths.TauriConfig
     $updatedTauriConfig = Set-FirstRegexValue `
         -Source $tauriConfig `
@@ -126,6 +131,7 @@ try {
         -Description "src-tauri/tauri.conf.json version"
     [System.IO.File]::WriteAllText($paths.TauriConfig, $updatedTauriConfig, $utf8WithoutBom)
 
+    Write-CliStep -Current 4 -Total 4 -Message "Validating release metadata"
     & cargo metadata `
         --locked `
         --manifest-path $paths.CargoToml `
@@ -137,15 +143,25 @@ try {
 
     & (Join-Path $PSScriptRoot "check-release.ps1") '--project' $ProjectRoot
 
-    Write-Host "Updated Archeion to version $Version."
-    Write-Host "Add the dated changelog section before creating the release tag."
+    Write-CliSuccess "Version update complete"
+    Write-CliDetail -Label "Version" -Value $Version
+    Write-CliDetail -Label "Next" -Value "Add the dated changelog section before creating the release tag."
 }
 catch {
-    foreach ($entry in $paths.GetEnumerator()) {
-        [System.IO.File]::WriteAllText($entry.Value, [string]$backups[$entry.Key], $utf8WithoutBom)
+    $updateFailure = $_
+
+    try {
+        foreach ($entry in $paths.GetEnumerator()) {
+            [System.IO.File]::WriteAllText($entry.Value, [string]$backups[$entry.Key], $utf8WithoutBom)
+        }
+    }
+    catch {
+        $restoreFailure = $_
+        throw "Version update failed: $($updateFailure.Exception.Message) Restoring the original version files also failed: $($restoreFailure.Exception.Message)"
     }
 
-    throw
+    Write-CliWarning "Version update failed. Original version files were restored."
+    throw $updateFailure
 }
 finally {
     Pop-Location
