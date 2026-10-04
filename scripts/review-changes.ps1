@@ -167,6 +167,9 @@ if ($insideWorkTree -ne "true") {
 
 [void](Invoke-GitRaw -Arguments @("rev-parse", "--verify", "HEAD"))
 
+$branchResult = Invoke-GitRaw -Arguments @("symbolic-ref", "--quiet", "--short", "HEAD") -AllowFailure
+$branchName = if ($branchResult.ExitCode -eq 0) { $branchResult.StdOut.Trim() } else { $null }
+
 $trackedChanges = @(Get-TrackedChanges)
 $untrackedPaths = @(Get-NulSeparatedPaths -Arguments @("ls-files", "--others", "--exclude-standard", "-z"))
 $stagedPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
@@ -192,11 +195,6 @@ foreach ($path in $untrackedPaths) {
     })
 }
 
-if ($allChanges.Count -eq 0) {
-    Write-Host "Working tree is clean."
-    exit 0
-}
-
 $statusLabels = @{
     "A" = "Added"
     "C" = "Copied"
@@ -208,30 +206,38 @@ $statusLabels = @{
     "?" = "Untracked"
 }
 
-Write-Host "Change review"
-Write-Host "Project: $ProjectRoot"
-Write-Host ""
-Write-Host "Summary"
+Write-CliHeading -Text "Change review"
+Write-CliDetail -Label "Project" -Value $ProjectRoot -ValueTone 'Important'
+if (-not [string]::IsNullOrWhiteSpace($branchName)) {
+    Write-CliDetail -Label "Branch" -Value $branchName
+}
 
+Write-Host ""
+Write-CliHeading -Text "Summary"
 foreach ($status in @("A", "M", "D", "R", "C", "T", "U", "?")) {
     $count = @($allChanges | Where-Object Status -eq $status).Count
     if ($count -gt 0) {
-        Write-Host ("  {0,-13} {1}" -f $statusLabels[$status], $count)
+        Write-CliDetail -Label $statusLabels[$status] -Value ([string]$count)
     }
 }
+Write-CliDetail -Label "Staged" -Value ([string]$stagedPaths.Count)
+Write-CliDetail -Label "Unstaged" -Value ([string]$unstagedPaths.Count)
+Write-CliDetail -Label "Total" -Value ([string]$allChanges.Count)
 
-Write-Host ("  {0,-13} {1}" -f "Staged", $stagedPaths.Count)
-Write-Host ("  {0,-13} {1}" -f "Unstaged", $unstagedPaths.Count)
-Write-Host ("  {0,-13} {1}" -f "Total", $allChanges.Count)
+if ($allChanges.Count -eq 0) {
+    Write-Host ""
+    Write-CliSuccess -Message "Working tree is clean"
+    exit 0
+}
 
 Write-Host ""
-Write-Host "Areas"
+Write-CliHeading -Text "Areas"
 $categoryGroups = $allChanges |
     Group-Object { Get-Category -Path $_.Path } |
     Sort-Object Name
 
 foreach ($group in $categoryGroups) {
-    Write-Host ("  {0,-16} {1}" -f $group.Name, $group.Count)
+    Write-CliDetail -Label $group.Name -Value ([string]$group.Count)
 }
 
 $flags = [System.Collections.Generic.List[string]]::new()
@@ -261,7 +267,7 @@ foreach ($change in $allChanges | Where-Object Status -ne "D") {
     if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
         $item = Get-Item -LiteralPath $fullPath
         if ($item.Length -ge 1MB) {
-            $largeFiles.Add("$($change.Path) ($([math]::Round($item.Length / 1MB, 2)) MB)")
+            $largeFiles.Add("$($change.Path) ($(Format-CliByteSize -Bytes $item.Length))")
         }
     }
 }
@@ -300,30 +306,30 @@ if ($unstagedWhitespace.ExitCode -ne 0 -or $stagedWhitespace.ExitCode -ne 0) {
 }
 
 Write-Host ""
-Write-Host "Review flags"
+Write-CliHeading -Text "Review flags"
 if ($flags.Count -eq 0) {
-    Write-Host "  None detected."
+    Write-CliSuccess -Message "No review flags detected"
 }
 else {
     foreach ($flag in $flags) {
-        Write-Host "  - $flag"
+        Write-CliWarning -Message $flag
     }
 }
 
 if ($Detailed) {
     Write-Host ""
-    Write-Host "Files"
+    Write-CliHeading -Text "Files"
     foreach ($change in $allChanges | Sort-Object Path) {
         $label = $statusLabels[$change.Status]
         if ($change.Status -eq "R" -or $change.Status -eq "C") {
-            Write-Host ("  {0,-13} {1} -> {2}" -f $label, $change.OldPath, $change.Path)
+            Write-CliStatus -Label $label -Message "$($change.OldPath) -> $($change.Path)" -MessageTone 'Important'
         }
         else {
-            Write-Host ("  {0,-13} {1}" -f $label, $change.Path)
+            Write-CliStatus -Label $label -Message $change.Path -MessageTone 'Important'
         }
     }
 }
 else {
     Write-Host ""
-    Write-Host "Run with --files to list every changed path."
+    Write-CliDetail -Label "Files" -Value "Use --files to list every changed path." -ValueTone 'Muted'
 }

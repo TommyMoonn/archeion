@@ -96,27 +96,6 @@ function Get-PathSize {
     return [long]$measurement.Sum
 }
 
-function Format-ByteSize {
-    param(
-        [Parameter(Mandatory)]
-        [long]$Bytes
-    )
-
-    if ($Bytes -ge 1GB) {
-        return "{0:N2} GB" -f ($Bytes / 1GB)
-    }
-
-    if ($Bytes -ge 1MB) {
-        return "{0:N2} MB" -f ($Bytes / 1MB)
-    }
-
-    if ($Bytes -ge 1KB) {
-        return "{0:N2} KB" -f ($Bytes / 1KB)
-    }
-
-    return "$Bytes B"
-}
-
 function Get-TrackedPathsUnder {
     param(
         [Parameter(Mandatory)]
@@ -145,6 +124,27 @@ if ($All) {
     $Rust = $true
     $Dependencies = $true
     $Installers = $true
+}
+
+$scope = [System.Collections.Generic.List[string]]::new()
+$scope.Add("generated outputs and caches")
+if ($Rust) {
+    $scope.Add("Rust target")
+}
+if ($Dependencies) {
+    $scope.Add("dependencies")
+}
+if ($Installers) {
+    $scope.Add("installers")
+}
+
+$modeLabel = if ($DryRun) { "dry run" } else { "apply" }
+Write-CliHeading -Text "Generated output cleanup"
+Write-CliDetail -Label "Project" -Value $ProjectRoot -ValueTone 'Important'
+Write-CliDetail -Label "Scope" -Value ($scope -join ", ")
+Write-CliDetail -Label "Mode" -Value $modeLabel
+if ($Force) {
+    Write-CliWarning -Message "Tracked-file protection is disabled by --force."
 }
 
 $targets = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -211,38 +211,73 @@ foreach ($relativePath in ($targets | Sort-Object { $_.Length })) {
     })
 }
 
+$preservedTargets = [System.Collections.Generic.List[string]]::new()
+if (-not $Rust -and (Test-Path -LiteralPath (Join-Path $ProjectRoot "src-tauri/target"))) {
+    $preservedTargets.Add("src-tauri/target (use --rust to remove)")
+}
+if (-not $Dependencies -and (Test-Path -LiteralPath (Join-Path $ProjectRoot "node_modules"))) {
+    $preservedTargets.Add("node_modules (use --deps to remove)")
+}
+if (-not $Installers -and -not $Rust -and (Test-Path -LiteralPath (Join-Path $ProjectRoot "src-tauri/target/release/bundle"))) {
+    $preservedTargets.Add("src-tauri/target/release/bundle (use --installers to remove)")
+}
+
+if ($preservedTargets.Count -gt 0) {
+    Write-Host ""
+    Write-CliHeading -Text "Preserved"
+    foreach ($preservedTarget in $preservedTargets) {
+        Write-CliStatus -Label "PRESERVE" -Message $preservedTarget -Tone 'Muted' -MessageTone 'Muted'
+    }
+}
+
 if ($existingTargets.Count -eq 0) {
-    Write-Host "No selected generated output exists."
+    Write-Host ""
+    Write-CliSuccess -Message "No selected generated output exists"
     exit 0
 }
+
+$cleanupHeading = if ($DryRun) { "Cleanup preview" } else { "Cleanup" }
+Write-Host ""
+Write-CliHeading -Text $cleanupHeading
 
 $totalBytes = 0L
 foreach ($target in $existingTargets) {
     $totalBytes += $target.Size
-    $sizeLabel = Format-ByteSize -Bytes $target.Size
+}
 
-    if ($DryRun) {
-        Write-Host ("WOULD REMOVE {0,-42} {1,12}" -f $target.RelativePath, $sizeLabel)
-    }
-    else {
+$progressId = 31
+try {
+    for ($index = 0; $index -lt $existingTargets.Count; $index++) {
+        $target = $existingTargets[$index]
+        $sizeLabel = Format-CliByteSize -Bytes $target.Size
+        $message = "$($target.RelativePath) ($sizeLabel)"
+
+        if ($DryRun) {
+            Write-CliStatus -Label "WOULD REMOVE" -Message $message -Tone 'Important'
+            continue
+        }
+
+        if ($existingTargets.Count -gt 1) {
+            Write-CliProgress -Activity "Cleaning generated output" -Status $target.RelativePath -Current ($index + 1) -Total $existingTargets.Count -Id $progressId
+        }
+
         Remove-Item -LiteralPath $target.FullPath -Recurse -Force
-        Write-Host ("REMOVED      {0,-42} {1,12}" -f $target.RelativePath, $sizeLabel)
+        Write-CliStatus -Label "REMOVE" -Message $message -Tone 'Important'
     }
+}
+finally {
+    Complete-CliProgress -Id $progressId -Activity "Cleaning generated output"
 }
 
 Write-Host ""
 if ($DryRun) {
-    Write-Host "Would free approximately: $(Format-ByteSize -Bytes $totalBytes)"
-    Write-Host "Mode: dry run, nothing was removed"
+    Write-CliSuccess -Message "Cleanup preview complete"
+    Write-CliDetail -Label "Would remove" -Value "$($existingTargets.Count) target(s)"
+    Write-CliDetail -Label "Would free" -Value (Format-CliByteSize -Bytes $totalBytes)
+    Write-CliDetail -Label "Mode" -Value "dry run"
 }
 else {
-    Write-Host "Freed approximately: $(Format-ByteSize -Bytes $totalBytes)"
-}
-
-if (-not $Rust -and -not $All) {
-    Write-Host "Rust target was preserved. Use --rust to remove it."
-}
-
-if (-not $Dependencies -and -not $All) {
-    Write-Host "node_modules was preserved. Use --deps to remove it."
+    Write-CliSuccess -Message "Cleanup complete"
+    Write-CliDetail -Label "Removed" -Value "$($existingTargets.Count) target(s)"
+    Write-CliDetail -Label "Freed" -Value (Format-CliByteSize -Bytes $totalBytes)
 }

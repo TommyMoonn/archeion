@@ -113,7 +113,7 @@ Packaging shows measurable staging progress for included files, reports compress
 -h, --help
 ```
 
-`--files` prints every changed path in addition to the summary.
+The default view shows the project, current branch when available, total/staged/unstaged counts, change-type and area counts, and any review flags. A clean tree ends with an explicit success state. `--files` is the opt-in detailed view and prints every changed path; the default summary does not list them.
 
 ## `restore-changes.ps1`
 
@@ -139,7 +139,9 @@ Without `--backup`, the newest import backup for the project is used. Dry run li
 -h, --help
 ```
 
-`--force` bypasses tracked-file protection for the selected cleanup targets. Use it only after reviewing the paths.
+Cleanup always shows the selected scope. Dry run lists every selected target with its measured size and performs no deletion. Real cleanup reports each target only after it is removed, then summarizes the removed target count and approximate space freed using the shared binary-size labels. Expensive directories such as `src-tauri/target`, `node_modules`, and installer bundles are called out when they are intentionally preserved. Multi-target real cleanup may use transient target-count progress, but recursive deletion never reports fabricated internal percentages.
+
+`--force` bypasses tracked-file protection for the selected cleanup targets and produces a prominent warning. Use it only after reviewing the paths.
 
 ## `check-release.ps1`
 
