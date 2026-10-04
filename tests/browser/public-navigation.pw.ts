@@ -80,8 +80,16 @@ test("documentation same-page activation focuses content after releasing the dra
   await expect(sidebar).toHaveAttribute("inert", "");
   await expect(sidebar).not.toHaveAttribute("aria-modal", "true");
   await expect(page.locator(".docs-layout")).not.toHaveAttribute("inert", "");
-  await expect(page.getByRole("heading", { name: "Get started", exact: true })).toBeFocused();
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "Getting started", exact: true }),
+  ).toBeFocused();
   await page.screenshot({ path: test.info().outputPath("documentation-destination-focus.png") });
+  await page.keyboard.press("Tab");
+  await expect(
+    page
+      .getByRole("main")
+      .getByRole("link", { name: "Link to section: Getting started", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("main").getByRole("link", { name: /Install Archeion/ }),

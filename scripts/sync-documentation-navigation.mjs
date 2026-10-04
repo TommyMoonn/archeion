@@ -135,7 +135,7 @@ const escapeHtml = (text) =>
 const relativeHref = (from, to) =>
   `${path.posix.relative(path.posix.dirname(from.sourcePath), path.posix.dirname(to.sourcePath)) || "."}/`;
 
-async function searchText(html, page) {
+async function articleMetadata(html, page) {
   const window = new Window({
     settings: {
       disableJavaScriptEvaluation: true,
@@ -152,14 +152,45 @@ async function searchText(html, page) {
     const header = window.document.querySelector("[data-doc-article] .article-header");
     requireCondition(header?.querySelector("h1"), `${page.sourcePath} needs an article title.`);
     const summary = [...header.querySelectorAll("p")].map((paragraph) => paragraph.textContent);
-    return [page.title, header.querySelector("h1").textContent, ...summary]
+    const search = [page.title, header.querySelector("h1").textContent, ...summary]
       .join(" ")
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
+    const headings = new Map();
+    for (const heading of window.document.querySelectorAll(
+      "[data-doc-article] h2, [data-doc-article] h3",
+    )) {
+      requireCondition(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(heading.id) &&
+          window.document.querySelectorAll(`[id="${heading.id}"]`).length === 1,
+        `${page.sourcePath} needs unique stable IDs on every article h2/h3.`,
+      );
+      headings.set(heading.id, heading.textContent.replace(/\s+/g, " ").trim());
+    }
+    return { search, headings };
   } finally {
     await window.happyDOM.abort();
   }
+}
+
+function renderPermalinks(html, headings) {
+  return html.replace(/<article\b[\s\S]*?<\/article>/, (article) => {
+    // Regenerate only heading chrome. Preserve authored inline markup and canonical IDs.
+    article = article.replace(
+      /<div class="article-heading">\s*(<h[23]\b[\s\S]*?<\/h[23]>)\s*<a\b[^>]*class="heading-permalink"[\s\S]*?<\/a\s*>\s*<\/div>/g,
+      "$1",
+    );
+    return article.replace(
+      /<h([23])\b[^>]*id="([^"]+)"[^>]*>[\s\S]*?<\/h\1>/g,
+      (heading, _level, id) =>
+        `<div class="article-heading">${heading}<a class="heading-permalink" href="#${id}" aria-label="${escapeHtml(`Link to section: ${headings.get(id)}`)}"><span aria-hidden="true">#</span></a></div>`,
+    );
+  });
+}
+
+function renderFooter(page) {
+  return `<footer class="docs-footer"><span>Archeion documentation</span><div class="docs-footer__links"><a data-doc-edit="" href="https://github.com/TommyMoonn/archeion/edit/main/${page.sourcePath}" rel="noreferrer" target="_blank">Edit this page <span aria-hidden="true">↗</span></a><a data-doc-report="" href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank">Report a documentation issue <span aria-hidden="true">↗</span></a></div></footer>`;
 }
 
 function renderHeader(current) {
@@ -270,8 +301,10 @@ export async function syncDocumentationNavigation(
       fs.readFileSync(path.join(projectRoot, page.sourcePath), "utf8"),
     ]),
   );
-  const searches = new Map();
-  for (const page of pages) searches.set(page.id, await searchText(originals.get(page.id), page));
+  const metadata = new Map();
+  for (const page of pages)
+    metadata.set(page.id, await articleMetadata(originals.get(page.id), page));
+  const searches = new Map(pages.map((page) => [page.id, metadata.get(page.id).search]));
   const formatOptions = await prettier.resolveConfig(path.join(projectRoot, "package.json"));
   const updates = [];
   // Validate and render every page before changing any source file.
@@ -295,6 +328,13 @@ export async function syncDocumentationNavigation(
       renderPager(page, pages),
       /<nav\b[^>]*class="[^"]*\barticle-pager\b[^"]*"[^>]*>[\s\S]*?<\/nav>/g,
     );
+    html = replaceRegion(
+      html,
+      "footer",
+      renderFooter(page),
+      /<footer\b[^>]*class="[^"]*\bdocs-footer\b[^"]*"[^>]*>[\s\S]*?<\/footer>/g,
+    );
+    html = renderPermalinks(html, metadata.get(page.id).headings);
     html = html.replace(/<article\b[^>]*\bdata-doc-article(?:="[^"]*")?[^>]*>/, (tag) =>
       tag.replace(/\sdata-page-type="[^"]*"/g, "").replace(/>$/, ` data-page-type="${page.type}">`),
     );

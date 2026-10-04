@@ -55,7 +55,6 @@
   --shadow: 0 16px 44px rgb(30 26 23 / 9%);
   --radius-small: 7px;
   --radius-control: 9px;
-  --radius-card: 15px;
   --sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --ui: var(--sans);
   --display: "Literata", Georgia, serif;
@@ -639,6 +638,44 @@ kbd {
   font-weight: 600;
   line-height: 1.35;
 }
+.article-heading {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  margin: 32px 0 12px;
+}
+.article-heading:has(> h3) {
+  margin: 24px 0 8px;
+}
+.doc-article .article-heading > :is(h2, h3) {
+  min-width: 0;
+  margin: 0;
+  text-wrap: balance;
+}
+.article-heading + .article-heading {
+  margin-block-start: 16px;
+}
+.doc-article .heading-permalink {
+  display: inline-grid;
+  width: 28px;
+  min-height: 28px;
+  flex: none;
+  place-items: center;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1.5;
+  text-decoration: none;
+  opacity: 0;
+}
+.article-heading:hover .heading-permalink,
+.article-heading:focus-within .heading-permalink {
+  opacity: 1;
+}
+@media (hover: none) {
+  .doc-article .heading-permalink {
+    opacity: 1;
+  }
+}
 .doc-article p {
   margin: 0 0 16px;
 }
@@ -754,116 +791,6 @@ td:first-child {
 .notice p {
   margin: 0;
   color: var(--muted);
-}
-.steps {
-  list-style: none;
-  counter-reset: steps;
-  padding: 0 !important;
-}
-.steps li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  column-gap: 13px;
-  margin: 0;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-  counter-increment: steps;
-}
-.steps li::before {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  place-items: center;
-  color: var(--accent-strong);
-  background: var(--surface-raised);
-  content: counter(steps, decimal-leading-zero);
-  font-size: 11px;
-  font-weight: 700;
-  grid-row: span 2;
-}
-.steps li strong,
-.steps li span {
-  grid-column: 2;
-}
-.steps li span {
-  color: var(--muted);
-}
-.feature-list {
-  display: grid;
-  margin: 22px 0 30px;
-  border-top: 1px solid var(--line);
-}
-.feature-list > div {
-  display: grid;
-  grid-template-columns: minmax(150px, 0.42fr) 1fr;
-  gap: 20px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
-}
-.feature-list span {
-  color: var(--muted);
-}
-.doc-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 13px;
-  margin: 22px 0 36px;
-}
-.doc-card {
-  display: grid;
-  grid-template-columns: 32px 1fr;
-  gap: 4px 12px;
-  min-height: 145px;
-  padding: 19px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: 0 10px 32px rgb(30 26 23 / 5%);
-  text-decoration: none;
-  transition:
-    transform 140ms ease,
-    border-color 140ms ease,
-    background 140ms ease;
-}
-.doc-card:hover {
-  border-color: var(--line-strong);
-  background: var(--surface-raised);
-  transform: translateY(-2px);
-}
-.doc-card__number {
-  grid-row: span 2;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-.doc-card strong {
-  font-size: 17px;
-}
-.doc-card > span:last-child {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-}
-.button-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 39px;
-  padding: 0 14px;
-  border: 1px solid var(--accent);
-  border-radius: 9px;
-  color: var(--surface-raised);
-  background: var(--accent-strong);
-  font-weight: 700;
-  text-decoration: none;
-}
-.button-link:hover {
-  filter: brightness(1.08);
 }
 .mobile-outline {
   display: none;
@@ -991,6 +918,11 @@ td:first-child {
   color: var(--muted);
   font-size: 13px;
 }
+.docs-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
 .mobile-backdrop {
   position: fixed;
   z-index: 119;
@@ -1091,13 +1023,6 @@ td:first-child {
     font-size: 32px;
     line-height: 1.35;
   }
-  .doc-card-grid {
-    grid-template-columns: 1fr;
-  }
-  .feature-list > div {
-    grid-template-columns: 1fr;
-    gap: 3px;
-  }
   .article-pager {
     grid-template-columns: 1fr;
   }
@@ -1187,6 +1112,7 @@ td:first-child {
   .mobile-outline,
   .article-pager,
   .docs-footer,
+  .heading-permalink,
   .copy-button {
     display: none !important;
   }
