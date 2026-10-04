@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Rename, move, reveal, export, and delete books and folders."
+      content="Edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the EPUB with a prepared image."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Manage books and folders | Archeion Docs</title>
+    <title>Metadata and covers | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -215,9 +215,10 @@
               href="../quick-actions/"
               ><span>Quick Actions</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
-              href="../metadata-covers/"
+              href="./"
               ><span>Metadata and covers</span></a
             ><a
               data-doc-link=""
@@ -240,10 +241,9 @@
               href="../reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="./"
+              href="../file-management/"
               ><span>File management</span></a
             ><a
               data-doc-link=""
@@ -338,150 +338,202 @@
       <main class="docs-main" id="main-content">
         <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
-            <h1>Manage books and folders</h1>
-            <p>Rename, move, reveal, export, and delete files in the active archive.</p>
+            <h1>Metadata and covers</h1>
+            <p>
+              Edit one book or selected books, review changes before writing metadata, and replace
+              an embedded cover in the EPUB with a prepared image.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Archeion's file actions change the real EPUB files and folders inside the archive.
-          </p>
           <div class="article-heading">
-            <h2 id="manage-book">Manage a book</h2>
+            <h2 id="open-details">Open details and choose what to edit</h2>
             <a
               class="heading-permalink"
-              href="#manage-book"
-              aria-label="Link to section: Manage a book"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="rename-move">Rename or move</h3>
-            <a
-              class="heading-permalink"
-              href="#rename-move"
-              aria-label="Link to section: Rename or move"
+              href="#open-details"
+              aria-label="Link to section: Open details and choose what to edit"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Use the book action menu or Details drawer to rename an EPUB or move it to another
-            folder in the same archive. Moving changes the file's location; it does not export a
-            second copy or change the embedded title. Check the destination before confirming,
-            especially when a file with that name already exists.
+            In the Library, leave selection mode and select a book's card or row to open
+            <strong>Book details</strong> and inspect its summary and file path. Select
+            <strong>Edit metadata</strong> from the book's action menu or Details drawer to open
+            <strong>Edit EPUB metadata</strong>. Use the path to check that you are editing the
+            intended copy of the book.
           </p>
           <p>
-            To change the title or embedded image without renaming the file, use
-            <a href="../metadata-covers/">Metadata and covers</a>. Those edits write into the EPUB;
-            review their previews and backup guidance before saving.
+            The Details drawer provides a compact summary; the editor exposes the fuller metadata
+            groups below. The current editor does not have separate Basic and Advanced tabs.
+            Metadata and cover writes change the EPUB itself, not just an Archeion display
+            preference.
           </p>
           <div class="article-heading">
-            <h3 id="reveal-export">Reveal or export</h3>
+            <h2 id="single-book">Edit one EPUB's metadata</h2>
             <a
               class="heading-permalink"
-              href="#reveal-export"
-              aria-label="Link to section: Reveal or export"
+              href="#single-book"
+              aria-label="Link to section: Edit one EPUB&#39;s metadata"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ol>
+            <li>
+              Open <strong>Edit EPUB metadata</strong> and change the fields you need.
+              <strong>Core metadata</strong> contains Title, Author, and Language;
+              <strong>Identifier</strong> is read-only.
+              <strong>Publishing metadata</strong> contains Publisher and Date;
+              <strong>Series metadata</strong> contains Series and Volume;
+              <strong>Tags and description</strong> contains Subjects and Description.
+            </li>
+            <li>
+              Review <strong>Pending changes</strong> to see the changed fields. Subjects accept
+              comma-separated entries or one entry per line. Clearing an editable value removes that
+              value rather than leaving the old one unchanged.
+            </li>
+            <li>
+              Select <strong>Write metadata to EPUB</strong>. The action is unavailable when no
+              fields have changed or the file is missing. Wait for
+              <strong>Metadata written to EPUB.</strong> before treating the changes as saved.
+            </li>
+          </ol>
+          <p>
+            This editor writes directly after you review Pending changes; it does not open the
+            separate bulk review screen or require the cover confirmation checkbox. Closing without
+            writing leaves your edits unsaved. The Library uses the metadata returned after a
+            successful write; changing the title here does not rename the EPUB file. Use
+            <a href="../file-management/#rename-move">File management</a> to rename or move it.
+          </p>
+          <div class="article-heading">
+            <h2 id="bulk">Apply metadata to selected books</h2>
+            <a
+              class="heading-permalink"
+              href="#bulk"
+              aria-label="Link to section: Apply metadata to selected books"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ol>
+            <li>
+              Choose <strong>Select books</strong> in the Library toolbar, select the books you
+              intend to edit, then choose <strong>Edit metadata</strong> in the selection bar.
+            </li>
+            <li>
+              Enable only the fields to change: Series, Publisher, Language, or Tags. Unchecked
+              fields remain untouched. A checked empty Series, Publisher, or Language clears that
+              field. For Tags, choose <strong>Replace</strong>, <strong>Add</strong>, or
+              <strong>Remove</strong>; an empty Replace clears tags, while Add and Remove require at
+              least one tag.
+            </li>
+            <li>
+              Select <strong>Review changes</strong> to open
+              <strong>Review metadata changes</strong>. Check each book's before-and-after values
+              and the count to be updated. Books marked <strong>No changes</strong> are skipped;
+              <strong>File unavailable</strong> entries cannot be written.
+            </li>
+            <li>
+              Use <strong>Back</strong> to revise the edits, or <strong>Update N EPUBs</strong> to
+              write the available changed books. Each EPUB is written independently: a failed book
+              does not undo successful writes to other books.
+            </li>
+          </ol>
+          <p>
+            Review failed or skipped items before retrying. Closing with selected fields asks
+            whether to keep editing or discard changes; preparing a preview alone has not written
+            any EPUB. Bulk editing does not offer the individual editor's Title, Author, Date,
+            Description, or Volume fields.
+          </p>
+          <div class="article-heading">
+            <h2 id="cover">Replace the embedded cover</h2>
+            <a
+              class="heading-permalink"
+              href="#cover"
+              aria-label="Link to section: Replace the embedded cover"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ol>
+            <li>
+              Open Details and select <strong>Replace cover</strong> on the cover to open
+              <strong>Replace embedded cover</strong>.
+            </li>
+            <li>
+              Select <strong>Choose image</strong> and choose a JPG, JPEG, PNG, or WebP file. Review
+              the prepared final <strong>2:3</strong> cover frame and the source/output information.
+            </li>
+            <li>
+              Choose <strong>Crop</strong> to fill the frame with a centered crop, or
+              <strong>Fit</strong> to keep the full image with transparent or white padding.
+              Changing the image or framing prepares a new preview and clears confirmation.
+            </li>
+            <li>
+              Confirm the checkbox acknowledging that the operation writes into this EPUB and
+              replaces or adds its embedded cover. Then select
+              <strong>Write cover to EPUB</strong> and wait for
+              <strong>Cover written to EPUB.</strong>
+            </li>
+          </ol>
+          <p>
+            A preview is not yet saved. This changes the active embedded cover resource, or adds one
+            when supported, rather than creating a separate display-only override. It is a
+            single-book workflow, not a bulk cover replacement. Archeion can refuse unsupported
+            cover structures instead of modifying an EPUB it cannot safely rewrite. A missing EPUB
+            cannot be edited.
+          </p>
+          <p>
+            If the EPUB write succeeds but refreshing the generated cover reports a warning, the new
+            embedded cover is already saved. Read the warning before attempting another write.
+            <strong>Regenerate covers</strong> refreshes derived covers; it is not a
+            replacement-image editor. See
+            <a href="../../reference/archive-storage/#maintenance"
+              >Generated cover cache maintenance</a
+            >.
+          </p>
+          <div class="article-heading">
+            <h2 id="write-safety">Handle changed files and retain recovery copies</h2>
+            <a
+              class="heading-permalink"
+              href="#write-safety"
+              aria-label="Link to section: Handle changed files and retain recovery copies"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Use <strong>Reveal in folder</strong> to open the file's location in Windows Explorer.
-            Selection mode can export selected EPUB files to another location without changing the
-            files in the archive. Export is a copy, not a complete archive backup: it does not
-            include the archive's reading data or sidecars. Use the
-            <a href="../../reference/annotation-export/">Annotation export reference</a> for
-            separate Markdown or JSON exports, or
-            <a href="../../reference/archive-storage/">Archive storage</a> to preserve the whole
-            archive.
-          </p>
-          <div class="article-heading">
-            <h3 id="delete-book">Delete a book</h3>
-            <a
-              class="heading-permalink"
-              href="#delete-book"
-              aria-label="Link to section: Delete a book"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            Deletion is shown as <strong>Delete to Recycle Bin</strong>. Review the confirmation
-            before deleting one or more books. This removes the real files from their archive
-            locations, not just cards from the current view. Check the reported result before
-            assuming every selected item was deleted.
+            If the source EPUB changed after an edit was prepared, Archeion refuses to replace it
+            instead of overwriting newer changes. Cover writeback also checks that the selected
+            image still matches the preview. Stop the external edit, reopen the metadata editor to
+            review the latest source, or choose the image again to prepare a fresh cover preview. Do
+            not repeatedly confirm an outdated preview.
           </p>
           <p>
-            If the file was already deleted outside Archeion, use
-            <strong>Remove metadata</strong> to clear its old Library entry. Removing metadata is
-            not file recovery and does not bring back the EPUB. If you want to restore the book or
-            retain its reading data, consult
-            <a href="../../reference/troubleshooting/#safe-order">safe recovery steps</a>
-            before removing the entry.
+            Before a large edit,
+            <a href="../../reference/archive-storage/#backup">back up the complete archive</a>.
+            <strong>Settings → Storage → Keep EPUB writeback backup</strong> is off by default. When
+            enabled, supported successful metadata and cover writes can retain a recovery copy of
+            the previous EPUB. This is not a version history or a substitute for your archive
+            backup.
           </p>
-          <div class="article-heading">
-            <h2 id="manage-folder">Manage folders</h2>
-            <a
-              class="heading-permalink"
-              href="#manage-folder"
-              aria-label="Link to section: Manage folders"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p id="folder-actions"><strong>Folder operations include their contents.</strong></p>
           <p>
-            Folder actions work on real directories. Moving a folder also moves the EPUB files and
-            subfolders inside it.
+            Use <strong>EPUB writeback backups</strong> in Storage to review retained-copy counts
+            and clear copies you no longer need. Clearing them removes those recovery copies, not
+            the active EPUBs. See
+            <a href="../../reference/archive-storage/#storage-policies">Archive storage policies</a>
+            and <a href="../../reference/archive-storage/#maintenance">backup maintenance</a> for
+            the current storage guidance.
           </p>
-          <p id="delete-folder"><strong>Review a folder before deleting it.</strong></p>
           <p>
-            Check the folder contents before deleting it. A folder deletion can include every book
-            and subfolder inside that folder.
+            If a write fails, read whether the original was left unchanged, a backup was restored,
+            or automatic restoration failed. If restoration failed, preserve the reported backup
+            path and copy the recovery file to a safe location before further changes. Do not delete
+            the archive's hidden <code>.archeion</code> folder to resolve an editing failure.
           </p>
-          <div class="article-heading">
-            <h2 id="outside-changes">Changes made outside Archeion</h2>
-            <a
-              class="heading-permalink"
-              href="#outside-changes"
-              aria-label="Link to section: Changes made outside Archeion"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="refresh-library">Refresh the Library</h3>
-            <a
-              class="heading-permalink"
-              href="#refresh-library"
-              aria-label="Link to section: Refresh the Library"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
           <p>
-            Archeion normally detects files added, moved, renamed, or removed with Windows Explorer.
-            Use <strong>Rescan archive</strong> when the Library does not reflect an external
-            change.
-          </p>
-          <div class="article-heading">
-            <h3 id="backup-first">Back up before large changes</h3>
-            <a
-              class="heading-permalink"
-              href="#backup-first"
-              aria-label="Link to section: Back up before large changes"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="notice" role="note">
-            <strong>Copy the complete archive</strong>
-            <p>
-              For a complete backup, copy the EPUB folders and the hidden
-              <code>.archeion</code> folder together.
-            </p>
-          </div>
-          <p>
-            If a file is missing or a move or scan fails, follow
-            <a href="../../reference/troubleshooting/">Troubleshooting and recovery</a> before
-            removing metadata or modifying sidecars. For duplicate-file decisions, see
-            <a href="../archive-health/#duplicates">compare duplicate groups</a>.
+            For the full recovery procedure after an interrupted write or failed restoration, see
+            <a href="../../reference/troubleshooting/#interrupted-edit"
+              >a metadata or cover edit fails</a
+            >. Preserve the reported recovery copy before cleanup.
           </p>
         </article>
         <!-- docs-pager:start -->
@@ -489,10 +541,10 @@
           <a
             class="article-pager__item article-pager__item--previous"
             rel="prev"
-            href="../reader-media/"
-            ><span>Previous</span><strong>Footnotes and illustrations</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../settings/"
-            ><span>Next</span><strong>Settings</strong></a
+            href="../quick-actions/"
+            ><span>Previous</span><strong>Quick Actions</strong></a
+          ><a class="article-pager__item article-pager__item--next" rel="next" href="../series/"
+            ><span>Next</span><strong>Series</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -502,7 +554,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/file-management/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/metadata-covers/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a

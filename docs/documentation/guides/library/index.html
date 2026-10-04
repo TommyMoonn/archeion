@@ -207,6 +207,21 @@
               ><span>Library</span></a
             ><a
               data-doc-link=""
+              data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
+              href="../archive-health/"
+              ><span>Archive health</span></a
+            ><a
+              data-doc-link=""
+              data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
+              href="../quick-actions/"
+              ><span>Quick Actions</span></a
+            ><a
+              data-doc-link=""
+              data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
+              href="../metadata-covers/"
+              ><span>Metadata and covers</span></a
+            ><a
+              data-doc-link=""
               data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
               href="../series/"
               ><span>Series</span></a
@@ -232,17 +247,17 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -264,7 +279,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
@@ -274,7 +289,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -295,9 +310,19 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-4">
             <a
               data-doc-link=""
-              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and which storage actions operate on the active archive."
+              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and what storage maintenance and recovery copies change."
               href="../../reference/archive-storage/"
               ><span>Archive storage</span></a
+            ><a
+              data-doc-link=""
+              data-search="troubleshooting and recovery troubleshooting and recovery choose a safe next step for a missing archive, stale metadata, failed scan, reader-unavailable epub, or interrupted edit."
+              href="../../reference/troubleshooting/"
+              ><span>Troubleshooting and recovery</span></a
+            ><a
+              data-doc-link=""
+              data-search="annotation export annotation export choose markdown or versioned json for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
+              href="../../reference/annotation-export/"
+              ><span>Annotation export</span></a
             ><a
               data-doc-link=""
               data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
@@ -357,9 +382,27 @@
             >
           </div>
           <p>
-            Smart Views show focused groups such as books in progress or books with missing
-            metadata. You can choose which Smart Views appear from Settings.
+            Enable Smart Views in <strong>Settings → Library</strong> and choose which appear. These
+            are views of existing books, not folders or copies. Hiding a view leaves its books
+            unchanged.
           </p>
+          <ul>
+            <li>
+              <strong>Unread</strong>, <strong>In progress</strong>, and
+              <strong>Completed</strong> group books by reading status.
+            </li>
+            <li>
+              <strong>Needs metadata</strong> finds books missing a title or author;
+              <strong>Needs cover</strong> finds books without cover artwork. Use
+              <a href="../metadata-covers/">Metadata and covers</a> to fix them.
+            </li>
+            <li>
+              <strong>Duplicates</strong> and <strong>EPUB Issues</strong> help review archive
+              health. They are optional and hidden until selected in Settings; see
+              <a href="../archive-health/">Archive health</a> for comparison, diagnostic limits, and
+              safe next steps.
+            </li>
+          </ul>
           <div class="article-heading">
             <h2 id="find-books">Find books</h2>
             <a class="heading-permalink" href="#find-books" aria-label="Link to section: Find books"
@@ -393,6 +436,10 @@
             Use the sort selector to change the order. Switch between Grid and List view without
             changing the books included in the current view.
           </p>
+          <p>
+            Use <a href="../quick-actions/">Quick Actions</a> to navigate or choose collection
+            display options from the keyboard.
+          </p>
           <div class="article-heading">
             <h2 id="manage-books">Manage books</h2>
             <a
@@ -411,11 +458,14 @@
               ><span aria-hidden="true">#</span></a
             >
           </div>
-          <p>Open a book's action menu to:</p>
+          <p>
+            Outside selection mode, select a book's card or row to open Book details. Open its
+            action menu to:
+          </p>
           <ul>
             <li>Read the book.</li>
             <li>Add or remove it from Favorites.</li>
-            <li>Open Details or <strong>Edit metadata</strong>.</li>
+            <li>Choose <strong>Edit metadata</strong>.</li>
             <li>Rename or move the file.</li>
             <li>Reveal it in Windows Explorer.</li>
             <li>Delete it, or remove its old Library entry when the file is already missing.</li>
@@ -431,9 +481,9 @@
           </div>
           <p>
             Select <strong>Select books</strong> in the toolbar to enter selection mode. Select
-            individual books, or use <strong>Select all</strong> to select every book currently
-            visible in the filtered view. <strong>Clear</strong> removes the selection and
-            <strong>Done</strong> exits selection mode.
+            individual books, or use <strong>Select all</strong> to select every book in the current
+            filtered view, including books below the visible area. <strong>Clear</strong> removes
+            the selection and <strong>Done</strong> exits selection mode.
           </p>
           <p>The selection bar provides these bulk workflows:</p>
           <ul>
@@ -450,6 +500,10 @@
           <p>
             Bulk operations report failed or skipped items instead of treating one failed book as a
             successful result for the whole selection.
+          </p>
+          <p>
+            See <a href="../metadata-covers/">Metadata and covers</a> for individual editing, bulk
+            previews, embedded cover replacement, and writeback safety.
           </p>
           <div class="article-heading">
             <h3 id="folders">Manage folders</h3>
@@ -480,19 +534,34 @@
             the scan does not change EPUB files. If a scan is already running, wait for it to finish
             before starting another manual rescan.
           </p>
+          <p>
+            <span id="quick-actions"
+              >Use <a href="../quick-actions/">Quick Actions</a> for the available Library, Folder,
+              and Series view, sort, and card-size commands.</span
+            >
+            Commands depend on the current screen and selection; an unavailable command explains why
+            it cannot run.
+          </p>
           <div class="article-heading">
-            <h2 id="quick-actions">Use Quick Actions</h2>
+            <h2 id="large-libraries">What to expect while scrolling</h2>
             <a
               class="heading-permalink"
-              href="#quick-actions"
-              aria-label="Link to section: Use Quick Actions"
+              href="#large-libraries"
+              aria-label="Link to section: What to expect while scrolling"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> to open Quick Actions and search
-            the commands available on the current screen. Library, Folder, and Series surfaces also
-            expose their current view, sort, and card-size commands when applicable.
+            Large collections display books in the visible area and a small area around it, rather
+            than drawing every card at once. Archeion loads nearby covers as you scroll; artwork may
+            appear after the book's text. Books outside that area still belong to the filtered
+            results and can be selected with Select all. This limits work while browsing, but does
+            not promise a fixed loading time or library-size limit on every computer.
+          </p>
+          <p>
+            Opening an archive and refreshing changed EPUBs are separate from scrolling. See
+            <a href="../../reference/archive-storage/#scanning">scan and cover-cache behavior</a> if
+            books or artwork are slow to appear.
           </p>
         </article>
         <!-- docs-pager:start -->
@@ -502,8 +571,11 @@
             rel="prev"
             href="../../getting-started/adding-books/"
             ><span>Previous</span><strong>Add EPUB files</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../series/"
-            ><span>Next</span><strong>Series</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            rel="next"
+            href="../archive-health/"
+            ><span>Next</span><strong>Archive health</strong></a
           >
         </nav>
         <!-- docs-pager:end -->

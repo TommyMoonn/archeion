@@ -206,6 +206,21 @@
               ><span>Library</span></a
             ><a
               data-doc-link=""
+              data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
+              href="../../guides/archive-health/"
+              ><span>Archive health</span></a
+            ><a
+              data-doc-link=""
+              data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
+              href="../../guides/quick-actions/"
+              ><span>Quick Actions</span></a
+            ><a
+              data-doc-link=""
+              data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
+              href="../../guides/metadata-covers/"
+              ><span>Metadata and covers</span></a
+            ><a
+              data-doc-link=""
               data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
               href="../../guides/series/"
               ><span>Series</span></a
@@ -231,17 +246,17 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -264,7 +279,7 @@
             <a
               aria-current="page"
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="./"
               ><span>Appearance</span></a
             ><a
@@ -274,7 +289,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -295,9 +310,19 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-4">
             <a
               data-doc-link=""
-              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and which storage actions operate on the active archive."
+              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and what storage maintenance and recovery copies change."
               href="../../reference/archive-storage/"
               ><span>Archive storage</span></a
+            ><a
+              data-doc-link=""
+              data-search="troubleshooting and recovery troubleshooting and recovery choose a safe next step for a missing archive, stale metadata, failed scan, reader-unavailable epub, or interrupted edit."
+              href="../../reference/troubleshooting/"
+              ><span>Troubleshooting and recovery</span></a
+            ><a
+              data-doc-link=""
+              data-search="annotation export annotation export choose markdown or versioned json for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
+              href="../../reference/annotation-export/"
+              ><span>Annotation export</span></a
             ><a
               data-doc-link=""
               data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
@@ -314,104 +339,106 @@
         <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
             <h1>Appearance and reader controls</h1>
-            <p>Change app colors, reader typography, and the Library layout.</p>
+            <p>
+              Choose app colors, Display density and Animations, or adjust Reader colors and
+              typography.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            App themes control the Archeion interface. Reader settings control the page colors,
-            text, and layout used while reading.
-          </p>
           <div class="article-heading">
-            <h2 id="app-appearance">App appearance</h2>
+            <h2 id="app-appearance">Choose app colors</h2>
             <a
               class="heading-permalink"
               href="#app-appearance"
-              aria-label="Link to section: App appearance"
+              aria-label="Link to section: Choose app colors"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <p>
+            <span id="app-theme"
+              >Open <strong>Settings → Appearance</strong> and use
+              <strong>App themes</strong>.</span
+            >
+            Built-in themes are available immediately; System follows the operating system's light
+            or dark appearance. The app theme affects the interface, not the EPUB's text size or
+            reading layout.
+          </p>
+          <p>
+            <span id="custom-themes"
+              >For custom packages, open <a href="../theme-manager/">Theme Manager</a> to import,
+              preview, and apply colors.</span
+            >
+            Packages can provide supported app and Reader colors, but cannot add CSS, scripts,
+            fonts, images, or layout changes. Authors can consult the
+            <a href="../custom-themes/">Custom themes format and tokens</a>.
+          </p>
           <div class="article-heading">
-            <h3 id="app-theme">Choose an app theme</h3>
+            <h2 id="density-motion">Adjust spacing and motion</h2>
             <a
               class="heading-permalink"
-              href="#app-theme"
-              aria-label="Link to section: Choose an app theme"
+              href="#density-motion"
+              aria-label="Link to section: Adjust spacing and motion"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Open <strong>Settings → Appearance</strong> and choose an App theme. Built-in themes are
-            available immediately. Custom themes stored in Archeion's application data appear in the
-            same selector across archives.
-          </p>
-          <div class="article-heading">
-            <h3 id="custom-themes">Use a custom theme</h3>
-            <a
-              class="heading-permalink"
-              href="#custom-themes"
-              aria-label="Link to section: Use a custom theme"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            Custom themes can change supported app and reader colors. They cannot add CSS, scripts,
-            fonts, images, or layout changes.
+            <strong>Display density</strong> changes spacing in the app interface.
+            <strong>Comfortable</strong> gives controls more room; <strong>Compact</strong> brings
+            controls and collection items closer together. Density does not change the EPUB's
+            typography or Page Width. Use Reader settings for those.
           </p>
           <p>
-            See <a href="../custom-themes/">Custom themes</a> for setup and editing instructions.
+            Motion is enabled only when <strong>Animations</strong> is on and the operating system
+            is not requesting reduced motion. Turning Animations off suppresses motion; turning it
+            on does not override the system's reduced-motion preference. This controls subtle
+            application transitions, not Reader content animation or automatic page turning.
           </p>
           <div class="article-heading">
-            <h2 id="reader-appearance">Reader appearance</h2>
+            <h2 id="reader-appearance">Adjust Reader colors and layout</h2>
             <a
               class="heading-permalink"
               href="#reader-appearance"
-              aria-label="Link to section: Reader appearance"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="reader-theme">Choose reader colors</h3>
-            <a
-              class="heading-permalink"
-              href="#reader-theme"
-              aria-label="Link to section: Choose reader colors"
+              aria-label="Link to section: Adjust Reader colors and layout"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Choose a Reader theme from <strong>Settings → Appearance</strong> or from the Reader
-            settings panel.
-          </p>
-          <div class="article-heading">
-            <h3 id="reader-typography">Change text and layout</h3>
-            <a
-              class="heading-permalink"
-              href="#reader-typography"
-              aria-label="Link to section: Change text and layout"
-              ><span aria-hidden="true">#</span></a
+            <span id="reader-theme"
+              >Choose a Reader theme from <strong>Settings → Reader</strong> or the Reader settings
+              panel.</span
             >
-          </div>
+            Reader colors are separate from App themes, so changing one does not require changing
+            the other.
+          </p>
           <p>
-            Open Reader settings to change the typeface, text size, line spacing, page width,
-            reading mode, and progress bar position. Custom theme files do not change these
-            settings.
+            <span id="reader-typography"
+              >Open Reader settings to change typeface, text size, line spacing, Page Width, reading
+              mode, and progress placement.</span
+            >
+            Custom theme files do not set these options. See
+            <a href="../../guides/reading/#reader-settings"
+              >Reader settings and reading-width limits</a
+            >
+            for their effects.
           </p>
           <div class="article-heading">
-            <h2 id="library-layout">Library layout</h2>
+            <h2 id="library-layout">Change collection presentation</h2>
             <a
               class="heading-permalink"
               href="#library-layout"
-              aria-label="Link to section: Library layout"
+              aria-label="Link to section: Change collection presentation"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Use the Library toolbar to switch between Grid and List view, change sorting, and apply
-            filters. Settings also controls features such as Continue Reading and which Smart Views
-            appear in the sidebar.
+            Use the Library toolbar to switch Grid and List views, sort, and filter without changing
+            the files in the archive. <strong>Settings → Library</strong> sets default Books,
+            Folders, and Series presentation and which Smart Views appear. See
+            <a href="../../guides/library/">Library browsing and selection</a> for the available
+            workflows.
           </p>
         </article>
         <!-- docs-pager:start -->

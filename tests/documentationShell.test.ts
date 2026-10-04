@@ -73,6 +73,7 @@ describe("documentation shell", () => {
       "Check the destination before moving files",
       "Copy the complete archive",
       "Themes are application-wide",
+      "Preserve the sidecars",
     ]);
   });
 });

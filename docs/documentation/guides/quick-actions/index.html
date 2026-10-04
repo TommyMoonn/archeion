@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Rename, move, reveal, export, and delete books and folders."
+      content="Find and run commands for the current Library, Reader, or Settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Manage books and folders | Archeion Docs</title>
+    <title>Quick Actions | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -210,9 +210,10 @@
               href="../archive-health/"
               ><span>Archive health</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
-              href="../quick-actions/"
+              href="./"
               ><span>Quick Actions</span></a
             ><a
               data-doc-link=""
@@ -240,10 +241,9 @@
               href="../reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="./"
+              href="../file-management/"
               ><span>File management</span></a
             ><a
               data-doc-link=""
@@ -338,150 +338,163 @@
       <main class="docs-main" id="main-content">
         <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
-            <h1>Manage books and folders</h1>
-            <p>Rename, move, reveal, export, and delete files in the active archive.</p>
+            <h1>Quick Actions</h1>
+            <p>
+              Find and run commands for the current Library, Reader, or Settings window, switch
+              archives, and choose collection or appearance options without leaving the keyboard.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Archeion's file actions change the real EPUB files and folders inside the archive.
-          </p>
           <div class="article-heading">
-            <h2 id="manage-book">Manage a book</h2>
+            <h2 id="open">Open Quick Actions</h2>
             <a
               class="heading-permalink"
-              href="#manage-book"
-              aria-label="Link to section: Manage a book"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="rename-move">Rename or move</h3>
-            <a
-              class="heading-permalink"
-              href="#rename-move"
-              aria-label="Link to section: Rename or move"
+              href="#open"
+              aria-label="Link to section: Open Quick Actions"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Use the book action menu or Details drawer to rename an EPUB or move it to another
-            folder in the same archive. Moving changes the file's location; it does not export a
-            second copy or change the embedded title. Check the destination before confirming,
-            especially when a file with that name already exists.
+            Press <kbd>Ctrl + Shift + P</kbd> to open Quick Actions. In the Library, you can also
+            select <strong>Open Quick Actions</strong> in the titlebar. The Reader uses the shortcut
+            rather than a dedicated palette button. Focus starts in
+            <strong>Search Quick Actions</strong>, ready for you to type a command or destination.
           </p>
           <p>
-            To change the title or embedded image without renaming the file, use
-            <a href="../metadata-covers/">Metadata and covers</a>. Those edits write into the EPUB;
-            review their previews and backup guidance before saving.
+            The shortcut is configurable under <strong>Settings → Keyboard</strong>. If you have
+            changed or cleared it, use your current binding or the Library titlebar control. See
+            <a href="../keyboard-shortcuts/#customize">Keyboard shortcuts</a> for rebinding,
+            conflicts, and resets.
           </p>
           <div class="article-heading">
-            <h3 id="reveal-export">Reveal or export</h3>
+            <h2 id="run">Find and run a command</h2>
             <a
               class="heading-permalink"
-              href="#reveal-export"
-              aria-label="Link to section: Reveal or export"
+              href="#run"
+              aria-label="Link to section: Find and run a command"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ol>
+            <li>
+              Type part of an action or destination, such as <strong>Search books</strong> or
+              <strong>Go to Library</strong>. An empty search shows commands, including recently
+              used actions.
+            </li>
+            <li>
+              Use <kbd>Up Arrow</kbd> and <kbd>Down Arrow</kbd> to move through results.
+              <kbd>Home</kbd> and <kbd>End</kbd> select the first and last result;
+              <kbd>Page Up</kbd> and <kbd>Page Down</kbd> move by a visible group of results.
+            </li>
+            <li>
+              Press <kbd>Enter</kbd> to run the selected command, or select its result with a
+              pointer. A navigation command takes you to its destination; other commands can open an
+              existing dialog or a list of options.
+            </li>
+          </ol>
+          <p>
+            An unavailable command shows a reason and cannot run. Availability changes with the
+            active archive, Library view, Reader state, and operations already in progress. If there
+            are no matching commands, shorten or clear the search.
+          </p>
+          <p>
+            Press <kbd>Escape</kbd> in the command list to close the palette. Dismissal returns
+            focus to the originating control when it is still available; running a command lets its
+            destination or dialog take focus. Selecting the backdrop also closes the palette.
+          </p>
+          <div class="article-heading">
+            <h2 id="context">Choose an action for the current context</h2>
+            <a
+              class="heading-permalink"
+              href="#context"
+              aria-label="Link to section: Choose an action for the current context"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ul>
+            <li>
+              <strong>Archive and settings</strong>: <strong>Open current archive folder</strong>,
+              <strong>Switch archive…</strong>, <strong>Open Archive Manager</strong>, and
+              <strong>Open Settings</strong>. Revealing the current archive requires an open
+              archive; switching offers other registered archives.
+            </li>
+            <li>
+              <strong>Library</strong>: navigation to Library, Favorites, Folders, and Series;
+              <strong>Search books</strong>, <strong>Add EPUBs</strong>,
+              <strong>Create folder</strong>, and <strong>Rescan archive</strong>. Continue,
+              Duplicates, and EPUB Issues navigation appears only when those destinations are
+              enabled. Search and collection display commands depend on the current view.
+            </li>
+            <li>
+              <strong>Collection display</strong>: <strong>Change view…</strong>,
+              <strong>Change sort…</strong>, and <strong>Change card size…</strong> for books, with
+              Folder and Series variants in their respective views. Card size is offered in Grid
+              view, not List view.
+            </li>
+            <li>
+              <strong>Reader</strong>: navigation back to Library destinations, book navigation,
+              annotations, bookmarks, and Reader settings. Commands that need a usable book location
+              are unavailable until that state exists. Reading-history and page-turn controls stay
+              in the Reader rather than palette results. See
+              <a href="../reader-navigation/">Reader navigation and progress</a> for the reading
+              actions themselves.
+            </li>
+            <li>
+              <strong>Settings window</strong>: the opening shortcut also works in standalone
+              Settings after it has loaded. Shared archive and appearance actions remain available
+              where their requirements are met; Library and Reader commands are absent. To find a
+              setting rather than run a command, use the window's settings search.
+            </li>
+            <li>
+              <strong>Appearance</strong>: <strong>Change theme…</strong>,
+              <strong>Change display density…</strong>, and <strong>Turn animations on</strong> or
+              <strong>Turn animations off</strong>. Theme selection requires an active archive.
+            </li>
+          </ul>
+          <p>
+            The palette is not a fixed inventory of every app control. Its commands follow the
+            active Library, Reader, or Settings window. <strong>Open Settings</strong> opens the
+            standalone Settings window; <strong>Search shortcuts</strong> in its Keyboard section
+            finds bindings, not commands to execute.
+          </p>
+          <div class="article-heading">
+            <h2 id="options">Select options and confirm previews</h2>
+            <a
+              class="heading-permalink"
+              href="#options"
+              aria-label="Link to section: Select options and confirm previews"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Use <strong>Reveal in folder</strong> to open the file's location in Windows Explorer.
-            Selection mode can export selected EPUB files to another location without changing the
-            files in the archive. Export is a copy, not a complete archive backup: it does not
-            include the archive's reading data or sidecars. Use the
-            <a href="../../reference/annotation-export/">Annotation export reference</a> for
-            separate Markdown or JSON exports, or
-            <a href="../../reference/archive-storage/">Archive storage</a> to preserve the whole
-            archive.
-          </p>
-          <div class="article-heading">
-            <h3 id="delete-book">Delete a book</h3>
-            <a
-              class="heading-permalink"
-              href="#delete-book"
-              aria-label="Link to section: Delete a book"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            Deletion is shown as <strong>Delete to Recycle Bin</strong>. Review the confirmation
-            before deleting one or more books. This removes the real files from their archive
-            locations, not just cards from the current view. Check the reported result before
-            assuming every selected item was deleted.
+            Commands ending in an ellipsis can open a nested option list. Search and navigate it
+            with the same keys, then press <kbd>Enter</kbd> to select an option.
+            <kbd>Escape</kbd> returns to the command list; press it again to close the palette.
+            <kbd>Backspace</kbd> also returns to the command list when the option search is empty.
           </p>
           <p>
-            If the file was already deleted outside Archeion, use
-            <strong>Remove metadata</strong> to clear its old Library entry. Removing metadata is
-            not file recovery and does not bring back the EPUB. If you want to restore the book or
-            retain its reading data, consult
-            <a href="../../reference/troubleshooting/#safe-order">safe recovery steps</a>
-            before removing the entry.
+            <strong>Change theme…</strong> previews the highlighted theme. A preview is not a saved
+            choice: confirm the option to keep it. Leaving the theme list or dismissing the palette
+            discards an unconfirmed preview. If contrast warnings appear on confirmation, review the
+            warning and select the same theme again only if you intend to apply it anyway. See
+            <a href="../../customization/theme-manager/">Theme Manager</a> for managing installed
+            themes.
           </p>
-          <div class="article-heading">
-            <h2 id="manage-folder">Manage folders</h2>
-            <a
-              class="heading-permalink"
-              href="#manage-folder"
-              aria-label="Link to section: Manage folders"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p id="folder-actions"><strong>Folder operations include their contents.</strong></p>
           <p>
-            Folder actions work on real directories. Moving a folder also moves the EPUB files and
-            subfolders inside it.
+            Collection display and density options commit on selection rather than merely on
+            highlighting. If an archive cannot open, check that its folder is available and retry.
+            If a setting works for this session but cannot be saved, read the feedback and retry
+            before closing if you want it retained. The palette keeps retryable failures visible
+            instead of reporting success.
           </p>
-          <p id="delete-folder"><strong>Review a folder before deleting it.</strong></p>
           <p>
-            Check the folder contents before deleting it. A folder deletion can include every book
-            and subfolder inside that folder.
-          </p>
-          <div class="article-heading">
-            <h2 id="outside-changes">Changes made outside Archeion</h2>
-            <a
-              class="heading-permalink"
-              href="#outside-changes"
-              aria-label="Link to section: Changes made outside Archeion"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="refresh-library">Refresh the Library</h3>
-            <a
-              class="heading-permalink"
-              href="#refresh-library"
-              aria-label="Link to section: Refresh the Library"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            Archeion normally detects files added, moved, renamed, or removed with Windows Explorer.
-            Use <strong>Rescan archive</strong> when the Library does not reflect an external
-            change.
-          </p>
-          <div class="article-heading">
-            <h3 id="backup-first">Back up before large changes</h3>
-            <a
-              class="heading-permalink"
-              href="#backup-first"
-              aria-label="Link to section: Back up before large changes"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="notice" role="note">
-            <strong>Copy the complete archive</strong>
-            <p>
-              For a complete backup, copy the EPUB folders and the hidden
-              <code>.archeion</code> folder together.
-            </p>
-          </div>
-          <p>
-            If a file is missing or a move or scan fails, follow
-            <a href="../../reference/troubleshooting/">Troubleshooting and recovery</a> before
-            removing metadata or modifying sidecars. For duplicate-file decisions, see
-            <a href="../archive-health/#duplicates">compare duplicate groups</a>.
+            The keys used inside the palette are fixed interaction keys, separate from configurable
+            command shortcuts. The
+            <a href="../keyboard-shortcuts/#fixed">Keyboard shortcuts reference</a> explains that
+            distinction.
           </p>
         </article>
         <!-- docs-pager:start -->
@@ -489,10 +502,13 @@
           <a
             class="article-pager__item article-pager__item--previous"
             rel="prev"
-            href="../reader-media/"
-            ><span>Previous</span><strong>Footnotes and illustrations</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../settings/"
-            ><span>Next</span><strong>Settings</strong></a
+            href="../archive-health/"
+            ><span>Previous</span><strong>Archive health</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            rel="next"
+            href="../metadata-covers/"
+            ><span>Next</span><strong>Metadata and covers</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -502,7 +518,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/file-management/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/quick-actions/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a

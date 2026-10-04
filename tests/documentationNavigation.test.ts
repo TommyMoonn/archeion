@@ -84,8 +84,10 @@ describe("documentation navigation contract", () => {
     ["guides/dictionaries", "../settings/", "../keyboard-shortcuts/"],
     ["guides/keyboard-shortcuts", "../dictionaries/", "../../customization/appearance/"],
     ["customization/theme-manager", "../custom-themes/", "../../reference/archive-storage/"],
-    ["reference/archive-storage", "../../customization/theme-manager/", "../about-resources/"],
-    ["reference/about-resources", "../archive-storage/", null],
+    ["reference/archive-storage", "../../customization/theme-manager/", "../troubleshooting/"],
+    ["reference/troubleshooting", "../archive-storage/", "../annotation-export/"],
+    ["reference/annotation-export", "../troubleshooting/", "../about-resources/"],
+    ["reference/about-resources", "../annotation-export/", null],
     ["", null, "getting-started/installing/"],
   ])("%s links to its immediate sequence neighbors", (route, previous, next) => {
     const document = documentFor(route!);
@@ -172,6 +174,7 @@ describe("documentation navigation contract", () => {
     }
   });
 
+  // This parses the full repository corpus, like the integration cases below, not a unit fixture.
   it("checks committed output without writing and is already reproducible", async () => {
     const before = sourceBytes(projectRoot);
     expect(await syncDocumentationNavigation(projectRoot)).toEqual({
@@ -179,7 +182,7 @@ describe("documentation navigation contract", () => {
       changedPaths: [],
     });
     expect(sourceBytes(projectRoot)).toEqual(before);
-  });
+  }, 30_000);
 
   it.each([
     [
@@ -346,14 +349,15 @@ describe("documentation navigation contract", () => {
   it("derives permalink names from edited inline heading content without duplicating that content", async () => {
     const { root, pages } = await createRepairFixture();
     const file = path.join(root, pages[1].sourcePath);
+    const source = fs.readFileSync(file, "utf8");
+    const sectionsHeading = /<h2 id="sections">[\s\S]*?<\/h2>/;
+    expect(source).toMatch(sectionsHeading);
     fs.writeFileSync(
       file,
-      fs
-        .readFileSync(file, "utf8")
-        .replace(
-          '<h2 id="sections">Settings sections</h2>',
-          '<h2 id="sections">Settings &amp; <code>Reader</code> “defaults”</h2>',
-        ),
+      source.replace(
+        sectionsHeading,
+        '<h2 id="sections">Settings &amp; <code>Reader</code> “defaults”</h2>',
+      ),
     );
     await syncDocumentationNavigation(root, { check: false });
     const document = parseHtml(fs.readFileSync(file, "utf8"));
@@ -406,7 +410,12 @@ describe("documentation navigation contract", () => {
       route: "/guides/new-guide/",
       title: "New guide & details",
       group: "using-archeion",
-      order: 9,
+      order:
+        Math.max(
+          ...data.pages
+            .filter((entry) => entry.group === "using-archeion")
+            .map((entry) => entry.order),
+        ) + 1,
       type: "troubleshooting",
       sourcePath: "docs/documentation/guides/new-guide/index.html",
     };

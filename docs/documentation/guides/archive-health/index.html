@@ -4,12 +4,9 @@
   <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
-    <meta
-      content="Rename, move, reveal, export, and delete books and folders."
-      name="description"
-    />
+    <meta content="Review Duplicates and EPUB Issues safely." name="description" />
     <meta content="#171717" name="theme-color" />
-    <title>Manage books and folders | Archeion Docs</title>
+    <title>Archive health | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -205,9 +202,10 @@
               href="../library/"
               ><span>Library</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
-              href="../archive-health/"
+              href="./"
               ><span>Archive health</span></a
             ><a
               data-doc-link=""
@@ -240,10 +238,9 @@
               href="../reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="./"
+              href="../file-management/"
               ><span>File management</span></a
             ><a
               data-doc-link=""
@@ -338,161 +335,167 @@
       <main class="docs-main" id="main-content">
         <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
-            <h1>Manage books and folders</h1>
-            <p>Rename, move, reveal, export, and delete files in the active archive.</p>
+            <h1>Archive health</h1>
+            <p>
+              Review Duplicates and EPUB Issues, compare files safely, and retry Reader-relevant
+              diagnostics without changing your EPUBs.
+            </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Archeion's file actions change the real EPUB files and folders inside the archive.
-          </p>
           <div class="article-heading">
-            <h2 id="manage-book">Manage a book</h2>
+            <h2 id="enable">Enable the archive-health views</h2>
             <a
               class="heading-permalink"
-              href="#manage-book"
-              aria-label="Link to section: Manage a book"
+              href="#enable"
+              aria-label="Link to section: Enable the archive-health views"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <ol>
+            <li>
+              Open <strong>Settings → Library → Smart Views</strong> and turn on
+              <strong>Show Smart Views</strong>.
+            </li>
+            <li>
+              Select <strong>Duplicates</strong> and <strong>EPUB Issues</strong> among the visible
+              views. They are hidden by default; enabling Smart Views alone does not select these
+              two views.
+            </li>
+            <li>
+              Return to the Library sidebar and open the view you want. It analyzes the active
+              archive's current EPUB files. Wait for <strong>Checking EPUB files</strong> to finish.
+            </li>
+          </ol>
+          <p>
+            These views inspect files; they do not automatically delete duplicates or repair EPUB
+            contents. Ordinary Library sorting and reading-state filters are separate from these
+            diagnostic views.
+          </p>
           <div class="article-heading">
-            <h3 id="rename-move">Rename or move</h3>
+            <h2 id="duplicates">Compare duplicate groups before changing files</h2>
             <a
               class="heading-permalink"
-              href="#rename-move"
-              aria-label="Link to section: Rename or move"
+              href="#duplicates"
+              aria-label="Link to section: Compare duplicate groups before changing files"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <ul>
+            <li>
+              <strong>Exact duplicate</strong>: copies have the same file bytes, confirmed by a
+              matching digest. This does not mean their archive-owned progress or annotations are
+              interchangeable.
+            </li>
+            <li>
+              <strong>Probable duplicate</strong>: copies share the same EPUB identifier but can
+              have different contents, covers, or metadata. An identifier is not proof that either
+              file is redundant.
+            </li>
+          </ul>
           <p>
-            Use the book action menu or Details drawer to rename an EPUB or move it to another
-            folder in the same archive. Moving changes the file's location; it does not export a
-            second copy or change the embedded title. Check the destination before confirming,
-            especially when a file with that name already exists.
+            For each entry, compare <strong>Path</strong>, <strong>File</strong> size, and
+            <strong>Modified</strong> date. Open <strong>Details</strong> by selecting the cover or
+            title. Use <strong>Read</strong> to inspect a copy and <strong>Reveal</strong> to locate
+            it on disk before deciding which one to keep.
           </p>
           <p>
-            To change the title or embedded image without renaming the file, use
-            <a href="../metadata-covers/">Metadata and covers</a>. Those edits write into the EPUB;
-            review their previews and backup guidance before saving.
-          </p>
-          <div class="article-heading">
-            <h3 id="reveal-export">Reveal or export</h3>
-            <a
-              class="heading-permalink"
-              href="#reveal-export"
-              aria-label="Link to section: Reveal or export"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            Use <strong>Reveal in folder</strong> to open the file's location in Windows Explorer.
-            Selection mode can export selected EPUB files to another location without changing the
-            files in the archive. Export is a copy, not a complete archive backup: it does not
-            include the archive's reading data or sidecars. Use the
-            <a href="../../reference/annotation-export/">Annotation export reference</a> for
-            separate Markdown or JSON exports, or
-            <a href="../../reference/archive-storage/">Archive storage</a> to preserve the whole
-            archive.
-          </p>
-          <div class="article-heading">
-            <h3 id="delete-book">Delete a book</h3>
-            <a
-              class="heading-permalink"
-              href="#delete-book"
-              aria-label="Link to section: Delete a book"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            Deletion is shown as <strong>Delete to Recycle Bin</strong>. Review the confirmation
-            before deleting one or more books. This removes the real files from their archive
-            locations, not just cards from the current view. Check the reported result before
-            assuming every selected item was deleted.
+            The file-actions menu offers <strong>Move to folder</strong> and
+            <strong>Delete EPUB</strong> for available files. These change real files, so review the
+            <a href="../file-management/">file-management consequences</a> and
+            <a href="../../reference/archive-storage/#backup">back up the complete archive</a>
+            first. A duplicate result is not a recommendation to delete a particular copy.
           </p>
           <p>
-            If the file was already deleted outside Archeion, use
-            <strong>Remove metadata</strong> to clear its old Library entry. Removing metadata is
-            not file recovery and does not bring back the EPUB. If you want to restore the book or
-            retain its reading data, consult
-            <a href="../../reference/troubleshooting/#safe-order">safe recovery steps</a>
-            before removing the entry.
+            If an entry's file is missing, Read, Reveal, and Move are unavailable. Details remains
+            available, and <strong>Remove metadata</strong> replaces Delete EPUB. Removing the entry
+            is not file recovery; locate or restore the missing EPUB before discarding data you
+            need.
           </p>
           <div class="article-heading">
-            <h2 id="manage-folder">Manage folders</h2>
+            <h2 id="epub-issues">Interpret EPUB Issues</h2>
             <a
               class="heading-permalink"
-              href="#manage-folder"
-              aria-label="Link to section: Manage folders"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p id="folder-actions"><strong>Folder operations include their contents.</strong></p>
-          <p>
-            Folder actions work on real directories. Moving a folder also moves the EPUB files and
-            subfolders inside it.
-          </p>
-          <p id="delete-folder"><strong>Review a folder before deleting it.</strong></p>
-          <p>
-            Check the folder contents before deleting it. A folder deletion can include every book
-            and subfolder inside that folder.
-          </p>
-          <div class="article-heading">
-            <h2 id="outside-changes">Changes made outside Archeion</h2>
-            <a
-              class="heading-permalink"
-              href="#outside-changes"
-              aria-label="Link to section: Changes made outside Archeion"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="refresh-library">Refresh the Library</h3>
-            <a
-              class="heading-permalink"
-              href="#refresh-library"
-              aria-label="Link to section: Refresh the Library"
+              href="#epub-issues"
+              aria-label="Link to section: Interpret EPUB Issues"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Archeion normally detects files added, moved, renamed, or removed with Windows Explorer.
-            Use <strong>Rescan archive</strong> when the Library does not reflect an external
-            change.
+            Each affected book separates <strong>warnings</strong> from <strong>errors</strong>.
+            Expand its diagnostic issues to read the explanation and
+            <strong>EPUB resource</strong> path when one is available. Common findings include:
+          </p>
+          <ul>
+            <li>
+              An unreadable EPUB archive, missing or malformed package information, or unusable
+              reading order.
+            </li>
+            <li>
+              Missing, unsupported, or encrypted reading resources, such as a chapter document.
+            </li>
+            <li>Missing or unusable navigation resources.</li>
+            <li>
+              Broken local links to missing documents, or unsafe targets resolving outside the EPUB
+              archive.
+            </li>
+            <li>Inspection stopped at a safety limit, so not every resource could be checked.</li>
+          </ul>
+          <p>
+            <strong>Reader unavailable</strong> disables Read when diagnostics indicate a blocking
+            archive, package, or reading-order problem. Not every error blocks the whole book: a
+            damaged resource can affect only part of it. Use Reveal or Details to identify the
+            affected file, then follow
+            <a href="../../reference/troubleshooting/#reader-unavailable"
+              >Reader-unavailable recovery</a
+            >.
+          </p>
+          <p>
+            This is Reader-relevant inspection, not complete EPUB validation or a guarantee that
+            every book feature is supported. A warning is not a repair instruction, and this view
+            does not rewrite the file.
           </p>
           <div class="article-heading">
-            <h3 id="backup-first">Back up before large changes</h3>
+            <h2 id="refresh">Refresh, empty results, and failed checks</h2>
             <a
               class="heading-permalink"
-              href="#backup-first"
-              aria-label="Link to section: Back up before large changes"
+              href="#refresh"
+              aria-label="Link to section: Refresh, empty results, and failed checks"
               ><span aria-hidden="true">#</span></a
             >
           </div>
-          <div class="notice" role="note">
-            <strong>Copy the complete archive</strong>
-            <p>
-              For a complete backup, copy the EPUB folders and the hidden
-              <code>.archeion</code> folder together.
-            </p>
-          </div>
           <p>
-            If a file is missing or a move or scan fails, follow
-            <a href="../../reference/troubleshooting/">Troubleshooting and recovery</a> before
-            removing metadata or modifying sidecars. For duplicate-file decisions, see
-            <a href="../archive-health/#duplicates">compare duplicate groups</a>.
+            Select <strong>Refresh</strong> after resolving a problem or changing files. Existing
+            results remain visible while refreshing. If a refresh fails after earlier success,
+            previous results remain beside the refresh error; they are not confirmation that the
+            latest check succeeded. Retry Refresh before relying on them.
+          </p>
+          <p>
+            With no earlier results, a failure shows <strong>Duplicates unavailable</strong> or
+            <strong>EPUB Issues unavailable</strong> and <strong>Try again</strong>. An empty
+            successful check shows <strong>No duplicate groups</strong> or
+            <strong>No EPUB issues</strong>. It means no current matching groups or Reader-relevant
+            findings were found, not that every EPUB was independently certified.
+          </p>
+          <p>
+            Results are tied to current file information. Changed or missing files can disappear
+            from findings instead of retaining an obsolete diagnosis. If the Library itself is
+            stale,
+            <a href="../../reference/troubleshooting/#failed-scan">check the archive scan</a> before
+            refreshing these views again.
           </p>
         </article>
         <!-- docs-pager:start -->
         <nav aria-label="Documentation pages" class="article-pager">
-          <a
-            class="article-pager__item article-pager__item--previous"
-            rel="prev"
-            href="../reader-media/"
-            ><span>Previous</span><strong>Footnotes and illustrations</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../settings/"
-            ><span>Next</span><strong>Settings</strong></a
+          <a class="article-pager__item article-pager__item--previous" rel="prev" href="../library/"
+            ><span>Previous</span><strong>Library</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            rel="next"
+            href="../quick-actions/"
+            ><span>Next</span><strong>Quick Actions</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -502,7 +505,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/file-management/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/archive-health/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a
