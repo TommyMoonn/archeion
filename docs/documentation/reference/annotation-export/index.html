@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Browse series, review volume order, continue reading, and use next-volume guidance."
+      content="Markdown and versioned JSON annotation export formats and portability limits."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Organize books by series | Archeion Docs</title>
+    <title>Annotation export | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -202,63 +202,62 @@
             <a
               data-doc-link=""
               data-search="library browse and organize the library find books, use folders and series, change the layout, and manage one or more books."
-              href="../library/"
+              href="../../guides/library/"
               ><span>Library</span></a
             ><a
               data-doc-link=""
               data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
-              href="../archive-health/"
+              href="../../guides/archive-health/"
               ><span>Archive health</span></a
             ><a
               data-doc-link=""
               data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
-              href="../quick-actions/"
+              href="../../guides/quick-actions/"
               ><span>Quick Actions</span></a
             ><a
               data-doc-link=""
               data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
-              href="../metadata-covers/"
+              href="../../guides/metadata-covers/"
               ><span>Metadata and covers</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
-              href="./"
+              href="../../guides/series/"
               ><span>Series</span></a
             ><a
               data-doc-link=""
               data-search="reader and annotations read and annotate navigate books, adjust the reader, and manage bookmarks, highlights, and notes."
-              href="../reading/"
+              href="../../guides/reading/"
               ><span>Reader and annotations</span></a
             ><a
               data-doc-link=""
               data-search="reader navigation and progress navigate and track reading progress find text, move through epub navigation, retrace reader jumps, and seek by progress."
-              href="../reader-navigation/"
+              href="../../guides/reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
               data-search="footnotes and illustrations open footnotes and illustrations read linked notes without losing your place and inspect supported book images closely."
-              href="../reader-media/"
+              href="../../guides/reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
               data-doc-link=""
               data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="../file-management/"
+              href="../../guides/file-management/"
               ><span>File management</span></a
             ><a
               data-doc-link=""
               data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
-              href="../settings/"
+              href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
               data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
-              href="../dictionaries/"
+              href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
               data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
-              href="../keyboard-shortcuts/"
+              href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
           </div>
@@ -311,22 +310,23 @@
             <a
               data-doc-link=""
               data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and what storage maintenance and recovery copies change."
-              href="../../reference/archive-storage/"
+              href="../archive-storage/"
               ><span>Archive storage</span></a
             ><a
               data-doc-link=""
               data-search="troubleshooting and recovery troubleshooting and recovery choose a safe next step for a missing archive, stale metadata, failed scan, reader-unavailable epub, or interrupted edit."
-              href="../../reference/troubleshooting/"
+              href="../troubleshooting/"
               ><span>Troubleshooting and recovery</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="annotation export annotation export choose markdown or versioned json for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
-              href="../../reference/annotation-export/"
+              href="./"
               ><span>Annotation export</span></a
             ><a
               data-doc-link=""
               data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
-              href="../../reference/about-resources/"
+              href="../about-resources/"
               ><span>About and resources</span></a
             >
           </div>
@@ -336,104 +336,167 @@
     </aside>
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
-        <article class="doc-article" data-doc-article="" data-page-type="guide">
+        <article class="doc-article" data-doc-article="" data-page-type="reference">
           <header class="article-header">
-            <h1>Organize and continue a series</h1>
+            <h1>Annotation export</h1>
             <p>
-              Browse EPUB series metadata, review volume order, and continue where you left off.
+              Choose Markdown or versioned JSON for bookmarks, highlights, attached notes, and
+              detached annotations, with durable location references preserved.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Open <strong>Series</strong> from the Library sidebar to group books that contain series
-            metadata. Archeion uses the metadata already present in your EPUBs and does not rewrite
-            files just to build the Series view.
-          </p>
           <div class="article-heading">
-            <h2 id="browse-series">Browse series</h2>
+            <h2 id="formats">Formats and filenames</h2>
             <a
               class="heading-permalink"
-              href="#browse-series"
-              aria-label="Link to section: Browse series"
+              href="#formats"
+              aria-label="Link to section: Formats and filenames"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <ul>
+            <li>
+              <strong>Markdown</strong> is a readable document for notes, review, and sharing. It
+              groups annotations by book and chapter label, includes highlighted text and attached
+              notes, and shows a location reference and detached status.
+            </li>
+            <li>
+              <strong>JSON</strong> is structured data for downstream tools. It preserves annotation
+              fields inside a versioned document, including durable locations and detached status.
+              Check <code>schema</code> and <code>version</code> before interpreting it.
+            </li>
+          </ul>
+          <p>
+            Save Markdown with <code>.md</code> and JSON with <code>.json</code>. Extension matching
+            is case-insensitive. A missing, unsupported, or opposing extension is rejected without
+            changing the chosen path or writing a file. Changing a filename extension does not
+            convert one format into the other.
+          </p>
+          <p>
+            Export the current book from its Annotations panel, or export several selected books
+            from the Library. Export writes a separate document; it does not remove annotations or
+            embed them into the EPUB. For the controls, see
+            <a href="../../guides/reading/#export">export annotations in the Reader</a>.
+          </p>
           <div class="article-heading">
-            <h3 id="search-series">Search and sort</h3>
+            <h2 id="records">What each annotation contains</h2>
             <a
               class="heading-permalink"
-              href="#search-series"
-              aria-label="Link to section: Search and sort"
+              href="#records"
+              aria-label="Link to section: What each annotation contains"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <ul>
+            <li>
+              A <strong>bookmark</strong> is one record, with its label and available location
+              information.
+            </li>
+            <li>
+              A <strong>highlight</strong> is one record, with selected text, color, and an optional
+              attached note. Notes are not standalone annotation records.
+            </li>
+            <li>
+              A <strong>detached</strong> record is still exported. JSON retains
+              <code>anchorStatus: "detached"</code>; Markdown displays <code>Detached: Yes</code>.
+              Its saved text and note remain useful even when the location no longer reconnects to
+              the current EPUB.
+            </li>
+          </ul>
           <p>
-            Use <strong>Search series</strong> to narrow the overview. Sort by
-            <strong>Title</strong>, <strong>Recently opened</strong>, or
-            <strong>Most volumes</strong>, and switch between Grid and List view without changing
-            which series are included.
-          </p>
-          <p>
-            Each series entry shows its volume count and a reading summary such as books in
-            progress, complete, or unread.
-          </p>
-          <div class="article-heading">
-            <h2 id="series-detail">Open a series</h2>
-            <a
-              class="heading-permalink"
-              href="#series-detail"
-              aria-label="Link to section: Open a series"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="continue-series">Continue reading</h3>
-            <a
-              class="heading-permalink"
-              href="#continue-series"
-              aria-label="Link to section: Continue reading"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            A series detail page lists its known volumes in series order. Select a volume to
-            <strong>Read</strong>, <strong>Continue</strong>, or <strong>Open</strong> it according
-            to its reading state.
-          </p>
-          <p>
-            When available, <strong>Continue Series</strong> resumes the current in-progress volume.
-            If nothing is in progress, it opens the first unread volume instead.
+            Each JSON record has <code>chapterLabel</code> beside its <code>annotation</code>. The
+            label is display metadata resolved at export time, not a permanent location key. Use the
+            annotation's <code>chapterHref</code> and <code>cfiRange</code> as durable location
+            references when present. A bookmark need not have both. Replacing or editing an EPUB can
+            still make an old location unusable; export does not repair anchors.
           </p>
           <div class="article-heading">
-            <h3 id="series-hints">Review ordering hints</h3>
+            <h2 id="json-contract">JSON schema and example</h2>
             <a
               class="heading-permalink"
-              href="#series-hints"
-              aria-label="Link to section: Review ordering hints"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            <strong>Possible gaps</strong> and <strong>Repeated volumes</strong> are advisory hints
-            based on the volume metadata Archeion can interpret. They do not rename, delete, or
-            reorder your EPUB files on disk.
-          </p>
-          <div class="article-heading">
-            <h2 id="next-volume">Move to the next volume from Reader</h2>
-            <a
-              class="heading-permalink"
-              href="#next-volume"
-              aria-label="Link to section: Move to the next volume from Reader"
+              href="#json-contract"
+              aria-label="Link to section: JSON schema and example"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Near the end of a volume, Reader can show <strong>Open next volume</strong> when the
-            current book is effectively complete and the next known volume is unambiguous. If the
-            series order is unclear, Archeion leaves that action unavailable rather than guessing.
+            The current identifier is <code>archeion.annotation-export</code> and the version is
+            <code>1</code>. The top level contains <code>exportedAt</code> and a
+            <code>books</code> array; each book carries its identity, title, optional author, and
+            annotation records. The example below includes a bookmark and a detached highlight with
+            an attached note. Its identifiers and locations are illustrative.
+          </p>
+          <pre><code class="language-json">{
+  "schema": "archeion.annotation-export",
+  "version": 1,
+  "exportedAt": "2026-07-13T12:00:00.000Z",
+  "books": [
+    {
+      "id": "book-id",
+      "title": "Book title",
+      "author": "Book author",
+      "annotations": [
+        {
+          "annotation": {
+            "id": "bookmark-id",
+            "type": "bookmark",
+            "chapterHref": "chapter-one.xhtml",
+            "label": "Return here",
+            "createdAt": "2026-07-01T00:00:00.000Z",
+            "updatedAt": "2026-07-01T00:00:00.000Z"
+          },
+          "chapterLabel": "Chapter One"
+        },
+        {
+          "annotation": {
+            "id": "highlight-id",
+            "type": "highlight",
+            "chapterHref": "chapter-one.xhtml",
+            "cfiRange": "epubcfi(/6/2!/4/2/1:0)",
+            "selectedText": "Quoted passage",
+            "color": "yellow",
+            "note": "Review this passage",
+            "anchorStatus": "detached",
+            "createdAt": "2026-07-01T00:00:00.000Z",
+            "updatedAt": "2026-07-01T00:00:00.000Z"
+          },
+          "chapterLabel": "Chapter One"
+        }
+      ]
+    }
+  ]
+}</code></pre>
+          <p>
+            Consumers that rewrite JSON should preserve fields they do not recognize. Incompatible
+            future structures will increment the version. Read the
+            <a href="../../../ANNOTATION_EXPORT_FORMAT.md"
+              >full annotation export format contract</a
+            >
+            for machine-readable field details; do not treat this example as a complete schema.
+          </p>
+          <div class="article-heading">
+            <h2 id="portability">Portability and privacy limits</h2>
+            <a
+              class="heading-permalink"
+              href="#portability"
+              aria-label="Link to section: Portability and privacy limits"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Keep the export beside a backup of the source EPUB if you need its location context
+            later. It is a portable record of annotations, not a full archive backup or a promise of
+            annotation import or round-trip restoration. For actual recovery, see
+            <a href="../troubleshooting/">Troubleshooting and recovery</a>.
+          </p>
+          <p>
+            Exports can contain book titles, quoted passages, personal notes, and location
+            references. Review the document before sharing it. See
+            <a href="../archive-storage/#ownership">Archive storage</a> for the local-first data
+            model.
           </p>
         </article>
         <!-- docs-pager:start -->
@@ -441,10 +504,13 @@
           <a
             class="article-pager__item article-pager__item--previous"
             rel="prev"
-            href="../metadata-covers/"
-            ><span>Previous</span><strong>Metadata and covers</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../reading/"
-            ><span>Next</span><strong>Reader and annotations</strong></a
+            href="../troubleshooting/"
+            ><span>Previous</span><strong>Troubleshooting and recovery</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            rel="next"
+            href="../about-resources/"
+            ><span>Next</span><strong>About and resources</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -454,7 +520,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/series/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/reference/annotation-export/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a

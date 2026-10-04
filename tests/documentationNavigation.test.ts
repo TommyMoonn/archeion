@@ -84,8 +84,10 @@ describe("documentation navigation contract", () => {
     ["guides/dictionaries", "../settings/", "../keyboard-shortcuts/"],
     ["guides/keyboard-shortcuts", "../dictionaries/", "../../customization/appearance/"],
     ["customization/theme-manager", "../custom-themes/", "../../reference/archive-storage/"],
-    ["reference/archive-storage", "../../customization/theme-manager/", "../about-resources/"],
-    ["reference/about-resources", "../archive-storage/", null],
+    ["reference/archive-storage", "../../customization/theme-manager/", "../troubleshooting/"],
+    ["reference/troubleshooting", "../archive-storage/", "../annotation-export/"],
+    ["reference/annotation-export", "../troubleshooting/", "../about-resources/"],
+    ["reference/about-resources", "../annotation-export/", null],
     ["", null, "getting-started/installing/"],
   ])("%s links to its immediate sequence neighbors", (route, previous, next) => {
     const document = documentFor(route!);

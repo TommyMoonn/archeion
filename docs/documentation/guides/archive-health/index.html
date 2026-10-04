@@ -4,12 +4,9 @@
   <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
-    <meta
-      content="Browse series, review volume order, continue reading, and use next-volume guidance."
-      name="description"
-    />
+    <meta content="Review Duplicates and EPUB Issues safely." name="description" />
     <meta content="#171717" name="theme-color" />
-    <title>Organize books by series | Archeion Docs</title>
+    <title>Archive health | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -205,9 +202,10 @@
               href="../library/"
               ><span>Library</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
-              href="../archive-health/"
+              href="./"
               ><span>Archive health</span></a
             ><a
               data-doc-link=""
@@ -220,10 +218,9 @@
               href="../metadata-covers/"
               ><span>Metadata and covers</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
-              href="./"
+              href="../series/"
               ><span>Series</span></a
             ><a
               data-doc-link=""
@@ -338,113 +335,167 @@
       <main class="docs-main" id="main-content">
         <article class="doc-article" data-doc-article="" data-page-type="guide">
           <header class="article-header">
-            <h1>Organize and continue a series</h1>
+            <h1>Archive health</h1>
             <p>
-              Browse EPUB series metadata, review volume order, and continue where you left off.
+              Review Duplicates and EPUB Issues, compare files safely, and retry Reader-relevant
+              diagnostics without changing your EPUBs.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Open <strong>Series</strong> from the Library sidebar to group books that contain series
-            metadata. Archeion uses the metadata already present in your EPUBs and does not rewrite
-            files just to build the Series view.
-          </p>
           <div class="article-heading">
-            <h2 id="browse-series">Browse series</h2>
+            <h2 id="enable">Enable the archive-health views</h2>
             <a
               class="heading-permalink"
-              href="#browse-series"
-              aria-label="Link to section: Browse series"
+              href="#enable"
+              aria-label="Link to section: Enable the archive-health views"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <ol>
+            <li>
+              Open <strong>Settings → Library → Smart Views</strong> and turn on
+              <strong>Show Smart Views</strong>.
+            </li>
+            <li>
+              Select <strong>Duplicates</strong> and <strong>EPUB Issues</strong> among the visible
+              views. They are hidden by default; enabling Smart Views alone does not select these
+              two views.
+            </li>
+            <li>
+              Return to the Library sidebar and open the view you want. It analyzes the active
+              archive's current EPUB files. Wait for <strong>Checking EPUB files</strong> to finish.
+            </li>
+          </ol>
+          <p>
+            These views inspect files; they do not automatically delete duplicates or repair EPUB
+            contents. Ordinary Library sorting and reading-state filters are separate from these
+            diagnostic views.
+          </p>
           <div class="article-heading">
-            <h3 id="search-series">Search and sort</h3>
+            <h2 id="duplicates">Compare duplicate groups before changing files</h2>
             <a
               class="heading-permalink"
-              href="#search-series"
-              aria-label="Link to section: Search and sort"
+              href="#duplicates"
+              aria-label="Link to section: Compare duplicate groups before changing files"
               ><span aria-hidden="true">#</span></a
             >
           </div>
+          <ul>
+            <li>
+              <strong>Exact duplicate</strong>: copies have the same file bytes, confirmed by a
+              matching digest. This does not mean their archive-owned progress or annotations are
+              interchangeable.
+            </li>
+            <li>
+              <strong>Probable duplicate</strong>: copies share the same EPUB identifier but can
+              have different contents, covers, or metadata. An identifier is not proof that either
+              file is redundant.
+            </li>
+          </ul>
           <p>
-            Use <strong>Search series</strong> to narrow the overview. Sort by
-            <strong>Title</strong>, <strong>Recently opened</strong>, or
-            <strong>Most volumes</strong>, and switch between Grid and List view without changing
-            which series are included.
+            For each entry, compare <strong>Path</strong>, <strong>File</strong> size, and
+            <strong>Modified</strong> date. Open <strong>Details</strong> by selecting the cover or
+            title. Use <strong>Read</strong> to inspect a copy and <strong>Reveal</strong> to locate
+            it on disk before deciding which one to keep.
           </p>
           <p>
-            Each series entry shows its volume count and a reading summary such as books in
-            progress, complete, or unread.
-          </p>
-          <div class="article-heading">
-            <h2 id="series-detail">Open a series</h2>
-            <a
-              class="heading-permalink"
-              href="#series-detail"
-              aria-label="Link to section: Open a series"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="continue-series">Continue reading</h3>
-            <a
-              class="heading-permalink"
-              href="#continue-series"
-              aria-label="Link to section: Continue reading"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            A series detail page lists its known volumes in series order. Select a volume to
-            <strong>Read</strong>, <strong>Continue</strong>, or <strong>Open</strong> it according
-            to its reading state.
+            The file-actions menu offers <strong>Move to folder</strong> and
+            <strong>Delete EPUB</strong> for available files. These change real files, so review the
+            <a href="../file-management/">file-management consequences</a> and
+            <a href="../../reference/archive-storage/#backup">back up the complete archive</a>
+            first. A duplicate result is not a recommendation to delete a particular copy.
           </p>
           <p>
-            When available, <strong>Continue Series</strong> resumes the current in-progress volume.
-            If nothing is in progress, it opens the first unread volume instead.
+            If an entry's file is missing, Read, Reveal, and Move are unavailable. Details remains
+            available, and <strong>Remove metadata</strong> replaces Delete EPUB. Removing the entry
+            is not file recovery; locate or restore the missing EPUB before discarding data you
+            need.
           </p>
           <div class="article-heading">
-            <h3 id="series-hints">Review ordering hints</h3>
+            <h2 id="epub-issues">Interpret EPUB Issues</h2>
             <a
               class="heading-permalink"
-              href="#series-hints"
-              aria-label="Link to section: Review ordering hints"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <p>
-            <strong>Possible gaps</strong> and <strong>Repeated volumes</strong> are advisory hints
-            based on the volume metadata Archeion can interpret. They do not rename, delete, or
-            reorder your EPUB files on disk.
-          </p>
-          <div class="article-heading">
-            <h2 id="next-volume">Move to the next volume from Reader</h2>
-            <a
-              class="heading-permalink"
-              href="#next-volume"
-              aria-label="Link to section: Move to the next volume from Reader"
+              href="#epub-issues"
+              aria-label="Link to section: Interpret EPUB Issues"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Near the end of a volume, Reader can show <strong>Open next volume</strong> when the
-            current book is effectively complete and the next known volume is unambiguous. If the
-            series order is unclear, Archeion leaves that action unavailable rather than guessing.
+            Each affected book separates <strong>warnings</strong> from <strong>errors</strong>.
+            Expand its diagnostic issues to read the explanation and
+            <strong>EPUB resource</strong> path when one is available. Common findings include:
+          </p>
+          <ul>
+            <li>
+              An unreadable EPUB archive, missing or malformed package information, or unusable
+              reading order.
+            </li>
+            <li>
+              Missing, unsupported, or encrypted reading resources, such as a chapter document.
+            </li>
+            <li>Missing or unusable navigation resources.</li>
+            <li>
+              Broken local links to missing documents, or unsafe targets resolving outside the EPUB
+              archive.
+            </li>
+            <li>Inspection stopped at a safety limit, so not every resource could be checked.</li>
+          </ul>
+          <p>
+            <strong>Reader unavailable</strong> disables Read when diagnostics indicate a blocking
+            archive, package, or reading-order problem. Not every error blocks the whole book: a
+            damaged resource can affect only part of it. Use Reveal or Details to identify the
+            affected file, then follow
+            <a href="../../reference/troubleshooting/#reader-unavailable"
+              >Reader-unavailable recovery</a
+            >.
+          </p>
+          <p>
+            This is Reader-relevant inspection, not complete EPUB validation or a guarantee that
+            every book feature is supported. A warning is not a repair instruction, and this view
+            does not rewrite the file.
+          </p>
+          <div class="article-heading">
+            <h2 id="refresh">Refresh, empty results, and failed checks</h2>
+            <a
+              class="heading-permalink"
+              href="#refresh"
+              aria-label="Link to section: Refresh, empty results, and failed checks"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Select <strong>Refresh</strong> after resolving a problem or changing files. Existing
+            results remain visible while refreshing. If a refresh fails after earlier success,
+            previous results remain beside the refresh error; they are not confirmation that the
+            latest check succeeded. Retry Refresh before relying on them.
+          </p>
+          <p>
+            With no earlier results, a failure shows <strong>Duplicates unavailable</strong> or
+            <strong>EPUB Issues unavailable</strong> and <strong>Try again</strong>. An empty
+            successful check shows <strong>No duplicate groups</strong> or
+            <strong>No EPUB issues</strong>. It means no current matching groups or Reader-relevant
+            findings were found, not that every EPUB was independently certified.
+          </p>
+          <p>
+            Results are tied to current file information. Changed or missing files can disappear
+            from findings instead of retaining an obsolete diagnosis. If the Library itself is
+            stale,
+            <a href="../../reference/troubleshooting/#failed-scan">check the archive scan</a> before
+            refreshing these views again.
           </p>
         </article>
         <!-- docs-pager:start -->
         <nav aria-label="Documentation pages" class="article-pager">
-          <a
-            class="article-pager__item article-pager__item--previous"
-            rel="prev"
-            href="../metadata-covers/"
-            ><span>Previous</span><strong>Metadata and covers</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../reading/"
-            ><span>Next</span><strong>Reader and annotations</strong></a
+          <a class="article-pager__item article-pager__item--previous" rel="prev" href="../library/"
+            ><span>Previous</span><strong>Library</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            rel="next"
+            href="../quick-actions/"
+            ><span>Next</span><strong>Quick Actions</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -454,7 +505,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/series/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/archive-health/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a

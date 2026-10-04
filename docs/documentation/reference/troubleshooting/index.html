@@ -5,11 +5,11 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <meta
-      content="Browse series, review volume order, continue reading, and use next-volume guidance."
+      content="Recover from missing archives, stale metadata, failed scans, and interrupted EPUB edits."
       name="description"
     />
     <meta content="#171717" name="theme-color" />
-    <title>Organize books by series | Archeion Docs</title>
+    <title>Troubleshooting and recovery | Archeion Docs</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
@@ -202,63 +202,62 @@
             <a
               data-doc-link=""
               data-search="library browse and organize the library find books, use folders and series, change the layout, and manage one or more books."
-              href="../library/"
+              href="../../guides/library/"
               ><span>Library</span></a
             ><a
               data-doc-link=""
               data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
-              href="../archive-health/"
+              href="../../guides/archive-health/"
               ><span>Archive health</span></a
             ><a
               data-doc-link=""
               data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
-              href="../quick-actions/"
+              href="../../guides/quick-actions/"
               ><span>Quick Actions</span></a
             ><a
               data-doc-link=""
               data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
-              href="../metadata-covers/"
+              href="../../guides/metadata-covers/"
               ><span>Metadata and covers</span></a
             ><a
-              aria-current="page"
               data-doc-link=""
               data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
-              href="./"
+              href="../../guides/series/"
               ><span>Series</span></a
             ><a
               data-doc-link=""
               data-search="reader and annotations read and annotate navigate books, adjust the reader, and manage bookmarks, highlights, and notes."
-              href="../reading/"
+              href="../../guides/reading/"
               ><span>Reader and annotations</span></a
             ><a
               data-doc-link=""
               data-search="reader navigation and progress navigate and track reading progress find text, move through epub navigation, retrace reader jumps, and seek by progress."
-              href="../reader-navigation/"
+              href="../../guides/reader-navigation/"
               ><span>Reader navigation and progress</span></a
             ><a
               data-doc-link=""
               data-search="footnotes and illustrations open footnotes and illustrations read linked notes without losing your place and inspect supported book images closely."
-              href="../reader-media/"
+              href="../../guides/reader-media/"
               ><span>Footnotes and illustrations</span></a
             ><a
               data-doc-link=""
               data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="../file-management/"
+              href="../../guides/file-management/"
               ><span>File management</span></a
             ><a
               data-doc-link=""
               data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
-              href="../settings/"
+              href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
               data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
-              href="../dictionaries/"
+              href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
               data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
-              href="../keyboard-shortcuts/"
+              href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
           </div>
@@ -311,22 +310,23 @@
             <a
               data-doc-link=""
               data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and what storage maintenance and recovery copies change."
-              href="../../reference/archive-storage/"
+              href="../archive-storage/"
               ><span>Archive storage</span></a
             ><a
+              aria-current="page"
               data-doc-link=""
               data-search="troubleshooting and recovery troubleshooting and recovery choose a safe next step for a missing archive, stale metadata, failed scan, reader-unavailable epub, or interrupted edit."
-              href="../../reference/troubleshooting/"
+              href="./"
               ><span>Troubleshooting and recovery</span></a
             ><a
               data-doc-link=""
               data-search="annotation export annotation export choose markdown or versioned json for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
-              href="../../reference/annotation-export/"
+              href="../annotation-export/"
               ><span>Annotation export</span></a
             ><a
               data-doc-link=""
               data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
-              href="../../reference/about-resources/"
+              href="../about-resources/"
               ><span>About and resources</span></a
             >
           </div>
@@ -336,104 +336,233 @@
     </aside>
     <div class="docs-layout">
       <main class="docs-main" id="main-content">
-        <article class="doc-article" data-doc-article="" data-page-type="guide">
+        <article class="doc-article" data-doc-article="" data-page-type="troubleshooting">
           <header class="article-header">
-            <h1>Organize and continue a series</h1>
+            <h1>Troubleshooting and recovery</h1>
             <p>
-              Browse EPUB series metadata, review volume order, and continue where you left off.
+              Choose a safe next step for a missing archive, stale metadata, failed scan,
+              Reader-unavailable EPUB, or interrupted edit.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Open <strong>Series</strong> from the Library sidebar to group books that contain series
-            metadata. Archeion uses the metadata already present in your EPUBs and does not rewrite
-            files just to build the Series view.
-          </p>
           <div class="article-heading">
-            <h2 id="browse-series">Browse series</h2>
+            <h2 id="safe-order">Start with the least invasive action</h2>
             <a
               class="heading-permalink"
-              href="#browse-series"
-              aria-label="Link to section: Browse series"
+              href="#safe-order"
+              aria-label="Link to section: Start with the least invasive action"
               ><span aria-hidden="true">#</span></a
             >
           </div>
-          <div class="article-heading">
-            <h3 id="search-series">Search and sort</h3>
-            <a
-              class="heading-permalink"
-              href="#search-series"
-              aria-label="Link to section: Search and sort"
-              ><span aria-hidden="true">#</span></a
-            >
+          <ol>
+            <li>
+              Read the full error and check which archive, file, or resource it names. Keep the
+              message and any reported backup path.
+            </li>
+            <li>
+              Check that the drive is connected, the folder still exists, and files are accessible
+              in Windows Explorer. Wait for an active scan or write to finish before retrying.
+            </li>
+            <li>
+              Use the symptom-specific action below. Retry once the cause has changed; do not
+              repeatedly submit an outdated metadata or cover preview.
+            </li>
+            <li>
+              Before repair or manual recovery, close Archeion and copy the complete archive,
+              including hidden files, to a separate safe location. Preserve reported EPUB recovery
+              copies too.
+            </li>
+          </ol>
+          <div class="notice" role="note">
+            <strong>Preserve the sidecars</strong>
+            <p>
+              Do not delete or rewrite live <code>.archeion</code> files as a first-line fix. They
+              hold reading progress, annotations, and Library data that cannot be recreated simply
+              by scanning EPUBs. See <a href="../archive-storage/">Archive storage</a> for data
+              ownership and maintenance effects.
+            </p>
           </div>
-          <p>
-            Use <strong>Search series</strong> to narrow the overview. Sort by
-            <strong>Title</strong>, <strong>Recently opened</strong>, or
-            <strong>Most volumes</strong>, and switch between Grid and List view without changing
-            which series are included.
-          </p>
-          <p>
-            Each series entry shows its volume count and a reading summary such as books in
-            progress, complete, or unread.
-          </p>
           <div class="article-heading">
-            <h2 id="series-detail">Open a series</h2>
+            <h2 id="missing-archive">An archive is marked missing</h2>
             <a
               class="heading-permalink"
-              href="#series-detail"
-              aria-label="Link to section: Open a series"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
-          <div class="article-heading">
-            <h3 id="continue-series">Continue reading</h3>
-            <a
-              class="heading-permalink"
-              href="#continue-series"
-              aria-label="Link to section: Continue reading"
+              href="#missing-archive"
+              aria-label="Link to section: An archive is marked missing"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            A series detail page lists its known volumes in series order. Select a volume to
-            <strong>Read</strong>, <strong>Continue</strong>, or <strong>Open</strong> it according
-            to its reading state.
+            Reconnect a removable drive or restore the folder if it has not moved. If you moved it,
+            use <strong>Archive Manager → Open archive</strong> to open the new location. Verify
+            that the EPUB folders and hidden <code>.archeion</code> folder moved together and that
+            progress and annotations are present.
           </p>
           <p>
-            When available, <strong>Continue Series</strong> resumes the current in-progress volume.
-            If nothing is in progress, it opens the first unread volume instead.
+            Only then use <strong>Forget</strong> on the obsolete archive-list entry. Forget removes
+            a remembered location; it does not delete the archive folder. An archive scan cannot
+            locate a folder at a different path or recreate deleted EPUB files. If the folder was
+            deleted, restore your complete backup before reopening it. See
+            <a href="../../getting-started/archives/">Open or create an archive</a>.
           </p>
           <div class="article-heading">
-            <h3 id="series-hints">Review ordering hints</h3>
+            <h2 id="stale-metadata">A title, author, or cover is out of date</h2>
             <a
               class="heading-permalink"
-              href="#series-hints"
-              aria-label="Link to section: Review ordering hints"
+              href="#stale-metadata"
+              aria-label="Link to section: A title, author, or cover is out of date"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            <strong>Possible gaps</strong> and <strong>Repeated volumes</strong> are advisory hints
-            based on the volume metadata Archeion can interpret. They do not rename, delete, or
-            reorder your EPUB files on disk.
+            First check Details and the path to ensure you are looking at the intended EPUB. In
+            <strong>Settings → Storage</strong>, choose <strong>Archive scan → Run</strong> when the
+            Library has not caught up with an external file change.
+          </p>
+          <p>
+            If parsed title or author data is still stale, choose
+            <strong>Source metadata → Re-extract</strong>. It clears cached scan state and scans
+            again; it does not write new values into the EPUB or delete favorites and progress. To
+            change embedded values, use
+            <a href="../../guides/metadata-covers/">Metadata and covers</a>.
+          </p>
+          <p>
+            For stale generated artwork, choose <strong>Generated cover cache → Clear</strong>.
+            Covers are extracted again when needed, and embedded EPUB artwork is not changed. If
+            cover writeback already succeeded but refreshing the cover reported a warning, do not
+            assume the file write failed. See the
+            <a href="../archive-storage/#maintenance">maintenance reference</a> before choosing a
+            broader repair.
           </p>
           <div class="article-heading">
-            <h2 id="next-volume">Move to the next volume from Reader</h2>
+            <h2 id="failed-scan">A scan or diagnostic refresh fails</h2>
             <a
               class="heading-permalink"
-              href="#next-volume"
-              aria-label="Link to section: Move to the next volume from Reader"
+              href="#failed-scan"
+              aria-label="Link to section: A scan or diagnostic refresh fails"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Near the end of a volume, Reader can show <strong>Open next volume</strong> when the
-            current book is effectively complete and the next known volume is unambiguous. If the
-            series order is unclear, Archeion leaves that action unavailable rather than guessing.
+            Check the error, drive access, file permissions, and whether another program is moving
+            or editing the archive. Keep the archive open in the Library, wait for active scanning
+            to finish, and retry <strong>Archive scan → Run</strong>. A scan checks files and
+            refreshes Library data; it does not edit EPUB contents.
+          </p>
+          <p>
+            Use <strong>Scanner cache → Clear</strong> for suspect cached scan state, then run an
+            Archive scan. If corrupted archive sidecars are reported and retry still fails, back up
+            first and choose <strong>Archive metadata → Repair</strong>. Repair recovers or rebuilds
+            sidecars when possible, clears scan state, and rescans. It cannot recreate lost
+            annotations without valid saved data.
+          </p>
+          <p>
+            In Duplicates or EPUB Issues, use <strong>Try again</strong> after an initial failure or
+            <strong>Refresh</strong> after a later failure. Previously shown findings can remain
+            alongside a refresh error. They do not prove the new check completed. See
+            <a href="../../guides/archive-health/#refresh">archive-health refresh behavior</a>.
+          </p>
+          <div class="article-heading">
+            <h2 id="reader-unavailable">An EPUB cannot open in Reader</h2>
+            <a
+              class="heading-permalink"
+              href="#reader-unavailable"
+              aria-label="Link to section: An EPUB cannot open in Reader"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Check whether the EPUB is missing in Details. Locate or restore the file before removing
+            its metadata. If the file exists, enable
+            <a href="../../guides/archive-health/">EPUB Issues</a>, read its diagnostic issues, and
+            note the affected resource path.
+          </p>
+          <p>
+            Archive metadata repair does not repair the EPUB's internal package, chapter documents,
+            reading order, or encrypted resources. Obtain a readable replacement from your source or
+            restore a known-good EPUB copy. Work on a separate copy if an external EPUB editor is
+            needed, then rescan and refresh diagnostics. An empty diagnostic result is not a promise
+            of full Reader compatibility.
+          </p>
+          <p>
+            After replacing a book, review annotations in the Reader. Records that cannot reconnect
+            remain detached for review, copy, export, recovery, or removal; do not delete them
+            merely because the new EPUB opens. See
+            <a href="../../guides/reading/#book-changes">changed EPUBs and annotations</a>.
+          </p>
+          <div class="article-heading">
+            <h2 id="interrupted-edit">A metadata or cover edit fails</h2>
+            <a
+              class="heading-permalink"
+              href="#interrupted-edit"
+              aria-label="Link to section: A metadata or cover edit fails"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            If the source changed since the preview, stop the external edit and reopen the editor to
+            review the latest EPUB. For a changed cover image, choose it again and prepare a fresh
+            preview. The stale-source safeguard refuses unsafe replacement rather than silently
+            overwriting newer changes.
+          </p>
+          <p>
+            Read the failure outcome: the original may be unchanged, the backup may have been
+            restored, or the message may say <strong>automatic restore failed</strong>. Successful
+            writes can also report a cleanup or cover-refresh warning; check the actual outcome
+            before writing again.
+          </p>
+          <ol>
+            <li>
+              If restoration failed, stop writes and cleanup. Record the
+              <strong>reported backup path</strong> and original EPUB path, then close Archeion.
+            </li>
+            <li>
+              Copy the reported recovery file and the complete archive to a separate safe location.
+              Do not use EPUB writeback backup cleanup while investigating.
+            </li>
+            <li>
+              Inspect a separate copy of the recovery EPUB. After preserving both the current file
+              and the backup, restore the verified copy to the original EPUB location with Windows
+              Explorer, using the normal <code>.epub</code> extension. Do not overwrite the only
+              surviving copy.
+            </li>
+            <li>
+              Reopen the archive, run an Archive scan, and check the book and its annotations. If
+              the recovery copy is absent or unreadable, use your independent archive backup or
+              obtain a replacement; automatic restoration is not guaranteed.
+            </li>
+          </ol>
+          <p>
+            Optional retained copies from successful edits are separate from the emergency path
+            reported by a failed write. See
+            <a href="../archive-storage/#writeback-backups">EPUB writeback backups</a> for retention
+            and cleanup limits.
+          </p>
+          <div class="article-heading">
+            <h2 id="settings-load">Settings or archive data cannot load</h2>
+            <a
+              class="heading-permalink"
+              href="#settings-load"
+              aria-label="Link to section: Settings or archive data cannot load"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            For a temporary Settings load failure, select <strong>Retry</strong> in the same
+            Settings window after resolving drive or access problems. Archeion attempts
+            interrupted-write recovery when loading saved data. Corrupt application settings are
+            preserved before defaults are used; archive-list and archive-sidecar recovery use valid
+            saved copies where available. These are different safeguards, not a guarantee that all
+            earlier values can be restored.
+          </p>
+          <p>
+            For persistent errors, preserve the complete archive and relevant application data
+            before further intervention. Record the installed version from About, the exact message,
+            and the failing task when reporting an issue through
+            <a href="../about-resources/">About and resources</a>. EPUB paths, exported annotations,
+            and sidecar files may contain private information; review anything you share.
           </p>
         </article>
         <!-- docs-pager:start -->
@@ -441,10 +570,13 @@
           <a
             class="article-pager__item article-pager__item--previous"
             rel="prev"
-            href="../metadata-covers/"
-            ><span>Previous</span><strong>Metadata and covers</strong></a
-          ><a class="article-pager__item article-pager__item--next" rel="next" href="../reading/"
-            ><span>Next</span><strong>Reader and annotations</strong></a
+            href="../archive-storage/"
+            ><span>Previous</span><strong>Archive storage</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            rel="next"
+            href="../annotation-export/"
+            ><span>Next</span><strong>Annotation export</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
@@ -454,7 +586,7 @@
           <div class="docs-footer__links">
             <a
               data-doc-edit=""
-              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/guides/series/index.html"
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/reference/troubleshooting/index.html"
               rel="noreferrer"
               target="_blank"
               >Edit this page <span aria-hidden="true">↗</span></a

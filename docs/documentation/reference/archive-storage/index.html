@@ -206,6 +206,11 @@
               ><span>Library</span></a
             ><a
               data-doc-link=""
+              data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
+              href="../../guides/archive-health/"
+              ><span>Archive health</span></a
+            ><a
+              data-doc-link=""
               data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
               href="../../guides/quick-actions/"
               ><span>Quick Actions</span></a
@@ -305,9 +310,19 @@
             <a
               aria-current="page"
               data-doc-link=""
-              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and which storage actions operate on the active archive."
+              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and what storage maintenance and recovery copies change."
               href="./"
               ><span>Archive storage</span></a
+            ><a
+              data-doc-link=""
+              data-search="troubleshooting and recovery troubleshooting and recovery choose a safe next step for a missing archive, stale metadata, failed scan, reader-unavailable epub, or interrupted edit."
+              href="../troubleshooting/"
+              ><span>Troubleshooting and recovery</span></a
+            ><a
+              data-doc-link=""
+              data-search="annotation export annotation export choose markdown or versioned json for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
+              href="../annotation-export/"
+              ><span>Annotation export</span></a
             ><a
               data-doc-link=""
               data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
@@ -326,18 +341,13 @@
             <h1>Archive storage, ownership, and maintenance</h1>
             <p>
               Know which data travels with an archive, which preferences live in application data,
-              and which Storage actions operate on the active archive.
+              and what Storage maintenance and recovery copies change.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            EPUB files remain normal files. Archive-specific Reader and Library sidecars live under
-            the archive's hidden <code>.archeion</code> folder, while application-wide preferences,
-            installed dictionaries, and custom theme packages live in Archeion's application data.
-          </p>
           <div class="article-heading">
             <h2 id="ownership">Archive data versus application data</h2>
             <a
@@ -357,10 +367,11 @@
             >
           </div>
           <p>
-            The active archive's <code>.archeion</code> directory contains sidecars such as Library
-            metadata, reading progress, annotations, scanner cache data, generated covers, and
-            recovery backups. These records belong to that archive and should travel with it when
-            you back up or move the library.
+            An archive is a normal folder containing your EPUB files and existing subfolders. The
+            hidden <code>.archeion</code> directory holds Library metadata, favorites and
+            collections, reading progress, annotations, scanner cache data, generated covers, and
+            recovery backups. These sidecars belong to that archive; EPUB files remain normal files
+            outside this metadata directory.
           </p>
           <div class="article-heading">
             <h3 id="application-data">Application-wide data</h3>
@@ -373,16 +384,21 @@
           </div>
           <p>
             Application preferences, Reader defaults, keyboard shortcuts, theme selections, custom
-            theme packages, installed dictionaries, and standalone utility-window preferences are
-            application-wide. Preferences are stored in the application <code>settings.json</code>,
-            with custom theme packages alongside it in Archeion's application data rather than
-            copied into each archive.
+            theme packages, installed dictionaries, and standalone utility-window preferences live
+            in Archeion's application data. Preferences are stored in the application
+            <code>settings.json</code>. The remembered archive list is application-wide too; it
+            stores archive locations, not the books themselves.
           </p>
           <p>
             Older archives may still contain legacy <code>.archeion/themes/</code> packages and
             archive settings files. They are migration inputs, not current preferences. Archeion can
             copy compatible theme packages into application data without deleting the archive copy;
             it retires obsolete archive settings artifacts when an archive is opened.
+          </p>
+          <p>
+            Archeion has no account system, cloud sync, or telemetry. Keeping books and sidecars
+            locally does not create an online backup. You control copies and sharing, including
+            exports containing personal notes.
           </p>
           <div class="article-heading">
             <h2 id="backup">Back up or move an archive</h2>
@@ -395,8 +411,16 @@
           </div>
           <p>
             Copy the complete archive folder, including hidden files, to preserve EPUBs and
-            archive-owned metadata together. Application-wide settings, dictionaries, and global
-            theme packages are separate and are not part of an archive backup.
+            <code>.archeion</code> together. Close Archeion and wait for file operations to finish
+            before making a consistent backup or moving it. Copying only EPUB files omits your
+            progress, annotations, and Library organization; copying only sidecars omits the books.
+          </p>
+          <p>
+            Application-wide settings, the remembered archive list, dictionaries, and global theme
+            packages are separate and are not part of an archive backup. Preserve application data
+            separately if you need those resources too. After a move, open the new folder in Archive
+            Manager and check the contents before forgetting the old location. See
+            <a href="../troubleshooting/#missing-archive">missing or moved archives</a>.
           </p>
           <div class="article-heading">
             <h2 id="storage-policies">Storage global policies</h2>
@@ -415,12 +439,92 @@
               disk.
             </li>
             <li>
-              <strong>Keep EPUB writeback backup</strong> retains one recovery copy after supported
-              metadata and cover edits; it is off by default. See
-              <a href="../../guides/metadata-covers/#write-safety">Metadata and covers</a> for
-              writeback safety and recovery-copy expectations.
+              <strong>Keep EPUB writeback backup</strong> keeps one recovery copy after supported
+              metadata and cover edits; it is off by default.
             </li>
           </ul>
+          <p>
+            These are policies, not a substitute for a complete archive backup. See
+            <a href="../../guides/metadata-covers/">Metadata and covers</a> for preview and
+            stale-source safeguards.
+          </p>
+          <div class="article-heading">
+            <h2 id="automatic-recovery">Automatic recovery and its limits</h2>
+            <a
+              class="heading-permalink"
+              href="#automatic-recovery"
+              aria-label="Link to section: Automatic recovery and its limits"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ul>
+            <li>
+              <strong>Interrupted saved-data writes:</strong> on load, Archeion attempts to finish
+              or restore an interrupted settings, archive-list, or archive-metadata write before
+              treating data as absent. A valid current file takes precedence over stale transaction
+              copies. A recovery failure can still surface an error.
+            </li>
+            <li>
+              <strong>Corrupt application settings:</strong> a settings file that cannot be parsed
+              is preserved as a corruption copy and defaults are saved. This can reset preferences;
+              it is not restoration of every previous setting.
+            </li>
+            <li>
+              <strong>Missing or corrupt archive list:</strong> a valid last-known-good copy can
+              restore remembered archive locations. Without a valid recovery source, a corrupt list
+              can still fail to load. This does not move or restore EPUB files.
+            </li>
+            <li>
+              <strong>Corrupt archive metadata:</strong> damaged sidecars are preserved and valid
+              saved backups are tried before defaults are used. Without a usable backup, personal
+              progress, annotations, or Library organization may be lost. Scanning cannot
+              reconstruct that personal data from EPUB text.
+            </li>
+          </ul>
+          <p>
+            These safeguards work with the recovery data that actually exists. They are not version
+            history, guaranteed recovery, or replacements for your own backup. Use
+            <a href="../troubleshooting/">Troubleshooting and recovery</a> for symptom-led next
+            steps before manual intervention.
+          </p>
+          <div class="article-heading">
+            <h2 id="writeback-backups">EPUB writeback backups</h2>
+            <a
+              class="heading-permalink"
+              href="#writeback-backups"
+              aria-label="Link to section: EPUB writeback backups"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            <strong>Keep EPUB writeback backup</strong> is off by default. When enabled, supported
+            successful edits retain a recovery copy of the previous EPUB under
+            <code>.archeion/backups/epub-writeback/</code>. Later retained copies for the same
+            source path replace earlier retained copies, rather than building an unlimited edit
+            history. A retention warning after a successful write means the copy may not have been
+            kept; check the operation's outcome.
+          </p>
+          <p>
+            The active EPUB contains the current embedded metadata and cover. Sidecars contain
+            Library and reading data. A retained EPUB copy is a recovery resource, not the active
+            book or a sidecar backup. It is not read as another Library book.
+          </p>
+          <p>
+            In Storage, <strong>EPUB writeback backups</strong> shows retained-copy counts and total
+            size, or <strong>Backup status unavailable</strong> when status could not load. Use
+            <strong>Metadata folder → Open</strong> to inspect the backup location if needed.
+            Preserve any copy you may need before cleanup.
+          </p>
+          <p>
+            <strong>Clear</strong> removes retained recovery copies after confirmation, not the
+            active EPUB files or Library metadata. It is unavailable when status is not loaded or
+            there are no retained copies. Emergency transaction copies left after a failed restore
+            are not the same as retained copies from successful edits. Follow the
+            <a href="../troubleshooting/#interrupted-edit"
+              >reported backup path after a failed edit</a
+            >
+            instead of using cleanup as recovery.
+          </p>
           <div class="article-heading">
             <h2 id="maintenance">Active-archive maintenance</h2>
             <a
@@ -431,36 +535,58 @@
             >
           </div>
           <p>
-            When an archive is active, Storage also exposes maintenance actions. A scan requested
-            here is reconciled through the active Library, so it does not start a separate competing
-            full scan.
+            Storage maintenance requires an active archive and applies to that archive, not all
+            remembered folders. Wait for an active scan to finish when Run, Re-extract, or Repair is
+            unavailable. Read the confirmation and wait for completion or an error before retrying.
+            Choose the action matching the problem:
           </p>
           <ul>
             <li>
-              <strong>Archive scan</strong>: check the active archive without changing EPUB files.
+              <strong>Archive scan → Run:</strong> use when files added, moved, or removed outside
+              Archeion are not reflected in the Library. It checks files and refreshes Library data
+              through the active Library's scan and reconciliation work; it does not edit EPUB
+              files.
             </li>
             <li>
-              <strong>Scanner cache</strong>: clear cached scan state so EPUBs are checked again
-              later.
-            </li>
-            <li><strong>Source metadata</strong>: re-extract parsed EPUB title and author data.</li>
-            <li>
-              <strong>Generated cover cache</strong>: review and clear generated covers for the
-              active archive.
+              <strong>Scanner cache → Clear:</strong> use for suspect cached scan state. It forces
+              EPUBs to be checked again later; run Archive scan when you need that check now. It
+              does not delete EPUBs, favorites, or reading progress.
             </li>
             <li>
-              <strong>EPUB writeback backups</strong>: review and clear retained recovery copies
-              from metadata and cover edits.
+              <strong>Source metadata → Re-extract:</strong> use when parsed title or author data is
+              stale. It clears scan state and rescans from EPUB metadata. It does not write changes
+              into EPUBs or delete favorites and progress.
             </li>
             <li>
-              <strong>Archive metadata</strong>: repair corrupted sidecar files without changing
-              EPUB files.
+              <strong>Generated cover cache → Clear:</strong> use for stale derived covers or to
+              free their cache space. Generated covers are extracted again when needed. It does not
+              replace the embedded artwork or change reading data.
             </li>
             <li>
-              <strong>Metadata folder</strong>: open the active archive's
-              <code>.archeion</code> sidecar directory.
+              <strong>EPUB writeback backups → Clear:</strong> remove retained recovery copies you
+              no longer need, not active books. Review the
+              <a href="#writeback-backups">retention and cleanup limits</a> first.
+            </li>
+            <li>
+              <strong>Archive metadata → Repair:</strong> use for corrupted sidecar or maintenance
+              errors after preserving a backup. It initializes and recovers metadata when possible,
+              cleans eligible leftover import artifacts, maintains generated covers, clears scanner
+              cache, and rescans. It does not rewrite EPUB contents and cannot reconstruct lost
+              annotations without valid saved data.
+            </li>
+            <li>
+              <strong>Metadata folder → Open:</strong> reveal the active archive's
+              <code>.archeion</code> directory in Windows Explorer for inspection or copying.
+              Opening it changes no data; do not edit live sidecars as routine maintenance.
             </li>
           </ul>
+          <p>
+            Cache clearing, metadata re-extraction, and archive repair serve different purposes.
+            None repairs a broken EPUB package or recreates a deleted file. See
+            <a href="../../guides/archive-health/">Archive health</a> for Duplicates and EPUB
+            Issues, or <a href="../troubleshooting/">Troubleshooting and recovery</a> to choose from
+            the symptom you see.
+          </p>
         </article>
         <!-- docs-pager:start -->
         <nav aria-label="Documentation pages" class="article-pager">
@@ -472,8 +598,8 @@
           ><a
             class="article-pager__item article-pager__item--next"
             rel="next"
-            href="../about-resources/"
-            ><span>Next</span><strong>About and resources</strong></a
+            href="../troubleshooting/"
+            ><span>Next</span><strong>Troubleshooting and recovery</strong></a
           >
         </nav>
         <!-- docs-pager:end -->
