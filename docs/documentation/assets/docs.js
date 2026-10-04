@@ -174,30 +174,49 @@
   })();
   const searchTriggers = document.querySelectorAll("[data-search-trigger]");
   const searchClose = document.querySelector("[data-search-close]");
-  const sourceLinks = [...document.querySelectorAll("[data-doc-link]")];
+  const searchEntries = window.ArcheionDocumentationIndex?.entries || [];
+  const indexScript = document.querySelector("[data-doc-search-index]");
+  const documentationRoot = indexScript ? new URL("../", indexScript.src) : null;
+  const normalizeSearch = (text) => text.replace(/\s+/g, " ").trim().toLowerCase();
+
+  function searchRank(entry, query) {
+    if (!query) return entry.sectionId ? -1 : 0;
+    // A title match points to the page, not every section on that page.
+    if (
+      !entry.sectionId &&
+      [entry.title, entry.pageHeading].some((text) => normalizeSearch(text).includes(query))
+    )
+      return 0;
+    if (entry.sectionId && normalizeSearch(entry.sectionHeading).includes(query)) return 1;
+    if (entry.aliases.some((alias) => alias.includes(query))) return 2;
+    return entry.text.includes(query) ? 3 : -1;
+  }
 
   function renderSearchResults() {
-    if (!searchResults) return;
-    const query = searchInput?.value.trim().toLocaleLowerCase() || "";
-    const matches = sourceLinks.filter((link) => {
-      const searchable =
-        `${link.textContent || ""} ${link.dataset.search || ""}`.toLocaleLowerCase();
-      return !query || searchable.includes(query);
-    });
+    if (!searchResults || !documentationRoot) return;
+    const query = normalizeSearch(searchInput?.value || "");
+    const matches = searchEntries
+      .map((entry, order) => ({ entry, order, rank: searchRank(entry, query) }))
+      .filter(({ rank }) => rank >= 0)
+      .sort((a, b) => a.rank - b.rank || a.order - b.order);
 
     searchResults.replaceChildren();
-    matches.forEach((link) => {
+    matches.forEach(({ entry }) => {
       const result = document.createElement("a");
       result.className = "docs-search-result";
-      result.href = link.href;
-      if (link.getAttribute("aria-current") === "page") result.setAttribute("aria-current", "page");
+      result.href = new URL(
+        `${entry.route.slice(1)}${entry.sectionId ? `#${entry.sectionId}` : ""}`,
+        documentationRoot,
+      ).href;
+      if (!entry.sectionId && new URL(result.href).pathname === location.pathname)
+        result.setAttribute("aria-current", "page");
 
       const title = document.createElement("strong");
-      title.textContent = link.textContent?.trim() || "";
+      title.textContent = entry.sectionHeading || entry.title;
       const group = document.createElement("span");
-      group.textContent =
-        link.closest("[data-sidebar-group]")?.querySelector("[data-sidebar-group-toggle] span")
-          ?.textContent || "Documentation";
+      group.textContent = entry.sectionId
+        ? `${entry.title} · ${entry.groupTitle}`
+        : entry.groupTitle;
 
       result.append(title, group);
       result.addEventListener("click", () => searchDialog?.close());
@@ -208,8 +227,8 @@
     if (searchStatus) {
       searchStatus.textContent = query
         ? matches.length === 0
-          ? "No matching pages."
-          : `${matches.length} ${matches.length === 1 ? "page" : "pages"} found.`
+          ? "No matching results."
+          : `${matches.length} ${matches.length === 1 ? "result" : "results"} found.`
         : "";
     }
   }

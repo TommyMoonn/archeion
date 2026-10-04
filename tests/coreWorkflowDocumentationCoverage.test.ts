@@ -8,6 +8,7 @@ import {
   formatKeyboardBinding,
 } from "../src/features/commands/commandBindings";
 import { resolveLocalPage } from "./documentationLinkTestSupport";
+import { documentationSearchEntries } from "./documentationSearchTestSupport";
 
 const guides = [
   { id: "quick-actions", title: "Quick Actions", search: "command" },
@@ -58,9 +59,14 @@ describe("core workflow documentation", () => {
       expect(resolveLocalPage(page.sourcePath, link.getAttribute("href")!)?.file).toBe(
         path.resolve(sourcePath),
       );
-      expect(link.getAttribute("data-search")).toContain(guide.search);
+      expect(link.hasAttribute("data-search")).toBe(false);
       expect(link.getAttribute("aria-current")).toBe(page.id === guide.id ? "page" : null);
     }
+    expect(
+      documentationSearchEntries().some(
+        (entry) => entry.pageId === guide.id && entry.text.includes(guide.search),
+      ),
+    ).toBe(true);
     const home = documentFor("docs/documentation/index.html");
     expect(
       [...home.querySelectorAll("[data-doc-article] li > a")].some(

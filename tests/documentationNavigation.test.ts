@@ -123,6 +123,16 @@ describe("documentation navigation contract", () => {
     ]);
     for (const [index, page] of pages.entries()) {
       const document = documentFor(page.route.slice(1));
+      const indexScript = document.querySelector("script[data-doc-search-index]")!;
+      expect(document.querySelectorAll("script[data-doc-search-index]")).toHaveLength(1);
+      expect(indexScript.hasAttribute("defer")).toBe(true);
+      expect(indexScript.nextElementSibling?.getAttribute("src")).toMatch(/\/docs\.js$/);
+      expect(
+        path.resolve(
+          path.dirname(path.join(projectRoot, page.sourcePath)),
+          indexScript.getAttribute("src")!,
+        ),
+      ).toBe(path.join(projectRoot, "docs/documentation/assets/docs-search-index.js"));
       const sidebar = document.querySelector("[data-sidebar]")!;
       const links = Array.from(sidebar.querySelectorAll("[data-doc-link]"));
       expect(links.map((link) => link.textContent?.trim())).toEqual(
@@ -143,7 +153,7 @@ describe("documentation navigation contract", () => {
           "index.html",
         );
         expect(target).toBe(path.join(projectRoot, pages[linkIndex].sourcePath));
-        expect(link.getAttribute("data-search")).toContain(pages[linkIndex].title.toLowerCase());
+        expect(link.hasAttribute("data-search")).toBe(false);
       }
       for (const button of sidebar.querySelectorAll("[data-sidebar-group-toggle]")) {
         expect(

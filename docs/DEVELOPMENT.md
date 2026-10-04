@@ -205,8 +205,8 @@ To add or update a page:
 4. Set a unique order within the navigation group. Group order followed by page
    order defines both sidebar order and the previous/next sequence. Update the
    explicit first/last IDs when an endpoint changes.
-5. Regenerate navigation and run the checks below. Commit the registry and all
-   changed HTML together.
+5. Regenerate navigation and search, then run the checks below. Commit the registry,
+   changed HTML, and generated search index together.
 
 ```powershell
 npm run docs:sync
@@ -215,8 +215,8 @@ npm run test -- tests/documentationNavigation.test.ts tests/documentationArticle
 ```
 
 The sync step generates the marked `docs-header`, `docs-navigation`, `docs-pager`, and
-`docs-footer` regions, the article's `data-page-type`, and heading permalinks. It derives the existing sidebar search metadata from
-each target article's title and intro, without storing article text in the registry.
+`docs-footer` regions, the article's `data-page-type`, heading permalinks, and the
+section-level search index. Sidebar links do not carry duplicated search text.
 Keep edits to generated chrome in the renderer, not individual pages. The header's
 `Archeion Docs` brand returns to the overview; `Home ↗` returns to the public landing
 page. Keep one article intro: omit a lead when it repeats the header summary. All
@@ -229,6 +229,40 @@ It runs in the frontend quality gate and CI. Every documentation `index.html` mu
 be registered exactly once. Navigation is committed as ordinary links and remains
 usable before JavaScript executes. Shell styling and runtime focus behavior remain
 owned by `docs.css` and `docs.js`.
+
+### Documentation search data
+
+`scripts/sync-documentation-search.mjs` reads the canonical registry and each
+semantic `[data-doc-article]`. It generates one committed static asset,
+`docs/documentation/assets/docs-search-index.js`, loaded before `docs.js` on every
+page. No fetch, service, or build-time deployment step is needed on GitHub Pages.
+
+Each page has an introduction entry and one entry per `h2`/`h3`, in canonical
+page and document order. Bodies belong to the nearest preceding heading, stopping
+at the next heading. Each entry carries its page title and heading, route, group,
+page type, section heading and stable fragment, normalized body text, aliases, and
+an excerpt of at most 240 characters. Navigation, outlines, permalinks, footer,
+hidden helpers, scripts, styles, and copy controls are excluded.
+
+Search uses a case-insensitive, whitespace-normalized phrase. Page titles rank
+before section headings, then explicit aliases, then body-only matches. Canonical
+page/section order breaks ties. Title matches lead to the page; section matches
+lead to its fragment. An empty query lists pages, not every section.
+
+Prefer natural article wording. Only add `data-search-aliases="term|other term"`
+to the article or a heading for justified vocabulary absent from that content,
+such as an alternative spelling. Explain the reason in the review; do not repeat
+headings or body text as aliases. The current corpus needs no explicit aliases.
+
+```powershell
+npm run docs:search:sync
+npm run docs:search:check
+npm run test -- tests/documentationSearchIndex.test.ts tests/documentationSearchAnnouncements.test.ts
+```
+
+`docs:sync` includes search generation. `docs:check` includes its non-writing drift
+check and fails for a missing or stale index, including body-only article edits.
+The focused generator tests reproduce the committed bytes from source-only fixtures.
 
 ### Article structure and editorial types
 

@@ -84,14 +84,26 @@ test("native pagers traverse the repaired workflow sequence without JavaScript",
   }
 });
 
-test("generated sidebar metadata remains usable by documentation search", async ({ page }) => {
+test("generated article introductions remain discoverable in documentation search", async ({
+  page,
+}) => {
   await page.goto("/docs/documentation/", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Search documentation", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Search documentation", exact: true });
-  const input = dialog.getByRole("searchbox", { name: "Search documentation pages", exact: true });
+  const input = dialog.getByRole("searchbox", {
+    name: "Search documentation content",
+    exact: true,
+  });
   await expect(input).toBeFocused();
   await input.fill("application-wide preferences");
-  const result = dialog.getByRole("link", { name: /Settings/ });
+  await expect(dialog.getByRole("link", { name: /Settings/ })).toHaveCount(2);
+  await expect(
+    dialog.getByRole("link", {
+      name: "Open the standalone Settings window Settings · Using Archeion",
+      exact: true,
+    }),
+  ).toHaveAttribute("href", /\/guides\/settings\/#open-settings$/);
+  const result = dialog.getByRole("link", { name: "Settings Using Archeion", exact: true });
   await expect(result).toHaveCount(1);
   await result.press("Enter");
   await expect(page).toHaveURL(/\/documentation\/guides\/settings\/$/);
