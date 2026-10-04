@@ -180,8 +180,9 @@ if ($RequireChangelogEntry) {
     }
 }
 
-Write-Host "Release configuration is valid."
-Write-Host "Version: $version"
+Write-CliHeading "Release validation"
+Write-CliSuccess "Release configuration is valid"
+Write-CliDetail -Label "Version" -Value $version
 if (-not [string]::IsNullOrWhiteSpace($effectiveTag)) {
-    Write-Host "Tag:     $effectiveTag"
+    Write-CliDetail -Label "Tag" -Value $effectiveTag
 }

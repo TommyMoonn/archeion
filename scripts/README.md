@@ -62,6 +62,10 @@ finalization is reported as permanent step text instead of a fabricated
 percentage. Redirected and CI output therefore remains readable as ordinary
 text.
 
+For commands with a dry-run mode, actionable paths remain visible while
+unchanged paths are summarized by count. Compatibility wrapper scripts contain
+no presentation logic of their own and inherit the canonical command output.
+
 ## `apply-changes.ps1`
 
 ```text
@@ -152,6 +156,11 @@ Cleanup always shows the selected scope. Dry run lists every selected target wit
 -h, --help
 ```
 
+Successful validation stays compact: it reports one success state plus the
+validated version and effective tag when a tag is present. Version-source,
+changelog, release-note, and tag mismatches still terminate with the specific
+failing source.
+
 ## `set-version.ps1`
 
 ```text
@@ -161,6 +170,11 @@ set-version.ps1 VERSION
 ```
 
 The version remains positional because it is the command's primary operand.
+The update is presented as four permanent steps: npm metadata, Cargo metadata,
+Tauri configuration, and release validation. If any update or validation step
+fails, every original version file is restored before the script reports that
+rollback succeeded. A rollback failure is surfaced instead of being reported as
+successful recovery.
 
 ## `stage-windows-release.ps1`
 
@@ -171,7 +185,11 @@ The version remains positional because it is the command's primary operand.
 -h, --help
 ```
 
-The default bundle directory is `src-tauri/target/release/bundle`; the default output is `artifacts/windows`.
+The default bundle directory is `src-tauri/target/release/bundle`; the default
+output is `artifacts/windows`. Staging reports validation, installer discovery,
+copying, and checksum creation as permanent steps. The final summary lists the
+stable EXE/MSI/checksum names with their sizes and the output directory in a
+fixed order.
 
 ## `verify-windows-release.ps1`
 
@@ -180,7 +198,11 @@ The default bundle directory is `src-tauri/target/release/bundle`; the default o
 -h, --help
 ```
 
-The default directory is `artifacts/windows`. Verification requires exactly the two staged installers and `SHA256SUMS.txt`; it fails if a file is missing, unexpected, empty, or has a mismatched checksum.
+The default directory is `artifacts/windows`. Verification requires exactly the
+two staged installers and `SHA256SUMS.txt`; it fails if a file is missing,
+unexpected, empty, or has a mismatched checksum. Expected-asset and checksum
+verification are permanent steps, followed by a deterministic artifact summary
+only after every check has passed.
 
 ## `smoke-windows-installer.ps1`
 
@@ -189,7 +211,15 @@ The default directory is `artifacts/windows`. Verification requires exactly the 
 -h, --help
 ```
 
-The default installer is `artifacts/windows/Archeion-Setup-x64.exe`. Run this only on an isolated Windows runner. The script refuses an existing Archeion installation or data directory, uses a unique temporary install path, checks the installed executable, product metadata, uninstaller, and registration, then silently uninstalls and verifies removal. Both Windows installer workflows run it after staging and checksum verification, before uploading the bundle.
+The default installer is `artifacts/windows/Archeion-Setup-x64.exe`. Run this
+only on an isolated Windows runner. The script refuses an existing Archeion
+installation or data directory, uses a unique temporary install path, checks the
+installed executable, product metadata, uninstaller, and registration, then
+silently uninstalls and verifies removal. Successful smoke output permanently
+shows all four lifecycle stages: installing, verifying installation,
+uninstalling, and verifying cleanup. These are lifecycle steps, not fabricated
+percentage progress. Both Windows installer workflows run it after staging and
+checksum verification, before uploading the bundle.
 
 ## `zip-project.ps1`
 

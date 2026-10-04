@@ -25,12 +25,17 @@ if (-not (Test-Path -LiteralPath $artifactsDirectory -PathType Container)) {
     throw "Release artifact directory does not exist: $artifactsDirectory"
 }
 
+Write-CliHeading "Verify Windows release"
+Write-CliStep -Current 1 -Total 2 -Message "Checking expected asset set"
+
 $installerNames = @('Archeion-Setup-x64.exe', 'Archeion-x64.msi')
 $expectedNames = @($installerNames + 'SHA256SUMS.txt' | Sort-Object)
 $actualNames = @(Get-ChildItem -LiteralPath $artifactsDirectory | ForEach-Object Name | Sort-Object)
 if (($actualNames -join "`n") -ne ($expectedNames -join "`n")) {
     throw "Release artifact files do not match the expected installers and checksum manifest."
 }
+
+Write-CliStep -Current 2 -Total 2 -Message "Verifying installer checksums"
 
 $checksumPath = Join-Path $artifactsDirectory 'SHA256SUMS.txt'
 $checksumLines = @(Get-Content -LiteralPath $checksumPath)
@@ -67,4 +72,12 @@ foreach ($name in $installerNames) {
     }
 }
 
-Write-Host "Verified Windows release installers and checksums in $artifactsDirectory"
+$verifiedExe = Get-Item -LiteralPath (Join-Path $artifactsDirectory 'Archeion-Setup-x64.exe')
+$verifiedMsi = Get-Item -LiteralPath (Join-Path $artifactsDirectory 'Archeion-x64.msi')
+$verifiedChecksums = Get-Item -LiteralPath $checksumPath
+
+Write-CliSuccess "Windows release verified"
+Write-CliDetail -Label "EXE" -Value "$($verifiedExe.Name) ($(Format-CliByteSize -Bytes $verifiedExe.Length))"
+Write-CliDetail -Label "MSI" -Value "$($verifiedMsi.Name) ($(Format-CliByteSize -Bytes $verifiedMsi.Length))"
+Write-CliDetail -Label "Checksums" -Value "$($verifiedChecksums.Name) ($(Format-CliByteSize -Bytes $verifiedChecksums.Length))"
+Write-CliDetail -Label "Directory" -Value $artifactsDirectory -ValueTone 'Important'
