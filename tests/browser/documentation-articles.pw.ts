@@ -25,6 +25,10 @@ for (const javaScriptEnabled of [true, false]) {
       });
       await expect(article.locator("h1")).toBeFocused();
       await page.keyboard.press("Tab");
+      if (javaScriptEnabled) {
+        await expect(page.getByRole("button", { name: "Copy page", exact: true })).toBeFocused();
+        await page.keyboard.press("Tab");
+      }
       await expect(link).toBeFocused();
       await expect(link).toHaveCSS("opacity", "1");
       await link.press("Enter");

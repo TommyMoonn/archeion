@@ -258,6 +258,29 @@ fragment IDs when merging sections by moving the ID to the remaining content.
 The footer's `Edit this page` destination is derived from the registry `sourcePath`;
 issue reporting remains available alongside it. Both work without JavaScript.
 
+### Copying article Markdown
+
+`docs:sync` installs the route-relative `assets/docs-copy.js` module on every
+registered page. The module progressively adds `Copy page` beside the article
+title and `Copy code` to fenced examples. Without JavaScript, the article and
+native links remain usable and no inactive copy controls appear.
+
+This module owns article serialization and the shared clipboard/status lifecycle.
+Copy the article DOM, not the shell or a second stored article corpus. Preserve
+headings, emphasis, lists, links, simple tables, code, and note/quote structure;
+resolve links against the current page URL so pasted Markdown remains portable.
+Exclude hidden helpers, outlines, permalinks, copy controls, and footer/pager chrome.
+Clipboard actions retain their names and focus. A stable polite status region
+reports the newest request and retains its outcome until dismissal or the next
+copy. Dismissal restores focus to the originating copy control and invalidates
+pending feedback; leaving the page also clears it. Keep new vocabulary covered
+by serialization tests.
+
+```powershell
+npm run test -- tests/documentationCopy.test.ts
+npx playwright test tests/browser/documentation-copy.pw.ts
+```
+
 ### Windows Tauri runtime smoke
 
 The separate Windows smoke lane builds an unbundled release-profile test executable

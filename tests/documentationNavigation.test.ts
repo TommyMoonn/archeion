@@ -436,6 +436,10 @@ describe("documentation navigation contract", () => {
       html.match(/<article[\s\S]*?<\/article>/)![0].replace(/ data-page-type="[^"]*"/, ""),
     ).toBe(article);
     expect(html).toContain('data-page-type="troubleshooting"');
+    expect(generatedDocument.querySelectorAll('script[src$="docs-copy.js"]')).toHaveLength(1);
+    expect(
+      generatedDocument.querySelector('script[src$="docs-copy.js"]')?.getAttribute("src"),
+    ).toBe("../../assets/docs-copy.js");
     expect(html).toContain("New guide &amp; details");
     expect(html).toContain('href="../keyboard-shortcuts/"');
     expect(html).toContain('href="../../customization/appearance/"');

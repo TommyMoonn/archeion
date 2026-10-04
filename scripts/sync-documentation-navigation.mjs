@@ -310,6 +310,13 @@ export async function syncDocumentationNavigation(
   // Validate and render every page before changing any source file.
   for (const page of pages) {
     let html = originals.get(page.id);
+    // One canonical module URL at every route depth. Controls are progressive enhancement.
+    const copyScript = path.posix.relative(
+      path.posix.dirname(page.sourcePath),
+      `${documentationDirectory}/assets/docs-copy.js`,
+    );
+    html = html.replace(/<script\b[^>]*\bsrc="[^"]*\/docs-copy\.js"[^>]*>\s*<\/script>\s*/g, "");
+    html = html.replace("</head>", `<script type="module" src="${copyScript}"></script>\n</head>`);
     html = replaceRegion(
       html,
       "header",

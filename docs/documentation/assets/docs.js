@@ -361,24 +361,4 @@
       if (desktopToc) observer.observe(desktopToc);
     }
   }
-
-  document.querySelectorAll("pre").forEach((pre) => {
-    const code = pre.querySelector("code");
-    if (!code) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "copy-button";
-    button.setAttribute("aria-label", "Copy code");
-    button.innerHTML = '<svg aria-hidden="true"><use href="#icon-copy"></use></svg>';
-    button.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(code.textContent || "");
-        button.setAttribute("aria-label", "Copied");
-        window.setTimeout(() => button.setAttribute("aria-label", "Copy code"), 1400);
-      } catch {
-        button.setAttribute("aria-label", "Copy failed");
-      }
-    });
-    pre.append(button);
-  });
 })();
