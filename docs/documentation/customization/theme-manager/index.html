@@ -13,6 +13,7 @@
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
+    <script type="module" src="../../assets/docs-copy.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -322,13 +323,29 @@
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <h2 id="open">Open Theme Manager</h2>
+          <div class="article-heading">
+            <h2 id="open">Open Theme Manager</h2>
+            <a
+              class="heading-permalink"
+              href="#open"
+              aria-label="Link to section: Open Theme Manager"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             Open <strong>Settings → Appearance</strong> and select <strong>Manage themes</strong>.
             Theme Manager opens in its own window and can remain open beside the Library and
             Settings. Opening it again focuses the existing window.
           </p>
-          <h2 id="manage">Manage theme packages</h2>
+          <div class="article-heading">
+            <h2 id="manage">Manage theme packages</h2>
+            <a
+              class="heading-permalink"
+              href="#manage"
+              aria-label="Link to section: Manage theme packages"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <ul>
             <li>
               <strong>Import</strong> adds a <code>theme.json</code> file to Archeion's global theme
@@ -348,7 +365,15 @@
               removes the selected custom package.
             </li>
           </ul>
-          <h2 id="storage">Application-wide storage and legacy copies</h2>
+          <div class="article-heading">
+            <h2 id="storage">Application-wide storage and legacy copies</h2>
+            <a
+              class="heading-permalink"
+              href="#storage"
+              aria-label="Link to section: Application-wide storage and legacy copies"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             Custom theme packages are stored in Archeion's application data, not in the active
             archive's <code>.archeion/themes/</code> folder. This keeps the same catalog available
@@ -383,12 +408,26 @@
           >
         </nav>
         <!-- docs-pager:end -->
+        <!-- docs-footer:start -->
         <footer class="docs-footer">
           <span>Archeion documentation</span>
-          <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"
-            >Report a documentation issue <span aria-hidden="true">↗</span></a
-          >
+          <div class="docs-footer__links">
+            <a
+              data-doc-edit=""
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/customization/theme-manager/index.html"
+              rel="noreferrer"
+              target="_blank"
+              >Edit this page <span aria-hidden="true">↗</span></a
+            ><a
+              data-doc-report=""
+              href="https://github.com/TommyMoonn/archeion/issues"
+              rel="noreferrer"
+              target="_blank"
+              >Report a documentation issue <span aria-hidden="true">↗</span></a
+            >
+          </div>
         </footer>
+        <!-- docs-footer:end -->
       </main>
       <aside aria-label="On this page" class="docs-outline">
         <h2>On this page</h2>

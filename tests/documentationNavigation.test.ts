@@ -306,6 +306,66 @@ describe("documentation navigation contract", () => {
     expect(fs.readFileSync(source, "utf8")).toBe(original);
   });
 
+  it.each(["permalink", "source link", "report link"])(
+    "repairs generated %s drift without modifying authored headings or prose",
+    async (kind) => {
+      const { root, pages } = await createRepairFixture();
+      const sourcePath = pages[1].sourcePath;
+      const file = path.join(root, sourcePath);
+      const original = fs.readFileSync(file, "utf8");
+      const patterns = {
+        permalink: 'aria-label="Link to section: Open the standalone Settings window"',
+        "source link": `https://github.com/TommyMoonn/archeion/edit/main/${sourcePath}`,
+        "report link": "https://github.com/TommyMoonn/archeion/issues",
+      };
+      expect(original).toContain(patterns[kind]);
+      fs.writeFileSync(file, original.replace(patterns[kind], "incorrect-destination"));
+      const before = sourceBytes(root, pages);
+      expect((await syncDocumentationNavigation(root)).changedPaths).toEqual([sourcePath]);
+      expect(sourceBytes(root, pages)).toEqual(before);
+      await syncDocumentationNavigation(root, { check: false });
+      expect(fs.readFileSync(file, "utf8")).toBe(original);
+    },
+  );
+
+  it.each(["missing", "duplicate"])("rejects %s heading IDs before writing", async (mode) => {
+    const { root, pages } = await createRepairFixture();
+    const file = path.join(root, pages[1].sourcePath);
+    const source = fs.readFileSync(file, "utf8");
+    fs.writeFileSync(
+      file,
+      source.replace('id="sections"', mode === "missing" ? "" : 'id="ownership"'),
+    );
+    const before = sourceBytes(root, pages);
+    await expect(syncDocumentationNavigation(root, { check: false })).rejects.toThrow(
+      /unique stable IDs/,
+    );
+    expect(sourceBytes(root, pages)).toEqual(before);
+  });
+
+  it("derives permalink names from edited inline heading content without duplicating that content", async () => {
+    const { root, pages } = await createRepairFixture();
+    const file = path.join(root, pages[1].sourcePath);
+    fs.writeFileSync(
+      file,
+      fs
+        .readFileSync(file, "utf8")
+        .replace(
+          '<h2 id="sections">Settings sections</h2>',
+          '<h2 id="sections">Settings &amp; <code>Reader</code> “defaults”</h2>',
+        ),
+    );
+    await syncDocumentationNavigation(root, { check: false });
+    const document = parseHtml(fs.readFileSync(file, "utf8"));
+    const heading = document.querySelector("#sections")!;
+    expect(heading.querySelector("code")?.textContent).toBe("Reader");
+    expect(heading.querySelector("a")).toBeNull();
+    expect(heading.nextElementSibling?.getAttribute("aria-label")).toBe(
+      "Link to section: Settings & Reader “defaults”",
+    );
+    expect((await syncDocumentationNavigation(root)).changedPaths).toEqual([]);
+  });
+
   it.each(["unregistered page", "missing page", "malformed region", "malformed header"])(
     "rejects %s before writing any HTML",
     async (mode) => {
@@ -376,6 +436,10 @@ describe("documentation navigation contract", () => {
       html.match(/<article[\s\S]*?<\/article>/)![0].replace(/ data-page-type="[^"]*"/, ""),
     ).toBe(article);
     expect(html).toContain('data-page-type="troubleshooting"');
+    expect(generatedDocument.querySelectorAll('script[src$="docs-copy.js"]')).toHaveLength(1);
+    expect(
+      generatedDocument.querySelector('script[src$="docs-copy.js"]')?.getAttribute("src"),
+    ).toBe("../../assets/docs-copy.js");
     expect(html).toContain("New guide &amp; details");
     expect(html).toContain('href="../keyboard-shortcuts/"');
     expect(html).toContain('href="../../customization/appearance/"');

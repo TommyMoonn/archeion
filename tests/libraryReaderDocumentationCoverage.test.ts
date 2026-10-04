@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Window } from "happy-dom";
 import { describe, expect, it } from "vitest";
+import { resolveLocalPage, verifyDocumentationLinks } from "./documentationLinkTestSupport";
 
 const projectRoot = process.cwd();
 const documentationRoot = path.join(projectRoot, "docs/documentation");
@@ -35,27 +36,6 @@ function documentationPages(): string[] {
   };
   visit(documentationRoot);
   return pages.sort();
-}
-
-function resolveLocalPage(
-  sourceFile: string,
-  href: string,
-): { file: string; fragment?: string } | null {
-  if (
-    /^(?:[a-z]+:)?\/\//i.test(href) ||
-    href.startsWith("mailto:") ||
-    href.startsWith("javascript:")
-  ) {
-    return null;
-  }
-
-  const [withoutQuery] = href.split("?");
-  const [pathname, fragment] = withoutQuery.split("#");
-  let target = pathname ? path.resolve(path.dirname(sourceFile), pathname) : sourceFile;
-  if (pathname.endsWith("/") || (fs.existsSync(target) && fs.statSync(target).isDirectory())) {
-    target = path.join(target, "index.html");
-  }
-  return { file: target, ...(fragment ? { fragment } : {}) };
 }
 
 describe("Library and Reader documentation coverage", () => {
@@ -157,29 +137,8 @@ describe("Library and Reader documentation coverage", () => {
     expect(home).toContain("Footnotes and illustrations");
   });
 
-  it("keeps local documentation links and fragments valid", () => {
-    for (const page of documentationPages()) {
-      const window = new Window();
-      window.document.write(read(page));
-      for (const anchor of window.document.querySelectorAll<HTMLAnchorElement>("a[href]")) {
-        const href = anchor.getAttribute("href") ?? "";
-        const target = resolveLocalPage(page, href);
-        if (!target) continue;
-
-        expect(
-          fs.existsSync(target.file),
-          `${path.relative(projectRoot, page)} -> ${href} should resolve`,
-        ).toBe(true);
-
-        if (!target.fragment) continue;
-        const targetWindow = new Window();
-        targetWindow.document.write(read(target.file));
-        expect(
-          targetWindow.document.getElementById(decodeURIComponent(target.fragment)),
-          `${path.relative(projectRoot, page)} -> ${href} fragment should exist`,
-        ).not.toBeNull();
-      }
-    }
+  it("keeps local documentation links and fragments valid", async () => {
+    await verifyDocumentationLinks(documentationPages());
   });
 
   it("does not present planned book-text search or later Reader compatibility work as released", () => {

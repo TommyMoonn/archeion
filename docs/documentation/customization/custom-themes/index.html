@@ -13,6 +13,7 @@
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
     <script defer="" src="../../assets/docs.js"></script>
+    <script type="module" src="../../assets/docs-copy.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -323,7 +324,7 @@
             A custom theme is a <code>theme.json</code> file that changes supported colors. It does
             not change layout, fonts, motion, images, or app behavior.
           </p>
-          <div class="notice">
+          <div class="notice" role="note">
             <strong>Themes are application-wide</strong>
             <p>
               Current custom theme packages are stored in Archeion's application data and are
@@ -331,8 +332,24 @@
               archives can be copied into global storage without deleting the archive originals.
             </p>
           </div>
-          <h2 id="create-package">Create a theme package</h2>
-          <h3 id="package-layout">Folder structure</h3>
+          <div class="article-heading">
+            <h2 id="create-package">Create a theme package</h2>
+            <a
+              class="heading-permalink"
+              href="#create-package"
+              aria-label="Link to section: Create a theme package"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <div class="article-heading">
+            <h3 id="package-layout">Folder structure</h3>
+            <a
+              class="heading-permalink"
+              href="#package-layout"
+              aria-label="Link to section: Folder structure"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             Use <strong>Open themes folder</strong> in Theme Manager to open Archeion's
             application-data theme directory, then create one folder for each package there:
@@ -341,7 +358,15 @@
 └── my-theme/
     └── theme.json</code></pre>
           <p>The theme folder name must match the <code>id</code> in <code>theme.json</code>.</p>
-          <h3 id="basic-theme">Basic theme file</h3>
+          <div class="article-heading">
+            <h3 id="basic-theme">Basic theme file</h3>
+            <a
+              class="heading-permalink"
+              href="#basic-theme"
+              aria-label="Link to section: Basic theme file"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <pre><code class="language-json">{
   "$schema": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json",
   "schemaVersion": 1,
@@ -352,15 +377,39 @@
     "accent": "#8FC1E3"
   }
 }</code></pre>
-          <h3 id="schema">Use the theme schema</h3>
+          <div class="article-heading">
+            <h3 id="schema">Use the theme schema</h3>
+            <a
+              class="heading-permalink"
+              href="#schema"
+              aria-label="Link to section: Use the theme schema"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             Add the published schema URL to get completion and validation in editors that support
             JSON Schema:
           </p>
           <pre><code class="language-text">https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json</code></pre>
           <p><a href="../../../schemas/archeion-theme-v1.schema.json">Open the theme schema</a></p>
-          <h2 id="theme-fields">Theme file fields</h2>
-          <h3 id="manifest-fields">Fields and requirements</h3>
+          <div class="article-heading">
+            <h2 id="theme-fields">Theme file fields</h2>
+            <a
+              class="heading-permalink"
+              href="#theme-fields"
+              aria-label="Link to section: Theme file fields"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <div class="article-heading">
+            <h3 id="manifest-fields">Fields and requirements</h3>
+            <a
+              class="heading-permalink"
+              href="#manifest-fields"
+              aria-label="Link to section: Fields and requirements"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -425,13 +474,29 @@
               </tbody>
             </table>
           </div>
-          <h3 id="color-format">Color format</h3>
+          <div class="article-heading">
+            <h3 id="color-format">Color format</h3>
+            <a
+              class="heading-permalink"
+              href="#color-format"
+              aria-label="Link to section: Color format"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             Use <code>#RRGGBB</code> or <code>#RRGGBBAA</code>. Do not use CSS variables, color
             names, functions, gradients, or URLs. Unknown fields and token names make the theme
             invalid.
           </p>
-          <h3 id="partial-overrides">Change only the colors you need</h3>
+          <div class="article-heading">
+            <h3 id="partial-overrides">Change only the colors you need</h3>
+            <a
+              class="heading-permalink"
+              href="#partial-overrides"
+              aria-label="Link to section: Change only the colors you need"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             You only need to include the colors you want to replace. The selected
             <code>base</code> provides the remaining app colors. Use <code>reader.base</code> for
@@ -447,8 +512,24 @@
   }
 }</code></pre>
           <p>A custom theme cannot inherit from another custom theme.</p>
-          <h2 id="available-colors">Available colors</h2>
-          <h3 id="application-tokens">App colors</h3>
+          <div class="article-heading">
+            <h2 id="available-colors">Available colors</h2>
+            <a
+              class="heading-permalink"
+              href="#available-colors"
+              aria-label="Link to section: Available colors"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <div class="article-heading">
+            <h3 id="application-tokens">App colors</h3>
+            <a
+              class="heading-permalink"
+              href="#application-tokens"
+              aria-label="Link to section: App colors"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -549,7 +630,15 @@
               </tbody>
             </table>
           </div>
-          <h3 id="reader-tokens">Reader colors</h3>
+          <div class="article-heading">
+            <h3 id="reader-tokens">Reader colors</h3>
+            <a
+              class="heading-permalink"
+              href="#reader-tokens"
+              aria-label="Link to section: Reader colors"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -607,52 +696,83 @@
             </table>
           </div>
           <p>Reader fonts, text size, spacing, and page width are controlled in Reader settings.</p>
-          <h3 id="fixed-colors">Colors that themes do not change</h3>
+          <div class="article-heading">
+            <h3 id="fixed-colors">Colors that themes do not change</h3>
+            <a
+              class="heading-permalink"
+              href="#fixed-colors"
+              aria-label="Link to section: Colors that themes do not change"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <ul>
             <li>The Windows close button keeps its normal white-on-red hover state.</li>
             <li>Annotation highlights stay yellow, green, blue, and rose.</li>
             <li>Controls shown over cover images keep a white-on-black style for readability.</li>
           </ul>
-          <h2 id="use-theme">Add and apply a theme</h2>
-          <h3 id="manage-themes">Open Theme Manager</h3>
-          <ol class="steps">
+          <div class="article-heading">
+            <h2 id="use-theme">Add and apply a theme</h2>
+            <a
+              class="heading-permalink"
+              href="#use-theme"
+              aria-label="Link to section: Add and apply a theme"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <div class="article-heading">
+            <h3 id="manage-themes">Open Theme Manager</h3>
+            <a
+              class="heading-permalink"
+              href="#manage-themes"
+              aria-label="Link to section: Open Theme Manager"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <ol>
             <li>
-              <strong>Open Settings.</strong
-              ><span>Go to <strong>Appearance → App themes → Manage</strong>.</span>
+              <strong>Open Settings.</strong> Go to
+              <strong>Appearance → App themes → Manage</strong>.
             </li>
             <li>
-              <strong>Import a theme or open the themes folder.</strong
-              ><span
-                >Use <strong>Import</strong> for a JSON file or
-                <strong>Open themes folder</strong> to edit application-data packages
-                directly.</span
-              >
+              <strong>Import a theme or open the themes folder.</strong> Use
+              <strong>Import</strong> for a JSON file or <strong>Open themes folder</strong> to edit
+              application-data packages directly.
             </li>
             <li>
-              <strong>Reload after editing.</strong
-              ><span
-                >Select <strong>Reload themes</strong> after changing
-                <code>theme.json</code> outside Archeion.</span
-              >
+              <strong>Reload after editing.</strong> Select <strong>Reload themes</strong> after
+              changing <code>theme.json</code> outside Archeion.
             </li>
             <li>
-              <strong>Preview the theme.</strong
-              ><span
-                >Previewing is temporary until you select <strong>Use theme</strong>; leaving the
-                preview restores the committed theme.</span
-              >
+              <strong>Preview the theme.</strong> Previewing is temporary until you select
+              <strong>Use theme</strong>; leaving the preview restores the committed theme.
             </li>
             <li>
-              <strong>Choose Reader colors.</strong
-              ><span>Select a compatible Reader theme from Settings or Reader settings.</span>
+              <strong>Choose Reader colors.</strong> Select a compatible Reader theme from Settings
+              or Reader settings.
             </li>
           </ol>
-          <h3 id="update-theme">Update an existing theme</h3>
+          <div class="article-heading">
+            <h3 id="update-theme">Update an existing theme</h3>
+            <a
+              class="heading-permalink"
+              href="#update-theme"
+              aria-label="Link to section: Update an existing theme"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             If an imported theme uses an existing package ID, Archeion asks before replacing its
             <code>theme.json</code>. Other files in that theme folder are kept.
           </p>
-          <h3 id="fix-theme">Fix an invalid theme</h3>
+          <div class="article-heading">
+            <h3 id="fix-theme">Fix an invalid theme</h3>
+            <a
+              class="heading-permalink"
+              href="#fix-theme"
+              aria-label="Link to section: Fix an invalid theme"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
             Theme Manager shows the problems found in invalid packages. Fix the listed fields or
             colors, save the file, then reload themes.
@@ -661,7 +781,12 @@
             Low-contrast color combinations are shown as warnings. Review them before keeping the
             preview.
           </p>
-          <h2 id="examples">Examples</h2>
+          <div class="article-heading">
+            <h2 id="examples">Examples</h2>
+            <a class="heading-permalink" href="#examples" aria-label="Link to section: Examples"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <ul>
             <li><a href="../../../examples/themes/moon-ink/theme.json">Moon Ink dark theme</a></li>
             <li><a href="../../../examples/themes/paper-light/theme.json">Paper Light theme</a></li>
@@ -682,12 +807,26 @@
           >
         </nav>
         <!-- docs-pager:end -->
+        <!-- docs-footer:start -->
         <footer class="docs-footer">
           <span>Archeion documentation</span>
-          <a href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank"
-            >Report a documentation issue <span aria-hidden="true">↗</span></a
-          >
+          <div class="docs-footer__links">
+            <a
+              data-doc-edit=""
+              href="https://github.com/TommyMoonn/archeion/edit/main/docs/documentation/customization/custom-themes/index.html"
+              rel="noreferrer"
+              target="_blank"
+              >Edit this page <span aria-hidden="true">↗</span></a
+            ><a
+              data-doc-report=""
+              href="https://github.com/TommyMoonn/archeion/issues"
+              rel="noreferrer"
+              target="_blank"
+              >Report a documentation issue <span aria-hidden="true">↗</span></a
+            >
+          </div>
         </footer>
+        <!-- docs-footer:end -->
       </main>
       <aside aria-label="On this page" class="docs-outline">
         <h2>On this page</h2>
