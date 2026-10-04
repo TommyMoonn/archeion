@@ -246,18 +246,18 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../settings/"
               ><span>Settings</span></a
             ><a
               aria-current="page"
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="./"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -279,7 +279,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
@@ -289,7 +289,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -340,8 +340,8 @@
           <header class="article-header">
             <h1>Dictionaries and Define</h1>
             <p>
-              Install dictionary resources explicitly, keep them available locally, and look up
-              selected Reader text without sending the lookup to a cloud dictionary service.
+              Discover and manage local dictionaries, define Reader text offline, and recover
+              unavailable resources.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -349,33 +349,89 @@
             <nav data-mobile-toc=""></nav>
           </details>
           <div class="article-heading">
-            <h2 id="manage">Manage dictionaries</h2>
+            <h2 id="manage">Find and install a dictionary</h2>
             <a
               class="heading-permalink"
               href="#manage"
-              aria-label="Link to section: Manage dictionaries"
+              aria-label="Link to section: Find and install a dictionary"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <p>
-            Open <strong>Settings → Dictionaries</strong>. Use the shared search field and the
-            <strong>All</strong>, <strong>Installed</strong>, and
-            <strong>Not installed</strong> views to narrow the list.
+            Open <strong>Settings → Dictionaries</strong>. <strong>All</strong> combines installed
+            entries with catalog dictionaries not yet installed. <strong>Installed</strong> includes
+            downloaded and imported resources; <strong>Not installed</strong> shows catalog choices
+            you can download. <strong>Search dictionaries</strong> narrows the current view by name,
+            source, or language.
           </p>
-          <ul>
-            <li><strong>Refresh</strong> updates the downloadable catalog.</li>
-            <li><strong>Download</strong> installs a catalog dictionary after you request it.</li>
-            <li>
-              <strong>Import</strong> installs a supported local dictionary package you choose.
-            </li>
-            <li>
-              Installed entries can be removed. Missing or invalid installed files expose recovery
-              actions such as downloading or importing a replacement.
-            </li>
-          </ul>
           <p>
-            Dictionary acquisition is optional. Catalog packages are downloaded only after a user
-            action; installed local dictionaries are then used for Reader lookup.
+            <strong>Refresh</strong> updates the downloadable catalog, not your definitions. Review
+            the language pair, source, license, and size before choosing <strong>Download</strong>.
+            Installation follows the requested download; nothing is acquired automatically. Cancel a
+            running download if you no longer want it. A failed request offers
+            <strong>Retry download</strong> or <strong>Retry installation</strong>, depending on
+            what finished.
+          </p>
+          <div class="article-heading">
+            <h2 id="import">Import a compatible local StarDict package</h2>
+            <a
+              class="heading-permalink"
+              href="#import"
+              aria-label="Link to section: Import a compatible local StarDict package"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Choose <strong>Import</strong> and select the package's <code>.ifo</code> metadata file.
+            Keep its matching <code>.idx</code> index and <code>.dict</code> or
+            <code>.dict.dz</code> definitions together in the same folder. This is a compatible
+            StarDict import, not a general PDF, text, or dictionary-archive importer. If validation
+            rejects it, read the reported problem and use a complete supported package rather than
+            renaming unrelated files.
+          </p>
+          <p>
+            Archeion copies the dictionary into application data. Your original import files are not
+            changed. Installed resources follow you across archives; they are not part of a book's
+            EPUB or archive sidecars.
+          </p>
+          <div class="article-heading">
+            <h2 id="order">Enable, reorder, or remove installed resources</h2>
+            <a
+              class="heading-permalink"
+              href="#order"
+              aria-label="Link to section: Enable, reorder, or remove installed resources"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            In Installed, use <strong>Enable</strong> to include a ready dictionary in lookups.
+            Disabling it keeps its installed files but excludes its results.
+            <strong>Move earlier</strong> and <strong>Move later</strong> change the order in which
+            dictionaries' definitions appear, so put preferred sources first.
+          </p>
+          <p>
+            <strong>Remove</strong> asks for confirmation and permanently deletes Archeion's
+            installed copy, not the original import files, EPUBs, or annotations. To reinstall a
+            removed catalog dictionary, find it in Not installed and choose Download; to reinstall a
+            local package, import its original <code>.ifo</code> again.
+          </p>
+          <div class="article-heading">
+            <h2 id="repair">Recover an unavailable dictionary</h2>
+            <a
+              class="heading-permalink"
+              href="#repair"
+              aria-label="Link to section: Recover an unavailable dictionary"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            An <strong>Unavailable</strong> entry cannot be enabled for lookup. For a catalog
+            resource, use <strong>Download again</strong>; if the catalog entry is missing, Refresh
+            the catalog first. For a manual import, choose <strong>Import replacement</strong> with
+            a complete package, then remove any remaining unavailable copy.
+            <strong>Index required</strong> offers <strong>Rebuild index</strong> to make the
+            installed definitions searchable again. Installation and index work can take time for
+            large dictionaries; wait for the result before retrying.
           </p>
           <div class="article-heading">
             <h2 id="define">Define selected Reader text</h2>
@@ -387,13 +443,25 @@
             >
           </div>
           <p>
-            Select text in Reader and choose <strong>Define</strong> from the text-selection
-            actions. The anchored definition popover uses installed local dictionaries and can show
-            loading, multiple-dictionary results, no-result feedback, or a retryable error.
+            Select a word in Reader and choose <strong>Define</strong> from the text-selection
+            actions. The anchored popover uses enabled, ready installed local dictionaries, so
+            lookup works offline after installation and does not send selected text to a cloud
+            dictionary service. Catalog refreshes and downloads still require a network connection.
           </p>
           <p>
-            If no suitable dictionary is installed, open <strong>Settings → Dictionaries</strong> to
-            install or import one.
+            Lookup first checks an exact headword. If no exact result is found, it tries supported
+            English base forms for inflected words; this is not general translation or inflection
+            handling for every language. Results are grouped by dictionary with its
+            <strong>Source</strong> attribution, in your configured order. A message appears when
+            additional definitions are omitted to keep the lookup responsive.
+          </p>
+          <p>
+            <strong>No definitions found</strong> means the current enabled dictionaries did not
+            supply a match. Check the word and language, enable a suitable installed dictionary, or
+            install another source. This is different from a load error: a retryable error offers
+            <strong>Try again</strong>. If retry still fails, inspect the resource's status in
+            Settings and repair it before repeating the lookup. Close the popover or press Escape to
+            return to reading.
           </p>
         </article>
         <!-- docs-pager:start -->

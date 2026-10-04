@@ -246,17 +246,17 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -278,7 +278,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
@@ -288,7 +288,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -544,8 +544,7 @@
             <li>
               <strong>Archive scan → Run:</strong> use when files added, moved, or removed outside
               Archeion are not reflected in the Library. It checks files and refreshes Library data
-              through the active Library's scan and reconciliation work; it does not edit EPUB
-              files.
+              by checking files against the active Library's records; it does not edit EPUB files.
             </li>
             <li>
               <strong>Scanner cache → Clear:</strong> use for suspect cached scan state. It forces
@@ -586,6 +585,38 @@
             <a href="../../guides/archive-health/">Archive health</a> for Duplicates and EPUB
             Issues, or <a href="../troubleshooting/">Troubleshooting and recovery</a> to choose from
             the symptom you see.
+          </p>
+          <div class="article-heading">
+            <h2 id="scanning">Scans, live changes, and derived covers</h2>
+            <a
+              class="heading-permalink"
+              href="#scanning"
+              aria-label="Link to section: Scans, live changes, and derived covers"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            The first scan of a new archive reads EPUBs to build its Library records. Reopening an
+            unchanged archive can use cached scan information instead of extracting every book
+            again; changed or newly added files still need checking. Scan duration depends on the
+            number and size of files, their condition, and the storage device. A busy scan is not a
+            guarantee that the archive is damaged.
+          </p>
+          <p>
+            When archive watching is enabled, Archeion normally notices additions, moves, renames,
+            and removals made outside the app. If watching reports an error or the Library remains
+            stale, use <strong>Rescan archive</strong> and wait for its result. A rescan checks disk
+            contents without editing EPUBs. See
+            <a href="../troubleshooting/#failed-scan">scan and watcher recovery</a> if it fails.
+          </p>
+          <p>
+            Library <strong>Re-extract metadata</strong> rereads selected books' source metadata. In
+            Storage, Source metadata → Re-extract refreshes the active archive. The generated-cover
+            action is <strong>Generated cover cache → Clear</strong> in Settings; its confirmation
+            uses <strong>Clear cover cache</strong>. Covers are extracted again when needed.
+            Clearing derived data is not an edit to embedded artwork. Maintenance can take time
+            because it may check files, read EPUB contents, regenerate images, or preserve recovery
+            data. Wait for completion or the reported error before starting another attempt.
           </p>
         </article>
         <!-- docs-pager:start -->

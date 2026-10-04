@@ -246,17 +246,17 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -278,7 +278,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
@@ -288,7 +288,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -380,6 +380,52 @@
           <p>
             If the operating system cannot open a selected destination, About reports an error in
             the window.
+          </p>
+          <div class="article-heading">
+            <h2 id="identify">Identify the installed version and supported platform</h2>
+            <a
+              class="heading-permalink"
+              href="#identify"
+              aria-label="Link to section: Identify the installed version and supported platform"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            About shows <strong>Version</strong> followed by the installed app version; it does not
+            show a source commit or build hash. When reporting an issue, include that version and
+            whether you installed an official release EXE/MSI or are running a local build. For a
+            local build, provide its source revision separately if known. Do not infer that two
+            builds are identical from their version number alone.
+          </p>
+          <p>
+            The supported release target is <strong>Windows 11, 64-bit</strong>, for EPUB libraries.
+            Other operating systems and book formats are not covered by this release's support
+            claim. See <a href="../../getting-started/installing/">Installation</a> for installer
+            choice and verification.
+          </p>
+          <div class="article-heading">
+            <h2 id="help">Find support and understand privacy</h2>
+            <a
+              class="heading-permalink"
+              href="#help"
+              aria-label="Link to section: Find support and understand privacy"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Use the
+            <a href="https://github.com/TommyMoonn/archeion/issues">GitHub issues page</a> for
+            reproducible problems and requests, the
+            <a href="https://github.com/TommyMoonn/archeion">Source code repository</a> for
+            implementation and releases, or <a href="../../">Documentation</a> for workflows.
+            Include the action, expected result, actual result, and error message. Review
+            screenshots and sample EPUBs for private information before posting publicly.
+          </p>
+          <p>
+            Archeion is local-first: books and archive sidecars stay in folders you control.
+            <a href="../archive-storage/#ownership">Data ownership and privacy</a> explains what
+            belongs to an archive, what lives in application data, and which explicit actions use
+            the network. A plain EPUB export is not a backup of annotations or app preferences.
           </p>
         </article>
         <!-- docs-pager:start -->

@@ -246,17 +246,17 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../../guides/settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../../guides/dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../../guides/keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -278,7 +278,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../appearance/"
               ><span>Appearance</span></a
             ><a
@@ -289,7 +289,7 @@
             ><a
               aria-current="page"
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="./"
               ><span>Theme Manager</span></a
             >
@@ -340,8 +340,8 @@
           <header class="article-header">
             <h1>Theme Manager</h1>
             <p>
-              Manage application-wide custom theme packages in a standalone window without depending
-              on the active archive.
+              Import, preview, apply, update, and remove global custom themes, or recover a failed
+              reload.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -359,37 +359,97 @@
           </div>
           <p>
             Open <strong>Settings → Appearance</strong> and select <strong>Manage themes</strong>.
-            Theme Manager opens in its own window and can remain open beside the Library and
-            Settings. Opening it again focuses the existing window.
+            Theme Manager opens in a standalone window beside Library and Settings. Opening it again
+            focuses the existing window. The catalog is global, so it does not depend on the active
+            archive.
           </p>
           <div class="article-heading">
-            <h2 id="manage">Manage theme packages</h2>
+            <h2 id="manage">Import and inspect a package</h2>
             <a
               class="heading-permalink"
               href="#manage"
-              aria-label="Link to section: Manage theme packages"
+              aria-label="Link to section: Import and inspect a package"
               ><span aria-hidden="true">#</span></a
             >
           </div>
-          <ul>
-            <li>
-              <strong>Import</strong> adds a <code>theme.json</code> file to Archeion's global theme
-              catalog.
-            </li>
-            <li><strong>Reload themes</strong> rereads the catalog after external edits.</li>
-            <li>
-              <strong>Open themes folder</strong> opens the theme-package directory inside
-              Archeion's application data.
-            </li>
-            <li>
-              Select a theme to inspect it. Preview changes stay temporary until you choose
-              <strong>Use theme</strong>.
-            </li>
-            <li>
-              Importing the same package ID asks whether to <strong>Update theme</strong>; deleting
-              removes the selected custom package.
-            </li>
-          </ul>
+          <p>
+            <strong>Import</strong> accepts a <code>theme.json</code> file and adds its package to
+            the global catalog. Select an entry to inspect its colors and diagnostics. Invalid
+            entries cannot be applied; fix the listed problems, then reload. Built-in themes cannot
+            be replaced by importing their IDs.
+          </p>
+          <p>
+            Use <strong>Open themes folder</strong> to inspect application-data packages, and
+            <strong>Reload themes</strong> after external edits. For package fields, supported
+            tokens, and validation examples, consult
+            <a href="../custom-themes/">Custom themes</a> rather than adding CSS or scripts.
+          </p>
+          <div class="article-heading">
+            <h2 id="preview">Preview before committing</h2>
+            <a
+              class="heading-permalink"
+              href="#preview"
+              aria-label="Link to section: Preview before committing"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Select a valid custom app theme and choose <strong>Preview</strong> to temporarily see
+            its application colors. <strong>Revert</strong>, Escape, or closing Theme Manager
+            restores the saved appearance. <strong>Use theme</strong> saves the selection; merely
+            inspecting an entry does not apply it. A theme that only supplies Reader colors is
+            selected through Reader settings instead of this app-color preview.
+          </p>
+          <p>
+            If the preview reports a contrast warning, review the colors and acknowledge the warning
+            before Use theme becomes available. Acknowledging does not fix the contrast. Import,
+            reload, and removal are blocked while previewing; finish or revert the preview first. If
+            saving fails, the preview remains active with an error, so retry Use theme or Revert
+            instead of assuming the selection was saved.
+          </p>
+          <div class="article-heading">
+            <h2 id="update">Update or remove a custom theme</h2>
+            <a
+              class="heading-permalink"
+              href="#update"
+              aria-label="Link to section: Update or remove a custom theme"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            Importing an existing custom package ID asks whether to <strong>Update theme</strong>.
+            Confirm to replace its <code>theme.json</code>; other files in that package folder are
+            retained. Cancel leaves the existing package unchanged. Keep a separate copy of the
+            original JSON if you want to undo an update.
+          </p>
+          <p>
+            Choose Remove on a custom entry and review the
+            <strong>Remove theme</strong> confirmation. This deletes its installed package, not the
+            JSON file you originally imported or any EPUB. Built-in themes do not offer removal. To
+            use a removed custom theme again, import its package again.
+          </p>
+          <div class="article-heading">
+            <h2 id="reload">Recover load, apply, or refresh failures</h2>
+            <a
+              class="heading-permalink"
+              href="#reload"
+              aria-label="Link to section: Recover load, apply, or refresh failures"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            If the standalone window cannot load after a temporary error, choose
+            <strong>Retry</strong> in that window. For a catalog load failure inside Theme Manager,
+            use <strong>Reload themes</strong>. If an ordinary Use theme action fails, the previous
+            saved appearance remains active.
+          </p>
+          <p>
+            Read refresh errors carefully: a theme may already have been imported, updated, or
+            removed even when the catalog could not refresh. Choose Reload themes to see the current
+            package list instead of immediately repeating the file operation. Correct
+            invalid-package diagnostics in the JSON before reloading; repeated reloads do not repair
+            an invalid color or missing field.
+          </p>
           <div class="article-heading">
             <h2 id="storage">Application-wide storage and legacy copies</h2>
             <a
@@ -408,14 +468,6 @@
             When Archeion finds compatible legacy theme packages in registered older archives, it
             can copy them into global application data. The original archive copies are left in
             place; migration does not delete or rewrite those legacy packages.
-          </p>
-          <p>
-            If Theme Manager cannot load after a temporary error, select <strong>Retry</strong> in
-            the same window to try again.
-          </p>
-          <p>
-            For the package format and supported color tokens, see
-            <a href="../custom-themes/">Custom themes</a>.
           </p>
         </article>
         <!-- docs-pager:start -->

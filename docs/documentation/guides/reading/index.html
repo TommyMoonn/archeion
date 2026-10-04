@@ -247,17 +247,17 @@
               ><span>File management</span></a
             ><a
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="../settings/"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -279,7 +279,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
@@ -289,7 +289,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -345,10 +345,7 @@
             <summary>On this page</summary>
             <nav data-mobile-toc=""></nav>
           </details>
-          <p class="lead">
-            Open a book from the Library to enter the Reader. Archeion saves your reading position
-            with the archive.
-          </p>
+
           <div class="article-heading">
             <h2 id="read-book">Read a book</h2>
             <a class="heading-permalink" href="#read-book" aria-label="Link to section: Read a book"
@@ -491,20 +488,18 @@
             export annotations from several books, select the books in the Library and use the bulk
             export action.
           </p>
-          <div class="article-heading">
-            <h2 id="supporting-content">Open supporting content</h2>
-            <a
-              class="heading-permalink"
-              href="#supporting-content"
-              aria-label="Link to section: Open supporting content"
-              ><span aria-hidden="true">#</span></a
-            >
-          </div>
           <p>
-            Reader can open supported EPUB footnotes without leaving the current book and can open
-            supported standalone images in a focused viewer. See
-            <a href="../reader-media/">Footnotes and illustrations</a> for the controls and image
-            export behavior.
+            See <a href="../../reference/annotation-export/">Annotation export</a> for format
+            differences, filename requirements, detached records, and durable locations. Export does
+            not change the book's saved annotations or create an EPUB backup.
+          </p>
+          <p>
+            <span id="supporting-content"
+              >For supported linked notes and standalone images, use
+              <a href="../reader-media/">Footnotes and illustrations</a>.</span
+            >
+            That guide explains return navigation, zoom limits, and saving the original image
+            without changing the EPUB.
           </p>
           <div class="article-heading">
             <h2 id="book-changes">If the EPUB file changes</h2>
@@ -521,9 +516,7 @@
             you can review, copy, export, recover, or remove it.
           </p>
           <p>
-            See <a href="../../reference/annotation-export/">Annotation export</a> for formats,
-            filename requirements, detached records, and durable locations. If the EPUB cannot open,
-            start with
+            If the EPUB cannot open, start with
             <a href="../../reference/troubleshooting/#reader-unavailable"
               >Reader-unavailable recovery</a
             >.

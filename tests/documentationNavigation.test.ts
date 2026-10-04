@@ -174,6 +174,7 @@ describe("documentation navigation contract", () => {
     }
   });
 
+  // This parses the full repository corpus, like the integration cases below, not a unit fixture.
   it("checks committed output without writing and is already reproducible", async () => {
     const before = sourceBytes(projectRoot);
     expect(await syncDocumentationNavigation(projectRoot)).toEqual({
@@ -181,7 +182,7 @@ describe("documentation navigation contract", () => {
       changedPaths: [],
     });
     expect(sourceBytes(projectRoot)).toEqual(before);
-  });
+  }, 30_000);
 
   it.each([
     [
@@ -348,14 +349,15 @@ describe("documentation navigation contract", () => {
   it("derives permalink names from edited inline heading content without duplicating that content", async () => {
     const { root, pages } = await createRepairFixture();
     const file = path.join(root, pages[1].sourcePath);
+    const source = fs.readFileSync(file, "utf8");
+    const sectionsHeading = /<h2 id="sections">[\s\S]*?<\/h2>/;
+    expect(source).toMatch(sectionsHeading);
     fs.writeFileSync(
       file,
-      fs
-        .readFileSync(file, "utf8")
-        .replace(
-          '<h2 id="sections">Settings sections</h2>',
-          '<h2 id="sections">Settings &amp; <code>Reader</code> “defaults”</h2>',
-        ),
+      source.replace(
+        sectionsHeading,
+        '<h2 id="sections">Settings &amp; <code>Reader</code> “defaults”</h2>',
+      ),
     );
     await syncDocumentationNavigation(root, { check: false });
     const document = parseHtml(fs.readFileSync(file, "utf8"));

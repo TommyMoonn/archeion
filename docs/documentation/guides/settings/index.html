@@ -247,17 +247,17 @@
             ><a
               aria-current="page"
               data-doc-link=""
-              data-search="settings settings use the standalone settings window to change application-wide preferences and active-archive options without leaving the library."
+              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
               href="./"
               ><span>Settings</span></a
             ><a
               data-doc-link=""
-              data-search="dictionaries and define dictionaries and define install dictionary resources explicitly, keep them available locally, and look up selected reader text without sending the lookup to a cloud dictionary service."
+              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
               href="../dictionaries/"
               ><span>Dictionaries and Define</span></a
             ><a
               data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts use the keyboard section in settings to find configurable commands and review fixed interaction keys."
+              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
               href="../keyboard-shortcuts/"
               ><span>Keyboard shortcuts</span></a
             >
@@ -279,7 +279,7 @@
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
             <a
               data-doc-link=""
-              data-search="appearance appearance and reader controls change app colors, reader typography, and the library layout."
+              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
               href="../../customization/appearance/"
               ><span>Appearance</span></a
             ><a
@@ -289,7 +289,7 @@
               ><span>Custom themes</span></a
             ><a
               data-doc-link=""
-              data-search="theme manager theme manager manage application-wide custom theme packages in a standalone window without depending on the active archive."
+              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
               href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
@@ -340,8 +340,8 @@
           <header class="article-header">
             <h1>Settings</h1>
             <p>
-              Use the standalone Settings window to change application-wide preferences and
-              active-archive options without leaving the Library.
+              Change application-wide preferences, understand active-archive actions, and recover a
+              temporary Settings load failure.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -359,56 +359,68 @@
           </div>
           <p>
             Open <strong>Settings</strong> from the Library sidebar or use your configured
-            <strong>Open Settings</strong> shortcut. Settings opens in its own window and can remain
-            open beside the Library. Opening Settings again focuses the existing Settings window
-            instead of creating another copy.
-          </p>
-          <p>
-            Settings can open without an active archive. Application-wide preferences remain
-            available; controls that require an active archive are omitted until an archive is
-            available.
+            <strong>Open Settings</strong> shortcut. It opens in its own window beside the Library;
+            opening it again focuses that existing window. Without an active archive,
+            application-wide preferences remain available, while controls that require an archive
+            are omitted.
           </p>
           <div class="article-heading">
-            <h2 id="sections">Settings sections</h2>
+            <h2 id="sections">Choose settings by their effect</h2>
             <a
               class="heading-permalink"
               href="#sections"
-              aria-label="Link to section: Settings sections"
+              aria-label="Link to section: Choose settings by their effect"
               ><span aria-hidden="true">#</span></a
             >
           </div>
           <ul>
             <li>
-              <strong>General</strong>: startup behavior, destructive-action confirmation,
-              Reader-route restoration, and window behavior.
+              <strong>General</strong> determines whether startup opens the last archive or Archive
+              Manager, whether the last Reader route is restored, and how window and
+              destructive-action confirmation preferences behave. Review confirmations before file
+              operations, especially if you change that preference.
             </li>
             <li>
-              <strong>Appearance</strong>: app theme, Theme Manager access, animation preference,
-              and display density.
+              <strong>Appearance</strong> changes app colors, spacing, and subtle transitions, not
+              EPUB typography. See
+              <a href="../../customization/appearance/#density-motion"
+                >density and reduced-motion behavior</a
+              >
+              and <a href="../../customization/theme-manager/">Theme Manager</a>.
             </li>
             <li>
-              <strong>Library</strong>: default Books, Folders, and Series presentation plus Smart
-              View visibility.
+              <strong>Library</strong> sets default Books, Folders, and Series view, sort, and
+              card-size options. Smart View visibility adds or hides shortcuts; hiding a view does
+              not delete its books. See <a href="../library/#smart-views">Smart Views</a>.
             </li>
             <li>
-              <strong>Reader</strong>: default typography, Page Width, Reader theme, and progress
-              placement.
+              <strong>Reader</strong> sets default typography, Reader theme, Page Width, and
+              progress placement. The active Reader also exposes its reading controls. See
+              <a href="../reading/#reader-settings">Reader settings</a> for layout effects.
             </li>
             <li>
-              <strong>Archives</strong>: active archive folder, Archive Manager, default import
-              mode, and default filename-conflict handling.
+              <strong>Archives</strong> identifies the active folder and opens Archive Manager.
+              Default import mode determines whether Add EPUB copies or moves its source; conflict
+              handling determines what happens when a destination filename exists. Review both in
+              the import dialog before proceeding.
             </li>
             <li>
-              <strong>Storage</strong>: global monitoring/backup policies plus maintenance actions
-              for the active archive.
+              <strong>Storage</strong> controls global monitoring and backup policies, while
+              maintenance targets the active archive. Re-extraction, cover clearing, and recovery
+              cleanup have different data effects. Consult
+              <a href="../../reference/archive-storage/">Archive storage</a> before choosing one.
             </li>
             <li>
-              <strong>Dictionaries</strong>: discover, install, import, repair, and remove local
-              dictionaries.
+              <strong>Dictionaries</strong> installs local resources and controls which sources
+              Define uses and their order. Disabling a dictionary keeps its files; removing it
+              deletes the installed copy. See
+              <a href="../dictionaries/">Dictionaries and Define</a>.
             </li>
             <li>
-              <strong>Keyboard</strong>: search, customize, clear, and reset supported shortcuts,
-              plus fixed interaction-key reference.
+              <strong>Keyboard</strong> changes supported command bindings, not fixed widget
+              interaction keys. Clear disables a binding; Reset restores its default. See
+              <a href="../keyboard-shortcuts/">Keyboard shortcuts</a> for capture and conflict
+              rules.
             </li>
           </ul>
           <div class="article-heading">
@@ -422,32 +434,41 @@
           </div>
           <p>
             Application preferences such as appearance, Reader defaults, keyboard shortcuts,
-            dictionary installations, and theme selections are application-wide and follow you when
-            you switch archives. They are saved in the application <code>settings.json</code>.
-            Storage maintenance actions apply to the active archive.
+            dictionary installations, and theme selections are application-wide. Preferences are
+            saved in the application's <code>settings.json</code>; installed resources have their
+            own application-data folders. They remain available when you switch archives. Saved
+            changes synchronize to other open windows, so you do not need to close and reopen
+            Settings to use them.
           </p>
           <p>
-            A rescan requested from <strong>Storage</strong> uses the active Library's scan and
-            reconciliation work. Other active-archive maintenance does not start a competing full
-            scan or cancel a Library scan simply because it runs in Settings.
+            Maintenance acts on the active archive, not every registered archive. Check which
+            archive is open before starting it. A Storage rescan refreshes that Library; other
+            maintenance does not cancel an ongoing Library scan simply because it was started in
+            Settings.
           </p>
           <p>
             Ordinary <strong>Add EPUB</strong> starts at the archive root. A folder target supplied
-            for the current operation or selected in the dialog applies only to that import. Default
+            for the current operation or chosen in the dialog applies only to that import. Default
             import mode and filename-conflict handling remain application-wide.
           </p>
+          <div class="article-heading">
+            <h2 id="retry">Recover a temporary load failure</h2>
+            <a
+              class="heading-permalink"
+              href="#retry"
+              aria-label="Link to section: Recover a temporary load failure"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
           <p>
-            If Settings cannot load after a temporary error, select <strong>Retry</strong> in the
-            same window to try again.
-          </p>
-          <p>
-            See <a href="../../reference/archive-storage/">Archive storage</a> for the boundary
-            between application data and an archive's <code>.archeion</code> sidecars.
-          </p>
-          <p>
-            Before choosing a maintenance action, use
-            <a href="../../reference/troubleshooting/">Troubleshooting and recovery</a> to match the
-            symptom and understand its data effects.
+            If Settings cannot load, select <strong>Retry</strong> in the same window. The failure
+            does not require recreating an archive or deleting its sidecars. If it persists, consult
+            <a href="../../reference/troubleshooting/">Troubleshooting and recovery</a> before
+            resetting or removing data.
+            <a href="../../reference/archive-storage/#ownership"
+              >Archive and application data ownership</a
+            >
+            explains what to preserve.
           </p>
         </article>
         <!-- docs-pager:start -->
