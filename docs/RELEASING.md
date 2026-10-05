@@ -112,6 +112,20 @@ immutable-release behavior have been exercised.
   Release workflow for the same green source SHA. A same-SHA draft can resume
   with missing assets; already-valid assets are preserved. A fully matching
   published release is verified without remote mutation on a rerun.
+- Draft discovery uses GraphQL's pending-tag lookup because GitHub's REST
+  release-by-tag endpoint returns published releases. Publication confirms the
+  pending tag and numeric release ID before re-reading the draft through REST.
+  REST may report an `untagged-*` placeholder for a valid pending-tag draft; that
+  placeholder is accepted only for the same GraphQL-selected draft ID. If no
+  pending tag resolves, the paginated release list checks for conflicting drafts.
+  An orphaned draft requires reviewed recovery; the publisher must not adopt it
+  by title or create a duplicate automatically.
+- A publisher-code defect is not a transient failure. Put the correction through
+  a reviewed PR first. A rerun still checks out the original candidate SHA, so it
+  uses that commit's publisher, not a correction subsequently merged to `main`.
+  An unchanged-version correction is not another release candidate. Agree on a
+  separately reviewed recovery procedure for the original verified candidate
+  instead of expecting either action to resume publication with new tooling.
 - A tag pointing at another commit, a release without its matching tag, or a
   published release with conflicting title, tracked body, assets, sizes, or
   GitHub-reported digests must fail closed. Do not delete, move, or overwrite

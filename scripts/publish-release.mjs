@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { readRelease, tagTarget } from "./detect-release-candidate.mjs";
+import { readRelease, releaseHasTag, tagTarget } from "./detect-release-candidate.mjs";
 import { readReleaseNote } from "./release-notes.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
@@ -55,8 +55,8 @@ function releaseAssets(artifactsDirectory) {
   );
 }
 
-function verifyRelease(release, tag, body, assets) {
-  if (release.tag_name !== tag || release.name !== tag || release.body !== body) {
+function verifyRelease(release, tag, body, assets, draftId) {
+  if (!releaseHasTag(release, tag, draftId) || release.name !== tag || release.body !== body) {
     throw new Error(`Release ${tag} title or body does not match the tracked release note.`);
   }
   const actual = release.assets;
@@ -108,8 +108,104 @@ export function publishReleaseCandidate({
   };
   const remoteTag = () =>
     tagTarget(git("ls-remote", "--tags", "origin", `refs/tags/${tag}`, `refs/tags/${tag}^{}`), tag);
-  const currentRelease = () =>
-    readRelease(run("gh", ["api", `repos/${repository}/releases/tags/${tag}`], projectRoot), tag);
+  const validateIdentity = (release, expectedId = release?.id) => {
+    if (!Number.isSafeInteger(release?.id) || release.id <= 0 || release.id !== expectedId) {
+      throw new Error(`Invalid release identity for ${tag}.`);
+    }
+    return release;
+  };
+  const pendingRelease = () => {
+    const [owner, name] = repository.split("/");
+    const response = JSON.parse(
+      ghApi(
+        "POST",
+        "graphql",
+        {
+          query:
+            "query($owner: String!, $name: String!, $tag: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { databaseId isDraft } } }",
+          variables: { owner, name, tag },
+        },
+        `Inspect pending release ${tag}`,
+      ),
+    );
+    const metadata = response.data?.repository;
+    if (response.errors || !metadata || typeof metadata !== "object" || !("release" in metadata)) {
+      throw new Error(`Invalid pending release lookup for ${tag}.`);
+    }
+    const pending = metadata.release;
+    if (pending === null) return null;
+    if (
+      !Number.isSafeInteger(pending.databaseId) ||
+      pending.databaseId <= 0 ||
+      typeof pending.isDraft !== "boolean"
+    ) {
+      throw new Error(`Invalid release identity for ${tag}.`);
+    }
+    return pending;
+  };
+  const releaseById = (id, pending = pendingRelease()) => {
+    if (!pending?.isDraft) throw new Error(`Release ${tag} is not a draft before publication.`);
+    if (pending.databaseId !== id) throw new Error(`Invalid release identity for ${tag}.`);
+    return validateIdentity(
+      readRelease(run("gh", ["api", `repos/${repository}/releases/${id}`], projectRoot), tag, {
+        draftId: id,
+      }),
+      id,
+    );
+  };
+  const currentRelease = () => {
+    const published = readRelease(
+      run("gh", ["api", `repos/${repository}/releases/tags/${tag}`], projectRoot),
+      tag,
+    );
+    if (published) return validateIdentity(published);
+
+    // GitHub CLI also resolves a draft by its pending tag through GraphQL, then
+    // reads it by ID. REST can report an untagged-* placeholder for that draft.
+    const pending = pendingRelease();
+    if (pending) {
+      if (!pending.isDraft) throw new Error(`Release ${tag} is not a draft before publication.`);
+      return releaseById(pending.databaseId, pending);
+    }
+
+    // If the pending tag has been lost, do not adopt a draft by title or create a
+    // duplicate. Inspect all pages before the first mutation and require recovery.
+    const pages = JSON.parse(
+      requireSuccess(
+        run(
+          "gh",
+          ["api", "--paginate", "--slurp", `repos/${repository}/releases?per_page=100`],
+          projectRoot,
+        ),
+        `List releases for ${tag}`,
+      ),
+    );
+    if (!Array.isArray(pages) || !pages.every((page) => Array.isArray(page))) {
+      throw new Error(`Invalid release list for ${tag}.`);
+    }
+    const releases = pages.flat();
+    if (
+      releases.some(
+        (release) =>
+          !release ||
+          typeof release.tag_name !== "string" ||
+          release.tag_name.length === 0 ||
+          typeof release.draft !== "boolean",
+      )
+    ) {
+      throw new Error(`Invalid release list for ${tag}.`);
+    }
+    if (
+      releases.some(
+        (release) => release.tag_name === tag || (release.draft && release.name === tag),
+      )
+    ) {
+      throw new Error(
+        `Release ${tag} has inconsistent tag metadata and requires reviewed recovery.`,
+      );
+    }
+    return null;
+  };
 
   // The publication token is available only after the independent artifact-verification job.
   // Repeat the checks here before the first remote mutation.
@@ -187,7 +283,7 @@ export function publishReleaseCandidate({
       release = currentRelease();
       if (!release || !release.draft) requireSuccess(created, `Create draft release ${tag}`);
     } else {
-      release = readRelease(created, tag);
+      release = validateIdentity(readRelease(created, tag));
     }
   }
   if (!release?.draft) throw new Error(`Release ${tag} is no longer a draft.`);
@@ -196,10 +292,10 @@ export function publishReleaseCandidate({
   ghApi(
     "PATCH",
     `repos/${repository}/releases/${release.id}`,
-    { name: tag, body },
+    { tag_name: tag, name: tag, body },
     `Update draft release ${tag}`,
   );
-  release = currentRelease();
+  release = releaseById(release.id);
   if (!release?.draft || !Array.isArray(release.assets)) {
     throw new Error(`Release ${tag} is not a valid draft before asset upload.`);
   }
@@ -223,18 +319,25 @@ export function publishReleaseCandidate({
       `Upload verified release assets for ${tag}`,
     );
   }
-  release = currentRelease();
+  release = releaseById(release.id);
   if (!release?.draft) throw new Error(`Release ${tag} is not a draft before publication.`);
-  verifyRelease(release, tag, body, assets);
+  verifyRelease(release, tag, body, assets, release.id);
   if (remoteTag() !== commit) throw new Error(`Remote tag ${tag} changed before publication.`);
 
-  const published = JSON.parse(
-    ghApi(
-      "PATCH",
-      `repos/${repository}/releases/${release.id}`,
-      { draft: false },
-      `Publish release ${tag}`,
+  const published = validateIdentity(
+    readRelease(
+      {
+        status: 0,
+        stdout: ghApi(
+          "PATCH",
+          `repos/${repository}/releases/${release.id}`,
+          { tag_name: tag, draft: false },
+          `Publish release ${tag}`,
+        ),
+      },
+      tag,
     ),
+    release.id,
   );
   if (published.draft) throw new Error(`Release ${tag} remained a draft after publication.`);
   verifyRelease(published, tag, body, assets);
