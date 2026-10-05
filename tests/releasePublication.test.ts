@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { detectReleaseCandidate } from "../scripts/detect-release-candidate.mjs";
+import { detectReleaseCandidate, readRelease } from "../scripts/detect-release-candidate.mjs";
 import { publishReleaseCandidate } from "../scripts/publish-release.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -28,7 +28,21 @@ function digest(bytes: Buffer) {
 }
 
 function fixture(
-  options: { tagSha?: string; published?: boolean; draft?: boolean; uploadFails?: boolean } = {},
+  options: {
+    tagSha?: string;
+    published?: boolean;
+    draft?: boolean;
+    uploadFails?: boolean;
+    listingError?: string;
+    listingPages?: unknown;
+    concurrentDraft?: boolean;
+    afterUpload?: Record<string, unknown>;
+    idReadError?: string;
+    pendingLookup?: unknown;
+    pendingError?: string;
+    pendingResponse?: unknown;
+    restPlaceholder?: boolean;
+  } = {},
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "archeion-release-publication-"));
   temporaryRoots.push(root);
@@ -55,6 +69,7 @@ function fixture(
       ? { id: 123, tag_name: tag, name: tag, body, draft: !options.published, assets: [] }
       : null;
   const mutations: string[] = [];
+  const reads: string[] = [];
   const result = (status: number, stdout = "", stderr = "") => ({ status, stdout, stderr });
   const assetMetadata = () =>
     assetNames.map((name) => {
@@ -84,10 +99,50 @@ function fixture(
     }
     if (command === "gh" && args[0] === "api") {
       const method = args[1] === "-X" ? args[2] : "GET";
-      const endpoint = args[1] === "-X" ? args[3] : args[1];
+      const endpoint = args.find((arg) => arg.startsWith("repos/") || arg === "graphql") ?? "";
+      if (endpoint === "graphql") {
+        reads.push(endpoint);
+        const payload = JSON.parse(input ?? "{}");
+        expect(payload.variables).toEqual({ owner: "TommyMoonn", name: "archeion", tag });
+        if (options.pendingError) return result(1, "", options.pendingError);
+        const pending =
+          options.pendingLookup !== undefined
+            ? options.pendingLookup
+            : release && release.tag_name === tag
+              ? { databaseId: release.id, isDraft: release.draft }
+              : null;
+        return result(
+          0,
+          JSON.stringify(options.pendingResponse ?? { data: { repository: { release: pending } } }),
+        );
+      }
       if (method === "GET" && endpoint.endsWith(`/releases/tags/${tag}`)) {
-        return release
+        reads.push(endpoint);
+        // GitHub's tag endpoint returns published releases, not drafts.
+        return release && !release.draft && release.tag_name === tag
           ? result(0, JSON.stringify(release))
+          : result(1, "", "gh: Not Found (HTTP 404)");
+      }
+      if (method === "GET" && endpoint.endsWith("/releases?per_page=100")) {
+        reads.push(endpoint);
+        expect(args).toContain("--paginate");
+        expect(args).toContain("--slurp");
+        return options.listingError
+          ? result(1, "", options.listingError)
+          : result(0, JSON.stringify(options.listingPages ?? [release ? [release] : []]));
+      }
+      if (method === "GET" && endpoint.endsWith("/releases/123")) {
+        reads.push(endpoint);
+        if (options.idReadError) return result(1, "", options.idReadError);
+        return release
+          ? result(
+              0,
+              JSON.stringify(
+                options.restPlaceholder && release.draft
+                  ? { ...release, tag_name: "untagged-abcdef" }
+                  : release,
+              ),
+            )
           : result(1, "", "gh: Not Found (HTTP 404)");
       }
       const payload = JSON.parse(input ?? "{}");
@@ -106,9 +161,11 @@ function fixture(
           draft: true,
           assets: [],
         };
+        if (options.concurrentDraft) return result(1, "", "gh: Validation Failed (HTTP 422)");
         return result(0, JSON.stringify(release));
       }
       if (method === "PATCH" && endpoint.endsWith("/releases/123") && release) {
+        expect(payload.tag_name).toBe(tag);
         release = { ...release, ...payload };
         return result(0, JSON.stringify(release));
       }
@@ -123,6 +180,7 @@ function fixture(
         ...(release.assets as Array<Record<string, unknown>>),
         ...assetMetadata().filter((asset) => uploadedNames.has(asset.name)),
       ];
+      release = { ...release, ...options.afterUpload };
       return result(0);
     }
     throw new Error(`Unexpected command: ${command} ${args.join(" ")}`);
@@ -132,6 +190,7 @@ function fixture(
     root,
     artifactsDirectory,
     mutations,
+    reads,
     detect: () =>
       detectReleaseCandidate({
         projectRoot: root,
@@ -159,9 +218,29 @@ afterEach(() => {
   for (const root of temporaryRoots.splice(0)) fs.rmSync(root, { force: true, recursive: true });
 });
 
+describe("pending-tag release identity", () => {
+  it("accepts a REST placeholder only for the selected draft ID", () => {
+    const release = { id: 123, tag_name: "untagged-abcdef", draft: true };
+    const response = { status: 0, stdout: JSON.stringify(release) };
+    expect(readRelease(response, tag, { draftId: 123 })).toEqual(release);
+    expect(() => readRelease(response, tag)).toThrow("Invalid release metadata");
+    expect(() => readRelease(response, tag, { draftId: 456 })).toThrow("Invalid release metadata");
+  });
+
+  it.each([
+    { id: 123, tag_name: "untagged-abcdef", draft: false },
+    { id: 123, tag_name: "v9.9.9", draft: true },
+    { id: 123, tag_name: "untagged-invalid", draft: true },
+  ])("rejects a published placeholder or conflicting draft tag: %j", (release) => {
+    expect(() =>
+      readRelease({ status: 0, stdout: JSON.stringify(release) }, tag, { draftId: 123 }),
+    ).toThrow("Invalid release metadata");
+  });
+});
+
 (hasPowerShell ? describe : describe.skip)("release publication", () => {
   it("creates the exact-SHA tag only after verification, then publishes the tracked note and three assets", () => {
-    const state = fixture();
+    const state = fixture({ restPlaceholder: true });
     expect(state.publish()).toEqual({ published: true, reused: false, tag, sha: commit });
     expect(state.mutations).toEqual([
       "POST repos/TommyMoonn/archeion/git/refs",
@@ -180,6 +259,7 @@ afterEach(() => {
     expect(state.detect()).toEqual({ candidate: true, version: "1.5.5", sha: commit });
     expect(state.publish()).toEqual({ published: true, reused: true, tag, sha: commit });
     expect(state.mutations).toHaveLength(5);
+    expect(state.reads.filter((endpoint) => endpoint.endsWith("/releases/123"))).toHaveLength(2);
   }, 30_000);
 
   it("resumes a same-SHA draft, but refuses a conflicting protected tag", () => {
@@ -202,6 +282,106 @@ afterEach(() => {
     expect(state.publish()).toEqual({ published: true, reused: false, tag, sha: commit });
     expect(state.mutations).not.toContain("POST repos/TommyMoonn/archeion/git/refs");
   }, 30_000);
+
+  it("resumes a pending-tag draft whose REST representation has an untagged placeholder", () => {
+    const state = fixture({ tagSha: commit, draft: true, restPlaceholder: true });
+    expect(state.publish()).toMatchObject({ published: true, reused: false });
+    expect(state.mutations).not.toContain("POST repos/TommyMoonn/archeion/releases");
+  }, 30_000);
+
+  it("detects an orphaned draft on later release-list pages without creating a duplicate", () => {
+    const state = fixture({
+      tagSha: commit,
+      listingPages: [
+        [{ id: 456, tag_name: "v1.5.4", draft: false }],
+        [{ id: 123, name: tag, tag_name: "untagged-abcdef", draft: true }],
+      ],
+    });
+    expect(() => state.publish()).toThrow("reviewed recovery");
+    expect(state.mutations).toEqual([]);
+  }, 30_000);
+
+  it("resumes a concurrently created draft after a create conflict", () => {
+    const state = fixture({ tagSha: commit, concurrentDraft: true });
+    expect(state.publish()).toMatchObject({ published: true, reused: false });
+  }, 30_000);
+
+  it.each([
+    ["forbidden listing", { listingError: "gh: Forbidden (HTTP 403)" }, "List releases"],
+    ["malformed pages", { listingPages: [{}] }, "Invalid release list"],
+    ["malformed entry", { listingPages: [[{}]] }, "Invalid release list"],
+    [
+      "duplicate tag",
+      {
+        listingPages: [
+          [
+            { id: 123, tag_name: tag, draft: true, assets: [] },
+            { id: 456, tag_name: tag, draft: true, assets: [] },
+          ],
+        ],
+      },
+      "reviewed recovery",
+    ],
+    [
+      "untagged draft",
+      { listingPages: [[{ id: 123, tag_name: "untagged-fixture", name: tag, draft: true }]] },
+      "reviewed recovery",
+    ],
+    [
+      "invalid release ID",
+      { pendingLookup: { databaseId: "123", isDraft: true } },
+      "Invalid release identity",
+    ],
+    [
+      "pending lookup error",
+      { pendingError: "gh: Forbidden (HTTP 403)" },
+      "Inspect pending release",
+    ],
+    ["malformed pending lookup", { pendingLookup: {} }, "Invalid release identity"],
+    ["missing GraphQL data", { pendingResponse: {} }, "Invalid pending release lookup"],
+    [
+      "partial GraphQL error",
+      {
+        pendingResponse: {
+          errors: [{ message: "fixture error" }],
+          data: { repository: { release: { databaseId: 123, isDraft: true } } },
+        },
+      },
+      "Invalid pending release lookup",
+    ],
+  ])(
+    "fails closed before mutation for %s",
+    (_description, options, message) => {
+      const state = fixture({ tagSha: commit, ...options });
+      expect(() => state.publish()).toThrow(message);
+      expect(state.mutations).toEqual([]);
+    },
+    30_000,
+  );
+
+  it.each(["gh: Not Found (HTTP 404)", "gh: Forbidden (HTTP 403)"])(
+    "refuses asset upload when the selected draft cannot be re-read: %s",
+    (idReadError) => {
+      const state = fixture({ tagSha: commit, draft: true, idReadError });
+      expect(() => state.publish()).toThrow();
+      expect(state.mutations).toEqual([]);
+    },
+    30_000,
+  );
+
+  it.each([
+    [{ tag_name: "v9.9.9" }, "not a draft before publication"],
+    [{ id: 456 }, "Invalid release identity"],
+    [{ draft: false }, "not a draft before publication"],
+  ])(
+    "refuses changed release identity/state after upload: %j",
+    (afterUpload, message) => {
+      const state = fixture({ afterUpload });
+      expect(() => state.publish()).toThrow(message);
+      expect(state.mutations.at(-1)).toBe("upload assets");
+    },
+    30_000,
+  );
 
   it("never tags when installer verification fails or an asset is missing", () => {
     const damaged = fixture();

@@ -56,11 +56,22 @@ export function tagTarget(output, tag) {
   return refs.get(`${ref}^{}`) ?? refs.get(ref) ?? null;
 }
 
-export function readRelease(result, tag) {
+export function releaseHasTag(release, tag, draftId) {
+  return (
+    release.tag_name === tag ||
+    (Number.isSafeInteger(draftId) &&
+      draftId > 0 &&
+      release.id === draftId &&
+      release.draft === true &&
+      /^untagged-[0-9a-f]+$/.test(release.tag_name))
+  );
+}
+
+export function readRelease(result, tag, { draftId } = {}) {
   if (result.status === 0) {
     try {
       const release = JSON.parse(result.stdout);
-      if (release.tag_name !== tag || typeof release.draft !== "boolean") {
+      if (!releaseHasTag(release, tag, draftId) || typeof release.draft !== "boolean") {
         throw new Error("Invalid release metadata.");
       }
       return release;
