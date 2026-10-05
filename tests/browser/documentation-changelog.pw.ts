@@ -51,7 +51,7 @@ test("header, sidebar, pager, outline and section search reach the canonical his
     "../reference/about-resources/",
   );
   await expect(page.locator('.article-pager [rel="next"]')).toHaveCount(0);
-  await expect(page.locator("[data-toc] a").first()).toHaveText("v1.5.4");
+  await expect(page.locator("[data-toc] a").first()).toHaveText(`v${changelog.entries[0].version}`);
   await page.keyboard.press("Control+k");
   const dialog = page.getByRole("dialog", { name: "Search documentation", exact: true });
   await dialog.getByRole("searchbox").fill("common English inflections");

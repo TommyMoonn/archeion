@@ -7,6 +7,8 @@ import { readAllReleaseNotes, readReleaseNote } from "../scripts/release-notes.m
 import { syncDocumentationChangelog } from "../scripts/sync-documentation-changelog.mjs";
 
 const projectRoot = process.cwd();
+const noteCount = readAllReleaseNotes(projectRoot).length;
+const currentVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
 const targetPath = "docs/documentation/assets/docs-changelog-data.json";
 const roots: string[] = [];
 afterEach(() => {
@@ -44,12 +46,12 @@ describe("documentation release-history data", () => {
         changes: changes.replace(/\r\n/g, "\n"),
       })),
     );
-    expect(data.entries).toHaveLength(24);
-    expect(data.entries[0].version).toBe("1.5.4");
+    expect(data.entries).toHaveLength(notes.length);
+    expect(data.entries[0].version).toBe(currentVersion);
     expect(data.entries.at(-1).version).toBe("0.1.0");
     expect(await syncDocumentationChangelog(projectRoot)).toEqual({
       changed: false,
-      entryCount: 24,
+      entryCount: notes.length,
     });
     expect(fs.readFileSync(targetPath, "utf8")).toBe(before);
     for (const entry of data.entries) {
@@ -67,28 +69,37 @@ describe("documentation release-history data", () => {
     const target = path.join(root, targetPath);
     const notePath = path.join(root, "release-notes/v1.5.4.md");
     const noteBefore = fs.readFileSync(notePath, "utf8");
-    expect(await syncDocumentationChangelog(root)).toEqual({ changed: true, entryCount: 24 });
+    expect(await syncDocumentationChangelog(root)).toEqual({
+      changed: true,
+      entryCount: noteCount,
+    });
     expect(fs.existsSync(target)).toBe(false);
     await syncDocumentationChangelog(root, { check: false });
     const generated = fs.readFileSync(target, "utf8");
     expect(generated).toBe(fs.readFileSync(targetPath, "utf8"));
     expect(await syncDocumentationChangelog(root, { check: false })).toEqual({
       changed: false,
-      entryCount: 24,
+      entryCount: noteCount,
     });
     expect(fs.readFileSync(notePath, "utf8")).toBe(noteBefore);
     fs.writeFileSync(notePath, `${noteBefore}\n- Another user-facing change.\n`);
-    expect(await syncDocumentationChangelog(root)).toEqual({ changed: true, entryCount: 24 });
+    expect(await syncDocumentationChangelog(root)).toEqual({
+      changed: true,
+      entryCount: noteCount,
+    });
     expect(fs.readFileSync(target, "utf8")).toBe(generated);
     fs.writeFileSync(
-      path.join(root, "release-notes/v1.5.5.md"),
-      "<!-- release-note: v1.5.5; date: 2026-10-05 -->\n\n## Changes\n\n- New release.\n",
+      path.join(root, "release-notes/v99.0.0.md"),
+      "<!-- release-note: v99.0.0; date: 2099-01-01 -->\n\n## Changes\n\n- New release.\n",
     );
-    expect(await syncDocumentationChangelog(root)).toEqual({ changed: true, entryCount: 25 });
+    expect(await syncDocumentationChangelog(root)).toEqual({
+      changed: true,
+      entryCount: noteCount + 1,
+    });
     fs.rmSync(path.join(root, "release-notes/v0.1.0.md"));
     await syncDocumentationChangelog(root, { check: false });
     const entries = JSON.parse(fs.readFileSync(target, "utf8")).entries;
-    expect(entries[0].version).toBe("1.5.5");
+    expect(entries[0].version).toBe("99.0.0");
     expect(entries.some((entry: { version: string }) => entry.version === "0.1.0")).toBe(false);
   });
 

@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "version": "1.5.5",
+      "date": "2026-10-05",
+      "sourcePath": "release-notes/v1.5.5.md",
+      "changes": "- Search the documentation by section title or page content, with keyboard navigation and compact or detailed results.\n- Copy a documentation page as Markdown, including its headings, links, lists, and code examples.\n- Added guides for Quick Actions and EPUB metadata and covers, plus expanded guidance on archive health, recovery, data ownership, and annotation exports.\n- Documentation pages have a revised reading layout, clearer navigation, heading links, and an outline that follows the section you are reading.\n- Browse release history in the documentation, with dated changes and links to each GitHub release.\n- The Reader's progress control now reports the current reading position to screen readers while a different position is being previewed or a jump is still pending.\n- Confirmations for deleting a Reader note or clearing a book's reading progress now start with Cancel focused.\n- Compact Library navigation keeps its labels and current-page state when the sidebar is collapsed. Toggle controls keep stable names and expose their selected state.\n- The website Reader demo and mobile navigation have more consistent keyboard controls, announced states, and focus handling."
+    },
+    {
       "version": "1.5.4",
       "date": "2026-09-25",
       "sourcePath": "release-notes/v1.5.4.md",
