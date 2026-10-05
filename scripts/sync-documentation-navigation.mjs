@@ -215,6 +215,22 @@ function renderHeader(current) {
   </header>`;
 }
 
+function renderSearch() {
+  return `<dialog aria-label="Search documentation" class="docs-search-dialog" data-search-dialog="">
+    <div class="docs-search-controls">
+      <label class="docs-search-field">
+        <span class="sr-only">Search documentation content</span>
+        <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+        <input autocomplete="off" data-search-input="" placeholder="Search documentation" type="search" aria-describedby="docs-search-hints" />
+      </label>
+      <button class="docs-search-details" data-search-details="" type="button" aria-pressed="false">Show details</button>
+    </div>
+    <nav aria-label="Documentation search results" class="docs-search-results" data-search-results=""></nav>
+    <p class="docs-search-empty" data-search-empty="" hidden="">No matching results. Try another word or clear your search.</p>
+    <p class="docs-search-hints" id="docs-search-hints"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span><span><kbd>Esc</kbd> Close</span></p>
+  </dialog>`;
+}
+
 function renderSidebar(current, groups, pages) {
   return `<nav data-doc-navigation="" aria-label="Documentation sidebar">${groups
     .map((group) => {
@@ -318,6 +334,21 @@ export async function syncDocumentationNavigation(
     html = html.replace(
       /(?=<script\b[^>]*\bsrc="[^"]*\/docs\.js")/,
       `<script defer data-doc-search-index src="${searchIndexScript}"></script>\n`,
+    );
+    const searchScript = path.posix.relative(
+      path.posix.dirname(page.sourcePath),
+      `${documentationDirectory}/assets/docs-search.js`,
+    );
+    html = html.replace(/<script\b[^>]*\bsrc="[^"]*\/docs-search\.js"[^>]*>\s*<\/script>\s*/g, "");
+    html = html.replace(
+      /(<script\b[^>]*\bsrc="[^"]*\/docs\.js"[^>]*>\s*<\/script>)/,
+      `$1\n<script defer src="${searchScript}"></script>`,
+    );
+    html = replaceRegion(
+      html,
+      "search",
+      renderSearch(),
+      /<dialog\b[^>]*\bdata-search-dialog(?:="[^"]*")?[^>]*>[\s\S]*?<\/dialog>/g,
     );
     // One canonical module URL at every route depth. Controls are progressive enhancement.
     const copyScript = path.posix.relative(

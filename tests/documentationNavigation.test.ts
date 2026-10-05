@@ -127,6 +127,16 @@ describe("documentation navigation contract", () => {
       expect(document.querySelectorAll("script[data-doc-search-index]")).toHaveLength(1);
       expect(indexScript.hasAttribute("defer")).toBe(true);
       expect(indexScript.nextElementSibling?.getAttribute("src")).toMatch(/\/docs\.js$/);
+      const searchScript = indexScript.nextElementSibling?.nextElementSibling;
+      expect(searchScript?.getAttribute("src")).toMatch(/\/docs-search\.js$/);
+      expect(searchScript?.hasAttribute("defer")).toBe(true);
+      const searchDialog = document.querySelector("[data-search-dialog]")!;
+      expect(searchDialog.getAttribute("aria-label")).toBe("Search documentation");
+      expect(searchDialog.querySelector("h2, [data-search-close]")).toBeNull();
+      expect(searchDialog.querySelector("input, button")?.tagName).toBe("INPUT");
+      expect(
+        searchDialog.querySelector("[data-search-details]")?.getAttribute("aria-pressed"),
+      ).toBe("false");
       expect(
         path.resolve(
           path.dirname(path.join(projectRoot, page.sourcePath)),

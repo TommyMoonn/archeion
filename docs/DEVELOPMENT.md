@@ -215,7 +215,7 @@ npm run test -- tests/documentationNavigation.test.ts tests/documentationArticle
 ```
 
 The sync step generates the marked `docs-header`, `docs-navigation`, `docs-pager`, and
-`docs-footer` regions, the article's `data-page-type`, heading permalinks, and the
+`docs-footer` regions, the shared `docs-search` dialog, the article's `data-page-type`, heading permalinks, and the
 section-level search index. Sidebar links do not carry duplicated search text.
 Keep edits to generated chrome in the renderer, not individual pages. The header's
 `Archeion Docs` brand returns to the overview; `Home ↗` returns to the public landing
@@ -228,14 +228,14 @@ omits Next; no interior page may skip a neighbor.
 It runs in the frontend quality gate and CI. Every documentation `index.html` must
 be registered exactly once. Navigation is committed as ordinary links and remains
 usable before JavaScript executes. Shell styling and runtime focus behavior remain
-owned by `docs.css` and `docs.js`.
+owned by `docs.css` and `docs.js`; `docs-search.js` owns the search dialog lifecycle.
 
 ### Documentation search data
 
 `scripts/sync-documentation-search.mjs` reads the canonical registry and each
 semantic `[data-doc-article]`. It generates one committed static asset,
 `docs/documentation/assets/docs-search-index.js`, loaded before `docs.js` on every
-page. No fetch, service, or build-time deployment step is needed on GitHub Pages.
+page. The deferred `docs-search.js` consumes this index. No fetch, service, or build-time deployment step is needed on GitHub Pages.
 
 Each page has an introduction entry and one entry per `h2`/`h3`, in canonical
 page and document order. Bodies belong to the nearest preceding heading, stopping
@@ -263,6 +263,17 @@ npm run test -- tests/documentationSearchIndex.test.ts tests/documentationSearch
 `docs:sync` includes search generation. `docs:check` includes its non-writing drift
 check and fails for a missing or stale index, including body-only article edits.
 The focused generator tests reproduce the committed bytes from source-only fixtures.
+
+The search dialog is generated once from the navigation script's template. Its
+programmatic name remains "Search documentation" while the input leads visually.
+"Show details" reveals the existing excerpts without rebuilding or reordering results.
+Native result links retain their accessible title/context names in both modes;
+visible excerpts become descriptions. Highlighting adds text nodes and marks, never HTML.
+Arrow keys move focus among results, Enter opens the focused result (or the active
+result from the input), and Tab retains native access to the input, toggle, and links.
+Escape or a pointer gesture wholly outside the dialog dismisses it and restores
+the opener. Same-page navigation focuses its destination heading. Query updates
+retain input focus and use the existing stable, polite result-count region.
 
 ### Article structure and editorial types
 

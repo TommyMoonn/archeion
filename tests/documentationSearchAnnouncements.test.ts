@@ -9,7 +9,7 @@ afterEach(async () => {
 });
 
 const docsScript = fs.readFileSync(
-  path.join(process.cwd(), "docs/documentation/assets/docs.js"),
+  path.join(process.cwd(), "docs/documentation/assets/docs-search.js"),
   "utf8",
 );
 
@@ -41,12 +41,12 @@ function createDocsSearchWindow(
   window.document.body.innerHTML = `
     <script data-doc-search-index src="${assetURL}"></script>
     <button type="button" data-search-trigger>Search documentation</button>
-    <dialog data-search-dialog>
-      <button type="button" data-search-close>Close search</button>
+    <dialog data-search-dialog aria-label="Search documentation">
       <label>
         <span>Search documentation content</span>
         <input type="search" data-search-input />
       </label>
+      <button type="button" data-search-details aria-pressed="false">Show details</button>
       <nav data-search-results aria-label="Documentation search results"></nav>
       <p data-search-empty hidden>No matching results.</p>
     </dialog>
@@ -148,6 +148,85 @@ describe("documentation search result announcements", () => {
 
     search(window, input, "missing-query");
     expect(window.document.activeElement).toBe(input);
+  });
+
+  it("moves native link focus with arrows, leaves Tab native, and ignores composing keys", async () => {
+    const { window, trigger, input, results } = createDocsSearchWindow();
+    await openSearch(window, trigger);
+    input.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, isComposing: true }),
+    );
+    expect(window.document.activeElement).toBe(input);
+    input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+    expect(window.document.activeElement).toBe(results.children[0]);
+    results.children[0].dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+    expect(window.document.activeElement).toBe(results.children[1]);
+    const tab = new window.KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    results.children[1].dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(false);
+    results.children[1].dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }),
+    );
+    expect(window.document.activeElement).toBe(results.children[0]);
+  });
+
+  it("changes details without replacing or reordering links, resetting selection, or announcing counts", async () => {
+    const index = fs.readFileSync("docs/documentation/assets/docs-search-index.js", "utf8");
+    const { window, trigger, input, results, dialog } = createDocsSearchWindow(index);
+    await openSearch(window, trigger);
+    search(window, input, "archive");
+    const links = [...results.children];
+    const status = dialog.querySelector('[role="status"]')!.textContent;
+    const toggle = dialog.querySelector<HTMLButtonElement>("[data-search-details]")!;
+    toggle.focus();
+    toggle.click();
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(window.document.activeElement).toBe(toggle);
+    expect([...results.children]).toEqual(links);
+    expect(dialog.querySelector('[role="status"]')!.textContent).toBe(status);
+    expect(
+      [...results.querySelectorAll<HTMLElement>("[data-search-excerpt]")].some(
+        (excerpt) => !excerpt.hidden && excerpt.textContent.length > 0,
+      ),
+    ).toBe(true);
+    toggle.click();
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(
+      [...results.querySelectorAll<HTMLElement>("[data-search-excerpt]")].every(
+        (excerpt) => excerpt.hidden,
+      ),
+    ).toBe(true);
+  });
+
+  it("highlights literal queries without changing authored text or interpreting markup", async () => {
+    const { window, trigger, input, results } = createDocsSearchWindow();
+    await openSearch(window, trigger);
+    search(window, input, "reader");
+    expect(results.querySelector("mark")?.textContent).toBe("Reader");
+    expect(results.querySelector("strong")?.textContent).toBe("Reader and annotations");
+    search(window, input, ".*");
+    expect(results.children).toHaveLength(0);
+  });
+
+  it("dismisses a nonempty query on the first Escape and restores the opener synchronously", async () => {
+    const { window, trigger, dialog, input } = createDocsSearchWindow();
+    await openSearch(window, trigger);
+    search(window, input, "books");
+    const escape = new window.KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(true);
+    expect(dialog.open).toBe(false);
+    expect(window.document.activeElement).toBe(trigger);
   });
 
   it("ranks title, heading, alias, and body matches with canonical-order ties", async () => {

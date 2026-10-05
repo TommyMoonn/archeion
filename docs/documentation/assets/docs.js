@@ -159,97 +159,6 @@
     });
   });
 
-  const searchDialog = document.querySelector("[data-search-dialog]");
-  const searchInput = document.querySelector("[data-search-input]");
-  const searchResults = document.querySelector("[data-search-results]");
-  const searchEmpty = document.querySelector("[data-search-empty]");
-  const searchStatus = (() => {
-    if (!searchDialog || !searchResults) return null;
-    const status = document.createElement("p");
-    status.className = "sr-only";
-    status.dataset.searchStatus = "";
-    status.setAttribute("role", "status");
-    searchResults.before(status);
-    return status;
-  })();
-  const searchTriggers = document.querySelectorAll("[data-search-trigger]");
-  const searchClose = document.querySelector("[data-search-close]");
-  const searchEntries = window.ArcheionDocumentationIndex?.entries || [];
-  const indexScript = document.querySelector("[data-doc-search-index]");
-  const documentationRoot = indexScript ? new URL("../", indexScript.src) : null;
-  const normalizeSearch = (text) => text.replace(/\s+/g, " ").trim().toLowerCase();
-
-  function searchRank(entry, query) {
-    if (!query) return entry.sectionId ? -1 : 0;
-    // A title match points to the page, not every section on that page.
-    if (
-      !entry.sectionId &&
-      [entry.title, entry.pageHeading].some((text) => normalizeSearch(text).includes(query))
-    )
-      return 0;
-    if (entry.sectionId && normalizeSearch(entry.sectionHeading).includes(query)) return 1;
-    if (entry.aliases.some((alias) => alias.includes(query))) return 2;
-    return entry.text.includes(query) ? 3 : -1;
-  }
-
-  function renderSearchResults() {
-    if (!searchResults || !documentationRoot) return;
-    const query = normalizeSearch(searchInput?.value || "");
-    const matches = searchEntries
-      .map((entry, order) => ({ entry, order, rank: searchRank(entry, query) }))
-      .filter(({ rank }) => rank >= 0)
-      .sort((a, b) => a.rank - b.rank || a.order - b.order);
-
-    searchResults.replaceChildren();
-    matches.forEach(({ entry }) => {
-      const result = document.createElement("a");
-      result.className = "docs-search-result";
-      result.href = new URL(
-        `${entry.route.slice(1)}${entry.sectionId ? `#${entry.sectionId}` : ""}`,
-        documentationRoot,
-      ).href;
-      if (!entry.sectionId && new URL(result.href).pathname === location.pathname)
-        result.setAttribute("aria-current", "page");
-
-      const title = document.createElement("strong");
-      title.textContent = entry.sectionHeading || entry.title;
-      const group = document.createElement("span");
-      group.textContent = entry.sectionId
-        ? `${entry.title} · ${entry.groupTitle}`
-        : entry.groupTitle;
-
-      result.append(title, group);
-      result.addEventListener("click", () => searchDialog?.close());
-      searchResults.append(result);
-    });
-
-    if (searchEmpty) searchEmpty.hidden = matches.length !== 0;
-    if (searchStatus) {
-      searchStatus.textContent = query
-        ? matches.length === 0
-          ? "No matching results."
-          : `${matches.length} ${matches.length === 1 ? "result" : "results"} found.`
-        : "";
-    }
-  }
-
-  function openSearch() {
-    if (!searchDialog || typeof searchDialog.showModal !== "function") return;
-    if (!searchDialog.open) searchDialog.showModal();
-    renderSearchResults();
-    window.setTimeout(() => {
-      searchInput?.focus();
-      searchInput?.select();
-    }, 30);
-  }
-
-  searchTriggers.forEach((button) => button.addEventListener("click", openSearch));
-  searchClose?.addEventListener("click", () => searchDialog?.close());
-  searchInput?.addEventListener("input", renderSearchResults);
-  searchDialog?.addEventListener("click", (event) => {
-    if (event.target === searchDialog) searchDialog.close();
-  });
-
   window.addEventListener("keydown", (event) => {
     if (event.key === "Tab" && mobileNavigation.matches && body.classList.contains("nav-open")) {
       const focusable = navFocusableElements();
@@ -269,14 +178,6 @@
       }
     }
 
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      event.key.toLowerCase() === "k" &&
-      !body.classList.contains("nav-open")
-    ) {
-      event.preventDefault();
-      openSearch();
-    }
     if (event.key === "Escape" && body.classList.contains("nav-open")) setNav(false);
   });
 

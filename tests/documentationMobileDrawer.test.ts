@@ -60,7 +60,6 @@ function createDocsWindow({ mobile = true }: { mobile?: boolean } = {}) {
       <button type="button" data-search-trigger>Search</button>
     </header>
     <dialog data-search-dialog>
-      <button type="button" data-search-close>Close search</button>
       <input data-search-input />
       <nav data-search-results></nav>
       <p data-search-empty hidden>No matching pages.</p>
@@ -85,6 +84,7 @@ function createDocsWindow({ mobile = true }: { mobile?: boolean } = {}) {
   `;
 
   window.eval(docsScript);
+  window.eval(fs.readFileSync("docs/documentation/assets/docs-search.js", "utf8"));
 
   const opener = window.document.querySelector<HTMLButtonElement>("[data-nav-open]");
   const close = window.document.querySelector<HTMLButtonElement>("[data-nav-close]");

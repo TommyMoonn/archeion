@@ -14,6 +14,7 @@
     <link href="assets/docs.css" rel="stylesheet" />
     <script defer data-doc-search-index src="assets/docs-search-index.js"></script>
     <script defer="" src="assets/docs.js"></script>
+    <script defer src="assets/docs-search.js"></script>
     <script type="module" src="assets/docs-copy.js"></script>
   </head>
   <body>
@@ -94,30 +95,43 @@
       </div>
     </header>
     <!-- docs-header:end -->
-    <dialog aria-labelledby="docs-search-title" class="docs-search-dialog" data-search-dialog="">
-      <div class="docs-search-dialog__header">
-        <h2 id="docs-search-title">Search documentation</h2>
-        <button aria-label="Close search" class="icon-button" data-search-close="" type="button">
-          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+    <!-- docs-search:start -->
+    <dialog aria-label="Search documentation" class="docs-search-dialog" data-search-dialog="">
+      <div class="docs-search-controls">
+        <label class="docs-search-field">
+          <span class="sr-only">Search documentation content</span>
+          <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+          <input
+            autocomplete="off"
+            data-search-input=""
+            placeholder="Search documentation"
+            type="search"
+            aria-describedby="docs-search-hints"
+          />
+        </label>
+        <button
+          class="docs-search-details"
+          data-search-details=""
+          type="button"
+          aria-pressed="false"
+        >
+          Show details
         </button>
       </div>
-      <label class="docs-search-field">
-        <span class="sr-only">Search documentation content</span>
-        <svg aria-hidden="true"><use href="#icon-search"></use></svg>
-        <input
-          autocomplete="off"
-          data-search-input=""
-          placeholder="Search documentation"
-          type="search"
-        />
-      </label>
       <nav
         aria-label="Documentation search results"
         class="docs-search-results"
         data-search-results=""
       ></nav>
-      <p class="docs-search-empty" data-search-empty="" hidden="">No matching results.</p>
+      <p class="docs-search-empty" data-search-empty="" hidden="">
+        No matching results. Try another word or clear your search.
+      </p>
+      <p class="docs-search-hints" id="docs-search-hints">
+        <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span
+        ><span><kbd>Esc</kbd> Close</span>
+      </p>
     </dialog>
+    <!-- docs-search:end -->
     <div class="mobile-backdrop" data-nav-backdrop="" hidden=""></div>
     <aside
       aria-label="Documentation navigation"
