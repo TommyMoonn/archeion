@@ -12,6 +12,7 @@ import {
 } from "../scripts/sync-documentation-changelog-page.mjs";
 
 const targetPath = "docs/documentation/changelog/index.html";
+const noteCount = readAllReleaseNotes(process.cwd()).length;
 const roots: string[] = [];
 const windows: Window[] = [];
 afterEach(async () => {
@@ -160,7 +161,10 @@ describe("static release timeline", () => {
     );
     expect(fs.readFileSync(target, "utf8")).toBe(before);
     await syncDocumentationChangelog(root, { check: false });
-    expect(await syncDocumentationChangelogPage(root)).toEqual({ changed: true, entryCount: 24 });
+    expect(await syncDocumentationChangelogPage(root)).toEqual({
+      changed: true,
+      entryCount: noteCount,
+    });
     expect(fs.readFileSync(target, "utf8")).toBe(before);
     await syncDocumentationChangelogPage(root, { check: false });
     const after = fs.readFileSync(target, "utf8");
@@ -168,7 +172,10 @@ describe("static release timeline", () => {
     const outsideRegion = (html: string) =>
       html.replace(/<!-- docs-changelog:start -->[\s\S]*?<!-- docs-changelog:end -->/, "");
     expect(outsideRegion(after)).toBe(outsideRegion(before));
-    expect(await syncDocumentationChangelogPage(root)).toEqual({ changed: false, entryCount: 24 });
+    expect(await syncDocumentationChangelogPage(root)).toEqual({
+      changed: false,
+      entryCount: noteCount,
+    });
     fs.writeFileSync(target, after.replace("docs-changelog:end", "missing-marker"));
     await expect(syncDocumentationChangelogPage(root, { check: false })).rejects.toThrow(/region/i);
   });
@@ -176,19 +183,22 @@ describe("static release timeline", () => {
   it("adds and removes releases without leaving stale headings or hand-authored history", async () => {
     const root = fixture();
     fs.writeFileSync(
-      path.join(root, "release-notes/v1.5.5.md"),
-      "<!-- release-note: v1.5.5; date: 2026-10-05 -->\n\n## Changes\n\n- New user-facing release.\n",
+      path.join(root, "release-notes/v99.0.0.md"),
+      "<!-- release-note: v99.0.0; date: 2099-01-01 -->\n\n## Changes\n\n- New user-facing release.\n",
     );
     fs.rmSync(path.join(root, "release-notes/v0.1.0.md"));
     await syncDocumentationChangelog(root, { check: false });
     await syncDocumentationChangelogPage(root, { check: false });
     const document = documentFrom(fs.readFileSync(path.join(root, targetPath), "utf8"));
-    expect(document.querySelector(".changelog-timeline h2")?.textContent).toBe("v1.5.5");
+    expect(document.querySelector(".changelog-timeline h2")?.textContent).toBe("v99.0.0");
     expect(document.querySelector("#release-0-1-0")).toBeNull();
-    expect(document.querySelector("#release-1-5-5")?.closest("li")?.textContent).toContain(
+    expect(document.querySelector("#release-99-0-0")?.closest("li")?.textContent).toContain(
       "New user-facing release.",
     );
-    expect(await syncDocumentationChangelogPage(root)).toEqual({ changed: false, entryCount: 24 });
+    expect(await syncDocumentationChangelogPage(root)).toEqual({
+      changed: false,
+      entryCount: noteCount,
+    });
   });
 
   it.each(["page", "data", "note"])(

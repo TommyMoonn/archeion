@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.5.5] - 2026-10-05
+
+Archeion 1.5.5 improves interaction accessibility and expands the public documentation experience.
+
+### Added
+
+- Added section-level documentation search with page-content matching, keyboard navigation, compact and detailed results, and links to matching headings.
+- Added Copy page as Markdown and a dated release-history timeline generated from canonical release notes.
+- Added Quick Actions and EPUB metadata and covers guides. Expanded archive-health, recovery, data-ownership, annotation-export, scanning, motion, and large-library guidance.
+
+### Changed
+
+- Refined the documentation shell, sidebar, typography, callouts, semantic article structure, heading permalinks, and active-section outline.
+- Centralized documentation navigation, static page integration, and search data around the canonical page registry.
+- Added guarded release automation after successful main CI, diagnostic coverage and runtime checks, and contributor architecture and performance references.
+
+### Fixed
+
+- Reader progress accessibility values now reflect the committed reading position during hover, drag, pending seeks, and failed seeks.
+- Reader note-deletion and clear-progress confirmations initially focus Cancel.
+- Compact Library navigation now shares its expanded-state owner and retains stable accessible labels and current-page semantics.
+- Toggle controls retain stable accessible names and expose selected state; Reader setting controls have named groups.
+- Aligned the public Reader demo's progress semantics and fixed keyboard activation and dismissal focus in public mobile navigation.
+
 ## [1.5.4] - 2026-09-25
 
 Archeion 1.5.4 keeps archive switching, rescanning, and cross-window archive updates current when work overlaps or a connection briefly fails.
@@ -585,7 +609,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.4...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.5...HEAD
+[1.5.5]: https://github.com/TommyMoonn/archeion/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/TommyMoonn/archeion/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/TommyMoonn/archeion/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/TommyMoonn/archeion/compare/v1.5.1...v1.5.2

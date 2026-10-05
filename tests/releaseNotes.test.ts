@@ -11,6 +11,9 @@ import { parseReleaseNote, readAllReleaseNotes } from "../scripts/release-notes.
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const script = path.join(projectRoot, "scripts", "release-notes.mjs");
 const temporaryRoots: string[] = [];
+const currentVersion = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"),
+).version;
 const historicalVersions = [
   "0.1.0",
   "0.2.0",
@@ -107,15 +110,20 @@ describe("tracked release notes", () => {
     const result = runNotes("read", "--all");
 
     expect(validation.status).toBe(0);
-    expect(validation.stdout).toContain("Validated 24 release note(s).");
     expect(result.status).toBe(0);
     const notes = JSON.parse(result.stdout) as Array<{
       version: string;
       date: string;
       body: string;
     }>;
-    expect(notes.map(({ version }) => version).sort()).toEqual([...historicalVersions].sort());
-    expect(notes[0].version).toBe("1.5.4");
+    const trackedVersions = fs
+      .readdirSync(path.join(projectRoot, "release-notes"))
+      .filter((name) => /^v\d+\.\d+\.\d+\.md$/.test(name))
+      .map((name) => name.slice(1, -3));
+    expect(validation.stdout).toContain(`Validated ${trackedVersions.length} release note(s).`);
+    expect(notes.map(({ version }) => version).sort()).toEqual(trackedVersions.sort());
+    expect(trackedVersions).toEqual(expect.arrayContaining(historicalVersions));
+    expect(notes[0].version).toBe(currentVersion);
     expect(notes.at(-1)?.version).toBe("0.1.0");
     for (const note of notes) {
       expect(note.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
