@@ -38,5 +38,20 @@ npm run release:check
 dated technical changelog entry. To obtain the metadata-free GitHub Release
 body, use `node scripts/release-notes.mjs read --version X.Y.Z --body`. The
 plain `read --version X.Y.Z` and `read --all` forms emit JSON containing
-`version`, `date`, and `body` for automation. Do not publish the metadata header
-as part of a release description.
+`version`, `date`, `body`, and `changes` for automation. `changes` is the Markdown
+inside `## Changes`, ending at the next level-two heading. `body` remains the
+complete, unmodified metadata-free GitHub Release description. Do not publish
+the metadata header as part of a release description.
+
+`read --all` orders notes by descending release date, then descending numeric
+version for same-day releases. Dates take precedence so a later maintenance
+release appears above an earlier release with a higher version.
+
+`npm run docs:changelog:sync` projects these validated notes into
+`docs/documentation/assets/docs-changelog-data.json`. Its `schemaVersion: 1`
+entries contain `version`, `date`, repository-relative `sourcePath`, and `changes`
+with LF line endings. This committed file is generated documentation input, not
+another prose source; edit the versioned note and regenerate it. `npm run
+docs:changelog:check` reports missing/stale data without writing, and is included
+in `docs:check`. `docs:sync` includes generation. No timeline route or header
+link is created by this data contract.

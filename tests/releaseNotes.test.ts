@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
+import { parseReleaseNote, readAllReleaseNotes } from "../scripts/release-notes.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const script = path.join(projectRoot, "scripts", "release-notes.mjs");
@@ -62,6 +63,45 @@ afterEach(() => {
 });
 
 describe("tracked release notes", () => {
+  it("exposes only Changes for documentation while preserving the complete release body", () => {
+    const body =
+      "## Downloads\r\n\r\n- Installer.\r\n\r\n## Changes\r\n\r\n- Keep **formatting** and [links](https://example.com).\r\n  Continuation text.\r\n\r\n## Notes\r\n\r\nAdditional release guidance.\r\n";
+    const note = parseReleaseNote(
+      "v0.3.0.md",
+      `<!-- release-note: v0.3.0; date: 2026-07-12 -->\r\n\r\n${body}`,
+    );
+    expect(note.body).toBe(body);
+    expect(note.changes).toBe(
+      "- Keep **formatting** and [links](https://example.com).\r\n  Continuation text.",
+    );
+  });
+
+  it("orders by descending date, then numeric version without precision loss", () => {
+    const root = noteFixture();
+    const inputs = [
+      ["1.9.0", "2026-07-12"],
+      ["1.10.0", "2026-07-12"],
+      ["0.3.0", "2026-07-13"],
+      ["1.10.2", "2026-07-12"],
+      ["9007199254740992.0.0", "2026-07-11"],
+      ["9007199254740993.0.0", "2026-07-11"],
+    ];
+    for (const [version, date] of inputs) {
+      fs.writeFileSync(
+        path.join(root, "release-notes", `v${version}.md`),
+        `<!-- release-note: v${version}; date: ${date} -->\n\n## Changes\n\n- Version ${version}.\n`,
+      );
+    }
+    expect(readAllReleaseNotes(root).map((note) => note.version)).toEqual([
+      "0.3.0",
+      "1.10.2",
+      "1.10.0",
+      "1.9.0",
+      "9007199254740993.0.0",
+      "9007199254740992.0.0",
+    ]);
+  });
+
   it("validates the complete historical set and exposes deterministic timeline metadata", () => {
     const validation = runNotes("validate", "--all");
     const result = runNotes("read", "--all");
@@ -75,6 +115,8 @@ describe("tracked release notes", () => {
       body: string;
     }>;
     expect(notes.map(({ version }) => version).sort()).toEqual([...historicalVersions].sort());
+    expect(notes[0].version).toBe("1.5.4");
+    expect(notes.at(-1)?.version).toBe("0.1.0");
     for (const note of notes) {
       expect(note.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(note.body).toContain("## Changes");
