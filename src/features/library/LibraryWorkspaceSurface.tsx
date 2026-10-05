@@ -96,10 +96,9 @@ type LibraryWorkspaceSurfaceProps = {
   seriesDetailProps: ComponentProps<typeof SeriesDetail>;
   seriesOverviewProps: ComponentProps<typeof SeriesOverview>;
   showContinueReading: boolean;
-  sidebarProps: Omit<ComponentProps<typeof LibrarySidebar>, "collapsed" | "expandedContentRef">;
-  titlebarCompositionProps: Omit<
-    ComponentProps<typeof LibraryTitlebarComposition>,
-    "collapseAvailable" | "collapsed" | "expandedSidebarContentRef" | "onCollapsedChange"
+  sidebarProps: Omit<
+    ComponentProps<typeof LibrarySidebar>,
+    "collapsed" | "expandedContentRef" | "navigationRef"
   >;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
   view: LibraryView;
@@ -134,13 +133,13 @@ export function LibraryWorkspaceSurface({
   seriesOverviewProps,
   showContinueReading,
   sidebarProps,
-  titlebarCompositionProps,
   toolbarProps,
   view,
   visibleBooks,
 }: LibraryWorkspaceSurfaceProps) {
   const sidebarState = useLibrarySidebarState();
   const expandedSidebarContentRef = useRef<HTMLDivElement>(null);
+  const sidebarNavigationRef = useRef<HTMLElement>(null);
   const titlebarCompositionRef = useRef<LibraryTitlebarCompositionHandle>(null);
   const { getCommandBinding } = useQuickActions();
   const sidebarCommandScope = location.type === "folders" ? "folders" : "library";
@@ -197,10 +196,10 @@ export function LibraryWorkspaceSurface({
       sidebar={
         <>
           <LibraryTitlebarComposition
-            {...titlebarCompositionProps}
             collapseAvailable={sidebarState.collapseAvailable}
             collapsed={sidebarState.collapsed}
             expandedSidebarContentRef={expandedSidebarContentRef}
+            sidebarNavigationRef={sidebarNavigationRef}
             onCollapsedChange={sidebarState.setCollapsed}
             ref={titlebarCompositionRef}
             sidebarToggleAriaKeyShortcuts={ariaKeyShortcut(
@@ -211,6 +210,7 @@ export function LibraryWorkspaceSurface({
             {...sidebarProps}
             collapsed={sidebarState.collapsed}
             expandedContentRef={expandedSidebarContentRef}
+            navigationRef={sidebarNavigationRef}
           />
         </>
       }

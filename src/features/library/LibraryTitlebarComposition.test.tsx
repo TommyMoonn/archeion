@@ -2,7 +2,7 @@
 
 import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import { TooltipProvider } from "../../components/Tooltip";
@@ -17,24 +17,16 @@ import { useLibrarySidebarState } from "./useLibrarySidebarState";
 let root: Root | null = null;
 let media: ReturnType<typeof installLibrarySidebarMedia> | null = null;
 
-function renderComposition({
-  collapseAvailable = true,
-  onOpenQuickActions = vi.fn(),
-  onRevealArchive = vi.fn(),
-  revealArchiveDisabledReason,
-}: {
-  collapseAvailable?: boolean;
-  onOpenQuickActions?: () => void;
-  onRevealArchive?: () => void;
-  revealArchiveDisabledReason?: string;
-} = {}) {
+function renderComposition({ collapseAvailable = true } = {}) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
 
   function Harness() {
     const [collapsed, setCollapsed] = useState(false);
+    const [libraryMounted, setLibraryMounted] = useState(true);
     const expandedContentRef = useRef<HTMLDivElement>(null);
+    const sidebarNavigationRef = useRef<HTMLElement>(null);
 
     return (
       <>
@@ -42,17 +34,24 @@ function renderComposition({
           <WindowTitlebarAppActionsHost />
           <div className="window-titlebar__drag-region" data-tauri-drag-region />
         </header>
-        <LibraryTitlebarComposition
-          collapseAvailable={collapseAvailable}
-          collapsed={collapsed}
-          expandedSidebarContentRef={expandedContentRef}
-          onCollapsedChange={setCollapsed}
-          onOpenQuickActions={onOpenQuickActions}
-          onRevealArchive={onRevealArchive}
-          quickActionsAriaKeyShortcuts="Control+Shift+P"
-          revealArchiveDisabledReason={revealArchiveDisabledReason}
-          sidebarToggleAriaKeyShortcuts="Control+B"
-        />
+        <button type="button" onClick={() => setLibraryMounted(!libraryMounted)}>
+          {libraryMounted ? "Enter Reader" : "Return to Library"}
+        </button>
+        {libraryMounted ? (
+          <LibraryTitlebarComposition
+            collapseAvailable={collapseAvailable}
+            collapsed={collapsed}
+            expandedSidebarContentRef={expandedContentRef}
+            onCollapsedChange={setCollapsed}
+            sidebarNavigationRef={sidebarNavigationRef}
+            sidebarToggleAriaKeyShortcuts="Control+B"
+          />
+        ) : null}
+        <nav ref={sidebarNavigationRef}>
+          <button type="button" aria-current="page">
+            Library navigation
+          </button>
+        </nav>
         {!collapsed ? (
           <div ref={expandedContentRef}>
             <button type="button">Expanded navigation action</button>
@@ -69,7 +68,7 @@ function renderComposition({
       </TooltipProvider>,
     ),
   );
-  return { container, onOpenQuickActions, onRevealArchive };
+  return { container };
 }
 
 function renderResponsiveComposition() {
@@ -81,6 +80,7 @@ function renderResponsiveComposition() {
   function Harness() {
     const sidebarState = useLibrarySidebarState();
     const expandedContentRef = useRef<HTMLDivElement>(null);
+    const sidebarNavigationRef = useRef<HTMLElement>(null);
 
     return (
       <TooltipProvider>
@@ -93,11 +93,14 @@ function renderResponsiveComposition() {
           collapsed={sidebarState.collapsed}
           expandedSidebarContentRef={expandedContentRef}
           onCollapsedChange={sidebarState.setCollapsed}
-          onOpenQuickActions={vi.fn()}
-          onRevealArchive={vi.fn()}
-          quickActionsAriaKeyShortcuts="Control+Shift+P"
+          sidebarNavigationRef={sidebarNavigationRef}
           sidebarToggleAriaKeyShortcuts="Control+B"
         />
+        <nav ref={sidebarNavigationRef}>
+          <button type="button" aria-current="page">
+            Library navigation
+          </button>
+        </nav>
         <button type="button">Outside titlebar</button>
         {!sidebarState.collapsed ? (
           <div ref={expandedContentRef}>
@@ -133,21 +136,28 @@ describe("LibraryTitlebarComposition", () => {
     media = null;
   });
 
-  it("renders the expanded wordmark and actions in sidebar-aligned order outside the drag region", () => {
+  it("renders the expanded wordmark and actions with draggable space outside the controls", () => {
     const { container } = renderComposition();
     const composition = container.querySelector(".library-titlebar-composition");
     const actionGroup = container.querySelector(".library-titlebar-composition__actions");
 
     expect(composition?.getAttribute("data-sidebar-collapsed")).toBe("false");
     expect(composition?.getAttribute("data-collapse-available")).toBe("true");
+    expect(composition?.closest('[data-window-titlebar-presentation="split"]')).not.toBeNull();
+    expect(
+      composition
+        ?.querySelector(".library-titlebar-composition__drag-region")
+        ?.hasAttribute("data-tauri-drag-region"),
+    ).toBe(true);
+    expect(
+      composition
+        ?.querySelector(".library-titlebar-composition__wordmark")
+        ?.hasAttribute("data-tauri-drag-region"),
+    ).toBe(true);
     expect(container.querySelector(".library-titlebar-composition__wordmark")?.textContent).toBe(
       "Archeion",
     );
-    expect(actionLabels(container)).toEqual([
-      "Reveal active archive folder",
-      "Open Quick Actions",
-      "Collapse sidebar",
-    ]);
+    expect(actionLabels(container)).toEqual(["Collapse sidebar"]);
     expect(
       container
         .querySelector('button[aria-label="Collapse sidebar"]')
@@ -169,6 +179,30 @@ describe("LibraryTitlebarComposition", () => {
         action.getAttribute("aria-label"),
       );
     }
+  });
+
+  it("removes split presentation and portal content on Library unmount and restores it on return", () => {
+    const { container } = renderComposition();
+    const split = () => container.querySelector('[data-window-titlebar-presentation="split"]');
+    expect(split()).not.toBeNull();
+
+    act(() =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent === "Enter Reader")
+        ?.click(),
+    );
+    expect(split()).toBeNull();
+    expect(container.querySelector(".library-titlebar-composition")).toBeNull();
+    expect(container.querySelector(".window-titlebar__app-actions")?.childElementCount).toBe(0);
+    expect(container.querySelector(".window-titlebar__drag-region")).not.toBeNull();
+
+    act(() =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent === "Return to Library")
+        ?.click(),
+    );
+    expect(split()).not.toBeNull();
+    expect(container.querySelectorAll(".library-titlebar-composition")).toHaveLength(1);
   });
 
   it("collapses to only the Expand action without hidden accessible content or tab stops", () => {
@@ -200,11 +234,7 @@ describe("LibraryTitlebarComposition", () => {
     expect(container.querySelector(".library-titlebar-composition__wordmark")?.textContent).toBe(
       "Archeion",
     );
-    expect(actionLabels(container)).toEqual([
-      "Reveal active archive folder",
-      "Open Quick Actions",
-      "Collapse sidebar",
-    ]);
+    expect(actionLabels(container)).toEqual(["Collapse sidebar"]);
   });
 
   it("preserves sidebar focus before expanded navigation is removed", () => {
@@ -231,103 +261,33 @@ describe("LibraryTitlebarComposition", () => {
     );
   });
 
-  it("opens Quick Actions exactly once and exposes its shortcut and owned tooltip", () => {
-    const onOpenQuickActions = vi.fn();
-    const { container } = renderComposition({ onOpenQuickActions });
-    const action = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Open Quick Actions"]',
-    )!;
-
-    expect(action.title).toBe("");
-    const descriptionId = action.getAttribute("aria-describedby");
-    expect(document.getElementById(descriptionId!)?.textContent).toBe("Open Quick Actions");
-    expect(action.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+P");
-    act(() => action.focus());
-    expect(document.activeElement).toBe(action);
-    act(() => action.click());
-    expect(onOpenQuickActions).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps an unavailable reveal action focusable, explained, and inert", () => {
-    const onRevealArchive = vi.fn();
-    const reason = "The active archive folder is unavailable.";
-    const { container } = renderComposition({
-      onRevealArchive,
-      revealArchiveDisabledReason: reason,
-    });
-    const action = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Reveal active archive folder"]',
-    )!;
-    const descriptionId = action.getAttribute("aria-describedby");
-
-    expect(action.getAttribute("aria-disabled")).toBe("true");
-    expect(action.disabled).toBe(false);
-    expect(descriptionId).toBeTruthy();
-    expect(action.title).toBe("");
-    expect(document.getElementById(descriptionId!)?.textContent).toBe(reason);
-    act(() => action.focus());
-    expect(document.activeElement).toBe(action);
-    act(() => action.click());
-    expect(onRevealArchive).not.toHaveBeenCalled();
-  });
-
   it("omits only the unavailable collapse control in the constrained top layout", () => {
     const { container } = renderComposition({ collapseAvailable: false });
     const composition = container.querySelector(".library-titlebar-composition");
 
     expect(composition?.getAttribute("data-collapse-available")).toBe("false");
+    expect(container.querySelector('[data-window-titlebar-presentation="split"]')).toBeNull();
     expect(container.querySelector(".library-titlebar-composition__wordmark")?.textContent).toBe(
       "Archeion",
     );
-    expect(actionLabels(container)).toEqual(["Reveal active archive folder", "Open Quick Actions"]);
+    expect(actionLabels(container)).toEqual([]);
   });
 
-  it("retains a requested collapsed state and moves focused Reveal to Expand on desktop return", () => {
+  it("retains requested collapse across constrained navigation without moving navigation focus", () => {
     const { container, media } = renderResponsiveComposition();
-
-    act(() =>
-      container.querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]')?.click(),
-    );
-    expect(actionLabels(container)).toEqual(["Expand sidebar"]);
-
-    act(() => media.setMatches(true));
-    expect(actionLabels(container)).toEqual(["Reveal active archive folder", "Open Quick Actions"]);
-
-    act(() =>
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Reveal active archive folder"]')
-        ?.focus(),
-    );
-    act(() => media.setMatches(false));
-
-    expect(actionLabels(container)).toEqual(["Expand sidebar"]);
-    expect(document.activeElement).toBe(
-      container.querySelector('button[aria-label="Expand sidebar"]'),
-    );
-  });
-
-  it("moves focused Quick Actions to Expand when the retained collapsed state returns", () => {
-    const { container, media } = renderResponsiveComposition();
-
     act(() =>
       container.querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]')?.click(),
     );
     act(() => media.setMatches(true));
-    act(() =>
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Open Quick Actions"]')
-        ?.focus(),
-    );
+    const navigation = container.querySelector<HTMLButtonElement>("nav button")!;
+    act(() => navigation.focus());
     act(() => media.setMatches(false));
-
     expect(actionLabels(container)).toEqual(["Expand sidebar"]);
-    expect(document.activeElement).toBe(
-      container.querySelector('button[aria-label="Expand sidebar"]'),
-    );
+    expect(document.activeElement).toBe(navigation);
   });
 
   it.each(["Expand sidebar", "Collapse sidebar"])(
-    "moves focused %s to adjacent Quick Actions when constrained layout removes it",
+    "moves focused %s to current navigation when constrained layout removes it",
     (focusedAction) => {
       const { container, media } = renderResponsiveComposition();
 
@@ -345,12 +305,9 @@ describe("LibraryTitlebarComposition", () => {
       );
       act(() => media.setMatches(true));
 
-      expect(actionLabels(container)).toEqual([
-        "Reveal active archive folder",
-        "Open Quick Actions",
-      ]);
+      expect(actionLabels(container)).toEqual([]);
       expect(document.activeElement).toBe(
-        container.querySelector('button[aria-label="Open Quick Actions"]'),
+        container.querySelector('nav button[aria-current="page"]'),
       );
     },
   );

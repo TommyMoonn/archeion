@@ -10,6 +10,7 @@ import {
   ImageOff,
   NotebookPen,
   Folders,
+  FolderOpen,
   Settings,
   Heart,
   Plus,
@@ -88,6 +89,7 @@ type LibrarySidebarProps = {
   archives: KnownArchive[];
   collapsed: boolean;
   expandedContentRef: RefObject<HTMLDivElement | null>;
+  navigationRef?: RefObject<HTMLElement | null>;
   folderEntries: readonly FolderBrowserEntry[];
   location: LibraryLocation;
   smartViewPreferences: LibrarySmartViewPreferences;
@@ -95,6 +97,8 @@ type LibrarySidebarProps = {
   onCreateFolder: () => void;
   onDeleteFolder: (folder: ReadonlyFolder) => void;
   onManageArchives: () => void;
+  onRevealArchive: () => void;
+  revealArchiveDisabledReason?: string;
   onMoveFolder: (folder: ReadonlyFolder) => void;
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
@@ -114,6 +118,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   archives,
   collapsed,
   expandedContentRef,
+  navigationRef,
   folderEntries,
   location,
   smartViewPreferences,
@@ -121,6 +126,8 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onCreateFolder,
   onDeleteFolder,
   onManageArchives,
+  onRevealArchive,
+  revealArchiveDisabledReason,
   onMoveFolder,
   onLocationChange,
   onOpenAbout,
@@ -155,9 +162,14 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   );
 
   const manageArchives = useCallback(() => {
-    closeArchiveSwitcher();
+    closeArchiveSwitcher({ restoreFocus: true });
     onManageArchives();
   }, [closeArchiveSwitcher, onManageArchives]);
+
+  const revealArchive = useCallback(() => {
+    closeArchiveSwitcher({ restoreFocus: true });
+    onRevealArchive();
+  }, [closeArchiveSwitcher, onRevealArchive]);
 
   const switchArchive = useCallback(
     (archive: KnownArchive) => {
@@ -173,7 +185,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
       className="sidebar"
       data-collapsed={isCollapsed || undefined}
     >
-      <nav className="sidebar__nav" aria-label="Library navigation">
+      <nav className="sidebar__nav" aria-label="Library navigation" ref={navigationRef}>
         <CollapsedSidebarTooltip collapsed={isCollapsed} content="Library">
           <button
             aria-label="Library"
@@ -380,6 +392,14 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                 </ActionListButton>
               ))}
             <div className="archive-switcher__divider" role="separator" />
+            <ActionListButton
+              disabled={Boolean(revealArchiveDisabledReason)}
+              disabledReason={revealArchiveDisabledReason}
+              icon={<FolderOpen aria-hidden="true" />}
+              onClick={revealArchive}
+            >
+              Reveal archive folder
+            </ActionListButton>
             <ActionListButton
               className="archive-switcher__manage"
               icon={<Archive aria-hidden="true" />}

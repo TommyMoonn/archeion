@@ -68,7 +68,9 @@ Elevation also follows surface ownership:
 - `--shadow-dialog` identifies blocking modal surfaces.
 - `--shadow-drawer` identifies edge-attached drawers.
 
-The primary workspace is attached to the application frame rather than elevated above it. Its open right and bottom edges, rounded leading corner, and quiet structural border establish the boundary without a shadow or outer inset.
+The Library shell uses adjacent navigation and workspace planes. Navigation consumes `--surface-sidebar`, and the flush workspace consumes `--surface-main`, with one 1px `--line-subtle` boundary between them. The boundary continues through the mounted split titlebar, whose navigation plane follows the sidebar width and whose remaining chrome follows the workspace. The expanded titlebar sidebar control shares the navigation rows' right inset; the collapsed control is centered over the navigation icon rail. Titlebar content sits optically 2px below geometric center without increasing titlebar height. When navigation stacks above the workspace, the titlebar uses ordinary frame chrome and the boundary becomes horizontal. The workspace has no enclosing border, rounded corner, shadow, or frame-colored gutter. Equal navigation, workspace, and frame colors remain valid because geometry and the divider establish structure. Forced colors use a system-color boundary.
+
+Split-titlebar presentation belongs to the mounted surface composition. Removing that composition restores ordinary `--surface-app-frame` titlebar chrome, including Reader in the main window. `PageShell` remains the Library workspace scroll root and retains collection windowing, focus, and import-drop ownership. Forced colors preserve the major divider with system colors without enclosing the workspace in a rectangle.
 
 Borders communicate structure. Shadows communicate overlap and elevation. Raised surfaces use the quiet structural border and the matching elevation token rather than pairing a strong border with a strong shadow. Forced-colors mode removes authored shadows and restores system-color borders, so geometry remains legible without relying on elevation.
 

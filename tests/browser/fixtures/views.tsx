@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { focusPresentationRuntime } from "../../../src/app/inputModality";
 import { Dialog } from "../../../src/components/Dialog";
+import { PageShell } from "../../../src/components/PageShell";
 import { TooltipProvider } from "../../../src/components/Tooltip";
+import { WindowTitlebarAppActionsHost } from "../../../src/components/WindowTitlebar";
 import { LibrarySidebar } from "../../../src/features/library/LibrarySidebar";
+import { LibraryTitlebarComposition } from "../../../src/features/library/LibraryTitlebarComposition";
 import { useLibrarySidebarState } from "../../../src/features/library/useLibrarySidebarState";
 import { ReaderProgressBar } from "../../../src/features/reader/ReaderProgressBar";
 import type { KnownArchive } from "../../../src/types/archive";
@@ -45,38 +48,92 @@ function LibraryFixture() {
   const { collapseAvailable, collapsed, setCollapsed } = useLibrarySidebarState();
   const [location, setLocation] = useState<LibraryLocation>({ type: "library" });
   const expandedContentRef = useRef<HTMLDivElement>(null);
+  const sidebarNavigationRef = useRef<HTMLElement>(null);
+  const [readerOpen, setReaderOpen] = useState(false);
+  const shellColors = new URLSearchParams(window.location.search).get("shellColors");
+  const style =
+    shellColors === "equal"
+      ? {
+          "--surface-app-frame": "#202020",
+          "--surface-sidebar": "#202020",
+          "--surface-main": "#202020",
+          "--line-strong": "#aaaaaa",
+          "--line-subtle": "#555555",
+        }
+      : shellColors === "distinct"
+        ? {
+            "--surface-app-frame": "#481830",
+            "--surface-sidebar": "#123c38",
+            "--surface-main": "#22284e",
+            "--line-strong": "#aaaaaa",
+            "--line-subtle": "#555555",
+          }
+        : undefined;
 
   return (
     <TooltipProvider>
-      <div className="app-shell" data-sidebar-collapsed={collapsed || undefined}>
-        <LibrarySidebar
-          activeArchive={archive}
-          archives={[archive]}
-          collapsed={collapsed}
-          expandedContentRef={expandedContentRef}
-          folderEntries={[]}
-          folderSort="name"
-          location={location}
-          smartViewPreferences={{ enabled: false, visible: [] }}
-          onCreateFolder={() => undefined}
-          onDeleteFolder={() => undefined}
-          onFolderSortChange={() => undefined}
-          onLocationChange={setLocation}
-          onManageArchives={() => undefined}
-          onMoveFolder={() => undefined}
-          onOpenAbout={() => undefined}
-          onOpenSettings={() => undefined}
-          onRenameFolder={() => undefined}
-          onSwitchArchive={() => undefined}
-        />
-        <main className="page-shell">
-          <h1>Library fixture</h1>
-          {collapseAvailable ? (
-            <button type="button" onClick={() => setCollapsed(!collapsed)}>
-              {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      <div className="window-app window-app--main-shell" style={style as CSSProperties}>
+        <header aria-label="Window titlebar" className="window-titlebar">
+          <WindowTitlebarAppActionsHost />
+          <div className="window-titlebar__drag-region" data-tauri-drag-region />
+          <div className="window-titlebar__controls" role="group" aria-label="Window controls">
+            <button type="button" aria-label="Fixture window control">
+              ×
             </button>
-          ) : null}
-        </main>
+          </div>
+        </header>
+        <div className="window-app__content">
+          {readerOpen ? (
+            <main className="reader-page">
+              <h1>Reader fixture</h1>
+              <button type="button" onClick={() => setReaderOpen(false)}>
+                Return to Library
+              </button>
+            </main>
+          ) : (
+            <PageShell
+              sidebarCollapsed={collapsed}
+              sidebar={
+                <>
+                  <LibraryTitlebarComposition
+                    collapseAvailable={collapseAvailable}
+                    collapsed={collapsed}
+                    expandedSidebarContentRef={expandedContentRef}
+                    sidebarNavigationRef={sidebarNavigationRef}
+                    onCollapsedChange={setCollapsed}
+                  />
+                  <LibrarySidebar
+                    activeArchive={archive}
+                    archives={[archive]}
+                    collapsed={collapsed}
+                    expandedContentRef={expandedContentRef}
+                    navigationRef={sidebarNavigationRef}
+                    folderEntries={[]}
+                    folderSort="name"
+                    location={location}
+                    smartViewPreferences={{ enabled: false, visible: [] }}
+                    onCreateFolder={() => undefined}
+                    onDeleteFolder={() => undefined}
+                    onFolderSortChange={() => undefined}
+                    onLocationChange={setLocation}
+                    onManageArchives={() => undefined}
+                    onRevealArchive={() => undefined}
+                    onMoveFolder={() => undefined}
+                    onOpenAbout={() => undefined}
+                    onOpenSettings={() => undefined}
+                    onRenameFolder={() => undefined}
+                    onSwitchArchive={() => undefined}
+                  />
+                </>
+              }
+            >
+              <h1>Library fixture</h1>
+              <button type="button" onClick={() => setReaderOpen(true)}>
+                Enter Reader
+              </button>
+            </PageShell>
+          )}
+        </div>
       </div>
     </TooltipProvider>
   );

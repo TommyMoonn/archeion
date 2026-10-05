@@ -723,9 +723,9 @@ window.ArcheionDocumentationIndex = {
       sectionId: "open",
       sectionHeading: "Open Quick Actions",
       aliases: [],
-      text: "press ctrl + shift + p to open quick actions. in the library, you can also select open quick actions in the titlebar. the reader uses the shortcut rather than a dedicated palette button. focus starts in search quick actions, ready for you to type a command or destination. the shortcut is configurable under settings → keyboard. if you have changed or cleared it, use your current binding or the library titlebar control. see keyboard shortcuts for rebinding, conflicts, and resets.",
+      text: "press ctrl + shift + p to open quick actions in the library or reader. focus starts in search quick actions, ready for you to type a command or destination. the shortcut is configurable under settings → keyboard. if you have changed it, use your current binding. if you have cleared it, assign a new binding or reset it in keyboard settings. see keyboard shortcuts for rebinding, conflicts, and resets.",
       excerpt:
-        "Press Ctrl + Shift + P to open Quick Actions. In the Library, you can also select Open Quick Actions in the titlebar. The Reader uses the shortcut rather than a dedicated palette button. Focus starts in Search Quick Actions, ready for you…",
+        "Press Ctrl + Shift + P to open Quick Actions in the Library or Reader. Focus starts in Search Quick Actions, ready for you to type a command or destination. The shortcut is configurable under Settings → Keyboard. If you have changed it,…",
     },
     {
       pageId: "quick-actions",

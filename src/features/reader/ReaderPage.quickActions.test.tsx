@@ -6,6 +6,10 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import { LibraryPage } from "../library/LibraryPage";
+import { createStorage as createLibraryStorage } from "../library/LibraryPage.testUtils";
+import { installLibrarySidebarMedia } from "../library/librarySidebarMedia.testUtils";
+import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
@@ -232,7 +236,7 @@ vi.mock("./LazyReaderSearchPanel", async () => {
 });
 
 vi.mock("../archive/useArchive", () => ({
-  useArchive: () => ({ status: "ready", archive: { id: "archive-books" } }),
+  useArchive: () => readyArchive,
 }));
 
 const readyArchive: ArchiveState = {
@@ -522,6 +526,82 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("removes Library titlebar ownership on the real Reader route and restores a fresh composition on return", async () => {
+    const media = installLibrarySidebarMedia(false);
+    window.sessionStorage.clear();
+    const storage = { ...createLibraryStorage(), ...createStorage() };
+    const router = createMemoryRouter(
+      [
+        { path: "/", element: <LibraryPage /> },
+        {
+          path: "/reader/:bookId",
+          element: <ReaderRoute />,
+          loader: () => book,
+          HydrateFallback: () => null,
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    try {
+      await act(async () =>
+        root?.render(
+          <LibraryStorageContext.Provider value={storage}>
+            <QuickActionsProvider>
+              <header className="window-titlebar">
+                <WindowTitlebarAppActionsHost />
+              </header>
+              <RouterProvider router={router} />
+            </QuickActionsProvider>
+          </LibraryStorageContext.Provider>,
+        ),
+      );
+      const collapse = container.querySelector<HTMLButtonElement>(
+        '[aria-label="Collapse sidebar"]',
+      )!;
+      act(() => {
+        collapse.focus();
+        collapse.click();
+      });
+      expect(container.querySelector('[data-window-titlebar-presentation="split"]')).not.toBeNull();
+      await act(async () => {
+        await router.navigate("/reader/book");
+      });
+      expect(container.querySelector(".reader-page")).not.toBeNull();
+      expect(container.querySelector(".library-titlebar-composition")).toBeNull();
+      expect(container.querySelector('[data-window-titlebar-presentation="split"]')).toBeNull();
+      expect(container.querySelector(".window-titlebar__app-actions")?.childElementCount).toBe(0);
+      const readerControl = container.querySelector<HTMLButtonElement>(".reader-toolbar button")!;
+      act(() => readerControl.focus());
+      await act(async () => {
+        await router.navigate("/");
+      });
+      expect(container.querySelector(".reader-page")).toBeNull();
+      expect(container.querySelectorAll(".library-titlebar-composition")).toHaveLength(1);
+      expect(
+        container.querySelectorAll('[data-window-titlebar-presentation="split"]'),
+      ).toHaveLength(1);
+      const expand = container.querySelector<HTMLButtonElement>('[aria-label="Expand sidebar"]')!;
+      expect(expand).not.toBe(collapse);
+      expect(document.activeElement).not.toBe(collapse);
+      act(() => {
+        expand.focus();
+        expand.click();
+      });
+      expect(document.activeElement).toBe(
+        container.querySelector('[aria-label="Collapse sidebar"]'),
+      );
+      expect(container.querySelector(".library-titlebar-composition__wordmark")?.textContent).toBe(
+        "Archeion",
+      );
+    } finally {
+      media.restore();
+      window.sessionStorage.clear();
+    }
+  });
+
   it("tracks the rendered Reader toolbar height as the host safe-area clearance", async () => {
     const originalResizeObserver = globalThis.ResizeObserver;
     const resizeCallbacks: ResizeObserverCallback[] = [];

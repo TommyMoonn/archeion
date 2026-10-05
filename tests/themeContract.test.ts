@@ -408,6 +408,18 @@ describe("theme token baseline", () => {
           /\.sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
         ],
         [
+          "src/styles/layout/app-shell.css",
+          /\.page-shell\s*{[^}]*background:\s*var\(--surface-main\);/,
+        ],
+        [
+          "src/styles/layout/window-frame.css",
+          /\.window-titlebar:has\(\[data-window-titlebar-presentation="split"\]\)\s*{[^}]*background:\s*var\(--surface-main\);/,
+        ],
+        [
+          "src/styles/layout/window-frame.css",
+          /\.window-titlebar__navigation-plane\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
+        ],
+        [
           "src/styles/features/library.css",
           /\.library-selection-bar\s*{[^}]*background:\s*var\(--surface\);/,
         ],

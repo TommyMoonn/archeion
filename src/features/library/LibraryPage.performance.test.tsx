@@ -300,7 +300,8 @@ describe("LibraryPage collection callback stability", () => {
     }
   });
 
-  it("does not rerender books when titlebar actions open Quick Actions or reveal the archive", async () => {
+  it("does not rerender books for archive-switcher reveal or the Quick Actions shortcut", async () => {
+    await import("../quick-actions/QuickActionsPalette");
     const storage = createStorage({
       books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
     });
@@ -329,18 +330,26 @@ describe("LibraryPage collection callback stability", () => {
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
 
     await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Reveal active archive folder"]')
-        ?.click();
+      const details = container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
+      details.open = true;
+      Array.from(details.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.trim() === "Reveal archive folder")!
+        .click();
       await Promise.resolve();
     });
     expect(revealActiveArchive).toHaveBeenCalledTimes(1);
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
 
     await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Open Quick Actions"]')
-        ?.click();
+      container.querySelector("main")!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          shiftKey: true,
+          key: "p",
+        }),
+      );
       await vi.dynamicImportSettled();
     });
     await vi.waitFor(() => {

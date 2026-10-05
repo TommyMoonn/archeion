@@ -259,17 +259,10 @@ afterEach(async () => {
 });
 
 describe("LibraryPage Quick Actions", () => {
-  it("opens the existing Quick Actions surface once from the titlebar control", async () => {
+  it("opens Quick Actions once from its default shortcut with no visible trigger", async () => {
     const rendered = await renderLibrary();
-    const trigger = rendered.container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Open Quick Actions"]',
-    )!;
-
-    expect(trigger.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+P");
-    await act(async () => {
-      trigger.click();
-      await vi.dynamicImportSettled();
-    });
+    expect(rendered.container.querySelector('button[aria-label="Open Quick Actions"]')).toBeNull();
+    await openPalette();
 
     await vi.waitFor(() => {
       expect(
@@ -280,6 +273,32 @@ describe("LibraryPage Quick Actions", () => {
     expect(
       document.querySelectorAll('.quick-actions input[placeholder="Type a command…"]'),
     ).toHaveLength(1);
+  });
+
+  it("opens Quick Actions through its configured binding without a visible owner", async () => {
+    await appPreferencesStore.update({
+      keyboard: {
+        shortcuts: {
+          "system.quick-actions": { binding: { key: "g", primary: true, alt: false, shift: true } },
+        },
+      },
+    });
+    const rendered = await renderLibrary();
+    const target = rendered.container.querySelector<HTMLElement>("main")!;
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      shiftKey: true,
+      key: "g",
+    });
+    await act(async () => {
+      target.dispatchEvent(event);
+      await vi.dynamicImportSettled();
+    });
+    expect(event.defaultPrevented).toBe(true);
+    await vi.waitFor(() => expect(document.querySelectorAll(".quick-actions")).toHaveLength(1));
+    expect(rendered.container.querySelector('button[aria-label="Open Quick Actions"]')).toBeNull();
   });
 
   it("uses one focus-aware owner for the titlebar button and configured sidebar command", async () => {
@@ -470,16 +489,22 @@ describe("LibraryPage Quick Actions", () => {
     );
   });
 
-  it("reveals the active archive through the validated archive owner", async () => {
+  it("closes the archive switcher and reveals through the validated active-archive owner", async () => {
     const revealActiveArchive = vi
       .spyOn(archiveStore, "revealActiveArchive")
       .mockResolvedValue(true);
     const rendered = await renderLibrary();
-
+    const details = rendered.container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
+    revealActiveArchive.mockImplementation(async () => {
+      expect(details.open).toBe(false);
+      expect(document.activeElement).toBe(details.querySelector("summary"));
+      return true;
+    });
     await act(async () => {
-      rendered.container
-        .querySelector<HTMLButtonElement>('button[aria-label="Reveal active archive folder"]')
-        ?.click();
+      details.open = true;
+      Array.from(details.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.trim() === "Reveal archive folder")!
+        .click();
       await Promise.resolve();
     });
 

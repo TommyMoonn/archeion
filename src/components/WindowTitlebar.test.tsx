@@ -29,7 +29,7 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 const mountedRoots: Root[] = [];
 
-function renderTitlebar(canMaximize: boolean, withAppAction = false) {
+function renderTitlebar(canMaximize: boolean, withAppAction = false, presentation?: "split") {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -40,7 +40,7 @@ function renderTitlebar(canMaximize: boolean, withAppAction = false) {
       <TooltipProvider>
         <WindowTitlebar canMaximize={canMaximize} />
         {withAppAction ? (
-          <WindowTitlebarAppActions>
+          <WindowTitlebarAppActions presentation={presentation}>
             <button aria-label="Library frame action" type="button" />
           </WindowTitlebarAppActions>
         ) : null}
@@ -140,6 +140,17 @@ describe("WindowTitlebar", () => {
 
     expect(action.closest(".window-titlebar__app-actions")).not.toBeNull();
     expect(action.closest("[data-tauri-drag-region]")).toBeNull();
+  });
+
+  it("allows mounted surface actions to opt into split presentation without changing window controls", () => {
+    const container = renderTitlebar(true, true, "split");
+    const action = button(container, "Library frame action");
+    expect(action.closest('[data-window-titlebar-presentation="split"]')).not.toBeNull();
+    expect(
+      button(container, "Close window").closest('[data-window-titlebar-presentation="split"]'),
+    ).toBeNull();
+    act(() => button(container, "Maximize or restore window").click());
+    expect(mocks.toggleMaximize).toHaveBeenCalledOnce();
   });
 
   it("does not render or reserve titlebar content in browser development mode", () => {
