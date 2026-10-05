@@ -67,6 +67,9 @@ for (const appearance of ["light", "dark"] as const) {
           banner.getByRole("link", { name: "Archeion Docs", exact: true }),
         ).toBeVisible();
         await expect(banner.getByRole("link", { name: "Home", exact: true })).toBeVisible();
+        await expect(
+          banner.getByRole("link", { name: "Release notes", exact: true }),
+        ).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,
         );

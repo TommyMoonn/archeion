@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "sequence": {
     "first": "overview",
-    "last": "about-resources"
+    "last": "changelog"
   },
   "groups": [
     {
@@ -29,6 +29,11 @@
       "id": "reference",
       "title": "Reference",
       "order": 4
+    },
+    {
+      "id": "changelog",
+      "title": "Changelog",
+      "order": 5
     }
   ],
   "pages": [
@@ -238,6 +243,15 @@
       "order": 3,
       "type": "reference",
       "sourcePath": "docs/documentation/reference/about-resources/index.html"
+    },
+    {
+      "id": "changelog",
+      "route": "/changelog/",
+      "title": "Changelog",
+      "group": "changelog",
+      "order": 0,
+      "type": "changelog",
+      "sourcePath": "docs/documentation/changelog/index.html"
     }
   ]
 }

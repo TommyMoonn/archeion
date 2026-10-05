@@ -275,6 +275,40 @@ Escape or a pointer gesture wholly outside the dialog dismisses it and restores
 the opener. Same-page navigation focuses its destination heading. Query updates
 retain input focus and use the existing stable, polite result-count region.
 
+### Documentation release-history data
+
+The tracked `release-notes/vX.Y.Z.md` files are the sole authored release-history
+source. `scripts/release-notes.mjs` validates metadata and download links, preserves
+the metadata-free GitHub Release body, and exposes the Changes Markdown. It orders
+history by newest date, then descending numeric version for same-day releases.
+Do not extract user-facing history from technical `CHANGELOG.md`.
+
+`scripts/sync-documentation-changelog.mjs` projects the shared parser's output into
+`docs/documentation/assets/docs-changelog-data.json`. Its versioned schema carries
+`version`, `date`, `sourcePath`, and LF-normalized `changes` for each release.
+The committed input is deterministic and contains no timestamp or checkout-specific
+paths. Edit canonical notes, then regenerate; do not manually edit generated prose.
+Generation validates the complete history before replacing the output. Check mode
+never writes and reports missing or stale data, including release additions/removals.
+
+```powershell
+npm run docs:changelog:sync
+npm run docs:changelog:check
+npm run test -- tests/releaseNotes.test.ts tests/documentationChangelogData.test.ts
+```
+
+`scripts/sync-documentation-changelog-page.mjs` renders that validated input into
+the marked timeline region in `docs/documentation/changelog/index.html`. It checks
+data freshness before rendering and rejects unsupported Markdown blocks instead
+of dropping prose. The committed page is readable without JavaScript or the
+decorative timeline rail. Edit canonical notes, not the generated timeline.
+
+`docs:sync` runs data, timeline, navigation, then search generation in dependency
+order. `docs:check` checks the same outputs without writing. The registry owns
+the Changelog route, sidebar, pager, and search integration. Header generation
+adds **Release notes** only when that route is registered and validated.
+See [release-note authoring](../release-notes/README.md) for supported formatting.
+
 ### Article structure and editorial types
 
 Choose the page's job before writing its sections:

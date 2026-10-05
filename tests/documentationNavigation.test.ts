@@ -87,7 +87,8 @@ describe("documentation navigation contract", () => {
     ["reference/archive-storage", "../../customization/theme-manager/", "../troubleshooting/"],
     ["reference/troubleshooting", "../archive-storage/", "../annotation-export/"],
     ["reference/annotation-export", "../troubleshooting/", "../about-resources/"],
-    ["reference/about-resources", "../annotation-export/", null],
+    ["reference/about-resources", "../annotation-export/", "../../changelog/"],
+    ["changelog", "../reference/about-resources/", null],
     ["", null, "getting-started/installing/"],
   ])("%s links to its immediate sequence neighbors", (route, previous, next) => {
     const document = documentFor(route!);
@@ -320,13 +321,24 @@ describe("documentation navigation contract", () => {
     const original = fs.readFileSync(source, "utf8");
     fs.writeFileSync(
       source,
-      original.replace('class="docs-brand" href="./"', 'class="docs-brand" href="../"'),
+      original.replace(/(<a\b[^>]*class="docs-brand"[^>]*href=")\.\//, "$1../"),
     );
     const before = sourceBytes(root, pages);
     expect((await syncDocumentationNavigation(root)).changedPaths).toEqual([sourcePath]);
     expect(sourceBytes(root, pages)).toEqual(before);
     await syncDocumentationNavigation(root, { check: false });
     expect(fs.readFileSync(source, "utf8")).toBe(original);
+  });
+
+  it("omits the Release notes utility when the registry has no Changelog route", async () => {
+    const { root, pages } = await createRepairFixture();
+    for (const page of pages) {
+      expect(
+        parseHtml(fs.readFileSync(path.join(root, page.sourcePath), "utf8")).querySelector(
+          ".docs-release-link",
+        ),
+      ).toBeNull();
+    }
   });
 
   it.each(["permalink", "source link", "report link"])(

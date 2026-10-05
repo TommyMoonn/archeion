@@ -49,7 +49,7 @@ export function parseReleaseNote(filename, source) {
     }
   }
 
-  return { version, date, body };
+  return { version, date, body, changes };
 }
 
 export function readReleaseNote(projectRoot, version) {
@@ -69,10 +69,21 @@ export function readAllReleaseNotes(projectRoot) {
   const noteNames = filenames.filter((filename) => filename !== "README.md");
   if (noteNames.length === 0) throw new Error("release-notes/ contains no versioned notes.");
 
-  return noteNames.sort().map((filename) => {
-    if (!noteFilename.test(filename)) fail(filename, "expected a vX.Y.Z.md filename.");
-    return parseReleaseNote(filename, fs.readFileSync(path.join(directory, filename), "utf8"));
-  });
+  return noteNames
+    .map((filename) => {
+      if (!noteFilename.test(filename)) fail(filename, "expected a vX.Y.Z.md filename.");
+      return parseReleaseNote(filename, fs.readFileSync(path.join(directory, filename), "utf8"));
+    })
+    .sort((a, b) => {
+      // Calendar dates are the timeline order; numeric versions break same-day ties.
+      if (a.date !== b.date) return a.date > b.date ? -1 : 1;
+      const aParts = a.version.split(".").map(BigInt);
+      const bParts = b.version.split(".").map(BigInt);
+      for (let index = 0; index < aParts.length; index++) {
+        if (aParts[index] !== bParts[index]) return aParts[index] > bParts[index] ? -1 : 1;
+      }
+      return 0;
+    });
 }
 
 function runCli(args) {
