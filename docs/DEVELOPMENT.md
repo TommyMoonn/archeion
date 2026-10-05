@@ -297,9 +297,17 @@ npm run docs:changelog:check
 npm run test -- tests/releaseNotes.test.ts tests/documentationChangelogData.test.ts
 ```
 
-`docs:sync` and `docs:check` include this generator and its drift check. The data
-contract does not register a Changelog page, load a browser asset, or add a header
-link before the timeline route exists. See [release-note authoring](../release-notes/README.md).
+`scripts/sync-documentation-changelog-page.mjs` renders that validated input into
+the marked timeline region in `docs/documentation/changelog/index.html`. It checks
+data freshness before rendering and rejects unsupported Markdown blocks instead
+of dropping prose. The committed page is readable without JavaScript or the
+decorative timeline rail. Edit canonical notes, not the generated timeline.
+
+`docs:sync` runs data, timeline, navigation, then search generation in dependency
+order. `docs:check` checks the same outputs without writing. The registry owns
+the Changelog route, sidebar, pager, and search integration. Header generation
+adds **Release notes** only when that route is registered and validated.
+See [release-note authoring](../release-notes/README.md) for supported formatting.
 
 ### Article structure and editorial types
 

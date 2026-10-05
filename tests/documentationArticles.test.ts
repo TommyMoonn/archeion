@@ -70,9 +70,13 @@ describe("semantic documentation articles", () => {
     const footer = document.querySelector(".docs-footer")!;
     const edit = footer.querySelector("[data-doc-edit]")!;
     expect(edit.getAttribute("href")).toBe(
-      `https://github.com/TommyMoonn/archeion/edit/main/${page.sourcePath}`,
+      page.type === "changelog"
+        ? "https://github.com/TommyMoonn/archeion/blob/main/release-notes/README.md"
+        : `https://github.com/TommyMoonn/archeion/edit/main/${page.sourcePath}`,
     );
-    expect(text(edit)).toBe("Edit this page ↗");
+    expect(text(edit)).toBe(
+      page.type === "changelog" ? "Release-note authoring ↗" : "Edit this page ↗",
+    );
     expect(footer.querySelector("[data-doc-report]")?.getAttribute("href")).toBe(
       "https://github.com/TommyMoonn/archeion/issues",
     );
@@ -93,8 +97,9 @@ describe("semantic documentation articles", () => {
       "Using Archeion",
       "Customization",
       "Reference",
+      "Changelog",
     ]);
-    expect(article.textContent).not.toMatch(/Changelog|Release notes/);
+    expect(article.textContent).toContain("Changelog");
   });
 
   it("keeps onboarding ordered, reference tables consultable, and code examples intact", () => {

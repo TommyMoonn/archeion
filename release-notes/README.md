@@ -53,5 +53,11 @@ entries contain `version`, `date`, repository-relative `sourcePath`, and `change
 with LF line endings. This committed file is generated documentation input, not
 another prose source; edit the versioned note and regenerate it. `npm run
 docs:changelog:check` reports missing/stale data without writing, and is included
-in `docs:check`. `docs:sync` includes generation. No timeline route or header
-link is created by this data contract.
+in `docs:check`. `npm run docs:sync` then generates the static Changelog timeline,
+navigation, and section search index. `docs:check` checks all generated output
+without writing. Do not edit release prose in the generated HTML.
+
+The timeline renderer supports flat `-` or `*` bullets with indented prose
+continuations, inline bold, single-backtick code, and absolute HTTP(S) links.
+Unsupported block structures fail generation explicitly. If a release needs a
+richer format, extend the renderer and its tests before publishing the note.

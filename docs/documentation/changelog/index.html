@@ -1,0 +1,1165 @@
+<!doctype html>
+
+<html data-theme="system" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta content="See what changed in each Archeion release." name="description" />
+    <meta content="#171717" name="theme-color" />
+    <title>Changelog | Archeion</title>
+    <link href="../../assets/images/archeion-icon.png" rel="icon" />
+    <link href="../assets/docs.css" rel="stylesheet" />
+    <script defer data-doc-search-index src="../assets/docs-search-index.js"></script>
+    <script defer="" src="../assets/docs.js"></script>
+    <script defer src="../assets/docs-search.js"></script>
+    <script type="module" src="../assets/docs-copy.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <svg aria-hidden="true" class="svg-defs" focusable="false">
+      <symbol id="icon-menu" viewbox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></symbol>
+      <symbol id="icon-close" viewbox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></symbol>
+      <symbol id="icon-search" viewbox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5"></circle>
+        <path d="m16 16 5 5"></path>
+      </symbol>
+      <symbol id="icon-chevron" viewbox="0 0 24 24"><path d="m8 10 4 4 4-4"></path></symbol>
+      <symbol id="icon-github" viewbox="0 0 24 24">
+        <path
+          d="M12 2.7a9.3 9.3 0 0 0-2.9 18.14c.47.09.64-.2.64-.45v-1.63c-2.6.57-3.16-1.1-3.16-1.1-.43-1.09-1.05-1.38-1.05-1.38-.85-.59.07-.58.07-.58.94.07 1.44.97 1.44.97.84 1.44 2.2 1.03 2.73.79.09-.61.33-1.03.59-1.26-2.08-.24-4.27-1.04-4.27-4.63 0-1.03.37-1.86.97-2.52-.1-.24-.42-1.19.1-2.49 0 0 .79-.25 2.56.96A8.9 8.9 0 0 1 12 7.18a8.9 8.9 0 0 1 2.33.31c1.77-1.21 2.56-.96 2.56-.96.52 1.3.2 2.25.1 2.49.6.66.97 1.49.97 2.52 0 3.6-2.19 4.39-4.29 4.62.34.29.64.86.64 1.74v2.49c0 .25.18.54.65.45A9.3 9.3 0 0 0 12 2.7Z"
+        ></path>
+      </symbol>
+      <symbol id="icon-theme" viewbox="0 0 24 24">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path
+          d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+        ></path>
+      </symbol>
+      <symbol id="icon-arrow" viewbox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"></path></symbol>
+      <symbol id="icon-copy" viewbox="0 0 24 24">
+        <rect height="11" rx="2" width="11" x="8" y="8"></rect>
+        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>
+      </symbol>
+    </svg>
+    <!-- docs-header:start -->
+    <header class="docs-header">
+      <div class="docs-header__inner">
+        <button
+          aria-controls="docs-sidebar"
+          aria-expanded="false"
+          aria-label="Open documentation navigation"
+          class="icon-button mobile-menu-button"
+          data-nav-open=""
+          type="button"
+        >
+          <svg aria-hidden="true"><use href="#icon-menu"></use></svg>
+        </button>
+        <a class="docs-brand" aria-label="Archeion Docs" href="../">
+          <img alt="" height="32" src="../../assets/images/archeion-icon.png" width="32" />
+          <span>Archeion Docs</span>
+        </a>
+        <button
+          aria-label="Search documentation"
+          class="docs-search-trigger"
+          data-search-trigger=""
+          type="button"
+        >
+          <svg aria-hidden="true"><use href="#icon-search"></use></svg
+          ><span>Search documentation</span><kbd>Ctrl K</kbd>
+        </button>
+        <div class="docs-header__actions">
+          <a class="docs-release-link" href="./" aria-current="page">Release notes</a>
+          <a class="docs-home-link" href="../../">Home <span aria-hidden="true">↗</span></a>
+          <button
+            aria-label="Change documentation theme"
+            class="icon-button"
+            data-theme-toggle=""
+            title="Change theme"
+            type="button"
+          >
+            <svg aria-hidden="true"><use href="#icon-theme"></use></svg>
+          </button>
+          <a
+            aria-label="Archeion on GitHub"
+            class="icon-button docs-github-link"
+            href="https://github.com/TommyMoonn/archeion"
+            rel="noreferrer"
+            target="_blank"
+            title="GitHub"
+          >
+            <svg aria-hidden="true"><use href="#icon-github"></use></svg>
+          </a>
+        </div>
+      </div>
+    </header>
+    <!-- docs-header:end -->
+    <!-- docs-search:start -->
+    <dialog aria-label="Search documentation" class="docs-search-dialog" data-search-dialog="">
+      <div class="docs-search-controls">
+        <label class="docs-search-field">
+          <span class="sr-only">Search documentation content</span>
+          <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+          <input
+            autocomplete="off"
+            data-search-input=""
+            placeholder="Search documentation"
+            type="search"
+            aria-describedby="docs-search-hints"
+          />
+        </label>
+        <button
+          class="docs-search-details"
+          data-search-details=""
+          type="button"
+          aria-pressed="false"
+        >
+          Show details
+        </button>
+      </div>
+      <nav
+        aria-label="Documentation search results"
+        class="docs-search-results"
+        data-search-results=""
+      ></nav>
+      <p class="docs-search-empty" data-search-empty="" hidden="">
+        No matching results. Try another word or clear your search.
+      </p>
+      <p class="docs-search-hints" id="docs-search-hints">
+        <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span
+        ><span><kbd>Esc</kbd> Close</span>
+      </p>
+    </dialog>
+    <!-- docs-search:end -->
+    <div class="mobile-backdrop" data-nav-backdrop="" hidden=""></div>
+    <aside
+      aria-label="Documentation navigation"
+      class="docs-sidebar"
+      data-sidebar=""
+      id="docs-sidebar"
+    >
+      <div class="docs-sidebar__mobile-header">
+        <strong>Documentation</strong>
+        <button
+          aria-label="Close documentation navigation"
+          class="icon-button"
+          data-nav-close=""
+          type="button"
+        >
+          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+        </button>
+      </div>
+      <!-- docs-navigation:start -->
+      <nav data-doc-navigation="" aria-label="Documentation sidebar">
+        <section class="sidebar-group" data-sidebar-group="">
+          <h2>
+            <button
+              aria-controls="sidebar-group-0"
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
+            >
+              <span>Overview</span><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-0">
+            <a data-doc-link="" href="../"><span>Overview</span></a>
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group="">
+          <h2>
+            <button
+              aria-controls="sidebar-group-1"
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
+            >
+              <span>Getting started</span
+              ><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-1">
+            <a data-doc-link="" href="../getting-started/installing/"><span>Installation</span></a
+            ><a data-doc-link="" href="../getting-started/archives/"
+              ><span>Open or create an archive</span></a
+            ><a data-doc-link="" href="../getting-started/adding-books/"
+              ><span>Add EPUB files</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group="">
+          <h2>
+            <button
+              aria-controls="sidebar-group-2"
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
+            >
+              <span>Using Archeion</span
+              ><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-2">
+            <a data-doc-link="" href="../guides/library/"><span>Library</span></a
+            ><a data-doc-link="" href="../guides/archive-health/"><span>Archive health</span></a
+            ><a data-doc-link="" href="../guides/quick-actions/"><span>Quick Actions</span></a
+            ><a data-doc-link="" href="../guides/metadata-covers/"
+              ><span>Metadata and covers</span></a
+            ><a data-doc-link="" href="../guides/series/"><span>Series</span></a
+            ><a data-doc-link="" href="../guides/reading/"><span>Reader and annotations</span></a
+            ><a data-doc-link="" href="../guides/reader-navigation/"
+              ><span>Reader navigation and progress</span></a
+            ><a data-doc-link="" href="../guides/reader-media/"
+              ><span>Footnotes and illustrations</span></a
+            ><a data-doc-link="" href="../guides/file-management/"><span>File management</span></a
+            ><a data-doc-link="" href="../guides/settings/"><span>Settings</span></a
+            ><a data-doc-link="" href="../guides/dictionaries/"
+              ><span>Dictionaries and Define</span></a
+            ><a data-doc-link="" href="../guides/keyboard-shortcuts/"
+              ><span>Keyboard shortcuts</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group="">
+          <h2>
+            <button
+              aria-controls="sidebar-group-3"
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
+            >
+              <span>Customization</span
+              ><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
+            <a data-doc-link="" href="../customization/appearance/"><span>Appearance</span></a
+            ><a data-doc-link="" href="../customization/custom-themes/"
+              ><span>Custom themes</span></a
+            ><a data-doc-link="" href="../customization/theme-manager/"
+              ><span>Theme Manager</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group="">
+          <h2>
+            <button
+              aria-controls="sidebar-group-4"
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
+            >
+              <span>Reference</span><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-4">
+            <a data-doc-link="" href="../reference/archive-storage/"><span>Archive storage</span></a
+            ><a data-doc-link="" href="../reference/troubleshooting/"
+              ><span>Troubleshooting and recovery</span></a
+            ><a data-doc-link="" href="../reference/annotation-export/"
+              ><span>Annotation export</span></a
+            ><a data-doc-link="" href="../reference/about-resources/"
+              ><span>About and resources</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group="">
+          <h2>
+            <button
+              aria-controls="sidebar-group-5"
+              aria-expanded="true"
+              class="sidebar-group__toggle"
+              data-sidebar-group-toggle=""
+              type="button"
+            >
+              <span>Changelog</span><svg aria-hidden="true"><use href="#icon-chevron"></use></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-5">
+            <a aria-current="page" data-doc-link="" href="./"><span>Changelog</span></a>
+          </div>
+        </section>
+      </nav>
+      <!-- docs-navigation:end -->
+    </aside>
+    <div class="docs-layout">
+      <main class="docs-main" id="main-content">
+        <article
+          class="doc-article doc-article--changelog"
+          data-doc-article=""
+          data-page-type="changelog"
+        >
+          <header class="article-header">
+            <h1>Changelog</h1>
+            <p>See what changed in each Archeion release.</p>
+          </header>
+          <details class="mobile-outline" data-mobile-outline="">
+            <summary>On this page</summary>
+            <nav data-mobile-toc=""></nav>
+          </details>
+          <!-- docs-changelog:start -->
+          <ol class="changelog-timeline" role="list" aria-label="Releases, newest first">
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-5-4">v1.5.4</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-5-4"
+                    aria-label="Link to section: v1.5.4"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-09-25">September 25, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Switching archives quickly now keeps your latest choice instead of showing an
+                    older result.
+                  </li>
+                  <li>Rescanning one archive no longer stops a scan of another archive.</li>
+                  <li>
+                    Storage maintenance in Settings no longer interrupts an active Library scan.
+                  </li>
+                  <li>
+                    Archive changes made in another window appear again after a temporary startup
+                    connection failure, without restarting Archeion.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.5.4"
+                    >Full release notes for v1.5.4 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-5-3">v1.5.3</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-5-3"
+                    aria-label="Link to section: v1.5.3"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-09-23">September 23, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Changes to different Library, Reader, or Storage settings in separate windows
+                    now remain together.
+                  </li>
+                  <li>
+                    Retry now loads Settings or Theme Manager after a temporary failure without
+                    closing the window.
+                  </li>
+                  <li>
+                    Add EPUB now starts at the archive root. A folder chosen in the dialog applies
+                    only to that import.
+                  </li>
+                  <li>
+                    Compatible theme choices from older archives remain available after upgrade.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.5.3"
+                    >Full release notes for v1.5.3 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-5-2">v1.5.2</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-5-2"
+                    aria-label="Link to section: v1.5.2"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-09-22">September 22, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Application settings now recover from an interrupted save before Archeion
+                    restores defaults.
+                  </li>
+                  <li>
+                    Archive metadata, including saved library and reading state, now recovers.
+                  </li>
+                  <li>
+                    The registered archive list can now recover from interrupted or corrupt writes
+                    when a valid recovery copy is available.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.5.2"
+                    >Full release notes for v1.5.2 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-5-1">v1.5.1</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-5-1"
+                    aria-label="Link to section: v1.5.1"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-09-21">September 21, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Overlapping metadata edits and cover replacements for the same EPUB.</li>
+                  <li>
+                    Metadata edits based on an older EPUB version are rejected before they can
+                    replace newer changes.
+                  </li>
+                  <li>EPUB export no longer overwrites an existing same-name file.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.5.1"
+                    >Full release notes for v1.5.1 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-5-0">v1.5.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-5-0"
+                    aria-label="Link to section: v1.5.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-09-21">September 21, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Reader settings now adapt to fixed-layout books so publisher-designed pages keep
+                    their intended presentation.
+                  </li>
+                  <li>
+                    <strong>Narrow</strong>, <strong>Comfortable</strong>, <strong>Wide</strong>,
+                    and <strong>Full</strong> Page Width options.
+                  </li>
+                  <li>Large illustrations now fit the visible Reader area.</li>
+                  <li>
+                    Reader settings now save successful changes quietly while keeping failures
+                    visible.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.5.0"
+                    >Full release notes for v1.5.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-4-3">v1.4.3</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-4-3"
+                    aria-label="Link to section: v1.4.3"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-09-17">September 17, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Improved secondary-text readability across built-in application and Reader
+                    themes.
+                  </li>
+                  <li>
+                    Long dialog headings, book titles, authors, filenames, and metadata preview
+                    values now wrap instead of overflowing or being clipped.
+                  </li>
+                  <li>
+                    Action lists now expose standard disclosure and button behavior consistently to
+                    keyboard and screen-reader users.
+                  </li>
+                  <li>
+                    Library multi-selection actions no longer announce unsupported toolbar keyboard
+                    behavior.
+                  </li>
+                  <li>
+                    Failed bulk metadata updates are now announced without moving keyboard focus.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.4.3"
+                    >Full release notes for v1.4.3 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-4-2">v1.4.2</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-4-2"
+                    aria-label="Link to section: v1.4.2"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-28">August 28, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Move About into a standalone window.</li>
+                  <li>
+                    Reuse the existing About window when reopened without changing the active
+                    Library state.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.4.2"
+                    >Full release notes for v1.4.2 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-4-1">v1.4.1</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-4-1"
+                    aria-label="Link to section: v1.4.1"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-26">August 26, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Add All, Installed, and Not installed dictionary views with shared search.
+                  </li>
+                  <li>Improve multi-dictionary definition layout.</li>
+                  <li>Add search to Keyboard settings.</li>
+                  <li>Match search fields to Archeion&#39;s standard control styling.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.4.1"
+                    >Full release notes for v1.4.1 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-4-0">v1.4.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-4-0"
+                    aria-label="Link to section: v1.4.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-24">August 24, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Move Settings into a standalone window that can stay open beside Archeion.
+                  </li>
+                  <li>Make application and Reader themes global across archives.</li>
+                  <li>
+                    Add a standalone Theme Manager for importing, previewing, applying, updating,
+                    and deleting themes.
+                  </li>
+                  <li>
+                    Reorganize Settings for clearer preferences, shortcuts, archive controls, and
+                    maintenance actions.
+                  </li>
+                  <li>
+                    Move import defaults to global settings while keeping destination folders
+                    archive-specific.
+                  </li>
+                  <li>Improve archive maintenance feedback when switching between archives.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.4.0"
+                    >Full release notes for v1.4.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-3-0">v1.3.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-3-0"
+                    aria-label="Link to section: v1.3.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-22">August 22, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add offline dictionary lookup from selected Reader text.</li>
+                  <li>Add Princeton WordNet, Open English WordNet, and GCIDE support.</li>
+                  <li>Add dictionary install, enable, reorder, remove, and reinstall controls.</li>
+                  <li>Add support for common English inflections during lookup.</li>
+                  <li>Add compatible local StarDict imports.</li>
+                  <li>Improve multi-dictionary results and catalog filtering.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.3.0"
+                    >Full release notes for v1.3.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-2-0">v1.2.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-2-0"
+                    aria-label="Link to section: v1.2.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-13">August 13, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add Duplicates view for exact and probable duplicate EPUBs.</li>
+                  <li>
+                    Add EPUB Issues view for broken links, unreadable content, missing navigation,
+                    and other Reader problems.
+                  </li>
+                  <li>Show issue counts and Reader availability before opening affected books.</li>
+                  <li>Add book actions directly to the new review views.</li>
+                  <li>Add optional Smart View controls for Duplicates and EPUB Issues.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.2.0"
+                    >Full release notes for v1.2.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-1-0">v1.1.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-1-0"
+                    aria-label="Link to section: v1.1.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-12">August 12, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add Find in Book with <code>Ctrl+F</code>.</li>
+                  <li>Add Reader Back and Forward navigation.</li>
+                  <li>Add Contents, Landmarks, and Pages navigation.</li>
+                  <li>Add progress-bar seeking with mouse and keyboard controls.</li>
+                  <li>
+                    Simplify the Reader toolbar and keep the page layout stable when it is shown or
+                    hidden.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.1.0"
+                    >Full release notes for v1.1.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-0-2">v1.0.2</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-0-2"
+                    aria-label="Link to section: v1.0.2"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-10">August 10, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Improve Reader session cleanup when opening, replacing, retrying, or closing
+                    books.
+                  </li>
+                  <li>
+                    Improve reading-position persistence during rapid navigation and book changes.
+                  </li>
+                  <li>Improve note, annotation, and Undo reliability.</li>
+                  <li>Improve Escape behavior, focus return, and export cancellation handling.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.0.2"
+                    >Full release notes for v1.0.2 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-0-1">v1.0.1</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-0-1"
+                    aria-label="Link to section: v1.0.1"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-04">August 4, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Fix Archeion not closing correctly from the titlebar or other Windows close
+                    actions.
+                  </li>
+                  <li>Preserve safe shutdown for pending metadata and preference writes.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.0.1"
+                    >Full release notes for v1.0.1 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-1-0-0">v1.0.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-1-0-0"
+                    aria-label="Link to section: v1.0.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-03">August 3, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Redesign Quick Actions for faster keyboard-driven commands.</li>
+                  <li>
+                    Manage archives, themes, display density, animations, and collection views from
+                    Quick Actions.
+                  </li>
+                  <li>Add a configurable <code>Ctrl+B</code> shortcut for the Library sidebar.</li>
+                  <li>
+                    Improve Reader panels, focus return, Escape behavior, and temporary surfaces.
+                  </li>
+                  <li>
+                    Improve note autosave, draft recovery, retry handling, and annotation
+                    management.
+                  </li>
+                  <li>
+                    Simplify bookmark and annotation feedback while keeping Undo where useful.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v1.0.0"
+                    >Full release notes for v1.0.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-9-0">v0.9.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-9-0"
+                    aria-label="Link to section: v0.9.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-08-01">August 1, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>
+                    Redesign the application shell with a collapsible sidebar and cleaner titlebar.
+                  </li>
+                  <li>
+                    Improve performance when sorting, filtering, navigating, and returning from the
+                    Reader.
+                  </li>
+                  <li>
+                    Improve tooltips, focus behavior, controls, spacing, typography, and feedback.
+                  </li>
+                  <li>Reload custom theme changes without restarting Archeion.</li>
+                  <li>
+                    Improve archive operations, settings persistence, and backup organization.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.9.0"
+                    >Full release notes for v0.9.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-8-0">v0.8.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-8-0"
+                    aria-label="Link to section: v0.8.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-24">July 24, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add customizable keyboard shortcuts.</li>
+                  <li>Add separate display preferences for Books, Folders, and Series.</li>
+                  <li>Add consistent context menus for book, folder, and archive actions.</li>
+                  <li>Improve focus, Escape behavior, and action feedback across the app.</li>
+                  <li>
+                    Improve accessibility for reduced motion, forced colors, scaling, and non-hover
+                    input.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.8.0"
+                    >Full release notes for v0.8.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-7-0">v0.7.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-7-0"
+                    aria-label="Link to section: v0.7.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-20">July 20, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Improve scrolling and responsiveness in large libraries.</li>
+                  <li>Speed up archive scans and reduce unnecessary rescans.</li>
+                  <li>Keep your place when renaming or moving the current folder.</li>
+                  <li>Improve cover loading and Reader file handling.</li>
+                  <li>Reduce unnecessary disk writes when saving progress and preferences.</li>
+                  <li>Refresh interface spacing, controls, and the About dialog.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.7.0"
+                    >Full release notes for v0.7.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-6-0">v0.6.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-6-0"
+                    aria-label="Link to section: v0.6.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-16">July 16, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Open footnotes and endnotes without leaving the current page.</li>
+                  <li>Support internal EPUB links and confirmation for external links.</li>
+                  <li>Add an illustration viewer with zoom and pan controls.</li>
+                  <li>Save original EPUB images through the Windows save dialog.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.6.0"
+                    >Full release notes for v0.6.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-5-0">v0.5.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-5-0"
+                    aria-label="Link to section: v0.5.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-16">July 16, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add application themes and Reader themes.</li>
+                  <li>Add support for custom color themes.</li>
+                  <li>Add a Theme Manager for managing installed themes.</li>
+                  <li>Save theme selections with each archive.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.5.0"
+                    >Full release notes for v0.5.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-4-0">v0.4.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-4-0"
+                    aria-label="Link to section: v0.4.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-15">July 15, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add bookmarks, highlights, colors, and notes in the Reader.</li>
+                  <li>Add a unified panel for browsing and managing annotations.</li>
+                  <li>Recover annotations after EPUB content changes when possible.</li>
+                  <li>Export annotations as Markdown or JSON.</li>
+                  <li>
+                    Refresh the Library, Reader, Settings, dialogs, and Archive Manager interface.
+                  </li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.4.0"
+                    >Full release notes for v0.4.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-3-0">v0.3.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-3-0"
+                    aria-label="Link to section: v0.3.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-11">July 11, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Add multi-select and bulk actions for books.</li>
+                  <li>Import EPUBs with drag and drop.</li>
+                  <li>Replace embedded EPUB covers with safe writeback and rollback.</li>
+                  <li>Add Continuous reading mode.</li>
+                  <li>Add Quick Actions with <code>Ctrl+Shift+P</code>.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.3.0"
+                    >Full release notes for v0.3.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-2-0">v0.2.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-2-0"
+                    aria-label="Link to section: v0.2.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-10">July 10, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Browse and search EPUB chapters from the table of contents.</li>
+                  <li>Browse books by series with volume ordering and Continue Series.</li>
+                  <li>
+                    Filter books by metadata, reading status, favorites, and cover availability.
+                  </li>
+                  <li>
+                    Add Smart Views for unread, in-progress, completed, and incomplete metadata.
+                  </li>
+                  <li>Clear saved reading progress without affecting other book data.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.2.0"
+                    >Full release notes for v0.2.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="changelog-entry">
+              <div class="release-metadata">
+                <div class="article-heading">
+                  <h2 id="release-0-1-0">v0.1.0</h2>
+                  <a
+                    class="heading-permalink"
+                    href="#release-0-1-0"
+                    aria-label="Link to section: v0.1.0"
+                    ><span aria-hidden="true">#</span></a
+                  >
+                </div>
+                <time datetime="2026-07-10">July 10, 2026</time>
+              </div>
+              <div class="release-changes">
+                <ul>
+                  <li>Create and open local EPUB archives.</li>
+                  <li>Browse books with search, sorting, favorites, and Continue Reading.</li>
+                  <li>Read EPUBs with saved progress and configurable typography.</li>
+                  <li>Add, rename, move, reveal, and delete books and folders.</li>
+                  <li>Edit EPUB metadata with safe writeback and backups.</li>
+                  <li>Manage multiple archives.</li>
+                </ul>
+                <p>
+                  <a
+                    class="release-notes-link"
+                    href="https://github.com/TommyMoonn/archeion/releases/tag/v0.1.0"
+                    >Full release notes for v0.1.0 <span aria-hidden="true">↗</span></a
+                  >
+                </p>
+              </div>
+            </li>
+          </ol>
+          <!-- docs-changelog:end -->
+        </article>
+        <!-- docs-pager:start -->
+        <nav aria-label="Documentation pages" class="article-pager article-pager--single">
+          <a
+            class="article-pager__item article-pager__item--previous"
+            rel="prev"
+            href="../reference/about-resources/"
+            ><span>Previous</span><strong>About and resources</strong></a
+          >
+        </nav>
+        <!-- docs-pager:end -->
+        <!-- docs-footer:start -->
+        <footer class="docs-footer">
+          <span>Archeion documentation</span>
+          <div class="docs-footer__links">
+            <a
+              data-doc-edit=""
+              href="https://github.com/TommyMoonn/archeion/blob/main/release-notes/README.md"
+              rel="noreferrer"
+              target="_blank"
+              >Release-note authoring <span aria-hidden="true">↗</span></a
+            ><a
+              data-doc-report=""
+              href="https://github.com/TommyMoonn/archeion/issues"
+              rel="noreferrer"
+              target="_blank"
+              >Report a documentation issue <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </footer>
+        <!-- docs-footer:end -->
+      </main>
+      <aside aria-label="On this page" class="docs-outline">
+        <h2>On this page</h2>
+        <nav data-toc=""></nav>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -42,9 +42,14 @@ describe("documentation shell", () => {
     expect(document.querySelectorAll('[data-sidebar] [aria-current="page"]')).toHaveLength(1);
     expect(document.querySelector('a[href="#main-content"]')?.textContent).toBe("Skip to content");
     expect(document.querySelectorAll("main")).toHaveLength(1);
-    expect(
-      [...header.querySelectorAll("a")].some((link) => /release notes/i.test(link.textContent)),
-    ).toBe(false);
+    const releaseNotes = header.querySelector(".docs-release-link");
+    expect(text(releaseNotes)).toBe("Release notes");
+    expect(destination(page.sourcePath, releaseNotes)).toBe(
+      path.resolve("docs/documentation/changelog/index.html"),
+    );
+    expect(releaseNotes?.getAttribute("aria-current")).toBe(
+      page.id === "changelog" ? "page" : null,
+    );
   });
 
   it("does not repeat a header summary as the immediate article lead", () => {

@@ -184,18 +184,26 @@ function renderPermalinks(html, headings) {
 }
 
 function renderFooter(page) {
-  return `<footer class="docs-footer"><span>Archeion documentation</span><div class="docs-footer__links"><a data-doc-edit="" href="https://github.com/TommyMoonn/archeion/edit/main/${page.sourcePath}" rel="noreferrer" target="_blank">Edit this page <span aria-hidden="true">↗</span></a><a data-doc-report="" href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank">Report a documentation issue <span aria-hidden="true">↗</span></a></div></footer>`;
+  const generatedHistory = page.type === "changelog";
+  const editPath = generatedHistory ? "release-notes/README.md" : page.sourcePath;
+  const editLabel = generatedHistory ? "Release-note authoring" : "Edit this page";
+  const editAction = generatedHistory ? "blob" : "edit";
+  return `<footer class="docs-footer"><span>Archeion documentation</span><div class="docs-footer__links"><a data-doc-edit="" href="https://github.com/TommyMoonn/archeion/${editAction}/main/${editPath}" rel="noreferrer" target="_blank">${editLabel} <span aria-hidden="true">↗</span></a><a data-doc-report="" href="https://github.com/TommyMoonn/archeion/issues" rel="noreferrer" target="_blank">Report a documentation issue <span aria-hidden="true">↗</span></a></div></footer>`;
 }
 
-function renderHeader(current) {
+function renderHeader(current, pages) {
   const overview = relativeHref(current, { sourcePath: `${documentationDirectory}/index.html` });
   const home = relativeHref(current, { sourcePath: "docs/index.html" });
+  const changelog = pages.find((page) => page.id === "changelog" && page.type === "changelog");
+  const releaseNotes = changelog
+    ? `<a class="docs-release-link" href="${relativeHref(current, changelog)}"${current.id === changelog.id ? ' aria-current="page"' : ""}>Release notes</a>`
+    : "";
   return `<header class="docs-header">
     <div class="docs-header__inner">
       <button aria-controls="docs-sidebar" aria-expanded="false" aria-label="Open documentation navigation" class="icon-button mobile-menu-button" data-nav-open="" type="button">
         <svg aria-hidden="true"><use href="#icon-menu"></use></svg>
       </button>
-      <a class="docs-brand" href="${overview}">
+      <a class="docs-brand" aria-label="Archeion Docs" href="${overview}">
         <img alt="" height="32" src="${home}assets/images/archeion-icon.png" width="32" />
         <span>Archeion Docs</span>
       </a>
@@ -203,6 +211,7 @@ function renderHeader(current) {
         <svg aria-hidden="true"><use href="#icon-search"></use></svg><span>Search documentation</span><kbd>Ctrl K</kbd>
       </button>
       <div class="docs-header__actions">
+        ${releaseNotes}
         <a class="docs-home-link" href="${home}">Home <span aria-hidden="true">↗</span></a>
         <button aria-label="Change documentation theme" class="icon-button" data-theme-toggle="" title="Change theme" type="button">
           <svg aria-hidden="true"><use href="#icon-theme"></use></svg>
@@ -360,7 +369,7 @@ export async function syncDocumentationNavigation(
     html = replaceRegion(
       html,
       "header",
-      renderHeader(page),
+      renderHeader(page, pages),
       /<header\b[^>]*class="[^"]*\bdocs-header\b[^"]*"[^>]*>[\s\S]*?<\/header>/g,
     );
     html = replaceRegion(

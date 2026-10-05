@@ -270,7 +270,8 @@ svg {
   font-weight: 700;
   text-decoration: none;
 }
-.docs-home-link {
+.docs-home-link,
+.docs-release-link {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -282,8 +283,13 @@ svg {
   text-decoration: none;
   white-space: nowrap;
 }
-.docs-home-link:hover {
+.docs-home-link:hover,
+.docs-release-link:hover {
   text-decoration: underline;
+}
+.docs-release-link[aria-current="page"] {
+  color: var(--header-brand);
+  font-weight: 600;
 }
 .docs-brand img {
   width: 30px;
@@ -295,6 +301,7 @@ svg {
   align-items: center;
   gap: 9px;
   width: min(440px, 40vw);
+  min-width: 0;
   height: 38px;
   margin: 0 auto;
   padding: 0 10px 0 12px;
@@ -779,6 +786,8 @@ kbd {
 }
 @media (pointer: coarse) {
   .copy-page-button,
+  .docs-release-link,
+  .docs-home-link,
   .doc-copy-dismiss,
   .copy-button {
     min-width: 44px;
@@ -1224,7 +1233,7 @@ td:first-child {
 
 @media (max-width: 480px) {
   .docs-github-link,
-  .docs-brand img {
+  .docs-brand span {
     display: none;
   }
   .docs-header__actions {
@@ -1233,7 +1242,8 @@ td:first-child {
   .docs-header .icon-button {
     width: 32px;
   }
-  .docs-home-link {
+  .docs-home-link,
+  .docs-release-link {
     padding-inline: 4px;
     font-size: 13px;
   }
@@ -1254,6 +1264,92 @@ td:first-child {
     border-right: 0;
     border-left: 0;
     border-radius: 0;
+  }
+}
+
+/* Release history is a semantic list, with a decorative rail instead of cards. */
+.doc-article--changelog {
+  container-type: inline-size;
+}
+.doc-article .changelog-timeline {
+  margin: 32px 0 0;
+  padding: 0;
+  border-inline-start: 2px solid var(--accent);
+  list-style: none;
+}
+.doc-article .changelog-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 24px;
+  margin: 0;
+  padding-block: 0 40px;
+  padding-inline: 24px 0;
+}
+.changelog-entry::before {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-start: -6px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--canvas);
+  content: "";
+}
+.release-metadata,
+.release-changes {
+  min-width: 0;
+}
+.release-metadata .article-heading {
+  margin: 0 0 4px;
+}
+.release-metadata h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.release-metadata time {
+  color: var(--muted);
+  font-size: 14px;
+}
+.release-changes > ul {
+  margin: 0;
+  padding: 0;
+  padding-inline-start: 20px;
+}
+.release-changes li {
+  padding-inline-start: 4px;
+  padding-inline-end: 0;
+}
+.release-changes > p {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+.changelog-entry:last-child {
+  padding-block-end: 0;
+}
+@container (max-width: 540px) {
+  .doc-article .changelog-entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding-inline-start: 20px;
+  }
+  .release-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+  }
+  .release-metadata .article-heading {
+    margin: 0;
+  }
+}
+@media (forced-colors: active) {
+  .changelog-timeline,
+  .changelog-entry::before {
+    border-color: CanvasText;
   }
 }
 
