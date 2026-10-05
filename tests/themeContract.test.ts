@@ -440,6 +440,10 @@ describe("theme token baseline", () => {
           "src/styles/features/archive.css",
           /\.archive-manager-window__sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
         ],
+        [
+          "src/styles/features/archive.css",
+          /\.archive-manager-window__sidebar\s*{[^}]*border-inline-end:\s*var\(--border-width\) solid var\(--line-subtle\);/,
+        ],
       ] as const;
       for (const [stylePath, contract] of applicationSurfaceContracts) {
         const source = fs.readFileSync(path.join(projectRoot, stylePath), "utf8");

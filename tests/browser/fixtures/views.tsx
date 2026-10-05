@@ -13,6 +13,7 @@ import type { KnownArchive } from "../../../src/types/archive";
 import type { LibraryLocation } from "../../../src/types/library";
 import { LibraryConfirmationFixture, ReaderNoteConfirmationFixture } from "./confirmation-views";
 import { DictionaryToggleFixture, LibraryToggleFixture, ReaderToggleFixture } from "./toggle-views";
+import { ArchiveShellFixture } from "./archive-shell-view";
 
 const archive: KnownArchive = {
   id: "browser-fixture",
@@ -168,6 +169,7 @@ export function BrowserFixture() {
   useEffect(() => focusPresentationRuntime.start(document), []);
 
   const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "archive-shell") return <ArchiveShellFixture />;
   if (view === "reader") return <ReaderFixture />;
   if (view === "library") return <LibraryFixture />;
   if (view === "dialog") return <DialogFixture />;

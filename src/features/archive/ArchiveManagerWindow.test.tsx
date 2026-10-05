@@ -12,6 +12,7 @@ import { ArchiveManagerFallback } from "./ArchiveManagerWindow";
 import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
 import { ArchiveManagerWindowLoading } from "./ArchiveManagerWindowLoading";
 import { completeArchiveManagerAction } from "./archiveManagerCompletion";
+import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 
 const activeArchive = {
   id: "archive-books",
@@ -84,6 +85,44 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 }
 
 describe("ArchiveManagerWindow", () => {
+  it("owns split titlebar presentation throughout loading, ready, and failure and removes it on exit", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      for (const surface of [
+        <ArchiveManagerWindowLoading key="loading" />,
+        <ArchiveManagerWindowContent key="ready" state={readyState} />,
+        <ArchiveManagerFallback key="failure" message="Initialization failed." />,
+      ]) {
+        act(() =>
+          root.render(
+            <>
+              <WindowTitlebarAppActionsHost />
+              {surface}
+            </>,
+          ),
+        );
+        const plane = container.querySelector('[data-window-titlebar-presentation="split"]');
+        expect(
+          container.querySelectorAll('[data-window-titlebar-presentation="split"]'),
+        ).toHaveLength(1);
+        expect(plane?.closest("[data-window-titlebar-app-actions]")).not.toBeNull();
+        expect(plane?.querySelector("[data-tauri-drag-region]")).not.toBeNull();
+        expect(container.querySelectorAll("main")).toHaveLength(1);
+        expect(container.querySelector("main .archive-manager-window__sidebar")).not.toBeNull();
+        expect(container.querySelector("main .archive-manager-window__main")).not.toBeNull();
+      }
+      act(() => root.render(<WindowTitlebarAppActionsHost />));
+      expect(container.querySelector('[data-window-titlebar-presentation="split"]')).toBeNull();
+      expect(container.querySelector("[data-window-titlebar-app-actions]")?.childElementCount).toBe(
+        0,
+      );
+    } finally {
+      act(() => root.unmount());
+    }
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
