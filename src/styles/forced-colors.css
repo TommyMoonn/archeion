@@ -49,7 +49,6 @@
     .quick-actions,
     .menu-popover,
     .app-select__menu,
-    .archive-manager-window__main,
     .book-card,
     .book-row,
     .book-cover,
@@ -115,9 +114,8 @@
     background: CanvasText;
   }
 
-  .archive-manager-window__main {
-    border: 1px solid CanvasText;
-    box-shadow: none;
+  .archive-manager-window__sidebar {
+    border-color: CanvasText;
   }
 
   .library-header__utilities {

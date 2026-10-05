@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WindowTitlebar, WindowTitlebarAppActions } from "./WindowTitlebar";
 import { TooltipProvider } from "./Tooltip";
+import { ArchiveManagerTitlebarComposition } from "../features/archive/ArchiveManagerTitlebarComposition";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -29,7 +30,12 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 const mountedRoots: Root[] = [];
 
-function renderTitlebar(canMaximize: boolean, withAppAction = false, presentation?: "split") {
+function renderTitlebar(
+  canMaximize: boolean,
+  withAppAction = false,
+  presentation?: "split",
+  withManagerComposition = false,
+) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -39,6 +45,7 @@ function renderTitlebar(canMaximize: boolean, withAppAction = false, presentatio
     root.render(
       <TooltipProvider>
         <WindowTitlebar canMaximize={canMaximize} />
+        {withManagerComposition ? <ArchiveManagerTitlebarComposition /> : null}
         {withAppAction ? (
           <WindowTitlebarAppActions presentation={presentation}>
             <button aria-label="Library frame action" type="button" />
@@ -105,10 +112,15 @@ describe("WindowTitlebar", () => {
   });
 
   it("keeps the Archive Manager draggable without exposing a public maximize action", () => {
-    const container = renderTitlebar(false);
+    const container = renderTitlebar(false, false, undefined, true);
     const dragRegion = container.querySelector<HTMLElement>(".window-titlebar__drag-region");
 
     expect(dragRegion?.hasAttribute("data-tauri-drag-region")).toBe(true);
+    const managerPlane = container.querySelector(".archive-manager-titlebar-composition");
+    expect(managerPlane?.hasAttribute("data-tauri-drag-region")).toBe(true);
+    expect(managerPlane?.closest('[data-window-titlebar-presentation="split"]')).not.toBeNull();
+    expect(button(container, "Minimize window").closest("[data-tauri-drag-region]")).toBeNull();
+    expect(button(container, "Close window").closest("[data-tauri-drag-region]")).toBeNull();
     expect(button(container, "Minimize window").disabled).toBe(false);
     expect(button(container, "Close window").disabled).toBe(false);
     expect(container.querySelector('button[aria-label="Maximize or restore window"]')).toBeNull();
