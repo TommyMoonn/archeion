@@ -12,7 +12,9 @@
     <title>Settings | Archeion</title>
     <link href="../../../assets/images/archeion-icon.png" rel="icon" />
     <link href="../../assets/docs.css" rel="stylesheet" />
+    <script defer data-doc-search-index src="../../assets/docs-search-index.js"></script>
     <script defer="" src="../../assets/docs.js"></script>
+    <script defer src="../../assets/docs-search.js"></script>
     <script type="module" src="../../assets/docs-copy.js"></script>
   </head>
   <body>
@@ -93,25 +95,43 @@
       </div>
     </header>
     <!-- docs-header:end -->
-    <dialog aria-labelledby="docs-search-title" class="docs-search-dialog" data-search-dialog="">
-      <div class="docs-search-dialog__header">
-        <h2 id="docs-search-title">Search documentation</h2>
-        <button aria-label="Close search" class="icon-button" data-search-close="" type="button">
-          <svg aria-hidden="true"><use href="#icon-close"></use></svg>
+    <!-- docs-search:start -->
+    <dialog aria-label="Search documentation" class="docs-search-dialog" data-search-dialog="">
+      <div class="docs-search-controls">
+        <label class="docs-search-field">
+          <span class="sr-only">Search documentation content</span>
+          <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+          <input
+            autocomplete="off"
+            data-search-input=""
+            placeholder="Search documentation"
+            type="search"
+            aria-describedby="docs-search-hints"
+          />
+        </label>
+        <button
+          class="docs-search-details"
+          data-search-details=""
+          type="button"
+          aria-pressed="false"
+        >
+          Show details
         </button>
       </div>
-      <label class="docs-search-field">
-        <span class="sr-only">Search documentation pages</span>
-        <svg aria-hidden="true"><use href="#icon-search"></use></svg>
-        <input autocomplete="off" data-search-input="" placeholder="Search pages" type="search" />
-      </label>
       <nav
         aria-label="Documentation search results"
         class="docs-search-results"
         data-search-results=""
       ></nav>
-      <p class="docs-search-empty" data-search-empty="" hidden="">No matching pages.</p>
+      <p class="docs-search-empty" data-search-empty="" hidden="">
+        No matching results. Try another word or clear your search.
+      </p>
+      <p class="docs-search-hints" id="docs-search-hints">
+        <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span
+        ><span><kbd>Esc</kbd> Close</span>
+      </p>
     </dialog>
+    <!-- docs-search:end -->
     <div class="mobile-backdrop" data-nav-backdrop="" hidden=""></div>
     <aside
       aria-label="Documentation navigation"
@@ -145,12 +165,7 @@
             </button>
           </h2>
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-0">
-            <a
-              data-doc-link=""
-              data-search="overview archeion documentation guides for installing archeion, setting up an archive, reading, organizing files, and customizing the app."
-              href="../../"
-              ><span>Overview</span></a
-            >
+            <a data-doc-link="" href="../../"><span>Overview</span></a>
           </div>
         </section>
         <section class="sidebar-group" data-sidebar-group="">
@@ -167,20 +182,11 @@
             </button>
           </h2>
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-1">
-            <a
-              data-doc-link=""
-              data-search="installation install archeion download and install archeion on windows."
-              href="../../getting-started/installing/"
+            <a data-doc-link="" href="../../getting-started/installing/"
               ><span>Installation</span></a
-            ><a
-              data-doc-link=""
-              data-search="open or create an archive open or create an archive choose the folder archeion will use for your epub library."
-              href="../../getting-started/archives/"
+            ><a data-doc-link="" href="../../getting-started/archives/"
               ><span>Open or create an archive</span></a
-            ><a
-              data-doc-link=""
-              data-search="add epub files add epub files add books to the active archive by copying or moving them."
-              href="../../getting-started/adding-books/"
+            ><a data-doc-link="" href="../../getting-started/adding-books/"
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -199,68 +205,19 @@
             </button>
           </h2>
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-2">
-            <a
-              data-doc-link=""
-              data-search="library browse and organize the library find books, use folders and series, change the layout, and manage one or more books."
-              href="../library/"
-              ><span>Library</span></a
-            ><a
-              data-doc-link=""
-              data-search="archive health archive health review duplicates and epub issues, compare files safely, and retry reader-relevant diagnostics without changing your epubs."
-              href="../archive-health/"
-              ><span>Archive health</span></a
-            ><a
-              data-doc-link=""
-              data-search="quick actions quick actions find and run commands for the current library, reader, or settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
-              href="../quick-actions/"
-              ><span>Quick Actions</span></a
-            ><a
-              data-doc-link=""
-              data-search="metadata and covers metadata and covers edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the epub with a prepared image."
-              href="../metadata-covers/"
-              ><span>Metadata and covers</span></a
-            ><a
-              data-doc-link=""
-              data-search="series organize and continue a series browse epub series metadata, review volume order, and continue where you left off."
-              href="../series/"
-              ><span>Series</span></a
-            ><a
-              data-doc-link=""
-              data-search="reader and annotations read and annotate navigate books, adjust the reader, and manage bookmarks, highlights, and notes."
-              href="../reading/"
-              ><span>Reader and annotations</span></a
-            ><a
-              data-doc-link=""
-              data-search="reader navigation and progress navigate and track reading progress find text, move through epub navigation, retrace reader jumps, and seek by progress."
-              href="../reader-navigation/"
+            <a data-doc-link="" href="../library/"><span>Library</span></a
+            ><a data-doc-link="" href="../archive-health/"><span>Archive health</span></a
+            ><a data-doc-link="" href="../quick-actions/"><span>Quick Actions</span></a
+            ><a data-doc-link="" href="../metadata-covers/"><span>Metadata and covers</span></a
+            ><a data-doc-link="" href="../series/"><span>Series</span></a
+            ><a data-doc-link="" href="../reading/"><span>Reader and annotations</span></a
+            ><a data-doc-link="" href="../reader-navigation/"
               ><span>Reader navigation and progress</span></a
-            ><a
-              data-doc-link=""
-              data-search="footnotes and illustrations open footnotes and illustrations read linked notes without losing your place and inspect supported book images closely."
-              href="../reader-media/"
-              ><span>Footnotes and illustrations</span></a
-            ><a
-              data-doc-link=""
-              data-search="file management manage books and folders rename, move, reveal, export, and delete files in the active archive."
-              href="../file-management/"
-              ><span>File management</span></a
-            ><a
-              aria-current="page"
-              data-doc-link=""
-              data-search="settings settings change application-wide preferences, understand active-archive actions, and recover a temporary settings load failure."
-              href="./"
-              ><span>Settings</span></a
-            ><a
-              data-doc-link=""
-              data-search="dictionaries and define dictionaries and define discover and manage local dictionaries, define reader text offline, and recover unavailable resources."
-              href="../dictionaries/"
-              ><span>Dictionaries and Define</span></a
-            ><a
-              data-doc-link=""
-              data-search="keyboard shortcuts keyboard shortcuts find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
-              href="../keyboard-shortcuts/"
-              ><span>Keyboard shortcuts</span></a
-            >
+            ><a data-doc-link="" href="../reader-media/"><span>Footnotes and illustrations</span></a
+            ><a data-doc-link="" href="../file-management/"><span>File management</span></a
+            ><a aria-current="page" data-doc-link="" href="./"><span>Settings</span></a
+            ><a data-doc-link="" href="../dictionaries/"><span>Dictionaries and Define</span></a
+            ><a data-doc-link="" href="../keyboard-shortcuts/"><span>Keyboard shortcuts</span></a>
           </div>
         </section>
         <section class="sidebar-group" data-sidebar-group="">
@@ -277,20 +234,10 @@
             </button>
           </h2>
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-3">
-            <a
-              data-doc-link=""
-              data-search="appearance appearance and reader controls choose app colors, display density and animations, or adjust reader colors and typography."
-              href="../../customization/appearance/"
-              ><span>Appearance</span></a
-            ><a
-              data-doc-link=""
-              data-search="custom themes custom themes create and manage json color themes for the app and reader."
-              href="../../customization/custom-themes/"
+            <a data-doc-link="" href="../../customization/appearance/"><span>Appearance</span></a
+            ><a data-doc-link="" href="../../customization/custom-themes/"
               ><span>Custom themes</span></a
-            ><a
-              data-doc-link=""
-              data-search="theme manager theme manager import, preview, apply, update, and remove global custom themes, or recover a failed reload."
-              href="../../customization/theme-manager/"
+            ><a data-doc-link="" href="../../customization/theme-manager/"
               ><span>Theme Manager</span></a
             >
           </div>
@@ -308,25 +255,13 @@
             </button>
           </h2>
           <div class="sidebar-group__items" data-sidebar-group-items="" id="sidebar-group-4">
-            <a
-              data-doc-link=""
-              data-search="archive storage archive storage, ownership, and maintenance know which data travels with an archive, which preferences live in application data, and what storage maintenance and recovery copies change."
-              href="../../reference/archive-storage/"
+            <a data-doc-link="" href="../../reference/archive-storage/"
               ><span>Archive storage</span></a
-            ><a
-              data-doc-link=""
-              data-search="troubleshooting and recovery troubleshooting and recovery choose a safe next step for a missing archive, stale metadata, failed scan, reader-unavailable epub, or interrupted edit."
-              href="../../reference/troubleshooting/"
+            ><a data-doc-link="" href="../../reference/troubleshooting/"
               ><span>Troubleshooting and recovery</span></a
-            ><a
-              data-doc-link=""
-              data-search="annotation export annotation export choose markdown or versioned json for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
-              href="../../reference/annotation-export/"
+            ><a data-doc-link="" href="../../reference/annotation-export/"
               ><span>Annotation export</span></a
-            ><a
-              data-doc-link=""
-              data-search="about and resources about archeion and resources open the standalone about window for the installed version and direct links to archeion&#39;s public resources."
-              href="../../reference/about-resources/"
+            ><a data-doc-link="" href="../../reference/about-resources/"
               ><span>About and resources</span></a
             >
           </div>

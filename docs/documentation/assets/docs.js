@@ -159,78 +159,6 @@
     });
   });
 
-  const searchDialog = document.querySelector("[data-search-dialog]");
-  const searchInput = document.querySelector("[data-search-input]");
-  const searchResults = document.querySelector("[data-search-results]");
-  const searchEmpty = document.querySelector("[data-search-empty]");
-  const searchStatus = (() => {
-    if (!searchDialog || !searchResults) return null;
-    const status = document.createElement("p");
-    status.className = "sr-only";
-    status.dataset.searchStatus = "";
-    status.setAttribute("role", "status");
-    searchResults.before(status);
-    return status;
-  })();
-  const searchTriggers = document.querySelectorAll("[data-search-trigger]");
-  const searchClose = document.querySelector("[data-search-close]");
-  const sourceLinks = [...document.querySelectorAll("[data-doc-link]")];
-
-  function renderSearchResults() {
-    if (!searchResults) return;
-    const query = searchInput?.value.trim().toLocaleLowerCase() || "";
-    const matches = sourceLinks.filter((link) => {
-      const searchable =
-        `${link.textContent || ""} ${link.dataset.search || ""}`.toLocaleLowerCase();
-      return !query || searchable.includes(query);
-    });
-
-    searchResults.replaceChildren();
-    matches.forEach((link) => {
-      const result = document.createElement("a");
-      result.className = "docs-search-result";
-      result.href = link.href;
-      if (link.getAttribute("aria-current") === "page") result.setAttribute("aria-current", "page");
-
-      const title = document.createElement("strong");
-      title.textContent = link.textContent?.trim() || "";
-      const group = document.createElement("span");
-      group.textContent =
-        link.closest("[data-sidebar-group]")?.querySelector("[data-sidebar-group-toggle] span")
-          ?.textContent || "Documentation";
-
-      result.append(title, group);
-      result.addEventListener("click", () => searchDialog?.close());
-      searchResults.append(result);
-    });
-
-    if (searchEmpty) searchEmpty.hidden = matches.length !== 0;
-    if (searchStatus) {
-      searchStatus.textContent = query
-        ? matches.length === 0
-          ? "No matching pages."
-          : `${matches.length} ${matches.length === 1 ? "page" : "pages"} found.`
-        : "";
-    }
-  }
-
-  function openSearch() {
-    if (!searchDialog || typeof searchDialog.showModal !== "function") return;
-    if (!searchDialog.open) searchDialog.showModal();
-    renderSearchResults();
-    window.setTimeout(() => {
-      searchInput?.focus();
-      searchInput?.select();
-    }, 30);
-  }
-
-  searchTriggers.forEach((button) => button.addEventListener("click", openSearch));
-  searchClose?.addEventListener("click", () => searchDialog?.close());
-  searchInput?.addEventListener("input", renderSearchResults);
-  searchDialog?.addEventListener("click", (event) => {
-    if (event.target === searchDialog) searchDialog.close();
-  });
-
   window.addEventListener("keydown", (event) => {
     if (event.key === "Tab" && mobileNavigation.matches && body.classList.contains("nav-open")) {
       const focusable = navFocusableElements();
@@ -250,14 +178,6 @@
       }
     }
 
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      event.key.toLowerCase() === "k" &&
-      !body.classList.contains("nav-open")
-    ) {
-      event.preventDefault();
-      openSearch();
-    }
     if (event.key === "Escape" && body.classList.contains("nav-open")) setNav(false);
   });
 

@@ -16,6 +16,7 @@ import {
 } from "../src/features/reader/readerAnnotationExport";
 import type { Annotation } from "../src/types/annotation";
 import { resolveLocalPage } from "./documentationLinkTestSupport";
+import { documentationSearchEntries } from "./documentationSearchTestSupport";
 
 const topics = [
   {
@@ -98,9 +99,14 @@ describe("archive health, recovery, and export documentation", () => {
         expect(resolveLocalPage(page.sourcePath, link.getAttribute("href")!)?.file).toBe(
           path.resolve(sourcePath),
         );
-        expect(link.getAttribute("data-search")).toContain(topic.search);
+        expect(link.hasAttribute("data-search")).toBe(false);
         expect(link.getAttribute("aria-current")).toBe(page.id === topic.id ? "page" : null);
       }
+      expect(
+        documentationSearchEntries().some(
+          (entry) => entry.pageId === topic.id && entry.text.includes(topic.search),
+        ),
+      ).toBe(true);
       expect(
         [...documentFor("").querySelectorAll("[data-doc-article] li > a")].some(
           (link) => link.getAttribute("href") === `${topic.route}/`,

@@ -151,12 +151,6 @@ async function articleMetadata(html, page) {
     );
     const header = window.document.querySelector("[data-doc-article] .article-header");
     requireCondition(header?.querySelector("h1"), `${page.sourcePath} needs an article title.`);
-    const summary = [...header.querySelectorAll("p")].map((paragraph) => paragraph.textContent);
-    const search = [page.title, header.querySelector("h1").textContent, ...summary]
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
     const headings = new Map();
     for (const heading of window.document.querySelectorAll(
       "[data-doc-article] h2, [data-doc-article] h3",
@@ -168,7 +162,7 @@ async function articleMetadata(html, page) {
       );
       headings.set(heading.id, heading.textContent.replace(/\s+/g, " ").trim());
     }
-    return { search, headings };
+    return { headings };
   } finally {
     await window.happyDOM.abort();
   }
@@ -221,7 +215,23 @@ function renderHeader(current) {
   </header>`;
 }
 
-function renderSidebar(current, groups, pages, searches) {
+function renderSearch() {
+  return `<dialog aria-label="Search documentation" class="docs-search-dialog" data-search-dialog="">
+    <div class="docs-search-controls">
+      <label class="docs-search-field">
+        <span class="sr-only">Search documentation content</span>
+        <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+        <input autocomplete="off" data-search-input="" placeholder="Search documentation" type="search" aria-describedby="docs-search-hints" />
+      </label>
+      <button class="docs-search-details" data-search-details="" type="button" aria-pressed="false">Show details</button>
+    </div>
+    <nav aria-label="Documentation search results" class="docs-search-results" data-search-results=""></nav>
+    <p class="docs-search-empty" data-search-empty="" hidden="">No matching results. Try another word or clear your search.</p>
+    <p class="docs-search-hints" id="docs-search-hints"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Open</span><span><kbd>Esc</kbd> Close</span></p>
+  </dialog>`;
+}
+
+function renderSidebar(current, groups, pages) {
   return `<nav data-doc-navigation="" aria-label="Documentation sidebar">${groups
     .map((group) => {
       const panelId = `sidebar-group-${group.order}`;
@@ -233,7 +243,7 @@ function renderSidebar(current, groups, pages, searches) {
         .filter((page) => page.group === group.id)
         .map(
           (page) =>
-            `<a ${page.id === current.id ? 'aria-current="page" ' : ""}data-doc-link="" data-search="${escapeHtml(searches.get(page.id))}" href="${relativeHref(current, page)}"><span>${escapeHtml(page.title)}</span></a>`,
+            `<a ${page.id === current.id ? 'aria-current="page" ' : ""}data-doc-link="" href="${relativeHref(current, page)}"><span>${escapeHtml(page.title)}</span></a>`,
         )
         .join("")}</div>
     </section>`;
@@ -304,12 +314,42 @@ export async function syncDocumentationNavigation(
   const metadata = new Map();
   for (const page of pages)
     metadata.set(page.id, await articleMetadata(originals.get(page.id), page));
-  const searches = new Map(pages.map((page) => [page.id, metadata.get(page.id).search]));
   const formatOptions = await prettier.resolveConfig(path.join(projectRoot, "package.json"));
   const updates = [];
   // Validate and render every page before changing any source file.
   for (const page of pages) {
     let html = originals.get(page.id);
+    const searchIndexScript = path.posix.relative(
+      path.posix.dirname(page.sourcePath),
+      `${documentationDirectory}/assets/docs-search-index.js`,
+    );
+    html = html.replace(
+      /<script\b[^>]*\bsrc="[^"]*\/docs-search-index\.js"[^>]*>\s*<\/script>\s*/g,
+      "",
+    );
+    requireCondition(
+      [...html.matchAll(/<script\b[^>]*\bsrc="[^"]*\/docs\.js"[^>]*>/g)].length === 1,
+      `${page.sourcePath} must load exactly one documentation runtime before installing its search index.`,
+    );
+    html = html.replace(
+      /(?=<script\b[^>]*\bsrc="[^"]*\/docs\.js")/,
+      `<script defer data-doc-search-index src="${searchIndexScript}"></script>\n`,
+    );
+    const searchScript = path.posix.relative(
+      path.posix.dirname(page.sourcePath),
+      `${documentationDirectory}/assets/docs-search.js`,
+    );
+    html = html.replace(/<script\b[^>]*\bsrc="[^"]*\/docs-search\.js"[^>]*>\s*<\/script>\s*/g, "");
+    html = html.replace(
+      /(<script\b[^>]*\bsrc="[^"]*\/docs\.js"[^>]*>\s*<\/script>)/,
+      `$1\n<script defer src="${searchScript}"></script>`,
+    );
+    html = replaceRegion(
+      html,
+      "search",
+      renderSearch(),
+      /<dialog\b[^>]*\bdata-search-dialog(?:="[^"]*")?[^>]*>[\s\S]*?<\/dialog>/g,
+    );
     // One canonical module URL at every route depth. Controls are progressive enhancement.
     const copyScript = path.posix.relative(
       path.posix.dirname(page.sourcePath),
@@ -326,7 +366,7 @@ export async function syncDocumentationNavigation(
     html = replaceRegion(
       html,
       "navigation",
-      renderSidebar(page, groups, pages, searches),
+      renderSidebar(page, groups, pages),
       /<nav\b[^>]*>\s*(?=<section\b[^>]*\bdata-sidebar-group\b)[\s\S]*?<\/nav>/g,
     );
     html = replaceRegion(
