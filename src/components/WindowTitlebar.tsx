@@ -23,14 +23,34 @@ function subscribeToAppActionsHost(listener: () => void): () => void {
   return () => appActionsHostListeners.delete(listener);
 }
 
-export function WindowTitlebarAppActions({ children }: { children: ReactNode }) {
+export function WindowTitlebarAppActions({
+  children,
+  presentation,
+}: {
+  children: ReactNode;
+  presentation?: "split";
+}) {
   const host = useSyncExternalStore(
     subscribeToAppActionsHost,
     () => appActionsHost,
     () => null,
   );
 
-  return host ? createPortal(children, host) : null;
+  return host
+    ? createPortal(
+        <div
+          className={
+            presentation === "split"
+              ? "window-titlebar__composition window-titlebar__navigation-plane"
+              : "window-titlebar__composition"
+          }
+          data-window-titlebar-presentation={presentation}
+        >
+          {children}
+        </div>,
+        host,
+      )
+    : null;
 }
 
 export function WindowTitlebarAppActionsHost() {

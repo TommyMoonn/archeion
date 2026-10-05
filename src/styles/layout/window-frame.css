@@ -78,7 +78,32 @@
   display: none;
 }
 
+.window-titlebar:has([data-window-titlebar-presentation="split"]) {
+  background: var(--surface-main);
+  border-bottom: 0;
+}
+
+.window-titlebar__composition {
+  height: 100%;
+}
+
+.window-titlebar__navigation-plane {
+  position: relative;
+  background: var(--surface-sidebar);
+}
+
+.window-titlebar__navigation-plane::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: var(--border-width);
+  background: var(--line-strong);
+  pointer-events: none;
+}
+
 .library-titlebar-composition {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -86,8 +111,12 @@
   height: 100%;
   padding: 0 3px 0 21px;
   color: var(--muted);
-  background: var(--surface-sidebar);
   transition: width var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.library-titlebar-composition__drag-region {
+  position: absolute;
+  inset: 0;
 }
 
 .library-titlebar-composition[data-collapse-available="false"] {
@@ -105,6 +134,7 @@
 }
 
 .library-titlebar-composition__wordmark {
+  position: relative;
   min-width: 0;
   overflow: hidden;
   color: var(--text);
@@ -118,6 +148,7 @@
 }
 
 .library-titlebar-composition__actions {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -126,7 +157,7 @@
 
 .library-titlebar-composition[data-sidebar-collapsed="true"]
   .library-titlebar-composition__actions {
-  justify-content: center;
+  justify-self: center;
 }
 
 .library-titlebar-composition__button {
@@ -196,10 +227,6 @@
 .window-titlebar__controls .window-titlebar__close:hover {
   color: #fff;
   background: #c42b3a;
-}
-
-.window-app--main-shell .window-titlebar {
-  border-bottom: 0;
 }
 
 .window-app--archive-manager .window-titlebar {

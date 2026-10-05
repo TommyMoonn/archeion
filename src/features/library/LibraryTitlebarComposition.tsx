@@ -107,14 +107,17 @@ export const LibraryTitlebarComposition = forwardRef<
   useImperativeHandle(ref, () => ({ toggleSidebar }), [toggleSidebar]);
 
   return (
-    <WindowTitlebarAppActions>
+    <WindowTitlebarAppActions presentation={collapseAvailable ? "split" : undefined}>
       <div
         className="library-titlebar-composition"
         data-collapse-available={collapseAvailable}
         data-sidebar-collapsed={isCollapsed}
       >
+        <div className="library-titlebar-composition__drag-region" data-tauri-drag-region />
         {!isCollapsed ? (
-          <span className="library-titlebar-composition__wordmark">Archeion</span>
+          <span className="library-titlebar-composition__wordmark" data-tauri-drag-region>
+            Archeion
+          </span>
         ) : null}
         <div
           aria-label="Library window actions"

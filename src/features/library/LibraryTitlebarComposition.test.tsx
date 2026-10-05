@@ -34,6 +34,7 @@ function renderComposition({
 
   function Harness() {
     const [collapsed, setCollapsed] = useState(false);
+    const [libraryMounted, setLibraryMounted] = useState(true);
     const expandedContentRef = useRef<HTMLDivElement>(null);
 
     return (
@@ -42,17 +43,22 @@ function renderComposition({
           <WindowTitlebarAppActionsHost />
           <div className="window-titlebar__drag-region" data-tauri-drag-region />
         </header>
-        <LibraryTitlebarComposition
-          collapseAvailable={collapseAvailable}
-          collapsed={collapsed}
-          expandedSidebarContentRef={expandedContentRef}
-          onCollapsedChange={setCollapsed}
-          onOpenQuickActions={onOpenQuickActions}
-          onRevealArchive={onRevealArchive}
-          quickActionsAriaKeyShortcuts="Control+Shift+P"
-          revealArchiveDisabledReason={revealArchiveDisabledReason}
-          sidebarToggleAriaKeyShortcuts="Control+B"
-        />
+        <button type="button" onClick={() => setLibraryMounted(!libraryMounted)}>
+          {libraryMounted ? "Enter Reader" : "Return to Library"}
+        </button>
+        {libraryMounted ? (
+          <LibraryTitlebarComposition
+            collapseAvailable={collapseAvailable}
+            collapsed={collapsed}
+            expandedSidebarContentRef={expandedContentRef}
+            onCollapsedChange={setCollapsed}
+            onOpenQuickActions={onOpenQuickActions}
+            onRevealArchive={onRevealArchive}
+            quickActionsAriaKeyShortcuts="Control+Shift+P"
+            revealArchiveDisabledReason={revealArchiveDisabledReason}
+            sidebarToggleAriaKeyShortcuts="Control+B"
+          />
+        ) : null}
         {!collapsed ? (
           <div ref={expandedContentRef}>
             <button type="button">Expanded navigation action</button>
@@ -133,13 +139,24 @@ describe("LibraryTitlebarComposition", () => {
     media = null;
   });
 
-  it("renders the expanded wordmark and actions in sidebar-aligned order outside the drag region", () => {
+  it("renders the expanded wordmark and actions with draggable space outside the controls", () => {
     const { container } = renderComposition();
     const composition = container.querySelector(".library-titlebar-composition");
     const actionGroup = container.querySelector(".library-titlebar-composition__actions");
 
     expect(composition?.getAttribute("data-sidebar-collapsed")).toBe("false");
     expect(composition?.getAttribute("data-collapse-available")).toBe("true");
+    expect(composition?.closest('[data-window-titlebar-presentation="split"]')).not.toBeNull();
+    expect(
+      composition
+        ?.querySelector(".library-titlebar-composition__drag-region")
+        ?.hasAttribute("data-tauri-drag-region"),
+    ).toBe(true);
+    expect(
+      composition
+        ?.querySelector(".library-titlebar-composition__wordmark")
+        ?.hasAttribute("data-tauri-drag-region"),
+    ).toBe(true);
     expect(container.querySelector(".library-titlebar-composition__wordmark")?.textContent).toBe(
       "Archeion",
     );
@@ -169,6 +186,30 @@ describe("LibraryTitlebarComposition", () => {
         action.getAttribute("aria-label"),
       );
     }
+  });
+
+  it("removes split presentation and portal content on Library unmount and restores it on return", () => {
+    const { container } = renderComposition();
+    const split = () => container.querySelector('[data-window-titlebar-presentation="split"]');
+    expect(split()).not.toBeNull();
+
+    act(() =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent === "Enter Reader")
+        ?.click(),
+    );
+    expect(split()).toBeNull();
+    expect(container.querySelector(".library-titlebar-composition")).toBeNull();
+    expect(container.querySelector(".window-titlebar__app-actions")?.childElementCount).toBe(0);
+    expect(container.querySelector(".window-titlebar__drag-region")).not.toBeNull();
+
+    act(() =>
+      Array.from(container.querySelectorAll("button"))
+        .find((button) => button.textContent === "Return to Library")
+        ?.click(),
+    );
+    expect(split()).not.toBeNull();
+    expect(container.querySelectorAll(".library-titlebar-composition")).toHaveLength(1);
   });
 
   it("collapses to only the Expand action without hidden accessible content or tab stops", () => {
@@ -276,6 +317,7 @@ describe("LibraryTitlebarComposition", () => {
     const composition = container.querySelector(".library-titlebar-composition");
 
     expect(composition?.getAttribute("data-collapse-available")).toBe("false");
+    expect(container.querySelector('[data-window-titlebar-presentation="split"]')).toBeNull();
     expect(container.querySelector(".library-titlebar-composition__wordmark")?.textContent).toBe(
       "Archeion",
     );

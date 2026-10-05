@@ -4,7 +4,7 @@
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  background: var(--surface-app-frame);
+  background: var(--surface-main);
   transition: grid-template-columns var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
@@ -20,7 +20,7 @@
   overflow: hidden;
   padding-block: 12px;
   padding-inline: 12px 4px;
-  border-inline-end: 0;
+  border-inline-end: var(--border-width) solid var(--line-strong);
   background: var(--surface-sidebar);
 }
 
@@ -286,10 +286,8 @@
   scrollbar-gutter: stable;
   margin: 0;
   padding: 42px clamp(20px, 2.5vw, 40px) 36px;
-  border: var(--border-width) solid var(--line-subtle);
-  border-inline-end: 0;
-  border-block-end: 0;
-  border-radius: var(--radius-dialog) 0 0 0;
+  border: 0;
+  border-radius: 0;
   background: var(--surface-main);
   box-shadow: none;
 }
@@ -369,7 +367,7 @@ html[data-density="compact"] .nav-item {
     overflow-y: auto;
     padding: 11px 16px;
     border-inline-end: 0;
-    border-bottom: 0;
+    border-bottom: var(--border-width) solid var(--line-strong);
   }
 
   .sidebar__expanded-content {
@@ -409,8 +407,6 @@ html[data-density="compact"] .nav-item {
     height: auto;
     margin: 0;
     padding: 34px 18px 28px;
-    border-inline-end: var(--border-width) solid var(--line-subtle);
-    border-radius: var(--radius-dialog) var(--radius-dialog) 0 0;
   }
 }
 
