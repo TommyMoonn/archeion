@@ -104,7 +104,7 @@ export function LibraryPage() {
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const activeArchive = archive.archive;
   const storage = useLibraryStorage();
-  const { getCommandBinding, openPalette, openSettings } = useQuickActions();
+  const { getCommandBinding, openSettings } = useQuickActions();
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
@@ -936,6 +936,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onFolderSortChange: changeFolderSort,
           onLocationChange: enterLocation,
           onManageArchives: openArchiveManager,
+          onRevealArchive: revealActiveArchive,
+          revealArchiveDisabledReason: activeArchive.rootPath.trim()
+            ? undefined
+            : "The active archive folder is unavailable.",
           onMoveFolder: openMoveFolder,
           onOpenAbout: openAbout,
           onOpenSettings: openSettings,
@@ -946,16 +950,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRevealFolder: revealFolder,
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
           smartViewPreferences,
-        }}
-        titlebarCompositionProps={{
-          onOpenQuickActions: openPalette,
-          onRevealArchive: revealActiveArchive,
-          quickActionsAriaKeyShortcuts: ariaKeyShortcut(
-            getCommandBinding(commandDefinitions.quickActions.id),
-          ),
-          revealArchiveDisabledReason: activeArchive.rootPath.trim()
-            ? undefined
-            : "The active archive folder is unavailable.",
         }}
         toolbarProps={{
           filterOptions,

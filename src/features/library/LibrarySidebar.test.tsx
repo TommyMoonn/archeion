@@ -63,6 +63,7 @@ function sidebarProps(
     onFolderSortChange: vi.fn(),
     onLocationChange,
     onManageArchives: vi.fn(),
+    onRevealArchive: vi.fn(),
     onMoveFolder: vi.fn(),
     onOpenAbout: vi.fn(),
     onOpenSettings: vi.fn(),
@@ -85,6 +86,7 @@ function renderInteractiveSidebar(
   location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
   onLocationChange = vi.fn(),
   smartViewPreferences = enabledSmartViews,
+  overrides: Partial<Parameters<typeof LibrarySidebar>[0]> = {},
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -93,7 +95,10 @@ function renderInteractiveSidebar(
   act(() => {
     root.render(
       <TooltipProvider>
-        <LibrarySidebar {...sidebarProps([], location, onLocationChange, smartViewPreferences)} />
+        <LibrarySidebar
+          {...sidebarProps([], location, onLocationChange, smartViewPreferences)}
+          {...overrides}
+        />
       </TooltipProvider>,
     );
   });
@@ -109,6 +114,7 @@ function renderCollapsibleSidebar(folders: Folder[] = []) {
   function Harness() {
     const [collapsed, setCollapsed] = useState(false);
     const expandedContentRef = useRef<HTMLDivElement>(null);
+    const sidebarNavigationRef = useRef<HTMLElement>(null);
 
     return (
       <>
@@ -121,13 +127,13 @@ function renderCollapsibleSidebar(folders: Folder[] = []) {
           collapsed={collapsed}
           expandedSidebarContentRef={expandedContentRef}
           onCollapsedChange={setCollapsed}
-          onOpenQuickActions={vi.fn()}
-          onRevealArchive={vi.fn()}
+          sidebarNavigationRef={sidebarNavigationRef}
         />
         <LibrarySidebar
           {...sidebarProps(folders)}
           collapsed={collapsed}
           expandedContentRef={expandedContentRef}
+          navigationRef={sidebarNavigationRef}
         />
       </>
     );
@@ -369,6 +375,7 @@ describe("LibrarySidebar", () => {
     expect(markup).toContain("Books");
     expect(markup).toContain("Comics");
     expect(markup).toContain("Manage archives");
+    expect(markup).toContain("Reveal archive folder");
     expect(markup).not.toContain("Manage vaults");
     expect(markup).not.toContain("Open archive");
     expect(markup).not.toContain("Open folder as archive");
@@ -382,6 +389,59 @@ describe("LibrarySidebar", () => {
     expect(markup).toContain("menu-trigger menu-trigger--disclosure");
     expect(markup).not.toContain('role="menu"');
     expect(markup).not.toContain('role="menuitem"');
+  });
+
+  it.each(["Reveal archive folder", "Manage archives"])(
+    "closes and restores switcher focus before %s runs",
+    (label) => {
+      const invoke = vi.fn(() => {
+        expect(details.open).toBe(false);
+        expect(document.activeElement).toBe(summary);
+      });
+      const session = renderInteractiveSidebar({ type: "library" }, vi.fn(), enabledSmartViews, {
+        onRevealArchive: invoke,
+        onManageArchives: invoke,
+      });
+      activeRoot = session.root;
+      const details = session.container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
+      const summary = details.querySelector("summary")!;
+      const action = Array.from(details.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent?.trim() === label,
+      )!;
+      act(() => {
+        details.open = true;
+        action.focus();
+        action.click();
+      });
+      expect(invoke).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps unavailable archive reveal focusable, explained, and inert", () => {
+    const onRevealArchive = vi.fn();
+    const reason = "The active archive folder is unavailable.";
+    const session = renderInteractiveSidebar({ type: "library" }, vi.fn(), enabledSmartViews, {
+      onRevealArchive,
+      revealArchiveDisabledReason: reason,
+    });
+    activeRoot = session.root;
+    const details = session.container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
+    const action = Array.from(details.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.includes("Reveal archive folder"),
+    )!;
+    expect(action.getAttribute("aria-disabled")).toBe("true");
+    expect(action.disabled).toBe(false);
+    expect(document.getElementById(action.getAttribute("aria-describedby")!)?.textContent).toBe(
+      reason,
+    );
+    act(() => {
+      details.open = true;
+      action.focus();
+      action.click();
+    });
+    expect(document.activeElement).toBe(action);
+    expect(details.open).toBe(true);
+    expect(onRevealArchive).not.toHaveBeenCalled();
   });
 
   it("keeps the folder heading outside the scrollable folder list", () => {

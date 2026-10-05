@@ -98,7 +98,7 @@
   inset-block: 0;
   inset-inline-end: 0;
   width: var(--border-width);
-  background: var(--line-strong);
+  background: var(--line-subtle);
   pointer-events: none;
 }
 
@@ -109,7 +109,11 @@
   align-items: center;
   width: var(--sidebar-width);
   height: 100%;
-  padding: 0 3px 0 21px;
+  padding-block: 4px 0;
+  padding-inline: 21px
+    calc(
+      var(--library-sidebar-inset-end) + var(--library-sidebar-nav-inset-end) + var(--border-width)
+    );
   color: var(--muted);
   transition: width var(--motion-duration-standard) var(--motion-ease-standard);
 }
@@ -120,17 +124,17 @@
 }
 
 .library-titlebar-composition[data-collapse-available="false"] {
-  grid-template-columns: auto auto;
+  grid-template-columns: auto;
   width: auto;
-  column-gap: 8px;
-  padding-left: 12px;
+  padding-inline: var(--library-sidebar-inset-start);
   transition: none;
 }
 
 .library-titlebar-composition[data-sidebar-collapsed="true"] {
   grid-template-columns: minmax(0, 1fr);
   width: var(--sidebar-collapsed-width);
-  padding-inline: 0;
+  padding-inline: var(--library-sidebar-collapsed-inset)
+    calc(var(--library-sidebar-collapsed-inset) + var(--border-width));
 }
 
 .library-titlebar-composition__wordmark {
@@ -168,10 +172,6 @@
 .library-titlebar-composition__button .icon-slot {
   --icon-slot-size: 18px;
   --icon-glyph-size: 18px;
-}
-
-.library-titlebar-composition__quick-action .icon-slot {
-  --icon-glyph-size: 16px;
 }
 
 .library-titlebar-composition__sidebar-icon {

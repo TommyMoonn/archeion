@@ -48,6 +48,7 @@ function LibraryFixture() {
   const { collapseAvailable, collapsed, setCollapsed } = useLibrarySidebarState();
   const [location, setLocation] = useState<LibraryLocation>({ type: "library" });
   const expandedContentRef = useRef<HTMLDivElement>(null);
+  const sidebarNavigationRef = useRef<HTMLElement>(null);
   const [readerOpen, setReaderOpen] = useState(false);
   const shellColors = new URLSearchParams(window.location.search).get("shellColors");
   const style =
@@ -57,6 +58,7 @@ function LibraryFixture() {
           "--surface-sidebar": "#202020",
           "--surface-main": "#202020",
           "--line-strong": "#aaaaaa",
+          "--line-subtle": "#555555",
         }
       : shellColors === "distinct"
         ? {
@@ -64,6 +66,7 @@ function LibraryFixture() {
             "--surface-sidebar": "#123c38",
             "--surface-main": "#22284e",
             "--line-strong": "#aaaaaa",
+            "--line-subtle": "#555555",
           }
         : undefined;
 
@@ -96,15 +99,15 @@ function LibraryFixture() {
                     collapseAvailable={collapseAvailable}
                     collapsed={collapsed}
                     expandedSidebarContentRef={expandedContentRef}
+                    sidebarNavigationRef={sidebarNavigationRef}
                     onCollapsedChange={setCollapsed}
-                    onOpenQuickActions={() => undefined}
-                    onRevealArchive={() => undefined}
                   />
                   <LibrarySidebar
                     activeArchive={archive}
                     archives={[archive]}
                     collapsed={collapsed}
                     expandedContentRef={expandedContentRef}
+                    navigationRef={sidebarNavigationRef}
                     folderEntries={[]}
                     folderSort="name"
                     location={location}
@@ -114,6 +117,7 @@ function LibraryFixture() {
                     onFolderSortChange={() => undefined}
                     onLocationChange={setLocation}
                     onManageArchives={() => undefined}
+                    onRevealArchive={() => undefined}
                     onMoveFolder={() => undefined}
                     onOpenAbout={() => undefined}
                     onOpenSettings={() => undefined}
