@@ -236,7 +236,7 @@ html[data-motion="on"]
 .archive-action-row__title {
   color: var(--text-strong);
   font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   overflow-wrap: anywhere;
 }
 
@@ -396,7 +396,7 @@ html[data-motion="on"]
   color: var(--accent);
   background: var(--accent-soft);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   letter-spacing: 0.01em;
 }
 
@@ -436,7 +436,7 @@ html[data-motion="on"]
   inset-inline-end: 10px;
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   line-height: 1;
   pointer-events: none;
   transform: translateY(-50%);
@@ -578,7 +578,7 @@ html[data-motion="on"]
 .archive-create-form__row-label {
   color: var(--text-strong);
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .archive-create-form__label-block span,
@@ -595,7 +595,7 @@ html[data-motion="on"]
   margin-inline-start: 4px;
   color: var(--error-strong);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   letter-spacing: normal;
 }
 

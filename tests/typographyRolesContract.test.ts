@@ -34,6 +34,14 @@ const reader = read("src/styles/features/reader.css");
 const readerTheme = read("src/features/reader/readerTheme.ts");
 
 describe("typography role ownership", () => {
+  it("separates routine medium emphasis from semibold local hierarchy", () => {
+    expect(customProperty(tokens, "--font-weight-medium")).toBe("500");
+    expect(customProperty(tokens, "--type-control-label-weight")).toBe("var(--font-weight-medium)");
+    expect(customProperty(tokens, "--type-title-small-weight")).toBe("var(--font-weight-semibold)");
+    expect(customProperty(tokens, "--type-heading-weight")).toBe("var(--font-weight-semibold)");
+    expect(customProperty(tokens, "--type-body-weight")).toBe("var(--font-weight-regular)");
+  });
+
   it("exposes canonical application roles through scalable tokens", () => {
     const roles = [
       "caption",
@@ -78,6 +86,19 @@ describe("typography role ownership", () => {
     expect(
       fontSizes.every(
         (value) => value?.startsWith("var(--type-") || value === "var(--icon-glyph-size)",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps numeric font weights at the font-face boundary, not on feature selectors", () => {
+    const featureCss = applicationCss.replace(/@font-face\s*{[^}]*}/g, "");
+    const weights = [...featureCss.matchAll(/^\s*font-weight:\s*([^;]+);/gm)].map((match) =>
+      match[1]?.trim(),
+    );
+    expect(weights.length).toBeGreaterThan(0);
+    expect(
+      weights.every(
+        (value) => value?.startsWith("var(--type-") || value?.startsWith("var(--font-weight-"),
       ),
     ).toBe(true);
   });

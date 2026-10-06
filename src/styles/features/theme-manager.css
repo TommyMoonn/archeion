@@ -197,7 +197,7 @@
   overflow: hidden;
   color: var(--text-strong);
   font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;

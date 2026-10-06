@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -65,7 +66,8 @@ describe("visual foundations", () => {
     expect(fontsSource).not.toMatch(/local\s*\(/i);
     expect(fontsSource).not.toMatch(/https?:\/\//i);
     expect(fontsSource).not.toMatch(/font-style:\s*italic/);
-    expect(fontsSource).not.toMatch(/font-weight:\s*(?:500|550|650|800)/);
+    expect(fontsSource).not.toMatch(/font-weight:\s*(?:550|650|800)/);
+    expect(interManifest.assets.map((asset) => asset.weight)).toEqual([400, 500, 600, 700]);
 
     const declarations = blocks.map((block) => ({
       family: block.match(/font-family:\s*([^;]+);/)?.[1]?.trim(),
@@ -80,6 +82,16 @@ describe("visual foundations", () => {
 
       expect(asset.fileName).toMatch(/\.woff2$/);
       expect(asset.sha256).toMatch(/^[a-f0-9]{64}$/);
+      const sourceAsset = fs.readFileSync(
+        path.join(
+          projectRoot,
+          "node_modules",
+          interManifest.packageName,
+          interManifest.sourceDirectory,
+          asset.fileName,
+        ),
+      );
+      expect(createHash("sha256").update(sourceAsset).digest("hex")).toBe(asset.sha256);
       expect(block).toBeDefined();
       expect(block).toContain('font-family: "Inter";');
       expect(block).toContain("font-style: normal;");
@@ -95,6 +107,19 @@ describe("visual foundations", () => {
     expect(indexSource.indexOf('@import "./fonts.css";')).toBeLessThan(
       indexSource.indexOf('@import "./tokens.css";'),
     );
+  });
+
+  it("keeps all four UI faces on the pinned, licensed Inter provenance", () => {
+    const manifest = readJson<{ devDependencies: Record<string, string> }>("package.json");
+    const installed = readJson<{ version: string; license: string }>(
+      "node_modules/inter-ui/package.json",
+    );
+    expect(manifest.devDependencies[interManifest.packageName]).toBe("4.1.1");
+    expect(installed.version).toBe("4.1.1");
+    expect(installed.license).toBe("OFL-1.1");
+    expect(
+      fs.readFileSync(path.join(projectRoot, "public/licenses/fonts/Inter-OFL-1.1.txt"), "utf8"),
+    ).toContain("SIL OPEN FONT LICENSE Version 1.1");
   });
 
   it("keeps required custom-property references resolved or fallback-backed", () => {

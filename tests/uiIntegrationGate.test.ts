@@ -58,7 +58,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
 
     expect(unresolvedWithoutFallback).toEqual([]);
     expect(cssSource).not.toMatch(/font-size:\s*10px/);
-    expect(cssSource).not.toMatch(/font-weight:\s*(?:500|550|650|800)\b/);
+    expect(cssSource).not.toMatch(/font-weight:\s*(?:550|650|800)\b/);
     expect(cssSource).not.toMatch(/\b\d+\.\d+px\b/);
   });
 
@@ -72,7 +72,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     const disclosureTrigger = cssBlock(".menu-trigger--disclosure", menuSource);
 
     expect(disclosureTrigger).toContain("font-size: var(--type-meta)");
-    expect(disclosureTrigger).toContain("font-weight: var(--font-weight-regular)");
+    expect(disclosureTrigger).toContain("font-weight: var(--type-control-label-weight)");
     expect(appShellSource).not.toContain(".archive-switcher__menu button");
     expect(archiveSource).not.toMatch(/\.archive-row-menu summary\s*{[^}]*\b(?:width|height):/s);
     expect(folderSource).not.toMatch(/\.folder-menu summary\s*{[^}]*\b(?:width|height):/s);

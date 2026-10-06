@@ -270,7 +270,7 @@ export function LibraryFilterTokens({
             label={`Remove ${token.label} filter`}
             onClick={() => onChange(token.remove(filters))}
           >
-            <X aria-hidden="true" strokeWidth={2.25} />
+            <X aria-hidden="true" />
           </IconButton>
         </span>
       ))}

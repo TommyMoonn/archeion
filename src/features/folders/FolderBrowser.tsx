@@ -235,7 +235,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 label="Clear folder search"
                 onClick={() => setQuery("")}
               >
-                <X aria-hidden="true" strokeWidth={2.25} />
+                <X aria-hidden="true" />
               </IconButton>
             ) : null}
           </div>
@@ -244,7 +244,7 @@ export const FolderBrowser = memo(function FolderBrowser({
               <span aria-hidden="true" className="library-header__action-divider" />
               <Button
                 className="folder-browser__add-button"
-                icon={<FolderPlus aria-hidden="true" strokeWidth={2.25} />}
+                icon={<FolderPlus aria-hidden="true" />}
                 onClick={onCreate}
                 size="standard"
               >
@@ -299,10 +299,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                   Clear search
                 </Button>
               ) : canManageFolders && onCreate ? (
-                <Button
-                  icon={<FolderPlus aria-hidden="true" strokeWidth={2.25} />}
-                  onClick={onCreate}
-                >
+                <Button icon={<FolderPlus aria-hidden="true" />} onClick={onCreate}>
                   Add folder
                 </Button>
               ) : undefined

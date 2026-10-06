@@ -239,7 +239,7 @@ export function AppSelect<TValue extends string>({
           <>
             <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
             <span aria-hidden="true" className="icon-slot icon-slot--compact">
-              <ChevronDown strokeWidth={2.25} />
+              <ChevronDown />
             </span>
           </>
         ) : null}

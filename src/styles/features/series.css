@@ -374,7 +374,7 @@
   min-width: 94px;
   color: var(--text);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .series-volume__action > svg {

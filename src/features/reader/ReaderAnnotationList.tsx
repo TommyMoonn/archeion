@@ -275,7 +275,7 @@ export const ReaderAnnotationList = forwardRef<
                               type="button"
                             >
                               <span aria-hidden="true" className="icon-slot">
-                                <Ellipsis strokeWidth={2.25} />
+                                <Ellipsis />
                               </span>
                             </button>
                           </>

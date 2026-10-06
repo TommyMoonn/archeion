@@ -959,7 +959,7 @@ html[data-motion="on"] .details-drawer[open] {
   margin: 0;
   color: var(--text);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   background: color-mix(in srgb, var(--accent) 9%, transparent);
@@ -1170,7 +1170,7 @@ html[data-motion="on"] .details-drawer[open] {
 .metadata-reference dt {
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .metadata-reference dd {
@@ -1356,7 +1356,7 @@ html[data-motion="on"] .details-drawer[open] {
 .bulk-metadata-field__toggle > span {
   color: var(--text-strong);
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .bulk-metadata-field__toggle small {
@@ -1599,7 +1599,7 @@ html[data-motion="on"] .details-drawer[open] {
 .metadata-writeback__changes-header span {
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .metadata-writeback__changes p {
@@ -1645,7 +1645,7 @@ html[data-motion="on"] .details-drawer[open] {
 .metadata-writeback__field span {
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .metadata-writeback__field input,
@@ -1751,7 +1751,7 @@ html[data-motion="on"] .details-drawer[open] {
   color: var(--text);
   background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1858,7 +1858,7 @@ html[data-motion="on"] .details-drawer[open] {
 .cover-writeback__framing > span {
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   letter-spacing: 0.02em;
 }
 
@@ -2293,7 +2293,7 @@ html[data-motion="on"] .library-feedback__token {
   color: var(--accent-strong);
   background: color-mix(in srgb, var(--accent-soft) 60%, transparent);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .duplicate-group__header h2 {
@@ -2708,7 +2708,7 @@ html[data-motion="on"] .library-feedback__token {
   padding-inline-start: 12px;
   border-inline-start: 1px solid var(--line-strong);
   color: var(--text-strong);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .epub-issues-book__disclosure {
@@ -2725,7 +2725,7 @@ html[data-motion="on"] .library-feedback__token {
   color: var(--text);
   background: transparent;
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   cursor: pointer;
   list-style: none;
 }
@@ -2919,7 +2919,7 @@ html[data-motion="on"] .library-feedback__token {
   color: var(--surface-main);
   background: var(--accent);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .library-filter__popover {
@@ -2970,7 +2970,7 @@ html[data-motion="on"] .library-feedback__token {
   width: 100%;
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

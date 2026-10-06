@@ -64,7 +64,7 @@
   margin-top: 25px;
   color: var(--accent-strong);
   font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   text-decoration: none;
 }
 

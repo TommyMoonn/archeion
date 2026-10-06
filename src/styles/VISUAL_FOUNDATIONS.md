@@ -4,9 +4,18 @@ This note records the shared visual contract introduced in Phase 0.4.0.1. Featur
 
 ## Typography
 
-Inter is Archeion's bundled default application UI font. The application does not depend on a system Inter installation. Segoe UI and system fonts remain defensive fallbacks, and the supported UI weights are regular (`400`), semibold (`600`), and bold (`700`).
+Inter is Archeion's bundled default application UI font. The application does not depend on a system Inter installation. Segoe UI and system fonts remain defensive fallbacks. The supported UI weights are regular (`400`), medium (`500`), semibold (`600`), and bold (`700`).
 
-The canonical `@font-face` declarations live in `src/styles/fonts.css`. Their three static WOFF2 sources come from the exact pinned `inter-ui@4.1.1` development package and are verified against the approved Inter v4.1 hashes in `scripts/inter-font-manifest.json`. Vite emits only those selected faces into the application bundle. The assets are owned by the Inter Project Authors, and their notice is stored at `public/licenses/fonts/Inter-OFL-1.1.txt`.
+The canonical `@font-face` declarations live in `src/styles/fonts.css`. Their four static WOFF2 sources come from the exact pinned `inter-ui@4.1.1` development package and are verified against the approved Inter v4.1 hashes in `scripts/inter-font-manifest.json`. Vite emits only those selected faces into the application bundle. The assets are owned by the Inter Project Authors, and their notice is stored at `public/licenses/fonts/Inter-OFL-1.1.txt`.
+
+Weight communicates role, not a smaller interface:
+
+- Regular is body copy, supporting explanations, and ordinary metadata.
+- Medium is routine interactive emphasis: navigation, button/select/menu labels, form labels, compact badges, and keyboard hints. These consume `--type-control-label-weight`, which resolves to `--font-weight-medium`.
+- Semibold is stronger local hierarchy, section headings, book titles, and intentionally strong states. It must remain visibly stronger than routine controls.
+- Bold is rare emphasis, such as the status-page diagnostic code, not a default for small section labels.
+
+Keep existing type sizes, line heights, sidebar width/rows/icon slots, and the editorial `YOUR COLLECTION` / `Library` display treatment. Do not mechanically lower every semibold declaration or create feature-specific weight aliases.
 
 The application type scale is deliberately compact but readable. Sizes use `rem` so browser and system text scaling can enlarge the interface without changing its default 16px-root appearance:
 
@@ -22,7 +31,7 @@ Every canonical text role owns a size, line height, and default weight. Display 
 
 These values apply to application surfaces such as the shell, library, archive and settings workflows, dialogs, menus, forms, empty states, and feedback. Normal and compact density may change spacing and control geometry, but they share the same type roles. Application-root font smoothing is intentionally not injected into EPUB publication documents.
 
-Reader typography has separate ownership. `.reader-page` and `.reader-status-page` retain the established reader-control scale through scoped overrides, while reader-selected typefaces, sizes, and bundled reading fonts continue to apply only inside EPUB publication content. Application typography changes must not alter reader chrome or publication layout.
+Reader typography has separate ownership. `.reader-page` and `.reader-status-page` retain the established reader-control scale through scoped overrides, while reader-selected typefaces, sizes, and bundled reading fonts continue to apply only inside EPUB publication content. Shared UI control weights and ordinary Lucide strokes may follow application roles; application typography must not leak into publication fonts or layout.
 
 Use the named text roles from `tokens.css`:
 
@@ -43,7 +52,9 @@ Interactive labels, navigation, important status text, and primary metadata must
 
 Use `.icon-slot` around SVG glyphs. The slot owns layout stability while the glyph role owns visible size. Compact, standard, and prominent roles are available. Do not restore fractional borders or rotated CSS shapes for static icons when an SVG exists.
 
-Application interface icons come from `lucide-react`. Import named icons directly, let them inherit `currentColor`, and use the default outline treatment unless a filled glyph communicates a persistent state such as favorite, bookmark, or selected folder. Use `strokeWidth={2.25}` only for actions that require stronger emphasis and `strokeWidth={1.5}` for intentionally light decorative artwork. Do not reintroduce a second icon library or Lucide dynamic icon loading into application surfaces.
+Application interface icons come from `lucide-react`. Import named icons directly, let them inherit `currentColor`, and use Lucide's default outline stroke (`2`) for ordinary actions. Do not override ordinary close/dismiss, ellipsis, chevron, external-link, history, or page-turn icons merely for convenience. Filled glyphs still communicate persistent state such as favorite, bookmark, or selected folder.
+
+The deliberate `strokeWidth={2.25}` exceptions are `Check` selection markers, the selection bar's `SquareCheckBig` status mark, and `Plus` on the Library's primary Add EPUB action. They reinforce selection or primary-action hierarchy rather than routine utility chrome. Keep `strokeWidth={1.5}` for intentionally light decorative/empty-state artwork. The glyph and slot sizes remain unchanged. Do not reintroduce a second icon library or Lucide dynamic icon loading into application surfaces.
 
 Recurring controls should consume the compact, standard, or prominent control-height tokens. Use the shared border, radius, danger, error, and elevation tokens before introducing a feature-specific value.
 

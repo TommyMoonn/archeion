@@ -58,7 +58,7 @@
 .about-window__version {
   color: var(--muted);
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .about-window__links {
@@ -103,7 +103,7 @@
 .about-window__link-copy strong {
   color: var(--text);
   font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .about-window__link-copy small {

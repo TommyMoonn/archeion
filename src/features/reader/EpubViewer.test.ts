@@ -509,6 +509,7 @@ describe("readerThemeForSettings", () => {
 
   it("keeps app chrome typography independent when the reader typeface changes", () => {
     const previousUiStack = document.documentElement.style.getPropertyValue("--font-ui");
+    const previousMedium = document.documentElement.style.getPropertyValue("--font-weight-medium");
     const previousBodyFont = document.body.style.fontFamily;
     const chapter = document.implementation.createHTMLDocument("Chapter");
     const literataTheme = createReaderContentTheme(
@@ -525,6 +526,7 @@ describe("readerThemeForSettings", () => {
       '"Inter", "Segoe UI", system-ui, sans-serif',
     );
     document.body.style.fontFamily = "var(--font-ui)";
+    document.documentElement.style.setProperty("--font-weight-medium", "500");
     const appChromeFont = document.body.style.fontFamily;
 
     try {
@@ -539,8 +541,14 @@ describe("readerThemeForSettings", () => {
       );
       expect(document.body.style.fontFamily).toBe(appChromeFont);
       expect(document.documentElement.style.getPropertyValue("--font-ui")).toContain('"Inter"');
+      expect(document.documentElement.style.getPropertyValue("--font-weight-medium")).toBe("500");
+      expect(chapter.documentElement.style.getPropertyValue("--font-weight-medium")).toBe("");
+      expect(chapter.getElementById("archeion-reader-font-faces")?.textContent).not.toContain(
+        "Inter",
+      );
     } finally {
       document.documentElement.style.setProperty("--font-ui", previousUiStack);
+      document.documentElement.style.setProperty("--font-weight-medium", previousMedium);
       document.body.style.fontFamily = previousBodyFont;
     }
   });

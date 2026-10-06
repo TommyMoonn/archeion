@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as lucideIcons from "lucide-react";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -77,7 +79,66 @@ function assertValidLucideExports(iconNames: Iterable<string>) {
   }
 }
 
+function heavierIconOverrides(filePath: string, source: string): string[] {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const icons: string[] = [];
+  function visit(node: ts.Node) {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      for (const attribute of node.attributes.properties) {
+        if (
+          ts.isJsxAttribute(attribute) &&
+          attribute.name.getText(sourceFile) === "strokeWidth" &&
+          attribute.initializer &&
+          ts.isJsxExpression(attribute.initializer) &&
+          attribute.initializer.expression?.getText(sourceFile) === "2.25"
+        ) {
+          icons.push(node.tagName.getText(sourceFile));
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return icons;
+}
+
 describe("Lucide icon integration", () => {
+  it("supports default, emphasized, decorative, and persistent filled-state glyphs", () => {
+    expect(renderToStaticMarkup(createElement(lucideIcons.X))).toContain('stroke-width="2"');
+    expect(renderToStaticMarkup(createElement(lucideIcons.Check, { strokeWidth: 2.25 }))).toContain(
+      'stroke-width="2.25"',
+    );
+    expect(
+      renderToStaticMarkup(createElement(lucideIcons.BookOpenText, { strokeWidth: 1.5 })),
+    ).toContain('stroke-width="1.5"');
+    expect(
+      renderToStaticMarkup(createElement(lucideIcons.Heart, { fill: "currentColor" })),
+    ).toContain('fill="currentColor"');
+  });
+
+  it("reserves heavier strokes for selection marks and the primary add action", () => {
+    // These are the documented stronger-emphasis roles, not ordinary utilities.
+    const emphasizedIcons = new Set(["Check", "SquareCheckBig", "Plus"]);
+    const foundExceptions = new Set<string>();
+    const ordinaryOverrides: string[] = [];
+    for (const filePath of collectSourceFiles(sourceRoot)) {
+      const source = fs.readFileSync(filePath, "utf8");
+      for (const icon of heavierIconOverrides(filePath, source)) {
+        foundExceptions.add(icon);
+        if (!emphasizedIcons.has(icon))
+          ordinaryOverrides.push(`${path.relative(sourceRoot, filePath)}: ${icon}`);
+      }
+    }
+    expect(ordinaryOverrides).toEqual([]);
+    expect([...foundExceptions].sort()).toEqual([...emphasizedIcons].sort());
+  }, 15_000);
+
   it("keeps Lucide as the single application icon provider", () => {
     const packageManifest = JSON.parse(
       fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"),
