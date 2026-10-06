@@ -8,6 +8,14 @@
 
 @font-face {
   font-family: "Inter";
+  src: url("../../node_modules/inter-ui/web/Inter-Medium.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
   src: url("../../node_modules/inter-ui/web/Inter-SemiBold.woff2") format("woff2");
   font-style: normal;
   font-weight: 600;

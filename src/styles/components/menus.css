@@ -29,7 +29,7 @@
   gap: 7px;
   padding: 0 8px;
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-regular);
+  font-weight: var(--type-control-label-weight);
 }
 
 .menu-trigger:hover {
@@ -85,7 +85,7 @@ details[open] > .menu-trigger {
   color: var(--text);
   background: transparent;
   font-size: var(--type-meta);
-  font-weight: var(--type-meta-weight);
+  font-weight: var(--type-control-label-weight);
   line-height: var(--type-meta-line-height);
   text-align: start;
   cursor: pointer;

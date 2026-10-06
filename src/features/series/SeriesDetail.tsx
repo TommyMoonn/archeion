@@ -66,7 +66,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               data-reader-book-id={continueBook.id}
               disabled={Boolean(continueBook.isFileMissing)}
               disabledReason={continueBook.isFileMissing ? "The EPUB file is missing." : undefined}
-              icon={<Play aria-hidden="true" strokeWidth={2.25} />}
+              icon={<Play aria-hidden="true" />}
               onClick={() => onRead(continueBook)}
               size="standard"
             >
@@ -154,7 +154,7 @@ function SeriesVolumeRow({
         </span>
         <span className="series-volume__action">
           <span>{bookActionLabel(book)}</span>
-          <ChevronRight aria-hidden="true" size={16} strokeWidth={2.25} />
+          <ChevronRight aria-hidden="true" size={16} />
         </span>
       </button>
       {book.isFileMissing ? (

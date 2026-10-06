@@ -80,7 +80,7 @@ export function AboutSurface() {
               <strong>{label}</strong>
               <small>{location}</small>
             </span>
-            <ExternalLink aria-hidden="true" size={18} strokeWidth={2.25} />
+            <ExternalLink aria-hidden="true" size={18} />
           </a>
         ))}
       </nav>

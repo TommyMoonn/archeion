@@ -133,7 +133,7 @@ export function ReaderToolbar({
             tooltip={previousChapterDisabled ? "You are at the first chapter" : "Previous chapter"}
             tooltipPlacement="bottom"
           >
-            <ChevronsLeft aria-hidden="true" strokeWidth={2.25} />
+            <ChevronsLeft aria-hidden="true" />
           </IconButton>
         ) : (
           <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
@@ -156,7 +156,7 @@ export function ReaderToolbar({
             tooltip={nextChapterDisabled ? "You are at the final chapter" : "Next chapter"}
             tooltipPlacement="bottom"
           >
-            <ChevronsRight aria-hidden="true" strokeWidth={2.25} />
+            <ChevronsRight aria-hidden="true" />
           </IconButton>
         ) : (
           <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
@@ -173,7 +173,7 @@ export function ReaderToolbar({
           tooltip={historyBackDisabled ? "No earlier Reader location" : "Back in reading history"}
           tooltipPlacement="bottom"
         >
-          <Undo2 aria-hidden="true" strokeWidth={2.25} />
+          <Undo2 aria-hidden="true" />
         </IconButton>
         <IconButton
           aria-keyshortcuts={historyForwardAriaKeyShortcuts}
@@ -187,7 +187,7 @@ export function ReaderToolbar({
           }
           tooltipPlacement="bottom"
         >
-          <Redo2 aria-hidden="true" strokeWidth={2.25} />
+          <Redo2 aria-hidden="true" />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton

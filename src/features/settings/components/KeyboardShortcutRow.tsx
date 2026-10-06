@@ -37,7 +37,7 @@ export function KeyboardShortcutRow({
               onClick={onClear}
               size="compact"
             >
-              <X aria-hidden="true" strokeWidth={2.25} />
+              <X aria-hidden="true" />
             </IconButton>
           ) : null}
         </div>

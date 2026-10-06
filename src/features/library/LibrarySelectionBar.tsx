@@ -130,7 +130,7 @@ export function LibrarySelectionBar({
                 aria-label="More bulk actions"
               >
                 <span aria-hidden="true" className="icon-slot">
-                  <Ellipsis strokeWidth={2.25} />
+                  <Ellipsis />
                 </span>
               </summary>
             </Tooltip>

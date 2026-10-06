@@ -91,7 +91,7 @@ const SeriesOverviewCard = memo(function SeriesOverviewCard({
           <span>{volumeCountLabel(entry.books.length)}</span>
           <span className="series-card__status">{seriesProgressLabel(entry)}</span>
         </span>
-        <ChevronRight aria-hidden="true" size={17} strokeWidth={2.25} />
+        <ChevronRight aria-hidden="true" size={17} />
       </button>
     </article>
   );
@@ -193,7 +193,7 @@ export const SeriesOverview = memo(function SeriesOverview({
                 label="Clear series search"
                 onClick={onClearSearch}
               >
-                <X aria-hidden="true" strokeWidth={2.25} />
+                <X aria-hidden="true" />
               </IconButton>
             ) : null}
           </div>

@@ -108,7 +108,7 @@ export function LibraryToolbar({
               label="Clear search"
               onClick={onClearSearch}
             >
-              <X aria-hidden="true" strokeWidth={2.25} />
+              <X aria-hidden="true" />
             </IconButton>
           ) : null}
         </div>

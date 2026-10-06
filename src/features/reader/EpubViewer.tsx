@@ -697,7 +697,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
             aria-hidden="true"
             className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
           >
-            <ChevronLeft strokeWidth={2.25} />
+            <ChevronLeft />
           </span>
         </button>
       ) : null}
@@ -713,7 +713,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
             aria-hidden="true"
             className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
           >
-            <ChevronRight strokeWidth={2.25} />
+            <ChevronRight />
           </span>
         </button>
       ) : null}

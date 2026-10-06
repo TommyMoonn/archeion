@@ -75,7 +75,7 @@
 .form-field > span {
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   line-height: var(--type-caption-line-height);
   letter-spacing: 0.04em;
 }
@@ -131,6 +131,6 @@
   margin-inline-start: 4px;
   color: var(--error-strong);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   letter-spacing: normal;
 }

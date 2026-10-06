@@ -68,7 +68,7 @@ function LibraryFeedbackItem({ onDismiss, token }: LibraryFeedbackItemProps) {
         label="Dismiss feedback"
         onClick={() => onDismiss(token.id)}
       >
-        <X aria-hidden="true" strokeWidth={2.25} />
+        <X aria-hidden="true" />
       </IconButton>
     </section>
   );

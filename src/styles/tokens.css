@@ -4,7 +4,7 @@
   /*
    * Visual foundation contract
    *
-   * UI type uses bundled Inter first with defensive system fallbacks and only 400, 600, and 700.
+   * UI type uses bundled Inter first with defensive system fallbacks and 400, 500, 600, and 700.
    * Text roles progress from caption through display without selector-specific tuning.
    * Icon roles separate the visible glyph from its stable layout slot.
    * Control, radius, border, and elevation scales are shared by recurring surfaces.
@@ -13,6 +13,7 @@
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
   --font-weight-regular: 400;
+  --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
@@ -62,7 +63,7 @@
   --type-application-title-letter-spacing: 0.01em;
   --type-control-label: var(--type-body);
   --type-control-label-line-height: 1.25;
-  --type-control-label-weight: var(--font-weight-semibold);
+  --type-control-label-weight: var(--font-weight-medium);
   --type-body-supporting: var(--type-meta);
   --type-body-supporting-line-height: 1.5;
   --type-body-supporting-weight: var(--font-weight-regular);

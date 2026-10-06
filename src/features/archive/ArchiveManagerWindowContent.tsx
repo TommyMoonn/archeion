@@ -90,7 +90,7 @@ function ArchiveRowActions({
           tooltip={`Actions for ${archive.displayName}`}
         >
           <span aria-hidden="true" className="icon-slot">
-            <Ellipsis strokeWidth={2.25} />
+            <Ellipsis />
           </span>
         </ContextMenuTrigger>
       </span>

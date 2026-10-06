@@ -176,7 +176,7 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
   margin: 0;
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--type-title-small-weight);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -252,8 +252,8 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
   line-height: var(--type-control-label-line-height);
 }
 
-.settings-row span,
-.settings-row small {
+.settings-row__meta > span,
+.settings-row__meta > small {
   color: var(--muted);
   font-size: var(--type-body-supporting);
   font-weight: var(--type-body-supporting-weight);
@@ -511,7 +511,7 @@ html[data-motion="on"] .settings-status {
   border-radius: var(--radius-pill);
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .dictionary-settings-card__facts {
@@ -824,7 +824,7 @@ html[data-motion="on"] .settings-status {
   margin: 0;
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--type-title-small-weight);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -891,7 +891,7 @@ html[data-motion="on"] .settings-status {
   color: inherit;
   font-family: var(--font-mono);
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

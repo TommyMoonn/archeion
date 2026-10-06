@@ -14,7 +14,7 @@
   margin-bottom: 6px;
   color: var(--muted);
   font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-control-label-weight);
 }
 
 .app-select__trigger {
@@ -30,6 +30,7 @@
   color: var(--text);
   background: var(--surface);
   font-size: var(--type-meta);
+  font-weight: var(--type-control-label-weight);
   text-align: start;
   cursor: pointer;
   transition:
@@ -120,6 +121,7 @@
   color: var(--muted);
   background: transparent;
   font-size: var(--type-meta);
+  font-weight: var(--type-control-label-weight);
   text-align: start;
   cursor: pointer;
 }

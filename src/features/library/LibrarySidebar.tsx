@@ -273,7 +273,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                   className="sidebar__smart-views-chevron"
                   data-expanded={smartViewsExpanded ? "true" : "false"}
                   size={13}
-                  strokeWidth={2.25}
                 />
               </button>
               <div
@@ -364,7 +363,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               className="menu-trigger menu-trigger--disclosure"
             >
               <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                <ChevronsUpDown strokeWidth={2.25} />
+                <ChevronsUpDown />
               </span>
               <span className="archive-switcher__trigger-label">{activeArchive.displayName}</span>
             </summary>
@@ -415,7 +414,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           tooltip="About Archeion"
           tooltipPlacement="top"
         >
-          <CircleQuestionMark aria-hidden="true" strokeWidth={2.25} />
+          <CircleQuestionMark aria-hidden="true" />
         </IconButton>
         <IconButton
           aria-keyshortcuts={settingsAriaKeyShortcuts}
