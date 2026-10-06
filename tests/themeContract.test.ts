@@ -26,6 +26,7 @@ import {
   type AppThemeResolvedToken,
 } from "../src/themes/themeTokenRegistry";
 import { validateThemeManifest } from "../src/themes/validateThemeManifest";
+import { shellStressThemes } from "./fixtures/themes/shellStressThemes";
 
 type JsonSchema = {
   $defs: {
@@ -126,6 +127,72 @@ function normalizeCssColors(value: string): string {
 }
 
 describe("Archeion theme schema v1", () => {
+  it("uses defined canonical application tokens for every shell-preview fallback", () => {
+    const previewCss = fs.readFileSync(
+      path.join(projectRoot, "src/styles/features/theme-manager.css"),
+      "utf8",
+    );
+    const hostDeclarations = declarations(
+      fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8"),
+    );
+    const canonicalVariables = new Map(
+      Object.entries(appThemeResolvedTokenRegistry).map(([role, definition]) => [
+        `--theme-shell-${role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`,
+        definition.cssVariable,
+      ]),
+    );
+    const fallbacks = new Map(
+      [...previewCss.matchAll(/var\((--theme-shell-[\w-]+),\s*var\((--[\w-]+)\)\)/g)].map(
+        (match) => [match[1]!, match[2]!],
+      ),
+    );
+    for (const role of ["frame", "sidebar", "main"]) {
+      expect(fallbacks.has(`--theme-shell-${role}`), role).toBe(true);
+    }
+    for (const [scoped, fallback] of fallbacks) {
+      expect(fallback, scoped).toBe(canonicalVariables.get(scoped));
+      expect(resolveCssVariable(fallback, hostDeclarations, new Map()), scoped).toBeDefined();
+    }
+  });
+
+  it.each(Object.values(shellStressThemes))(
+    "preserves authored shell planes in $id through schema-v1 validation and resolution",
+    (candidate) => {
+      const manifest = assertRuntimeFixture(candidate, candidate.id);
+      const resolved = resolveTheme(manifest);
+      expect(manifest.schemaVersion).toBe(1);
+      expect(manifest.app).toEqual(candidate.app);
+      for (const role of ["frame", "sidebar", "main", "lineStrong"] as const) {
+        expect(resolved.app.publicTokens[role]).toBe(candidate.app[role]);
+        expect(resolved.app.tokens[role]).toBe(candidate.app[role]);
+      }
+      expect(resolved.contrastWarnings).toEqual([]);
+      expect(manifest.app).not.toHaveProperty("lineSubtle");
+      expect(resolved.app.tokens.lineSubtle).not.toBe(resolved.app.tokens.lineStrong);
+    },
+  );
+
+  it("keeps the application token reference aligned with public and derived shell roles", () => {
+    const reference = fs.readFileSync(path.join(projectRoot, "docs/custom-themes.md"), "utf8");
+    // Reader names can overlap application names, so scope the public reference.
+    const applicationReference =
+      reference.split("## Application tokens")[1]?.split("## Reader tokens")[0] ?? "";
+    const applicationDescriptions = new Map(
+      [...applicationReference.matchAll(/^\|\s*`(\w+)`\s*\|\s*([^|]+)\|/gm)].map((match) => [
+        match[1],
+        match[2]?.trim(),
+      ]),
+    );
+    for (const [token, definition] of Object.entries(appThemePublicTokenRegistry)) {
+      expect(applicationDescriptions.get(token), token).toBe(definition.description);
+    }
+    for (const token of ["lineSubtle", "shellHover", "shellActive"] as const) {
+      expect(applicationDescriptions.get(token), token).toBe(
+        appThemeDerivedTokenRegistry[token].description,
+      );
+    }
+  });
+
   it("parses as the canonical public schema", () => {
     expect(() => JSON.parse(schemaSource)).not.toThrow();
     expect(schema.$id).toBe(ARCHEION_THEME_SCHEMA_URL);

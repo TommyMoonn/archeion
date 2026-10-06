@@ -1,10 +1,10 @@
-import { useId, useMemo } from "react";
+import { useId } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { resolveBuiltInAppTheme, resolveTheme } from "../../themes/resolveTheme";
-import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import type { ThemeManagerController } from "./useThemeManagerController";
+import { ThemeShellPreview } from "./ThemeShellPreview";
+import { useThemePreview } from "./useThemePreview";
 
 type ThemeDetailsProps = Readonly<{
   controller: ThemeManagerController;
@@ -13,7 +13,14 @@ type ThemeDetailsProps = Readonly<{
 export function ThemeDetails({ controller }: ThemeDetailsProps) {
   const entry = controller.selectedEntry;
   const titleId = useId();
-  const swatches = useMemo(() => (entry ? applicationSwatches(entry) : []), [entry]);
+  const app = useThemePreview(entry);
+  const swatches = app
+    ? [
+        { color: app.publicTokens.main, label: "Main" },
+        { color: app.publicTokens.accent, label: "Accent" },
+        { color: app.publicTokens.text, label: "Text" },
+      ]
+    : [];
   if (!entry) {
     return (
       <section className="theme-details theme-details--empty">Select a theme to inspect.</section>
@@ -101,6 +108,8 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
         </div>
       ) : null}
 
+      {app ? <ThemeShellPreview theme={app} /> : null}
+
       {swatches.length ? (
         <dl className="theme-details__swatches" aria-label="Application color preview">
           {swatches.map((swatch) => (
@@ -139,20 +148,4 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
       ) : null}
     </section>
   );
-}
-
-function applicationSwatches(entry: ThemeCatalogEntry) {
-  if (!entry.applicable) return [];
-  const app =
-    entry.origin === "builtin"
-      ? entry.appBase
-        ? resolveBuiltInAppTheme(entry.appBase)
-        : null
-      : resolveTheme(entry.manifest).app;
-  if (!app) return [];
-  return [
-    { color: app.publicTokens.main, label: "Main" },
-    { color: app.publicTokens.accent, label: "Accent" },
-    { color: app.publicTokens.text, label: "Text" },
-  ];
 }

@@ -8,6 +8,7 @@ import {
 } from "./themeColor";
 import { themeContrastDiagnostics, themeContrastWarnings } from "./themeContrast";
 import { resolveAppTheme, resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "./resolveTheme";
+import { shellStressThemes } from "../../tests/fixtures/themes/shellStressThemes";
 
 function lightness(color: `#${string}`): number {
   return themeColorToOklch(color).lightness;
@@ -54,6 +55,9 @@ describe("theme contrast diagnostics", () => {
         "$.app.text|$.app.main",
         "$.app.textStrong|$.app.main",
         "$.app.accent|$.app.main",
+        "$.app.text|$.app.sidebar",
+        "$.app.textStrong|$.app.sidebar",
+        "$.app.accent|$.app.sidebar",
         "$.app.focus|$.app.surfaceHover",
         "$.app.success|$.app.surface",
         "$.app.warning|$.app.surface",
@@ -139,6 +143,75 @@ describe("theme contrast diagnostics", () => {
       minimumRatio: 4.5,
     });
     expect(themeContrastWarnings(app)).toEqual([]);
+  });
+
+  it.each([
+    ["text", 4.5, 75],
+    ["textStrong", 4.5, 60],
+    ["accent", 3, 60],
+  ] as const)(
+    "warns for unreadable %s on navigation without changing author colors",
+    (role, minimumRatio, minimumApcaLc) => {
+      const app = resolveAppTheme("dark", { sidebar: "#ffffff", [role]: "#ffffff" });
+      const diagnostic = themeContrastDiagnostics(app).find(
+        ({ foregroundPath, backgroundPath }) =>
+          foregroundPath === `$.app.${role}` && backgroundPath === "$.app.sidebar",
+      );
+      expect(diagnostic).toMatchObject({ ratio: 1, meetsWcag: false, minimumRatio, minimumApcaLc });
+      expect(themeContrastWarnings(app)).toContainEqual(
+        expect.objectContaining({
+          foregroundPath: `$.app.${role}`,
+          backgroundPath: "$.app.sidebar",
+          ratio: 1,
+          minimumRatio,
+        }),
+      );
+      expect(themeContrastWarnings(app)).not.toContainEqual(
+        expect.objectContaining({
+          foregroundPath: `$.app.${role}`,
+          backgroundPath: "$.app.main",
+        }),
+      );
+      expect(app.publicTokens[role]).toBe("#ffffff");
+      expect(app.publicTokens.sidebar).toBe("#ffffff");
+    },
+  );
+
+  it.each(Object.values(shellStressThemes))(
+    "does not warn about the quiet structural divider in $id",
+    (manifest) => {
+      const app = resolveAppTheme(manifest.base, manifest.app);
+      const divider = app.tokens.lineSubtle as `#${string}`;
+      const visibleDivider = compositeThemeColors(divider, app.publicTokens.sidebar);
+      expect(visibleDivider).not.toBe(app.publicTokens.sidebar);
+      expect(
+        themeColorContrastRatio(
+          divider,
+          app.publicTokens.sidebar,
+          app.publicTokens.canvas,
+          app.base,
+        ),
+      ).toBeLessThan(3);
+      expect(themeContrastWarnings(app)).toEqual([]);
+      expect(
+        themeContrastDiagnostics(app).some(({ foregroundPath }) =>
+          foregroundPath.includes(".line"),
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it("keeps Reader diagnostics independent of navigation colors", () => {
+    for (const readerBase of ["dark", "light", "sepia"] as const) {
+      const reader = resolveBuiltInReaderTheme(readerBase);
+      const readerDiagnostics = (app: ReturnType<typeof resolveAppTheme>) =>
+        themeContrastDiagnostics(app, reader).filter(({ foregroundPath }) =>
+          foregroundPath.startsWith("$.reader."),
+        );
+      expect(readerDiagnostics(resolveAppTheme("dark", { sidebar: "#ffffff" }))).toEqual(
+        readerDiagnostics(resolveBuiltInAppTheme("dark")),
+      );
+    }
   });
 });
 

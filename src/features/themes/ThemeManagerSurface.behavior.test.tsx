@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GlobalAppearancePreferences } from "../../themes/AppearanceRuntime";
+import type { ThemeManifestV1 } from "../../themes/domain";
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
@@ -31,10 +32,10 @@ function installDialogPolyfill() {
   };
 }
 
-function createServices() {
+function createServices(manifest: ThemeManifestV1 = customManifest) {
   const catalog = new ThemeCatalog(() => ({
     listPackageDirectories: vi.fn(async () => ["moon-ink"]),
-    readManifest: vi.fn(async () => JSON.stringify(customManifest)),
+    readManifest: vi.fn(async () => JSON.stringify(manifest)),
   }));
   let settings: GlobalAppearancePreferences = {
     appTheme: { kind: "custom", id: "moon-ink" },
@@ -43,6 +44,8 @@ function createServices() {
   let appearanceContext = { settings };
   const runtimeListeners = new Set<() => void>();
   const clearPreview = vi.fn(() => true);
+  const applyPreview = vi.fn(() => true);
+  const keepPreview = vi.fn(async () => undefined);
   const runtime = {
     getPreviewContext: () => appearanceContext,
     refreshAppearance: vi.fn(async () => {
@@ -61,14 +64,14 @@ function createServices() {
     ),
   } satisfies ThemeManagerControllerOptions["runtime"];
   const previewSession = new ThemePreviewSession({
-    applyPreview: vi.fn(() => true),
+    applyPreview,
     clearPreview,
     getPreviewContext: runtime.getPreviewContext,
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("dark"),
       reader: resolveBuiltInReaderTheme("sepia"),
     }),
-    keepPreview: vi.fn(async () => undefined),
+    keepPreview,
     subscribe: (listener) => {
       runtimeListeners.add(listener);
       return () => runtimeListeners.delete(listener);
@@ -77,8 +80,10 @@ function createServices() {
   let catalogRevision = 0;
   const nextCatalogRevision = () => ({ revision: (catalogRevision += 1) });
   return {
+    applyPreview,
     catalog,
     clearPreview,
+    keepPreview,
     previewSession,
     repository: {
       deletePackage: vi.fn(async () => nextCatalogRevision()),
@@ -206,10 +211,13 @@ describe("ThemeManagerSurface behavior", () => {
     await settle();
 
     const readerSelection = services.runtime.getPreviewContext()?.settings.readerTheme;
+    const shell = container.querySelector('.theme-shell-preview__graphic[role="img"]');
+    expect(shell).not.toBeNull();
     act(() => button(container, "Moon Ink").click());
     act(() => button(container, "Preview").click());
 
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
+    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBe(shell);
     const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
     expect(container.querySelector(".theme-manager-surface")?.contains(controls ?? null)).toBe(
       true,
@@ -223,7 +231,51 @@ describe("ThemeManagerSurface behavior", () => {
 
     act(() => root.render(null));
     expect(services.clearPreview).toHaveBeenCalledOnce();
+    expect(services.keepPreview).not.toHaveBeenCalled();
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
+  });
+
+  it("keeps shell inspection separate from preview, warning acknowledgment, revert, and keep", async () => {
+    const services = createServices({
+      ...customManifest,
+      app: { sidebar: "#ffffff", text: "#ffffff" },
+    });
+    await act(async () => root.render(<ThemeManagerSurface services={services} />));
+    await settle();
+    const shell = container.querySelector<HTMLElement>(
+      '.theme-shell-preview__graphic[role="img"]',
+    )!;
+    expect(shell.style.getPropertyValue("--theme-shell-sidebar")).toBe("#ffffff");
+    expect(services.applyPreview).not.toHaveBeenCalled();
+    expect(services.keepPreview).not.toHaveBeenCalled();
+    expect(services.runtime.updateAppearanceSettings).not.toHaveBeenCalled();
+
+    act(() => button(container, "Preview").click());
+    expect(services.applyPreview).toHaveBeenCalledOnce();
+    const controls = container.querySelector<HTMLElement>(".theme-preview-controls")!;
+    expect(button(controls, "Use theme").getAttribute("aria-disabled")).toBe("true");
+    act(() => button(controls, "Use theme").click());
+    expect(services.keepPreview).not.toHaveBeenCalled();
+    expect(controls.querySelector('input[type="checkbox"]')).not.toBeNull();
+    act(() => button(controls, "Revert").click());
+    expect(services.clearPreview).toHaveBeenCalledOnce();
+    expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
+    expect(shell.isConnected).toBe(true);
+    expect(services.keepPreview).not.toHaveBeenCalled();
+
+    act(() => button(container, "Preview").click());
+    const nextControls = container.querySelector<HTMLElement>(".theme-preview-controls")!;
+    act(() => nextControls.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    expect(button(nextControls, "Use theme").getAttribute("aria-disabled")).toBeNull();
+    await act(async () => button(nextControls, "Use theme").click());
+    await settle();
+    expect(services.keepPreview).toHaveBeenCalledOnce();
+    expect(services.keepPreview).toHaveBeenCalledWith(expect.anything(), {
+      kind: "custom",
+      id: "moon-ink",
+    });
+    expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
+    expect(shell.style.getPropertyValue("--theme-shell-sidebar")).toBe("#ffffff");
   });
 
   it("keeps package deletion confirmation in the manager surface", async () => {
@@ -241,5 +293,15 @@ describe("ThemeManagerSurface behavior", () => {
     );
     expect(dialogs[0]?.textContent).toContain("Remove “Moon Ink” theme?");
     expect(dialogs[0]?.textContent).toContain("from Archeion");
+    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).not.toBeNull();
+    expect(services.repository.deletePackage).not.toHaveBeenCalled();
+    act(() => button(dialogs[0]!, "Cancel").click());
+    expect(container.querySelector("dialog")).toBeNull();
+    act(() => button(container, "Remove").click());
+    await act(async () => button(container.querySelector("dialog")!, "Remove theme").click());
+    await settle();
+    expect(services.repository.deletePackage).toHaveBeenCalledOnce();
+    expect(services.repository.deletePackage).toHaveBeenCalledWith("moon-ink");
+    expect(services.applyPreview).not.toHaveBeenCalled();
   });
 });

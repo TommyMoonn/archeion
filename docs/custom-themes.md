@@ -79,32 +79,46 @@ Custom themes cannot inherit from other custom themes.
 
 ## Application tokens
 
-| Token           | Meaning                                         |
-| --------------- | ----------------------------------------------- |
-| `canvas`        | Application canvas behind primary surfaces.     |
-| `canvasDeep`    | Deeper canvas separating nested regions.        |
-| `surface`       | Default control and content surface.            |
-| `surfaceRaised` | Raised controls, cards, and secondary surfaces. |
-| `surfaceHover`  | Hover treatment for ordinary raised surfaces.   |
-| `frame`         | Window frame and title bar.                     |
-| `sidebar`       | Library navigation sidebar.                     |
-| `main`          | Primary application workspace.                  |
-| `mainRaised`    | Raised surface within the primary workspace.    |
-| `line`          | Default borders and separators.                 |
-| `lineStrong`    | Emphasized borders and separators.              |
-| `text`          | Primary body text.                              |
-| `textStrong`    | Headings and emphasized text.                   |
-| `muted`         | Secondary labels and metadata.                  |
-| `mutedSoft`     | De-emphasized text and inactive affordances.    |
-| `accent`        | Primary interactive accent.                     |
-| `accentStrong`  | Emphasized accent text and active controls.     |
-| `focus`         | Keyboard focus indicators.                      |
-| `success`       | Successful outcomes.                            |
-| `warning`       | Cautionary, non-fatal outcomes.                 |
-| `error`         | Errors and destructive outcomes.                |
-| `info`          | Neutral informational outcomes.                 |
+| Token           | Meaning                                                         |
+| --------------- | --------------------------------------------------------------- |
+| `canvas`        | Application canvas behind primary surfaces.                     |
+| `canvasDeep`    | Deeper canvas used to separate nested application regions.      |
+| `surface`       | Default control and content surface.                            |
+| `surfaceRaised` | Raised controls, cards, and secondary surfaces.                 |
+| `surfaceHover`  | Hover treatment for ordinary raised surfaces.                   |
+| `frame`         | Ordinary window chrome and frame.                               |
+| `sidebar`       | Navigation plane of split application shells.                   |
+| `main`          | Primary application workspace plane.                            |
+| `mainRaised`    | Raised surface within the primary workspace.                    |
+| `line`          | Default borders and separators.                                 |
+| `lineStrong`    | Boundaries that require genuine emphasis.                       |
+| `text`          | Primary body text.                                              |
+| `textStrong`    | Headings and emphasized text.                                   |
+| `muted`         | Readable secondary labels, captions, metadata, and helper copy. |
+| `mutedSoft`     | Inactive and decorative non-text affordances.                   |
+| `accent`        | Primary interactive accent.                                     |
+| `accentStrong`  | Emphasized accent text and active controls.                     |
+| `focus`         | Keyboard focus indicators.                                      |
+| `success`       | Successful outcomes.                                            |
+| `warning`       | Cautionary, non-fatal outcomes.                                 |
+| `error`         | Errors and destructive outcomes.                                |
+| `info`          | Neutral informational outcomes.                                 |
 
 Archeion derives subtle lines, tinted backgrounds and borders, selected and disabled states, destructive aliases, shell interaction states, and elevation shadows from these public colors. Component-specific values are not part of the authoring contract.
+
+### Split-shell roles
+
+Library and Archive Manager extend the `sidebar` navigation plane and `main` workspace plane through their split titlebars. Ordinary titlebars use `frame`; a titlebar does not always use the frame color. Stacked layouts return to ordinary frame chrome above the navigation and workspace regions.
+
+These shell roles are derived internally and cannot be authored as manifest fields:
+
+| Derived role  | Meaning                                                    |
+| ------------- | ---------------------------------------------------------- |
+| `lineSubtle`  | Quiet separators, including adjacent-plane split dividers. |
+| `shellHover`  | Chrome and navigation hover treatment.                     |
+| `shellActive` | Chrome and navigation active treatment.                    |
+
+Equal `frame`, `sidebar`, and `main` colors are valid, as are intentionally distinct colors. Geometry and the quiet split divider establish the hierarchy. Archeion preserves authored colors rather than recoloring the shell to match a built-in palette.
 
 ## Reader tokens
 
@@ -155,4 +169,6 @@ These fixed colors are not manifest tokens.
 
 Version 1 accepts no CSS, selectors, scripts, URLs, fonts, images, layout values, or local assets. `$schema` is editor metadata only and is never fetched by Archeion.
 
-Use enough contrast for body text, muted text, controls, borders, and focus indicators. Schema-valid colors may still produce poor contrast; validation warnings do not change the manifest or invent replacement colors.
+Use enough contrast for readable text, controls, and focus indicators. Application diagnostics check `text` and `textStrong` on both `main` and `sidebar` at 4.5:1, and the graphical `accent` role on both planes at 3:1. Existing muted-text, focus, status, and Reader checks remain in place. APCA is supplementary; WCAG ratios determine compatibility warnings.
+
+The quiet major-plane divider is structural, not a readable foreground or control. A low-contrast divider alone does not produce a contrast warning. Schema-valid colors may still produce poor foreground contrast; warnings do not change the manifest or invent replacement colors.

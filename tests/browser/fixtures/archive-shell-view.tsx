@@ -28,13 +28,15 @@ const state: ArchiveState = {
 export function ArchiveShellFixture() {
   const params = new URLSearchParams(window.location.search);
   const equal = params.get("shellColors") === "equal";
-  const style = {
-    "--surface-app-frame": equal ? "#202020" : "#481830",
-    "--surface-sidebar": equal ? "#202020" : "#123c38",
-    "--surface-main": equal ? "#202020" : "#22284e",
-    "--line-strong": "#aaaaaa",
-    "--line-subtle": "#555555",
-  } as CSSProperties;
+  const style = params.has("themeStress")
+    ? undefined
+    : ({
+        "--surface-app-frame": equal ? "#202020" : "#481830",
+        "--surface-sidebar": equal ? "#202020" : "#123c38",
+        "--surface-main": equal ? "#202020" : "#22284e",
+        "--line-strong": "#aaaaaa",
+        "--line-subtle": "#555555",
+      } as CSSProperties);
   const view = params.get("state");
 
   return (

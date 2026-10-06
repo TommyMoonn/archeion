@@ -87,7 +87,7 @@ async function settle() {
 }
 
 describe("global AppearanceRuntime", () => {
-  it("applies the same committed global app theme in independent webview roots", async () => {
+  it("keeps temporary previews local and applies committed themes in independent webview roots", async () => {
     const preferences = createPreferencesSource();
     const mainRoot = document.createElement("html");
     const managerRoot = document.createElement("html");
@@ -101,6 +101,15 @@ describe("global AppearanceRuntime", () => {
     });
     main.start();
     manager.start();
+    await settle();
+
+    manager.applyPreview(resolveBuiltInAppTheme("light"));
+    expect(managerRoot.dataset.appTheme).toBe("light");
+    expect(mainRoot.dataset.appTheme).toBe("dark");
+    expect(main.getSnapshot().app.base).toBe("dark");
+    expect(preferences.update).not.toHaveBeenCalled();
+    expect(manager.clearPreview()).toBe(true);
+    expect(managerRoot.dataset.appTheme).toBe("dark");
 
     await preferences.update({
       appTheme: { kind: "builtin", id: "light" },
@@ -114,6 +123,8 @@ describe("global AppearanceRuntime", () => {
     expect(managerRoot.dataset.appTheme).toBe("light");
     expect(main.getReaderSnapshot().base).toBe("sepia");
     expect(manager.getReaderSnapshot().base).toBe("sepia");
+    main.stop();
+    manager.stop();
   });
 
   it("resolves custom application and Reader selections from the global catalog", async () => {

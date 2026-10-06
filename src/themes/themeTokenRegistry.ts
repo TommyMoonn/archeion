@@ -35,9 +35,12 @@ export const appThemePublicTokenRegistry = defineTokenRegistry({
     cssVariable: "--surface-hover",
     description: "Hover treatment for ordinary raised surfaces.",
   },
-  frame: { cssVariable: "--surface-app-frame", description: "Window frame and title bar." },
-  sidebar: { cssVariable: "--surface-sidebar", description: "Library navigation sidebar." },
-  main: { cssVariable: "--surface-main", description: "Primary application workspace." },
+  frame: { cssVariable: "--surface-app-frame", description: "Ordinary window chrome and frame." },
+  sidebar: {
+    cssVariable: "--surface-sidebar",
+    description: "Navigation plane of split application shells.",
+  },
+  main: { cssVariable: "--surface-main", description: "Primary application workspace plane." },
   mainRaised: {
     cssVariable: "--surface-main-raised",
     description: "Raised surface within the primary workspace.",
@@ -45,7 +48,7 @@ export const appThemePublicTokenRegistry = defineTokenRegistry({
   line: { cssVariable: "--line", description: "Default borders and separators." },
   lineStrong: {
     cssVariable: "--line-strong",
-    description: "Emphasized borders and separators.",
+    description: "Boundaries that require genuine emphasis.",
   },
   text: { cssVariable: "--text", description: "Primary body text." },
   textStrong: { cssVariable: "--text-strong", description: "Headings and emphasized text." },
@@ -72,7 +75,10 @@ export const appThemePublicTokenRegistry = defineTokenRegistry({
 export type AppThemePublicToken = keyof typeof appThemePublicTokenRegistry;
 
 export const appThemeDerivedTokenRegistry = defineTokenRegistry({
-  lineSubtle: { cssVariable: "--line-subtle", description: "Low-emphasis separator." },
+  lineSubtle: {
+    cssVariable: "--line-subtle",
+    description: "Quiet separators, including adjacent-plane split dividers.",
+  },
   darkening: {
     cssVariable: "--darkening",
     description: "Opaque neutral used to derive backdrops and local elevation shadows.",
@@ -107,11 +113,11 @@ export const appThemeDerivedTokenRegistry = defineTokenRegistry({
   },
   shellHover: {
     cssVariable: "--surface-shell-hover",
-    description: "Window frame and sidebar hover treatment.",
+    description: "Chrome and navigation hover treatment.",
   },
   shellActive: {
     cssVariable: "--surface-shell-active",
-    description: "Window frame and sidebar active treatment.",
+    description: "Chrome and navigation active treatment.",
   },
   cardShadow: { cssVariable: "--shadow-card", description: "Card elevation shadow." },
   tooltipShadow: {
