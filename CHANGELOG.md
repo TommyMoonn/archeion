@@ -2,6 +2,30 @@
 
 ## [Unreleased]
 
+## [1.5.6] - 2026-10-06
+
+Archeion 1.5.6 refines the Library and Archive Manager shell, theme previews, and application typography.
+
+### Added
+
+- Added detailed shell composition previews and compact catalog previews in Theme Manager using each candidate theme's resolved application colors.
+- Added the verified Inter Medium (500) face to the existing bundled font pipeline and semantic control-label role.
+
+### Changed
+
+- Library and Archive Manager now use adjacent navigation/workspace planes with a structural divider instead of an inset workspace card. Library titlebar presentation follows the mounted Library surface and resets when entering Reader.
+- Simplified the Library titlebar to the application name and sidebar toggle. Quick Actions remains available through its configurable keyboard shortcut, with no replacement visible control.
+- Moved Reveal archive folder into the archive switcher; Archive Manager retains its per-archive reveal action.
+- Refined routine controls, form/menu labels, metadata labels, badges, and resource rows with medium weight while retaining stronger headings, Library editorial typography, existing text sizes, and sidebar geometry.
+- Normalized ordinary Lucide utility icons to the default outline stroke while retaining deliberate selection/primary-action emphasis, decorative strokes, and persistent filled states.
+
+### Fixed
+
+- Kept equal-color and distinct-color custom themes structurally coherent across Library, Archive Manager, and their titlebars without altering author colors or theme schema v1.
+- Extended shell contrast diagnostics to actual navigation foreground roles, including muted sidebar text.
+- Scoped Settings supporting-copy styles to their metadata owner so nested controls retain their intended typography.
+- Release publication now resolves matching drafts by validated ID, including GitHub's pending-tag placeholders, while rejecting conflicting release identities.
+
 ## [1.5.5] - 2026-10-05
 
 Archeion 1.5.5 improves interaction accessibility and expands the public documentation experience.
@@ -609,7 +633,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.5...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.6...HEAD
+[1.5.6]: https://github.com/TommyMoonn/archeion/compare/v1.5.5...v1.5.6
 [1.5.5]: https://github.com/TommyMoonn/archeion/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/TommyMoonn/archeion/compare/v1.5.3...v1.5.4
 [1.5.3]: https://github.com/TommyMoonn/archeion/compare/v1.5.2...v1.5.3
