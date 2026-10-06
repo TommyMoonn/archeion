@@ -1,7 +1,8 @@
 # Theme color audit
 
 This inventory records the Phase 1.4.3.1 built-in palette and the version 1 theme
-contract. Built-in and custom theme manifests continue to use hexadecimal sRGB colors.
+contract, including the Phase 1.5.6.4 split-shell ownership and diagnostic update.
+Built-in and custom theme manifests continue to use hexadecimal sRGB colors.
 Derived application and Reader colors are calculated through the internal OKLCH utility.
 
 ## Classification
@@ -31,8 +32,9 @@ Derived application and Reader colors are calculated through the internal OKLCH 
 
 ## Built-in audit
 
-The audit covers application body and strong text, readable muted labels on every owned
-surface, accent, focus on every owned surface, status colors, Reader text, readable muted
+The audit covers application body and strong text on workspace and navigation planes,
+readable muted labels on every owned surface, accent on workspace and navigation,
+focus on every owned surface, status colors, Reader text, readable muted
 text, links, focus, danger, selection, and code surfaces. Translucent pairs are composited
 over their actual built-in canvas before measurement.
 
@@ -47,6 +49,11 @@ over their actual built-in canvas before measurement.
 The lowest values above can belong to UI roles with 3:1 WCAG and Lc 30 thresholds, so
 they must not be compared to the body-text thresholds in isolation. The executable
 diagnostics retain each pair's assigned threshold.
+
+Phase 1.5.6.4 remeasurement covers 28 application pairs per appearance and 10 Reader
+pairs per appearance. The additional navigation pairs do not change the minima above.
+Every built-in pair passes both its assigned WCAG and supplementary APCA threshold;
+all built-in application/Reader combinations remain compatibility-warning-free.
 
 The Phase 1.4.3.1 audit raised readable secondary text from the graphical 3:1 WCAG
 threshold to the normal-text 4.5:1 threshold while retaining the APCA Lc 60 target for
@@ -77,3 +84,34 @@ continues to own compatibility warnings.
 
 The public schema continues to exclude typography, geometry, motion, opacity recipes,
 selectors, component names, and asset references.
+
+## Split-shell ownership and diagnostics
+
+| Role                         | Finalized ownership                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `frame`                      | Ordinary window chrome and frame, including titlebars outside split presentation.                 |
+| `sidebar`                    | Navigation plane shared by Library and Archive Manager, including its split titlebar segment.     |
+| `main`                       | Primary workspace plane, including the workspace portion of a split titlebar.                     |
+| `lineSubtle`                 | Derived quiet separator between adjacent planes, continuous through a split titlebar and sidebar. |
+| `lineStrong`                 | Public color retained for boundaries that require genuine emphasis, not the major split divider.  |
+| `shellHover` / `shellActive` | Derived chrome and navigation interaction treatments, independent of any single surface owner.    |
+
+Stacked shells use ordinary `frame` chrome above flat navigation and workspace regions.
+The split boundary becomes a horizontal `lineSubtle` separator. Forced-colors mode
+continues to use system colors for the boundary and focus styling.
+
+The existing diagnostic owner checks `text` on `sidebar` at WCAG 4.5:1 / APCA Lc 75,
+`textStrong` on `sidebar` at WCAG 4.5:1 / APCA Lc 60, and the graphical `accent` role
+on `sidebar` at WCAG 3:1 / APCA Lc 60. These mirror the corresponding workspace-role
+thresholds. Reader pairs, alpha compositing, and the WCAG-only warning policy are
+unchanged. New application warnings enter the existing preview acknowledgment flow.
+
+The major divider is a structural separator, not a readable foreground or control.
+No contrast target or warning is added for it. Equal frame/navigation/workspace colors
+remain valid schema-v1 choices. Shared synthetic equal-plane and deliberately distinct
+fixtures exercise offline validation, unchanged authored colors, the existing resolver
+and CSS-variable application, and rendered split/stacked geometry in both shells.
+The equal-plane fixture retains a visible but below-3:1 quiet divider without warnings.
+
+No schema fields, compatibility aliases, palette correction, or parallel theme runtime
+are introduced. The canonical schema and shipped example manifests remain unchanged.

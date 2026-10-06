@@ -58,6 +58,39 @@ function createRuntime() {
 }
 
 describe("ThemePreviewSession", () => {
+  it("requires acknowledgment of sidebar contrast warnings before saving unchanged colors", async () => {
+    const owner = createRuntime();
+    const session = new ThemePreviewSession(owner.runtime);
+    const candidate = { ...manifest(), app: { sidebar: "#ffffff", text: "#ffffff" } } as const;
+
+    expect(session.startPreview({ candidate }).ok).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({
+      status: "previewing",
+      warningsAcknowledged: false,
+      contrastWarnings: expect.arrayContaining([
+        expect.objectContaining({
+          foregroundPath: "$.app.text",
+          backgroundPath: "$.app.sidebar",
+          ratio: 1,
+        }),
+      ]),
+    });
+    expect(owner.applyPreview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicTokens: expect.objectContaining(candidate.app),
+      }),
+    );
+    await expect(session.keep()).resolves.toBe(false);
+    expect(owner.keepPreview).not.toHaveBeenCalled();
+    session.acknowledgeWarnings(true);
+    await expect(session.keep()).resolves.toBe(true);
+    expect(owner.keepPreview).toHaveBeenCalledWith(settings(), {
+      kind: "custom",
+      id: candidate.id,
+    });
+    session.dispose();
+  });
+
   it("previews without changing committed global settings, then persists on Keep", async () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);

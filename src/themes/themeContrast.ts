@@ -44,6 +44,8 @@ const APP_READABLE_SECONDARY_BACKGROUNDS = [
 const APP_CONTRAST_PAIRS: readonly AppContrastPair[] = Object.freeze([
   { foreground: "text", background: "main", minimumRatio: 4.5, minimumApcaLc: 75 },
   { foreground: "textStrong", background: "main", minimumRatio: 4.5, minimumApcaLc: 60 },
+  { foreground: "text", background: "sidebar", minimumRatio: 4.5, minimumApcaLc: 75 },
+  { foreground: "textStrong", background: "sidebar", minimumRatio: 4.5, minimumApcaLc: 60 },
   ...APP_READABLE_SECONDARY_BACKGROUNDS.map((background) =>
     Object.freeze({
       foreground: "muted" as const,
@@ -53,6 +55,7 @@ const APP_CONTRAST_PAIRS: readonly AppContrastPair[] = Object.freeze([
     }),
   ),
   { foreground: "accent", background: "main", minimumRatio: 3, minimumApcaLc: 60 },
+  { foreground: "accent", background: "sidebar", minimumRatio: 3, minimumApcaLc: 60 },
   { foreground: "focus", background: "canvas", minimumRatio: 3, minimumApcaLc: 30 },
   { foreground: "focus", background: "canvasDeep", minimumRatio: 3, minimumApcaLc: 30 },
   { foreground: "focus", background: "surface", minimumRatio: 3, minimumApcaLc: 30 },
