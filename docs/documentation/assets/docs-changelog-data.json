@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "version": "1.5.6",
+      "date": "2026-10-06",
+      "sourcePath": "release-notes/v1.5.6.md",
+      "changes": "- Compare themes using compact previews beneath each theme name and a larger preview showing how the selected theme looks across navigation and workspace areas.\n- Library and Archive Manager now have a flush navigation/workspace layout instead of a framed, inset workspace.\n- The Library titlebar now contains the Archeion name and sidebar toggle. Open Quick Actions with **Ctrl + Shift + P**, or your configured shortcut.\n- Use **Reveal archive folder** in the archive switcher to open the active archive's location.\n- Custom themes retain clear navigation/workspace boundaries even when those areas use the same color. Theme warnings also check the readability of muted navigation text.\n- Controls and labels use lighter text emphasis, and ordinary action icons have more consistent outlines. Text sizes, sidebar dimensions, Library headings, and Reader publication fonts are unchanged."
+    },
+    {
       "version": "1.5.5",
       "date": "2026-10-05",
       "sourcePath": "release-notes/v1.5.5.md",
