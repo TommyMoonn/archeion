@@ -1,11 +1,10 @@
-import { useId, useMemo } from "react";
+import { useId } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { resolveBuiltInAppTheme, resolveTheme } from "../../themes/resolveTheme";
-import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import type { ThemeManagerController } from "./useThemeManagerController";
 import { ThemeShellPreview } from "./ThemeShellPreview";
+import { useThemePreview } from "./useThemePreview";
 
 type ThemeDetailsProps = Readonly<{
   controller: ThemeManagerController;
@@ -14,7 +13,7 @@ type ThemeDetailsProps = Readonly<{
 export function ThemeDetails({ controller }: ThemeDetailsProps) {
   const entry = controller.selectedEntry;
   const titleId = useId();
-  const app = useMemo(() => applicationTheme(entry), [entry]);
+  const app = useThemePreview(entry);
   const swatches = app
     ? [
         { color: app.publicTokens.main, label: "Main" },
@@ -149,13 +148,4 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
       ) : null}
     </section>
   );
-}
-
-function applicationTheme(entry: ThemeCatalogEntry | null) {
-  if (!entry?.applicable || !entry.capabilities.application) return null;
-  return entry.origin === "builtin"
-    ? entry.appBase
-      ? resolveBuiltInAppTheme(entry.appBase)
-      : null
-    : resolveTheme(entry.manifest).app;
 }

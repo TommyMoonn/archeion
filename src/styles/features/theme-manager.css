@@ -154,6 +154,7 @@
 
 .theme-catalog-list__items {
   display: grid;
+  grid-auto-rows: max-content;
   align-content: start;
   gap: 3px;
   padding: 10px 8px;
@@ -336,6 +337,7 @@
 }
 
 .theme-shell-preview__graphic {
+  display: block;
   container: theme-shell-preview / inline-size;
   width: 100%;
   min-width: 0;
@@ -350,6 +352,7 @@
 }
 
 .theme-shell-preview__chrome {
+  display: block;
   padding: 8px 12px;
   color: var(--theme-shell-muted, var(--muted));
   background: var(--theme-shell-frame, var(--surface-app-frame));
@@ -411,16 +414,54 @@
 }
 
 @container theme-shell-preview (max-width: 24em) {
-  .theme-shell-preview__planes {
+  .theme-shell-preview__graphic:not([data-preview-size="compact"]) .theme-shell-preview__planes {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .theme-shell-preview__navigation {
+  .theme-shell-preview__graphic:not([data-preview-size="compact"])
+    .theme-shell-preview__navigation {
     grid-template-columns: auto 20px minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
     border-inline-end: 0;
     border-block-end: 1px solid var(--theme-shell-line-subtle, var(--line-subtle));
   }
+}
+
+.theme-catalog-list__item .theme-shell-preview__graphic {
+  grid-column: 1 / -1;
+  height: 56px;
+  border-radius: var(--radius-small);
+}
+
+.theme-shell-preview__graphic[data-preview-size="compact"] > span {
+  display: block;
+  height: 100%;
+}
+
+.theme-shell-preview__graphic[data-preview-size="compact"] .theme-shell-preview__planes {
+  height: 100%;
+  grid-template-columns: minmax(32px, 0.28fr) minmax(0, 1fr);
+}
+
+.theme-shell-preview__graphic[data-preview-size="compact"] .theme-shell-preview__navigation,
+.theme-shell-preview__graphic[data-preview-size="compact"] .theme-shell-preview__workspace {
+  padding: 8px;
+  gap: 6px;
+}
+
+.theme-shell-preview__graphic[data-preview-size="compact"] .theme-shell-preview__content {
+  padding: 6px;
+  gap: 4px;
+}
+
+.theme-shell-preview__text-line {
+  width: 60%;
+  height: 3px;
+  background: var(--theme-shell-text-strong, var(--text-strong));
+}
+
+.theme-shell-preview__content .theme-shell-preview__text-line {
+  background: var(--theme-shell-text, var(--text));
 }
 
 @media (forced-colors: active) {
@@ -438,7 +479,8 @@
   }
 
   .theme-shell-preview__accent-mark,
-  .theme-shell-preview__navigation-line {
+  .theme-shell-preview__navigation-line,
+  .theme-shell-preview__text-line {
     background: CanvasText;
   }
 }

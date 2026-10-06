@@ -11,7 +11,7 @@ import { ThemePreviewSession } from "../../../src/themes/ThemePreviewSession";
 import { defaultAppPreferences } from "../../../src/types/appSettings";
 import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
 
-function createFixtureServices() {
+function createFixtureServices(largeCatalog: boolean) {
   const packages = new Map<string, string>(
     Object.values(shellStressThemes).map((manifest) => [manifest.id, JSON.stringify(manifest)]),
   );
@@ -28,8 +28,21 @@ function createFixtureServices() {
     "invalid-shell",
     JSON.stringify({ ...shellStressThemes.equal, id: "invalid-shell", schemaVersion: 2 }),
   );
+  if (largeCatalog) {
+    for (let index = 0; index < 200; index += 1) {
+      const id = `gallery-${String(index).padStart(3, "0")}`;
+      packages.set(
+        id,
+        JSON.stringify({
+          ...(index % 2 ? shellStressThemes.distinct : shellStressThemes.equal),
+          id,
+          name: `Gallery theme ${String(index).padStart(3, "0")}`,
+        }),
+      );
+    }
+  }
   const catalog = new ThemeCatalog(() => ({
-    listPackageDirectories: async () => [...packages.keys()],
+    listPackageDirectories: async () => [...packages.keys(), "unavailable-shell"],
     readManifest: async (id) => {
       const source = packages.get(id);
       if (!source) throw new Error("Fixture theme is unavailable.");
@@ -78,7 +91,9 @@ function createFixtureServices() {
 }
 
 export function ThemeManagerFixture() {
-  const [fixture] = useState(createFixtureServices);
+  const [fixture] = useState(() =>
+    createFixtureServices(new URLSearchParams(location.search).get("catalog") === "large"),
+  );
   useEffect(() => fixture.runtime.start(), [fixture]);
   return (
     <TooltipProvider>

@@ -101,6 +101,11 @@ function expectShellPreview(container: HTMLElement, app: ResolvedAppTheme) {
   }
   expect(graphic!.firstElementChild?.getAttribute("aria-hidden")).toBe("true");
   expect(graphic!.querySelector("button, a, input, [tabindex], nav, main, header")).toBeNull();
+  const compact = container.querySelector<HTMLElement>(
+    '.theme-catalog-list__item[aria-current="true"] [data-preview-size="compact"]',
+  );
+  expect(compact).not.toBeNull();
+  expect(compact!.getAttribute("style")).toBe(graphic!.getAttribute("style"));
   expect(container.querySelector(".theme-details__swatches")?.textContent).toContain("Main");
   expect(container.querySelector(".theme-details__swatches")?.textContent).toContain("Accent");
   expect(container.querySelector(".theme-details__swatches")?.textContent).toContain("Text");
