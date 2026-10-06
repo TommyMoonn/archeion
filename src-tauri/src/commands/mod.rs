@@ -35,6 +35,8 @@ pub mod epub_writeback;
 pub(crate) mod export_file;
 pub mod external;
 pub mod filesystem;
+pub(crate) mod font_catalog;
+pub mod fonts;
 pub mod illustration_export;
 pub mod metadata;
 pub mod scanner;

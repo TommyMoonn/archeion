@@ -256,6 +256,25 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  font-catalog-portability:
+    name: Linux font catalog
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: 1.97.1
+      - name: Compile and test the non-Windows catalog without Windows dependencies
+        run: |
+          mkdir -p .scratch
+          rustc --edition=2021 --test src-tauri/src/commands/font_catalog.rs -o .scratch/font-catalog-tests
+          .scratch/font-catalog-tests
+
   msrv:
     name: Rust 1.88 check
     runs-on: windows-latest
@@ -292,6 +311,7 @@ jobs:
       - frontend-build
       - release-tooling
       - rust-checks
+      - font-catalog-portability
       - windows-runtime
       - msrv
     runs-on: ubuntu-latest

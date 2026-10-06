@@ -54,6 +54,31 @@ export async function runRuntimeFlows({ startSession, closeSession, fixtureRoot,
   const sourceBytes = await createEpubFixture(sourcePath);
   let driver = await startSession();
   let archiveRoot;
+  let installedFamilies;
+
+  await logStep("installed Windows font catalog through real IPC", async () => {
+    await waitForIpc(driver);
+    installedFamilies = await invoke(driver, "list_installed_font_families");
+    assert.ok(Array.isArray(installedFamilies));
+    assert.ok(installedFamilies.length > 0, "DirectWrite should return installed Windows families");
+    assert.ok(
+      installedFamilies.every(
+        (family) =>
+          typeof family === "string" &&
+          family.length > 0 &&
+          family === family.trim() &&
+          !/[\u0000-\u001f\u007f-\u009f/\\]/u.test(family),
+      ),
+    );
+    const keys = installedFamilies.map((family) => family.toLowerCase());
+    assert.equal(new Set(keys).size, keys.length, "Family labels must be unique ignoring case");
+    const repeats = await Promise.all([
+      invoke(driver, "list_installed_font_families"),
+      invoke(driver, "list_installed_font_families"),
+    ]);
+    for (const families of repeats) assert.deepEqual(families, installedFamilies);
+    console.log(`Runtime font catalog: ${installedFamilies.length} families`);
+  });
 
   await logStep("launch and archive resolution", async () => {
     await waitForIpc(driver);
@@ -174,6 +199,8 @@ export async function runRuntimeFlows({ startSession, closeSession, fixtureRoot,
     const main = windows.find((window) => !window.state.href.includes("window=archive-manager"));
     assert.ok(main, `Main WebView missing: ${JSON.stringify(windows)}`);
     await driver.switchTo().window(secondary.handle);
+    await waitForIpc(driver);
+    assert.deepEqual(await invoke(driver, "list_installed_font_families"), installedFamilies);
     await driver.close();
     await driver.switchTo().window(main.handle);
     await driver.wait(async () => (await driver.getAllWindowHandles()).length === 1, 10_000);
