@@ -159,12 +159,14 @@ describe("ThemeManagerWindow", () => {
 
     expect(container.querySelector('[data-testid="theme-manager-titlebar"]')).not.toBeNull();
     expect(container.querySelector(".theme-manager-surface")).toBeNull();
+    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBeNull();
     expect(container.querySelector("main")?.getAttribute("aria-busy")).toBe("true");
 
     await act(async () => initialization.resolve());
     await settle();
 
     expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).not.toBeNull();
     expect(container.querySelector("dialog")).toBeNull();
     expect(container.querySelector('button[aria-label="Close Theme Manager"]')).toBeNull();
     expect(container.textContent).toContain("Archeion Dark");
@@ -204,6 +206,10 @@ describe("ThemeManagerWindow", () => {
         ?.click(),
     );
     expect(container.querySelector(".theme-preview-controls")).not.toBeNull();
+    const shellPreview = container.querySelector<HTMLElement>(
+      '.theme-shell-preview__graphic[role="img"]',
+    )!;
+    expect(shellPreview.style.getPropertyValue("--theme-shell-accent")).toBe("#8fc1e3");
 
     act(() =>
       container.querySelector<HTMLButtonElement>('button[aria-label="Close window"]')!.click(),
@@ -213,6 +219,7 @@ describe("ThemeManagerWindow", () => {
 
     expect(services.clearPreview).toHaveBeenCalledOnce();
     expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
+    expect(shellPreview.isConnected).toBe(false);
     expect(mocks.close).toHaveBeenCalledOnce();
   });
 

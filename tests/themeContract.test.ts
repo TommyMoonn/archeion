@@ -127,6 +127,34 @@ function normalizeCssColors(value: string): string {
 }
 
 describe("Archeion theme schema v1", () => {
+  it("uses defined canonical application tokens for every shell-preview fallback", () => {
+    const previewCss = fs.readFileSync(
+      path.join(projectRoot, "src/styles/features/theme-manager.css"),
+      "utf8",
+    );
+    const hostDeclarations = declarations(
+      fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8"),
+    );
+    const canonicalVariables = new Map(
+      Object.entries(appThemeResolvedTokenRegistry).map(([role, definition]) => [
+        `--theme-shell-${role.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`,
+        definition.cssVariable,
+      ]),
+    );
+    const fallbacks = new Map(
+      [...previewCss.matchAll(/var\((--theme-shell-[\w-]+),\s*var\((--[\w-]+)\)\)/g)].map(
+        (match) => [match[1]!, match[2]!],
+      ),
+    );
+    for (const role of ["frame", "sidebar", "main"]) {
+      expect(fallbacks.has(`--theme-shell-${role}`), role).toBe(true);
+    }
+    for (const [scoped, fallback] of fallbacks) {
+      expect(fallback, scoped).toBe(canonicalVariables.get(scoped));
+      expect(resolveCssVariable(fallback, hostDeclarations, new Map()), scoped).toBeDefined();
+    }
+  });
+
   it.each(Object.values(shellStressThemes))(
     "preserves authored shell planes in $id through schema-v1 validation and resolution",
     (candidate) => {

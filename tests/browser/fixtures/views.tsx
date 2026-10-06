@@ -14,6 +14,7 @@ import type { LibraryLocation } from "../../../src/types/library";
 import { LibraryConfirmationFixture, ReaderNoteConfirmationFixture } from "./confirmation-views";
 import { DictionaryToggleFixture, LibraryToggleFixture, ReaderToggleFixture } from "./toggle-views";
 import { ArchiveShellFixture } from "./archive-shell-view";
+import { ThemeManagerFixture } from "./theme-manager-view";
 
 const archive: KnownArchive = {
   id: "browser-fixture",
@@ -170,6 +171,7 @@ export function BrowserFixture() {
 
   const view = new URLSearchParams(window.location.search).get("view");
   if (view === "archive-shell") return <ArchiveShellFixture />;
+  if (view === "theme-manager") return <ThemeManagerFixture />;
   if (view === "reader") return <ReaderFixture />;
   if (view === "library") return <LibraryFixture />;
   if (view === "dialog") return <DialogFixture />;
