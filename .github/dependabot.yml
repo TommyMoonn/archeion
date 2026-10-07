@@ -1,10 +1,29 @@
 version: 2
+multi-ecosystem-groups:
+  tauri:
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "chore(deps)"
+
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # Tauri updates belong to the coordinated npm + Cargo group below.
+      - dependency-name: "@tauri-apps/api"
+      - dependency-name: "@tauri-apps/plugin-dialog"
+      - dependency-name: "@tauri-apps/cli"
+      # Remove this major-only ignore when the lint/parser stack supports TypeScript 7.
+      - dependency-name: "typescript"
+        update-types:
+          - version-update:semver-major
     groups:
       npm-production-minor-and-patch:
         dependency-type: production
@@ -22,6 +41,14 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    ignore:
+      # These crates remain eligible in the coordinated Tauri group below.
+      - dependency-name: "tauri"
+      - dependency-name: "tauri-build"
+      - dependency-name: "tauri-plugin-dialog"
     groups:
       cargo-patch:
         patterns:
@@ -34,11 +61,30 @@ updates:
         update-types:
           - minor
 
+  - package-ecosystem: npm
+    directory: /
+    patterns:
+      - "@tauri-apps/api"
+      - "@tauri-apps/plugin-dialog"
+      - "@tauri-apps/cli"
+    multi-ecosystem-group: tauri
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    patterns:
+      - "tauri"
+      - "tauri-build"
+      - "tauri-plugin-dialog"
+    multi-ecosystem-group: tauri
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
     groups:
       github-actions-minor-and-patch:
         patterns:
