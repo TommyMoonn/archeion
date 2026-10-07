@@ -174,35 +174,47 @@
 
   const libraryViewButtons = Array.from(document.querySelectorAll("[data-library-view]"));
   const folderButtons = Array.from(document.querySelectorAll("[data-library-folder]"));
+  const folderOverviewButtons = Array.from(document.querySelectorAll("[data-library-folder-card]"));
   const bookGrid = document.querySelector("[data-book-grid]");
+  const seriesGrid = document.querySelector("[data-series-grid]");
+  const folderOverview = document.querySelector("[data-folder-overview]");
   const previewTitle = document.querySelector("[data-preview-title]");
   const previewKicker = document.querySelector("[data-preview-kicker]");
+  const previewResults = document.querySelector("[data-preview-results]");
+  const librarySearch = document.querySelector("[data-library-search]");
+  const librarySort = document.querySelector("[data-library-sort]");
+  const libraryFilter = document.querySelector('[data-library-filter="in-progress"]');
   const bookCards = Array.from(document.querySelectorAll(".book-card"));
+  const seriesCards = Array.from(document.querySelectorAll(".series-card"));
   const reduceLibraryMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-  const libraryViews = {
-    library: {
-      title: "Library",
-      kicker: "All books",
-      matches: () => true,
-    },
-    favorites: {
-      title: "Favorites",
-      matches: (card) => card.dataset.favorite === "true",
-    },
+  const libraryState = {
+    destination: "library",
+    folder: null,
+    query: "",
+    inProgressOnly: false,
+    sort: "title",
   };
 
-  const animateLibraryGrid = () => {
+  const libraryDestinations = {
+    library: { title: "Library", kicker: "Your collection", noun: "books" },
+    series: { title: "Series", kicker: "Books in reading order", noun: "series" },
+    favorites: { title: "Favorites", kicker: "Saved views", noun: "books" },
+    folders: { title: "Folders", kicker: "Archive folders", noun: "folders" },
+  };
+
+  const normalized = (value) => (value || "").trim().toLocaleLowerCase();
+
+  const animateLibrarySurface = (surface) => {
     if (
       reduceLibraryMotion.matches ||
-      !(bookGrid instanceof HTMLElement) ||
-      typeof bookGrid.animate !== "function"
+      !(surface instanceof HTMLElement) ||
+      typeof surface.animate !== "function"
     ) {
       return;
     }
 
-    bookGrid.getAnimations().forEach((animation) => animation.cancel());
-    bookGrid.animate(
+    surface.getAnimations().forEach((animation) => animation.cancel());
+    surface.animate(
       [
         { opacity: 0.72, transform: "translateY(5px)" },
         { opacity: 1, transform: "translateY(0)" },
@@ -218,60 +230,193 @@
     });
   };
 
-  const renderLibraryBooks = ({ title, kicker, matches }) => {
-    if (!bookGrid) return;
+  const sortedByPreviewPreference = (left, right) => {
+    if (libraryState.sort === "recent") {
+      return Number(right.dataset.recent || 0) - Number(left.dataset.recent || 0);
+    }
+    return (left.dataset.title || "").localeCompare(right.dataset.title || "");
+  };
 
+  const renderBookCollection = () => {
+    if (!(bookGrid instanceof HTMLElement)) return 0;
+    const query = normalized(libraryState.query);
+    const cards = [...bookCards].sort(sortedByPreviewPreference);
     let visibleCount = 0;
-    bookCards.forEach((card) => {
-      const visible = matches(card);
+
+    cards.forEach((card) => {
+      const matchesDestination =
+        libraryState.destination === "favorites"
+          ? card.dataset.favorite === "true"
+          : libraryState.destination === "folder"
+            ? card.dataset.folder === libraryState.folder
+            : true;
+      const searchable = normalized(`${card.dataset.title} ${card.dataset.author}`);
+      const progress = Number(card.dataset.progress || 0);
+      const matchesProgress =
+        !libraryState.inProgressOnly || (progress > 0 && progress < 100);
+      const visible = matchesDestination && matchesProgress && (!query || searchable.includes(query));
       card.classList.toggle("is-hidden", !visible);
+      bookGrid.append(card);
       if (visible) visibleCount += 1;
     });
 
-    if (previewTitle) previewTitle.textContent = title;
-    if (previewKicker) {
-      const suffix = visibleCount === 1 ? "book" : "books";
-      previewKicker.textContent = kicker || `${visibleCount} ${suffix}`;
+    animateLibrarySurface(bookGrid);
+    return visibleCount;
+  };
+
+  const renderSeriesCollection = () => {
+    if (!(seriesGrid instanceof HTMLElement)) return 0;
+    const query = normalized(libraryState.query);
+    const cards = [...seriesCards].sort(sortedByPreviewPreference);
+    let visibleCount = 0;
+    cards.forEach((card) => {
+      const visible = !query || normalized(card.dataset.title).includes(query);
+      card.hidden = !visible;
+      seriesGrid.append(card);
+      if (visible) visibleCount += 1;
+    });
+    animateLibrarySurface(seriesGrid);
+    return visibleCount;
+  };
+
+  const renderFolderCollection = () => {
+    if (!(folderOverview instanceof HTMLElement)) return 0;
+    const query = normalized(libraryState.query);
+    let visibleCount = 0;
+    folderOverviewButtons.forEach((button) => {
+      const visible = !query || normalized(button.dataset.libraryFolderCard).includes(query);
+      button.hidden = !visible;
+      if (visible) visibleCount += 1;
+    });
+    animateLibrarySurface(folderOverview);
+    return visibleCount;
+  };
+
+  const renderLibraryPreview = () => {
+    const destination = libraryState.destination;
+    const content =
+      destination === "folder"
+        ? { title: libraryState.folder || "Folder", kicker: "Archive folder", noun: "books" }
+        : libraryDestinations[destination] || libraryDestinations.library;
+    const showsBooks = ["library", "favorites", "folder"].includes(destination);
+    const showsSeries = destination === "series";
+    const showsFolders = destination === "folders";
+
+    if (bookGrid instanceof HTMLElement) bookGrid.hidden = !showsBooks;
+    if (seriesGrid instanceof HTMLElement) seriesGrid.hidden = !showsSeries;
+    if (folderOverview instanceof HTMLElement) folderOverview.hidden = !showsFolders;
+
+    let visibleCount = 0;
+    if (showsBooks) visibleCount = renderBookCollection();
+    else if (showsSeries) visibleCount = renderSeriesCollection();
+    else if (showsFolders) visibleCount = renderFolderCollection();
+
+    if (previewTitle) previewTitle.textContent = content.title;
+    if (previewKicker) previewKicker.textContent = content.kicker;
+    if (previewResults) {
+      const singular = content.noun === "series" ? "series" : content.noun.slice(0, -1);
+      previewResults.textContent = `${visibleCount} ${visibleCount === 1 ? singular : content.noun}`;
     }
-    animateLibraryGrid();
+
+    if (librarySearch instanceof HTMLInputElement) {
+      librarySearch.placeholder = showsSeries
+        ? "Search series"
+        : showsFolders
+          ? "Search folders"
+          : "Search books";
+    }
+    if (libraryFilter instanceof HTMLButtonElement) {
+      libraryFilter.disabled = !showsBooks;
+      libraryFilter.setAttribute("aria-pressed", String(libraryState.inProgressOnly));
+    }
     requestPageMetricsRefresh();
   };
 
-  const setLibraryView = (view) => {
-    const content = libraryViews[view];
-    if (!content) return;
+  const setLibraryDestination = (destination) => {
+    if (!libraryDestinations[destination]) return;
+    libraryState.destination = destination;
+    libraryState.folder = null;
     clearLibrarySelection();
-    const activeButton = libraryViewButtons.find((button) => button.dataset.libraryView === view);
+    const activeButton = libraryViewButtons.find(
+      (button) => button.dataset.libraryView === destination,
+    );
     activeButton?.classList.add("active");
     activeButton?.setAttribute("aria-pressed", "true");
-    renderLibraryBooks(content);
+    renderLibraryPreview();
   };
 
   const setFolderView = (folder) => {
     if (!folder) return;
+    libraryState.destination = "folder";
+    libraryState.folder = folder;
     clearLibrarySelection();
     const activeButton = folderButtons.find((button) => button.dataset.libraryFolder === folder);
     activeButton?.classList.add("active");
     activeButton?.setAttribute("aria-pressed", "true");
-    renderLibraryBooks({
-      title: folder,
-      matches: (card) => card.dataset.folder === folder,
-    });
+    renderLibraryPreview();
   };
 
   libraryViewButtons.forEach((button) => {
-    button.addEventListener("click", () => setLibraryView(button.dataset.libraryView || "library"));
+    button.addEventListener("click", () =>
+      setLibraryDestination(button.dataset.libraryView || "library"),
+    );
   });
 
   folderButtons.forEach((button) => {
     button.addEventListener("click", () => setFolderView(button.dataset.libraryFolder || ""));
   });
 
+  folderOverviewButtons.forEach((button) => {
+    button.addEventListener("click", () =>
+      setFolderView(button.dataset.libraryFolderCard || ""),
+    );
+  });
+
+  librarySearch?.addEventListener("input", () => {
+    if (!(librarySearch instanceof HTMLInputElement)) return;
+    libraryState.query = librarySearch.value;
+    renderLibraryPreview();
+  });
+
+  libraryFilter?.addEventListener("click", () => {
+    if (!(libraryFilter instanceof HTMLButtonElement) || libraryFilter.disabled) return;
+    libraryState.inProgressOnly = !libraryState.inProgressOnly;
+    renderLibraryPreview();
+  });
+
+  librarySort?.addEventListener("change", () => {
+    if (!(librarySort instanceof HTMLSelectElement)) return;
+    libraryState.sort = librarySort.value === "recent" ? "recent" : "title";
+    renderLibraryPreview();
+  });
+
+  renderLibraryPreview();
+
   const readerDemo = document.querySelector("[data-reader-demo]");
   const readerFrame = readerDemo?.querySelector(".reader-demo__frame");
   const themeButtons = Array.from(document.querySelectorAll("[data-reader-theme]"));
   const readerSize = document.querySelector("#reader-size");
   const readerSizeOutput = document.querySelector("#reader-size-output");
+  const readerModeButtons = Array.from(document.querySelectorAll("[data-reader-mode]"));
+  const readerModeStatus = document.querySelector("[data-reader-mode-status]");
+
+  const selectReaderMode = (button) => {
+    const mode = button.dataset.readerMode === "continuous" ? "continuous" : "paged";
+    readerDemo?.setAttribute("data-mode", mode);
+    readerModeButtons.forEach((item) => {
+      const selected = item === button;
+      item.classList.toggle("active", selected);
+      item.setAttribute("aria-pressed", String(selected));
+    });
+    if (readerModeStatus) {
+      readerModeStatus.textContent =
+        mode === "continuous" ? "Continuous scrolling" : "Page-by-page reading";
+    }
+  };
+
+  readerModeButtons.forEach((button) => {
+    button.addEventListener("click", () => selectReaderMode(button));
+  });
 
   const selectReaderTheme = (button) => {
     readerDemo?.setAttribute("data-theme", button.dataset.readerTheme || "dark");
@@ -335,10 +480,10 @@
       pageNumber: 214,
       content: `
         <p class="reader-running-head">Signal and Dust · Chapter Twelve</p>
-        <p class="reader-dropcap">By the time the signal crossed the inner ring, Mara had already stopped listening for a reply. The station had taught her that silence was not the absence of information. It was a shape, a pressure, a thing with weight.</p>
-        <p>Outside the glass, the archive lights moved in strict intervals. Each pulse marked a volume returned to its place, a record made legible again.</p>
+        <p class="reader-dropcap">By the time the signal crossed the station network, Mara had already stopped listening for a reply. The station had taught her that silence was not the absence of information. It was a shape, a pressure, a thing with weight.</p>
+        <p>Outside the glass, the catalogue lights moved in strict intervals. Each pulse marked a volume returned to its place, a record made legible again.</p>
         <blockquote><span class="reader-annotatable" data-reader-annotatable data-annotation-key="nothing-lost" role="button" tabindex="0">Nothing was lost. It had only been waiting for an index.</span></blockquote>
-        <p>The console warmed beneath her hands. One more book entered orbit.</p>
+        <p>The console warmed beneath her hands. One more book was ready to be read.</p>
       `,
     },
     {
@@ -382,7 +527,6 @@
   const readerChapterLabel = document.querySelector("[data-reader-chapter-label]");
   const readerProgress = document.querySelector("[data-reader-progress]");
   const readerPageCount = document.querySelector("[data-reader-page-count]");
-  const readerMemory = document.querySelector("[data-reader-memory]");
   const previousPageButton = document.querySelector('[data-reader-page="previous"]');
   const nextPageButton = document.querySelector('[data-reader-page="next"]');
   const bookmarkButton = document.querySelector("[data-reader-bookmark-toggle]");
@@ -674,8 +818,6 @@
     if (readerProgress instanceof HTMLElement) readerProgress.style.width = `${page.progress}%`;
     if (readerPageCount)
       readerPageCount.textContent = `${page.progress}% · ${page.pageNumber} / 315`;
-    if (readerMemory)
-      readerMemory.textContent = `${page.chapterLabel.split(" · ")[0]} · ${page.progress}%`;
     readerPageIndex = pageIndex;
     hydrateReaderAnnotations();
     updateBookmarkButton();
