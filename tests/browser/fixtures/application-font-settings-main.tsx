@@ -7,6 +7,7 @@ import { createInstalledFontCatalog } from "../../../src/storage/installedFontCa
 import { appPreferencesStore } from "../../../src/stores/appPreferencesStore";
 import { AppearanceRuntime } from "../../../src/themes/AppearanceRuntime";
 import type { AppPreferences } from "../../../src/types/appSettings";
+import { largeFontCatalog } from "./font-catalog";
 import "../../../src/styles/index.css";
 
 declare global {
@@ -40,12 +41,14 @@ const pending = parameters.has("pending")
 const catalog = createInstalledFontCatalog(async () => {
   providerCalls += 1;
   await pending;
-  return [
-    "Zulu",
-    "Georgia",
-    "Arial",
-    "Long family name with multilingual 日本語 Ελληνικά and extended unbroken characters ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-  ];
+  return parameters.has("large")
+    ? largeFontCatalog
+    : [
+        "Zulu",
+        "Georgia",
+        "Arial",
+        "Long family name with multilingual 日本語 Ελληνικά and extended unbroken characters ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+      ];
 });
 
 window.applicationFontSettingsFixture = {

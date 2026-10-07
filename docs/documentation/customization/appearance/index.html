@@ -295,8 +295,8 @@
           <header class="article-header">
             <h1>Appearance and reader controls</h1>
             <p>
-              Choose app colors, Display density and Animations, or adjust Reader colors and
-              typography.
+              Choose app colors and fonts, Display density and Animations, or adjust Reader colors
+              and typography.
             </p>
           </header>
           <details class="mobile-outline" data-mobile-outline="">
@@ -329,6 +329,47 @@
             Packages can provide supported app and Reader colors, but cannot add CSS, scripts,
             fonts, images, or layout changes. Authors can consult the
             <a href="../custom-themes/">Custom themes format and tokens</a>.
+          </p>
+          <div class="article-heading">
+            <h2 id="app-fonts">Choose Interface and Display fonts</h2>
+            <a
+              class="heading-permalink"
+              href="#app-fonts"
+              aria-label="Link to section: Choose Interface and Display fonts"
+              ><span aria-hidden="true">#</span></a
+            >
+          </div>
+          <p>
+            In <strong>Settings → Appearance</strong>, <strong>Interface font</strong> changes
+            application controls, navigation, and ordinary text.
+            <strong>Display font</strong> changes editorial headings such as the Library title.
+            Neither changes the EPUB's typeface; use
+            <a href="../../guides/reading/#reader-typeface">Reader typeface</a> for publication
+            text.
+          </p>
+          <ul>
+            <li><strong>Inter (Default)</strong> uses Archeion's bundled interface font.</li>
+            <li><strong>Archeion Default</strong> uses the established serif display stack.</li>
+            <li>
+              <strong>Use interface font</strong> makes Display follow the effective Interface font,
+              including its fallback when a saved family is unavailable.
+            </li>
+          </ul>
+          <p>
+            The pickers list font families installed in Windows. Open a picker and type to filter
+            its plain list by family name, ignoring letter case. Use the arrow keys to move through
+            matches, Enter to select, and Escape to close without changing the selection. Choices
+            save automatically and synchronize to other open Archeion windows.
+            <strong>Reset appearance</strong> restores both application font defaults along with the
+            other Appearance preferences.
+          </p>
+          <p>
+            Archeion keeps the installed-font list for the application session. Restart Archeion
+            after installing or removing a Windows font. A missing saved family is marked
+            <strong>Unavailable</strong> and uses its role's default fallback without erasing the
+            choice. If the family is available again after restart, that saved choice resumes.
+            Archeion does not import or download font files, and font files do not travel with
+            archives.
           </p>
           <div class="article-heading">
             <h2 id="density-motion">Adjust spacing and motion</h2>

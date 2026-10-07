@@ -11,6 +11,18 @@ beforeEach(() => {
 });
 
 describe("installedFontCatalog", () => {
+  it("keeps availability stable for a session and discovers changed families in a new session", async () => {
+    let installed = ["Fixture Sans", "Fixture Wide Serif"];
+    const provider = vi.fn(async () => installed);
+    const running = createInstalledFontCatalog(provider);
+    expect(await running.load()).toEqual(installed);
+    installed = ["Fixture Sans", "Fixture Mono"];
+    expect(await running.load()).toEqual(["Fixture Sans", "Fixture Wide Serif"]);
+    const restarted = createInstalledFontCatalog(provider);
+    expect(await restarted.load()).toEqual(installed);
+    expect(provider).toHaveBeenCalledTimes(2);
+  });
+
   it("shares a single in-flight provider result and caches it for later consumers", async () => {
     let finish!: (families: string[]) => void;
     const provider = vi.fn(

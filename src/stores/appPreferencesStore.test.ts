@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createDefaultLibraryFilters } from "../types/library";
 import { AppearanceRuntime } from "../themes/AppearanceRuntime";
 import { createInstalledFontCatalog } from "../storage/installedFontCatalog";
+import { createReaderAppearanceController } from "../features/reader/readerAppearanceController";
 import type { AppPreferences } from "../types/appSettings";
 import type { DisplayFontSelection } from "../types/applicationFonts";
 import type { AppSettingsMutation, AppSettingsSnapshot } from "../types/appSettings";
@@ -1703,7 +1704,12 @@ describe("application font persistence and synchronization", () => {
     const mainStore = new AppPreferencesStore(mainWindow.persistence);
     const secondaryStore = new AppPreferencesStore(secondaryWindow.persistence);
     const roots = [document.createElement("html"), document.createElement("html")];
-    const fontCatalog = createInstalledFontCatalog(async () => ["Arial", "Georgia"]);
+    // Catalog roles are injected, not discovered from the test machine.
+    const fontCatalog = createInstalledFontCatalog(async () => [
+      "Arial",
+      "Georgia",
+      "Fixture Mono",
+    ]);
     const runtimes = [mainStore, secondaryStore].map(
       (globalPreferences, index) =>
         new AppearanceRuntime({
@@ -1713,11 +1719,16 @@ describe("application font persistence and synchronization", () => {
         }),
     );
     const stops = runtimes.map((runtime) => runtime.start());
+    const readers = [mainStore, secondaryStore].map((preferences, index) =>
+      createReaderAppearanceController({ preferences, runtime: runtimes[index], fontCatalog }),
+    );
+    readers.forEach((reader) => reader.activate());
     try {
       await Promise.all([mainStore.initialize(), secondaryStore.initialize()]);
       await fontCatalog.load();
       const readerTheme = runtimes[1].getReaderSnapshot();
       const readerSettings = secondaryStore.getSnapshot().reader;
+      const publication = readers[1].getSnapshot().contentTheme;
       await mainStore.update({
         appearance: {
           interfaceFont: { kind: "system", family: "Arial" },
@@ -1741,6 +1752,26 @@ describe("application font persistence and synchronization", () => {
       expect(mainWindow.mutateDesktop).toHaveBeenCalledTimes(2);
       expect(runtimes[1].getReaderSnapshot()).toBe(readerTheme);
       expect(secondaryStore.getSnapshot().reader).toBe(readerSettings);
+      expect(readers[1].getSnapshot().contentTheme).toBe(publication);
+      const applicationStacks = roots.map((root) => [
+        root.style.getPropertyValue("--font-ui"),
+        root.style.getPropertyValue("--font-display"),
+      ]);
+      await readers[0].commitSettings({
+        ...readers[0].getSnapshot().settings,
+        fontFamily: { kind: "system", family: "Fixture Mono" },
+      });
+      expect(readers[1].getSnapshot().committedSettings.fontFamily).toEqual({
+        kind: "system",
+        family: "Fixture Mono",
+      });
+      expect(readers[1].getSnapshot().contentTheme).not.toBe(publication);
+      expect(
+        roots.map((root) => [
+          root.style.getPropertyValue("--font-ui"),
+          root.style.getPropertyValue("--font-display"),
+        ]),
+      ).toEqual(applicationStacks);
       await mainStore.update({
         appearance: {
           interfaceFont: { kind: "system", family: "Missing UI" },
@@ -1758,8 +1789,68 @@ describe("application font persistence and synchronization", () => {
         family: "Missing Display",
       });
     } finally {
+      readers.forEach((reader) => reader.teardown());
       stops.forEach((stop) => stop());
     }
+  });
+});
+
+describe("font availability across application sessions", () => {
+  it("preserves all missing selections through restart and resumes them only in a fresh catalog", async () => {
+    const native = createDesktopSettingsHarness(
+      nativeSnapshot({
+        appearance: {
+          interfaceFont: { kind: "system", family: "Fixture Sans" },
+          displayFont: { kind: "system", family: "Fixture Wide Serif" },
+        },
+        reader: { fontFamily: { kind: "system", family: "Fixture Mono" } },
+      }),
+    );
+    let installed: readonly string[] = [];
+    const provider = vi.fn(async () => installed);
+    const persisted = native.snapshot();
+    for (const available of [false, true]) {
+      const window = native.createWindow();
+      const store = new AppPreferencesStore(window.persistence);
+      const root = document.createElement("html");
+      const catalog = createInstalledFontCatalog(provider);
+      const runtime = new AppearanceRuntime({
+        globalPreferences: store,
+        fontCatalog: catalog,
+        getDocumentRoot: () => root,
+      });
+      const stop = runtime.start();
+      const reader = createReaderAppearanceController({
+        preferences: store,
+        runtime,
+        fontCatalog: catalog,
+      });
+      reader.activate();
+      try {
+        await store.initialize();
+        await catalog.load();
+        expect(store.getSnapshot()).toEqual(persisted.preferences);
+        expect(window.mutateDesktop).not.toHaveBeenCalled();
+        expect(root.style.getPropertyValue("--font-ui")).toBe(
+          available ? '"Fixture Sans", var(--font-ui-default)' : "var(--font-ui-default)",
+        );
+        expect(root.style.getPropertyValue("--font-display")).toBe(
+          available
+            ? '"Fixture Wide Serif", var(--font-display-default)'
+            : "var(--font-display-default)",
+        );
+        expect(reader.getSnapshot().contentTheme.rules.body["font-family"]).toBe(
+          `${available ? '"Fixture Mono", ' : ""}"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif !important`,
+        );
+        installed = ["Fixture Sans", "Fixture Wide Serif", "Fixture Mono"];
+        expect(await catalog.load()).toEqual(available ? installed : []);
+        expect(native.snapshot()).toEqual(persisted);
+      } finally {
+        reader.teardown();
+        stop();
+      }
+    }
+    expect(provider).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -45,6 +45,20 @@ weights, sizes, and line heights stay unchanged. Missing families render with th
 default stack without erasing the stored selection. Font preferences are not theme-package
 tokens and are never applied to EPUB publication documents.
 
+The shared `FontPicker` owns searching, keyboard navigation, unavailable-state presentation,
+and transient focus for all three roles. Appearance and Reader adapters own their pinned choices,
+not another catalog or persistence path. Reader selections remain owned by the existing Reader
+appearance controller and publication theme registry; changing a Reader family must not write
+either application-root font variable. Application font changes must not rebuild the publication
+theme or change its selected family.
+
+The native catalog is cached for the application session; each WebView consumes its window-local
+service over the same native command. Installing or removing Windows fonts requires an application
+restart. Missing selections survive persistence and use their independent fallback stacks until
+a fresh session finds the family again. No theme package, archive, or font picker imports or
+downloads font files. Metric regressions must be fixed at semantic layout roles, never by matching
+individual user font names. See `docs/FONT_PREFERENCES_VALIDATION.md` for the runtime review matrix.
+
 Use the named text roles from `tokens.css`:
 
 - `--type-caption` for secondary labels and compact metadata

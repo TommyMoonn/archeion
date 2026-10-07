@@ -1019,9 +1019,9 @@ window.ArcheionDocumentationIndex = {
       sectionId: "reader-settings",
       sectionHeading: "Change reading settings",
       aliases: [],
-      text: "open reader settings to change the controls available for the book: paged or continuous reading mode. reader colors. typeface and text size. line spacing. page width. top or side progress bar placement. page width options are narrow, comfortable, wide, and full. comfortable is the default. each step allows a wider reading measure; full removes the reading-measure cap while retaining a small edge gutter. paged mode remains a single-page presentation rather than turning a wider setting into a two-page spread. changes save automatically. successful saves are silent; the reader shows an error when a setting could not be saved.",
+      text: "open reader settings to change the controls available for the book: paged or continuous reading mode. reader colors. typeface and text size. line spacing. page width. top or side progress bar placement. typeface offers book serif (default), clean sans, system, literata, and atkinson hyperlegible, followed by font families installed in windows. open the picker and type to filter by family name, ignoring letter case. arrow keys move through matches, enter selects, and escape closes the picker. these choices affect publication text only, not the reader toolbar or application interface and display fonts. the same typeface control is available in settings → reader. restart archeion after installing or removing a windows font to refresh the session's font list. a saved missing family is marked unavailable; the book uses the book serif fallback while keeping the saved choice. if the family returns, the choice resumes after restart. font files are not imported, downloaded, or stored in archives. see application font settings for the separate interface and display roles. page width options are narrow, comfortable, wide, and full. comfortable is the default. each step allows a wider reading measure; full removes the reading-measure cap while retaining a small edge gutter. paged mode remains a single-page presentation rather than turning a wider setting into a two-page spread. changes save automatically. successful saves are silent; the reader shows an error when a setting could not be saved.",
       excerpt:
-        "Open Reader settings to change the controls available for the book: Paged or Continuous reading mode. Reader colors. Typeface and text size. Line spacing. Page width. Top or Side progress bar placement. Page width options are Narrow,…",
+        "Open Reader settings to change the controls available for the book: Paged or Continuous reading mode. Reader colors. Typeface and text size. Line spacing. Page width. Top or Side progress bar placement. Typeface offers Book serif…",
     },
     {
       pageId: "reading",
@@ -1450,7 +1450,7 @@ window.ArcheionDocumentationIndex = {
       sectionId: "sections",
       sectionHeading: "Choose settings by their effect",
       aliases: [],
-      text: "general determines whether startup opens the last archive or archive manager, whether the last reader route is restored, and how window and destructive-action confirmation preferences behave. review confirmations before file operations, especially if you change that preference. appearance changes app colors, spacing, and subtle transitions, not epub typography. see density and reduced-motion behavior and theme manager. library sets default books, folders, and series view, sort, and card-size options. smart view visibility adds or hides shortcuts; hiding a view does not delete its books. see smart views. reader sets default typography, reader theme, page width, and progress placement. the active reader also exposes its reading controls. see reader settings for layout effects. archives identifies the active folder and opens archive manager. default import mode determines whether add epub copies or moves its source; conflict handling determines what happens when a destination filename exists. review both in the import dialog before proceeding. storage controls global monitoring and backup policies, while maintenance targets the active archive. re-extraction, cover clearing, and recovery cleanup have different data effects. consult archive storage before choosing one. dictionaries installs local resources and controls which sources define uses and their order. disabling a dictionary keeps its files; removing it deletes the installed copy. see dictionaries and define. keyboard changes supported command bindings, not fixed widget interaction keys. clear disables a binding; reset restores its default. see keyboard shortcuts for capture and conflict rules.",
+      text: "general determines whether startup opens the last archive or archive manager, whether the last reader route is restored, and how window and destructive-action confirmation preferences behave. review confirmations before file operations, especially if you change that preference. appearance changes app colors, interface and display fonts, spacing, and subtle transitions, not epub typography. see application font settings, density and reduced-motion behavior and theme manager. library sets default books, folders, and series view, sort, and card-size options. smart view visibility adds or hides shortcuts; hiding a view does not delete its books. see smart views. reader sets default typography, reader theme, page width, and progress placement. the active reader also exposes its reading controls. see reader settings for layout effects. archives identifies the active folder and opens archive manager. default import mode determines whether add epub copies or moves its source; conflict handling determines what happens when a destination filename exists. review both in the import dialog before proceeding. storage controls global monitoring and backup policies, while maintenance targets the active archive. re-extraction, cover clearing, and recovery cleanup have different data effects. consult archive storage before choosing one. dictionaries installs local resources and controls which sources define uses and their order. disabling a dictionary keeps its files; removing it deletes the installed copy. see dictionaries and define. keyboard changes supported command bindings, not fixed widget interaction keys. clear disables a binding; reset restores its default. see keyboard shortcuts for capture and conflict rules.",
       excerpt:
         "General determines whether startup opens the last archive or Archive Manager, whether the last Reader route is restored, and how window and destructive-action confirmation preferences behave. Review confirmations before file operations,…",
     },
@@ -1645,9 +1645,9 @@ window.ArcheionDocumentationIndex = {
       sectionId: "",
       sectionHeading: "",
       aliases: [],
-      text: "choose app colors, display density and animations, or adjust reader colors and typography.",
+      text: "choose app colors and fonts, display density and animations, or adjust reader colors and typography.",
       excerpt:
-        "Choose app colors, Display density and Animations, or adjust Reader colors and typography.",
+        "Choose app colors and fonts, Display density and Animations, or adjust Reader colors and typography.",
     },
     {
       pageId: "appearance",
@@ -1663,6 +1663,21 @@ window.ArcheionDocumentationIndex = {
       text: "open settings → appearance and use app themes. built-in themes are available immediately; system follows the operating system's light or dark appearance. the app theme affects the interface, not the epub's text size or reading layout. for custom packages, open theme manager to import, preview, and apply colors. packages can provide supported app and reader colors, but cannot add css, scripts, fonts, images, or layout changes. authors can consult the custom themes format and tokens.",
       excerpt:
         "Open Settings → Appearance and use App themes. Built-in themes are available immediately; System follows the operating system's light or dark appearance. The app theme affects the interface, not the EPUB's text size or reading layout. For…",
+    },
+    {
+      pageId: "appearance",
+      title: "Appearance",
+      pageHeading: "Appearance and reader controls",
+      route: "/customization/appearance/",
+      group: "customization",
+      groupTitle: "Customization",
+      pageType: "guide",
+      sectionId: "app-fonts",
+      sectionHeading: "Choose Interface and Display fonts",
+      aliases: [],
+      text: "in settings → appearance, interface font changes application controls, navigation, and ordinary text. display font changes editorial headings such as the library title. neither changes the epub's typeface; use reader typeface for publication text. inter (default) uses archeion's bundled interface font. archeion default uses the established serif display stack. use interface font makes display follow the effective interface font, including its fallback when a saved family is unavailable. the pickers list font families installed in windows. open a picker and type to filter its plain list by family name, ignoring letter case. use the arrow keys to move through matches, enter to select, and escape to close without changing the selection. choices save automatically and synchronize to other open archeion windows. reset appearance restores both application font defaults along with the other appearance preferences. archeion keeps the installed-font list for the application session. restart archeion after installing or removing a windows font. a missing saved family is marked unavailable and uses its role's default fallback without erasing the choice. if the family is available again after restart, that saved choice resumes. archeion does not import or download font files, and font files do not travel with archives.",
+      excerpt:
+        "In Settings → Appearance, Interface font changes application controls, navigation, and ordinary text. Display font changes editorial headings such as the Library title. Neither changes the EPUB's typeface; use Reader typeface for…",
     },
     {
       pageId: "appearance",
