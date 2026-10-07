@@ -16,7 +16,7 @@ const libraryMarkup = landingHtml.match(
   /<section class="library-scene section"[\s\S]*?<section\s+class="reader-scene/,
 )?.[0];
 const readerMarkup = landingHtml.match(
-  /<section\s+class="reader-scene[\s\S]*?<section\s+class="architecture-scene/,
+  /<section\s+class="reader-scene[\s\S]*?<section\s+class="local-first-scene/,
 )?.[0];
 
 describe("landing Library and Reader product story", () => {
