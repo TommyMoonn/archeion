@@ -5,6 +5,7 @@ use std::{
     sync::{Arc, Condvar, Mutex, MutexGuard},
 };
 
+use crate::sha256::sha256_hex;
 use sha2::{Digest, Sha256};
 
 use super::{
@@ -281,7 +282,7 @@ fn hash_reader(mut reader: impl Read) -> Result<CachedEpubDigest, String> {
         hasher.update(&buffer[..read]);
     }
     Ok(CachedEpubDigest {
-        sha256: format!("{:x}", hasher.finalize()),
+        sha256: sha256_hex(hasher.finalize()),
     })
 }
 

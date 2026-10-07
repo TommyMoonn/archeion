@@ -7,12 +7,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::sha256::sha256_hex;
 use sha2::{Digest, Sha256};
 use zip::{write::SimpleFileOptions, ZipWriter};
 
 use super::{
-    install_staging_root, prepare_owned_package, publish_install_with, DictionaryInstallError,
-    DictionaryInstallService, InstallStaging,
+    install_staging_root, prepare_owned_package, publish_install_with, verify_catalog_archive,
+    DictionaryInstallError, DictionaryInstallService, InstallStaging,
 };
 use crate::commands::{
     dictionary_archive::{self, DictionaryArchiveError},
@@ -138,7 +139,7 @@ fn catalog_entry_with_format(
         }
         .to_string(),
         package_format,
-        sha256: format!("{:x}", Sha256::digest(bytes)),
+        sha256: sha256_hex(Sha256::digest(bytes)),
     }
 }
 
@@ -161,6 +162,25 @@ fn assert_install_staging_empty(root: &Path) {
         !staging.exists() || fs::read_dir(staging).unwrap().next().is_none(),
         "recognized installation staging should be empty"
     );
+}
+
+#[test]
+fn catalog_archive_verification_preserves_known_hash_and_rejects_same_size_tampering() {
+    let directory = TestDirectory::new("known-sha256");
+    let token = "verified-40-41-42.dictionary-package";
+    let expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+    let mut entry = catalog_entry(b"abc");
+    entry.sha256 = expected.to_string();
+    write_verified_download_fixture(directory.path(), token, entry, b"abc");
+    let artifact = resolve_verified_download(directory.path(), token).unwrap();
+
+    assert_eq!(artifact.verified_sha256, expected);
+    verify_catalog_archive(&artifact).unwrap();
+    fs::write(&artifact.package_path, b"abd").unwrap();
+    assert!(matches!(
+        verify_catalog_archive(&artifact),
+        Err(DictionaryInstallError::VerifiedPackageChanged)
+    ));
 }
 
 #[test]

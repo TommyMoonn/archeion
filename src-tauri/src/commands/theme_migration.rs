@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::sha256::sha256_hex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -76,7 +77,7 @@ impl ThemePackageContent {
             hasher.update((file.bytes.len() as u64).to_le_bytes());
             hasher.update(&file.bytes);
         }
-        format!("{:x}", hasher.finalize())
+        sha256_hex(hasher.finalize())
     }
 
     fn with_manifest_id(&self, destination_id: &str) -> Result<Self, String> {
@@ -527,4 +528,31 @@ pub(crate) fn migrate_registered_legacy_theme_packages(
     archive_roots: &[PathBuf],
 ) -> Result<ThemeMigrationReport, String> {
     migrate_legacy_theme_packages_at(&resolve_app_data_root(app)?, archive_roots)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ThemePackageContent, ThemePackageFile};
+
+    #[test]
+    fn package_hash_preserves_directory_path_length_and_binary_content_framing() {
+        let mut content = ThemePackageContent {
+            directories: vec!["assets".to_string()],
+            files: vec![ThemePackageFile {
+                relative_path: "assets/sample.bin".to_string(),
+                bytes: vec![0, 128, 255],
+            }],
+        };
+        let expected = "1c8f11a4108aa45f357ae5ad7bcbb666984ec68d1e0992727b12e3f92fe4553b";
+        assert_eq!(content.sha256(), expected);
+
+        content.files[0].bytes[2] = 254;
+        assert_ne!(content.sha256(), expected);
+        content.files[0].bytes[2] = 255;
+        content.files[0].relative_path = "assets/renamed.bin".to_string();
+        assert_ne!(content.sha256(), expected);
+        content.files[0].relative_path = "assets/sample.bin".to_string();
+        content.directories.clear();
+        assert_ne!(content.sha256(), expected);
+    }
 }

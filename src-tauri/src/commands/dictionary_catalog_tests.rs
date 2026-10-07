@@ -4,6 +4,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use crate::sha256::sha256_hex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tokio::sync::oneshot;
@@ -124,10 +125,7 @@ fn committed_production_catalog_is_valid_and_non_empty() {
         let package_bytes = fs::read(package_root.join(file_name))
             .expect("every production catalog package should be committed");
         assert_eq!(package_bytes.len() as u64, entry.compressed_size_bytes);
-        assert_eq!(
-            format!("{:x}", Sha256::digest(&package_bytes)),
-            entry.sha256
-        );
+        assert_eq!(sha256_hex(Sha256::digest(&package_bytes)), entry.sha256);
     }
 
     let princeton = catalog
@@ -199,7 +197,7 @@ fn generated_english_candidates_install_index_activate_and_lookup() {
         let package_bytes = fs::read(&package_path).unwrap_or_else(|error| {
             panic!("candidate package {file_name} should be readable: {error}")
         });
-        let package_sha256 = format!("{:x}", Sha256::digest(&package_bytes));
+        let package_sha256 = sha256_hex(Sha256::digest(&package_bytes));
         assert_eq!(package_bytes.len() as u64, entry.compressed_size_bytes);
         assert_eq!(package_sha256, entry.sha256);
 
@@ -243,7 +241,7 @@ fn generated_english_candidates_install_index_activate_and_lookup() {
 
     let mut receipt_bytes = serde_json::to_vec_pretty(&json!({
         "schemaVersion": 1,
-        "catalogSha256": format!("{:x}", Sha256::digest(&catalog_bytes)),
+        "catalogSha256": sha256_hex(Sha256::digest(&catalog_bytes)),
         "packages": receipt_packages,
     }))
     .expect("validation receipt should serialize");

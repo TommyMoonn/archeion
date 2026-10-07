@@ -24,6 +24,7 @@ use super::{
         self, StarDictDefinitionCompression, StarDictSourceFileKind, ValidatedStarDictPackage,
     },
 };
+use crate::sha256::sha256_hex;
 use sha2::{Digest, Sha256};
 
 const INSTALL_STAGING_DIRECTORY: &str = "staging/installs";
@@ -284,7 +285,7 @@ fn verify_catalog_archive(
         hasher.update(&buffer[..read]);
     }
     if bytes != artifact.verified_size_bytes
-        || format!("{:x}", hasher.finalize()) != artifact.verified_sha256
+        || sha256_hex(hasher.finalize()) != artifact.verified_sha256
     {
         return Err(DictionaryInstallError::VerifiedPackageChanged);
     }

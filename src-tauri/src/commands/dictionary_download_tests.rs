@@ -5,6 +5,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use crate::sha256::sha256_hex;
 use sha2::{Digest, Sha256};
 use tokio::sync::oneshot;
 
@@ -30,7 +31,7 @@ fn test_root(label: &str) -> PathBuf {
 }
 
 fn sha256(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    sha256_hex(Sha256::digest(bytes))
 }
 
 fn entry_with_format(
@@ -116,6 +117,34 @@ async fn download_owner_rejects_a_non_https_target_before_network_access() {
         open_http_source(package_entry, ticket).await,
         Err(DictionaryDownloadError::InvalidDownloadTarget)
     ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn streamed_download_accepts_the_exact_known_sha256_vector() {
+    let root = test_root("known-sha256");
+    let expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+    let mut package_entry = entry(b"abc");
+    package_entry.sha256 = expected.to_string();
+    let package = DictionaryDownloadService::default()
+        .download_with(
+            &root,
+            package_entry,
+            |_| Ok(()),
+            |_, _| async {
+                Ok(ChunkSource::new(
+                    Some(3),
+                    vec![b"a".to_vec(), b"bc".to_vec()],
+                ))
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(package.sha256, expected);
+    let artifact = resolve_verified_download(&root, &package.staging_token).unwrap();
+    assert_eq!(artifact.verified_sha256, expected);
+    assert_eq!(fs::read(artifact.package_path).unwrap(), b"abc");
+    fs::remove_dir_all(root).unwrap();
 }
 
 #[tokio::test(flavor = "current_thread")]
