@@ -137,8 +137,18 @@ describe("CI workflow contract", () => {
     );
     expect(rustChecks).toContain("        run: ${{ matrix.command }}");
     expect(jobLines("msrv")).toContain(
-      "        run: cargo +1.88.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml",
+      "        run: cargo +1.90.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml",
     );
+  });
+
+  it("checks Rust 1.90 separately with its own versioned cache", () => {
+    const msrv = jobLines("msrv");
+
+    expect(msrv).toContain("    name: Rust 1.90 check");
+    expect(msrv).toContain("      - name: Set up Rust 1.90");
+    expect(msrv).toContain("          toolchain: 1.90.0");
+    expect(msrv).toContain("          shared-key: msrv-1.90");
+    expect(jobLines("rust-checks")).toContain("          toolchain: 1.97.1");
   });
 
   it("lets Tauri build the manual installer frontend once and checks its assets afterward", () => {

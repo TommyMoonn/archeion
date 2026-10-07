@@ -38,7 +38,10 @@ describe("tracked release documentation and toolchain sources", () => {
     const toolchain = /channel = "([^"]+)"/.exec(read("rust-toolchain.toml"))?.[1];
     const msrv = /rust-version = "([^"]+)"/.exec(read("src-tauri/Cargo.toml"))?.[1];
     expect(toolchain).toBe("1.97.1");
-    expect(msrv).toBe("1.88");
+    expect(msrv).toBe("1.90");
+    const developmentGuide = read("docs/DEVELOPMENT.md").replace(/\s+/g, " ");
+    expect(developmentGuide).toContain(`toolchain to Rust ${toolchain}.`);
+    expect(developmentGuide).toContain(`declares Rust ${msrv} as the minimum supported Rust`);
 
     const rustSteps = workflows.flatMap((file) => [
       ...read(file).matchAll(
