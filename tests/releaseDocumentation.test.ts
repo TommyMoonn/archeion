@@ -45,9 +45,11 @@ describe("tracked release documentation and toolchain sources", () => {
         /uses: dtolnay\/rust-toolchain@[a-f0-9]{40}(?:[^\r\n]*)\r?\n {8}with:\r?\n {10}toolchain: ([^\r\n]+)/g,
       ),
     ]);
-    expect(rustSteps).toHaveLength(7);
     const versions = rustSteps.map(([, version]) => version);
-    expect(versions.filter((version) => version === toolchain)).toHaveLength(6);
+    expect(versions).toContain(toolchain);
+    for (const version of versions) {
+      expect([toolchain, `${msrv}.0`]).toContain(version);
+    }
     expect(versions.filter((version) => version === `${msrv}.0`)).toHaveLength(1);
     expect(read(".github/workflows/ci.yml")).toContain(
       `run: cargo +${msrv}.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml`,

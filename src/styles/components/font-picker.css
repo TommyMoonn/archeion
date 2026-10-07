@@ -1,0 +1,57 @@
+.font-picker {
+  max-inline-size: 100%;
+}
+
+.font-picker__popover {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.font-picker__search {
+  flex-shrink: 0;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.font-picker__list {
+  min-block-size: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.font-picker__list .app-select__option {
+  padding-block: 6px;
+}
+
+.font-picker__list .app-select__option > span:first-child {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.font-picker__list .app-select__option[data-active="true"] {
+  color: var(--text-strong);
+  background: var(--surface-hover);
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.font-picker__empty {
+  padding: 8px;
+  color: var(--muted);
+  font-size: var(--type-meta);
+}
+
+@media (forced-colors: active) {
+  .font-picker__list .app-select__option[data-active="true"],
+  .font-picker__list .app-select__option[aria-selected="true"] {
+    /* Keep system-color text legible without a conflicting browser text backplate. */
+    forced-color-adjust: none;
+    color: HighlightText;
+    background: Highlight;
+    outline-color: Highlight;
+  }
+}

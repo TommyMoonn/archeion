@@ -56,6 +56,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_settings::load_app_settings_snapshot,
             commands::app_settings::update_app_settings,
+            commands::fonts::list_installed_font_families,
             commands::archive::activate_archive,
             commands::archive::complete_archive_reconciliation,
             commands::archive::create_empty_archive,

@@ -2,6 +2,7 @@ import { ChevronDown, Check } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
 import type { ControlSize } from "./Button";
 import { useAppSelectPlacement } from "./useAppSelectPlacement";
+import { getNextEnabledIndex } from "./listboxNavigation";
 import { focusElementIfUsable } from "../utils/focusRestoration";
 import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 
@@ -33,26 +34,6 @@ type AppSelectProps<TValue extends string> = AppSelectAppearance & {
   size?: Exclude<ControlSize, "prominent">;
   value: TValue;
 };
-
-function getNextEnabledIndex<TValue extends string>(
-  options: Array<AppSelectOption<TValue>>,
-  startIndex: number,
-  direction: 1 | -1,
-) {
-  if (!options.length) {
-    return -1;
-  }
-
-  let nextIndex = startIndex;
-  for (let count = 0; count < options.length; count += 1) {
-    nextIndex = (nextIndex + direction + options.length) % options.length;
-    if (!options[nextIndex]?.disabled) {
-      return nextIndex;
-    }
-  }
-
-  return -1;
-}
 
 function getSelectedOrFirstEnabledIndex<TValue extends string>(
   options: Array<AppSelectOption<TValue>>,
