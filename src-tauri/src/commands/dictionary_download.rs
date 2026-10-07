@@ -7,6 +7,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use crate::sha256::sha256_hex;
 use reqwest::{redirect, Url};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -322,7 +323,7 @@ where
             actual: received,
         });
     }
-    let sha256 = format!("{:x}", hasher.finalize());
+    let sha256 = sha256_hex(hasher.finalize());
     if sha256 != entry.sha256 {
         return Err(DictionaryDownloadError::ChecksumMismatch);
     }
@@ -522,7 +523,7 @@ pub(crate) fn write_verified_download_fixture(
         catalog_entry,
         staging_token.to_string(),
         package_bytes.len() as u64,
-        format!("{:x}", Sha256::digest(package_bytes)),
+        sha256_hex(Sha256::digest(package_bytes)),
     );
     let mut bytes = serde_json::to_vec_pretty(&provenance).unwrap();
     bytes.push(b'\n');

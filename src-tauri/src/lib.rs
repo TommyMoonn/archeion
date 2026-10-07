@@ -1,5 +1,6 @@
 mod atomic_file;
 mod commands;
+mod sha256;
 
 use tauri::Manager;
 
