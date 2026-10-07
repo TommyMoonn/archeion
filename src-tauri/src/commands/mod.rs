@@ -1,4 +1,5 @@
 pub mod app_settings;
+pub(crate) mod application_fonts;
 pub mod archive;
 pub(crate) mod archive_backup;
 pub mod archive_import;

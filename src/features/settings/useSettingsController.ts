@@ -8,7 +8,11 @@ import {
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
-import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
+import {
+  defaultAppPreferences,
+  type AppPreferences,
+  type AppPreferencesChanges,
+} from "../../types/appSettings";
 import type { KnownArchive } from "../../types/archive";
 import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
@@ -348,7 +352,7 @@ export function useSettingsController({
   }
 
   function updateAppPreferences(
-    changes: Partial<AppPreferences>,
+    changes: AppPreferencesChanges,
     options?: { successMessage?: string | false },
   ): Promise<boolean> {
     return persistAppPreferences(() => appPreferencesStore.update(changes), options);

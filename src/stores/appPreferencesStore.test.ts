@@ -5,6 +5,10 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
 import { createDefaultLibraryFilters } from "../types/library";
+import { AppearanceRuntime } from "../themes/AppearanceRuntime";
+import { createInstalledFontCatalog } from "../storage/installedFontCatalog";
+import type { AppPreferences } from "../types/appSettings";
+import type { DisplayFontSelection } from "../types/applicationFonts";
 import type { AppSettingsMutation, AppSettingsSnapshot } from "../types/appSettings";
 import {
   appPreferencesStore,
@@ -1076,6 +1080,8 @@ describe("app preferences", () => {
       appThemePreset: "light",
       appearance: {
         animationsEnabled: true,
+        interfaceFont: { kind: "default" },
+        displayFont: { kind: "default" },
       },
       density: "compact",
       confirmDestructiveFileActions: false,
@@ -1643,6 +1649,117 @@ describe("app preferences", () => {
 
     expect(document.documentElement.dataset.motion).toBe("off");
     restoreMatchMedia();
+  });
+});
+
+describe("application font persistence and synchronization", () => {
+  it.each(["browser", "desktop"])(
+    "round trips all Display modes and Interface system through %s storage",
+    async (platform) => {
+      let saved: unknown = null;
+      const native = createPersistence();
+      const persistence =
+        platform === "desktop"
+          ? native
+          : createPersistence({
+              isDesktop: () => false,
+              readLegacy: () => saved,
+              saveBrowserFallback: (value: AppPreferences) => {
+                saved = JSON.parse(JSON.stringify(value));
+              },
+            });
+      const store = new AppPreferencesStore(persistence);
+      const displaySelections: DisplayFontSelection[] = [
+        { kind: "interface" },
+        { kind: "system", family: "Missing Display" },
+        { kind: "default" },
+      ];
+      for (const displayFont of displaySelections) {
+        await store.update({
+          appearance: { interfaceFont: { kind: "system", family: "  Missing UI  " }, displayFont },
+        });
+        const reloaded = new AppPreferencesStore(persistence);
+        await reloaded.initialize();
+        expect(reloaded.getSnapshot().appearance).toEqual({
+          animationsEnabled: false,
+          interfaceFont: { kind: "system", family: "Missing UI" },
+          displayFont,
+        });
+        expect(reloaded.getSnapshot().reader).toEqual(store.getSnapshot().reader);
+      }
+      await store.update({ appearance: { animationsEnabled: true } });
+      expect(store.getSnapshot().appearance).toEqual({
+        animationsEnabled: true,
+        interfaceFont: { kind: "system", family: "Missing UI" },
+        displayFont: { kind: "default" },
+      });
+    },
+  );
+
+  it("existing desktop snapshots update independent roots and Display follows without a preference rewrite", async () => {
+    const native = createDesktopSettingsHarness();
+    const mainWindow = native.createWindow();
+    const secondaryWindow = native.createWindow();
+    const mainStore = new AppPreferencesStore(mainWindow.persistence);
+    const secondaryStore = new AppPreferencesStore(secondaryWindow.persistence);
+    const roots = [document.createElement("html"), document.createElement("html")];
+    const fontCatalog = createInstalledFontCatalog(async () => ["Arial", "Georgia"]);
+    const runtimes = [mainStore, secondaryStore].map(
+      (globalPreferences, index) =>
+        new AppearanceRuntime({
+          globalPreferences,
+          fontCatalog,
+          getDocumentRoot: () => roots[index],
+        }),
+    );
+    const stops = runtimes.map((runtime) => runtime.start());
+    try {
+      await Promise.all([mainStore.initialize(), secondaryStore.initialize()]);
+      await fontCatalog.load();
+      const readerTheme = runtimes[1].getReaderSnapshot();
+      const readerSettings = secondaryStore.getSnapshot().reader;
+      await mainStore.update({
+        appearance: {
+          interfaceFont: { kind: "system", family: "Arial" },
+          displayFont: { kind: "interface" },
+        },
+      });
+      for (const root of roots) {
+        expect(root.style.getPropertyValue("--font-ui")).toBe('"Arial", var(--font-ui-default)');
+        expect(root.style.getPropertyValue("--font-display")).toBe(
+          root.style.getPropertyValue("--font-ui"),
+        );
+      }
+      await mainStore.update({
+        appearance: { interfaceFont: { kind: "system", family: "Georgia" } },
+      });
+      expect(roots[1].style.getPropertyValue("--font-display")).toBe(
+        '"Georgia", var(--font-ui-default)',
+      );
+      expect(secondaryStore.getSnapshot().appearance.displayFont).toEqual({ kind: "interface" });
+      expect(secondaryWindow.mutateDesktop).not.toHaveBeenCalled();
+      expect(mainWindow.mutateDesktop).toHaveBeenCalledTimes(2);
+      expect(runtimes[1].getReaderSnapshot()).toBe(readerTheme);
+      expect(secondaryStore.getSnapshot().reader).toBe(readerSettings);
+      await mainStore.update({
+        appearance: {
+          interfaceFont: { kind: "system", family: "Missing UI" },
+          displayFont: { kind: "system", family: "Missing Display" },
+        },
+      });
+      expect(roots[1].style.getPropertyValue("--font-ui")).toBe("var(--font-ui-default)");
+      expect(roots[1].style.getPropertyValue("--font-display")).toBe("var(--font-display-default)");
+      expect(native.snapshot().preferences.appearance.interfaceFont).toEqual({
+        kind: "system",
+        family: "Missing UI",
+      });
+      expect(secondaryStore.getSnapshot().appearance.displayFont).toEqual({
+        kind: "system",
+        family: "Missing Display",
+      });
+    } finally {
+      stops.forEach((stop) => stop());
+    }
   });
 });
 

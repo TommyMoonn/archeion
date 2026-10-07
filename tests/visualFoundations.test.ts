@@ -48,12 +48,17 @@ const interManifest = readJson<InterFontManifest>("scripts/inter-font-manifest.j
 
 describe("visual foundations", () => {
   it("uses bundled Inter first with defensive system fallbacks", () => {
-    const uiStack = tokensSource.match(/--font-ui:\s*([^;]+);/)?.[1]?.trim();
+    const uiStack = tokensSource.match(/--font-ui-default:\s*([^;]+);/)?.[1]?.trim();
 
     expect(uiStack).toBe(
       '"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
     );
     expect([...tokensSource.matchAll(/--font-ui\s*:/g)]).toHaveLength(1);
+    expect(tokensSource).toContain("--font-ui: var(--font-ui-default)");
+    expect(tokensSource.match(/--font-display-default:\s*([^;]+);/)?.[1]?.trim()).toBe(
+      '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
+    );
+    expect(tokensSource).toContain("--font-display: var(--font-display-default)");
     expect(tokensSource).toContain("font-family: var(--font-ui)");
   });
 

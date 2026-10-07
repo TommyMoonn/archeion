@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "defaults": {
     "appTheme": {
       "kind": "builtin",
@@ -7,7 +7,9 @@
     },
     "appThemePreset": "dark",
     "appearance": {
-      "animationsEnabled": false
+      "animationsEnabled": false,
+      "interfaceFont": { "kind": "default" },
+      "displayFont": { "kind": "default" }
     },
     "confirmDestructiveFileActions": true,
     "density": "comfortable",
@@ -77,6 +79,68 @@
     "window": null
   },
   "cases": [
+    {
+      "name": "legacy motion-only appearance preserves both default font roles",
+      "input": { "appearance": { "animationsEnabled": true } },
+      "expectedPatch": { "appearance": { "animationsEnabled": true } }
+    },
+    {
+      "name": "application families preserve punctuation and normalize whitespace without catalog validation",
+      "input": {
+        "appearance": {
+          "interfaceFont": { "kind": "system", "family": "  Missing, Serif \"Book\" \\  " },
+          "displayFont": { "kind": "interface" }
+        }
+      },
+      "expectedPatch": {
+        "appearance": {
+          "interfaceFont": { "kind": "system", "family": "Missing, Serif \"Book\" \\" },
+          "displayFont": { "kind": "interface" }
+        }
+      }
+    },
+    {
+      "name": "display system selection is independent from interface default",
+      "input": {
+        "appearance": { "displayFont": { "kind": "system", "family": "Noto Serif 日本語" } }
+      },
+      "expectedPatch": {
+        "appearance": { "displayFont": { "kind": "system", "family": "Noto Serif 日本語" } }
+      }
+    },
+    {
+      "name": "control characters are rejected before trimming while neighbors survive",
+      "input": {
+        "appearance": {
+          "animationsEnabled": true,
+          "interfaceFont": { "kind": "system", "family": "\tArial" },
+          "displayFont": { "kind": "system", "family": "Segoe\u0085UI" }
+        }
+      },
+      "expectedPatch": { "appearance": { "animationsEnabled": true } }
+    },
+    {
+      "name": "malformed selections normalize independently",
+      "input": {
+        "appearance": {
+          "interfaceFont": { "kind": "interface" },
+          "displayFont": { "kind": "system", "family": 42 }
+        }
+      },
+      "expectedPatch": {}
+    },
+    {
+      "name": "BOM and nonbreaking whitespace trim consistently across languages",
+      "input": {
+        "appearance": {
+          "interfaceFont": { "kind": "system", "family": "\ufeff\u00a0Arial\u00a0\ufeff" },
+          "displayFont": { "kind": "system", "family": "   " }
+        }
+      },
+      "expectedPatch": {
+        "appearance": { "interfaceFont": { "kind": "system", "family": "Arial" } }
+      }
+    },
     {
       "name": "missing fields use current defaults",
       "input": {},
