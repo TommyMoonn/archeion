@@ -177,9 +177,9 @@ describe("readerThemeForSettings", () => {
     const headingOne = view.getComputedStyle(chapter.getElementById("heading-one")!);
     const headingTwo = view.getComputedStyle(chapter.getElementById("heading-two")!);
 
-    expect(nested.color).toBe("inherit");
-    expect(nested.fontFamily).toBe("inherit");
-    expect(nested.lineHeight).toBe("inherit");
+    expect(nested.color).toBe(paragraph.color);
+    expect(nested.fontFamily).toBe(paragraph.fontFamily);
+    expect(nested.lineHeight).toBe(paragraph.lineHeight);
     expect(paragraph.color).toBe(palette.text);
     expect(paragraph.fontFamily).toContain("Atkinson Hyperlegible");
     expect(paragraph.fontSize).toBe("21px");
