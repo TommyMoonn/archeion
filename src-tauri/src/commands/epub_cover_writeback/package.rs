@@ -76,43 +76,43 @@ pub(super) fn package_manifest(package_xml: &str) -> Result<PackageManifest, Str
             Event::Start(event) => {
                 let local_name = event.local_name();
                 match local_name.as_ref() {
-                    b"package" if package_version.is_none() => {
-                        let attributes = attributes_map(&reader, &event);
+                    "package" if package_version.is_none() => {
+                        let attributes = attributes_map(&event);
                         let version = local_attribute(&attributes, "version")
                             .ok_or_else(|| "EPUB package version is missing.".to_string())?;
                         package_version = Some(EpubPackageVersion::parse(version)?);
                     }
-                    b"metadata" => in_metadata = true,
-                    b"manifest" => in_manifest = true,
-                    b"guide" => in_guide = true,
-                    b"item" if in_manifest => {
-                        manifest_items.push(parse_manifest_item(&reader, &event)?);
+                    "metadata" => in_metadata = true,
+                    "manifest" => in_manifest = true,
+                    "guide" => in_guide = true,
+                    "item" if in_manifest => {
+                        manifest_items.push(parse_manifest_item(&event)?);
                     }
-                    b"meta" if in_metadata => {
-                        collect_cover_meta(&reader, &event, &mut cover_meta_ids)?;
+                    "meta" if in_metadata => {
+                        collect_cover_meta(&event, &mut cover_meta_ids)?;
                     }
-                    b"reference" if in_guide => {
-                        collect_guide_cover_href(&reader, &event, &mut guide_cover_hrefs)?;
+                    "reference" if in_guide => {
+                        collect_guide_cover_href(&event, &mut guide_cover_hrefs)?;
                     }
                     _ => {}
                 }
             }
             Event::Empty(event) => match event.local_name().as_ref() {
-                b"item" if in_manifest => {
-                    manifest_items.push(parse_manifest_item(&reader, &event)?);
+                "item" if in_manifest => {
+                    manifest_items.push(parse_manifest_item(&event)?);
                 }
-                b"meta" if in_metadata => {
-                    collect_cover_meta(&reader, &event, &mut cover_meta_ids)?;
+                "meta" if in_metadata => {
+                    collect_cover_meta(&event, &mut cover_meta_ids)?;
                 }
-                b"reference" if in_guide => {
-                    collect_guide_cover_href(&reader, &event, &mut guide_cover_hrefs)?;
+                "reference" if in_guide => {
+                    collect_guide_cover_href(&event, &mut guide_cover_hrefs)?;
                 }
                 _ => {}
             },
             Event::End(event) => match event.local_name().as_ref() {
-                b"metadata" => in_metadata = false,
-                b"manifest" => in_manifest = false,
-                b"guide" => in_guide = false,
+                "metadata" => in_metadata = false,
+                "manifest" => in_manifest = false,
+                "guide" => in_guide = false,
                 _ => {}
             },
             Event::Eof => break,
@@ -133,11 +133,8 @@ pub(super) fn package_manifest(package_xml: &str) -> Result<PackageManifest, Str
     })
 }
 
-pub(super) fn parse_manifest_item(
-    reader: &Reader<&[u8]>,
-    event: &BytesStart<'_>,
-) -> Result<ManifestItem, String> {
-    let attributes = attributes_map(reader, event);
+pub(super) fn parse_manifest_item(event: &BytesStart<'_>) -> Result<ManifestItem, String> {
+    let attributes = attributes_map(event);
     let id = local_attribute(&attributes, "id")
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
@@ -161,11 +158,10 @@ pub(super) fn parse_manifest_item(
 }
 
 pub(super) fn collect_cover_meta(
-    reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
     cover_meta_ids: &mut Vec<String>,
 ) -> Result<(), String> {
-    let attributes = attributes_map(reader, event);
+    let attributes = attributes_map(event);
     let is_cover = local_attribute(&attributes, "name")
         .is_some_and(|value| value.trim().eq_ignore_ascii_case("cover"));
     if !is_cover {
@@ -180,11 +176,10 @@ pub(super) fn collect_cover_meta(
 }
 
 pub(super) fn collect_guide_cover_href(
-    reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
     guide_cover_hrefs: &mut Vec<String>,
 ) -> Result<(), String> {
-    let attributes = attributes_map(reader, event);
+    let attributes = attributes_map(event);
     let is_cover = local_attribute(&attributes, "type").is_some_and(|value| {
         value
             .split_whitespace()
@@ -463,27 +458,25 @@ where
     })
 }
 
-pub(super) fn child_element_name(parent_name: &[u8], local_name: &str) -> String {
-    let parent_name = String::from_utf8_lossy(parent_name);
+pub(super) fn child_element_name(parent_name: &str, local_name: &str) -> String {
     parent_name
         .split_once(':')
         .map(|(prefix, _)| format!("{prefix}:{local_name}"))
         .unwrap_or_else(|| local_name.to_string())
 }
 
-pub(super) fn is_cover_meta(reader: &Reader<&[u8]>, event: &BytesStart<'_>) -> bool {
-    let attributes = attributes_map(reader, event);
+pub(super) fn is_cover_meta(event: &BytesStart<'_>) -> bool {
+    let attributes = attributes_map(event);
     local_attribute(&attributes, "name")
         .is_some_and(|value| value.trim().eq_ignore_ascii_case("cover"))
 }
 
 pub(super) fn rewritten_item_event(
-    reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
     plan: &CoverPackagePlan,
     output_format: CoverImageFormat,
 ) -> Result<BytesStart<'static>, String> {
-    let attributes = ordered_attributes(reader, event);
+    let attributes = ordered_attributes(event);
     let item_id = attributes
         .iter()
         .find_map(|(key, value)| {
@@ -493,7 +486,7 @@ pub(super) fn rewritten_item_event(
                 .then_some(value.as_str())
         })
         .unwrap_or_default();
-    let event_name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
+    let event_name = event.name().as_ref().to_string();
     let mut rewritten = BytesStart::new(event_name);
     let selected = item_id == plan.cover_item_id;
     let mark_cover = plan.package_version.is_epub_three() || plan.had_cover_property;
@@ -596,7 +589,7 @@ pub(super) fn update_package_cover_xml(
         }
         match event {
             Event::Start(event) => match event.local_name().as_ref() {
-                b"metadata" => {
+                "metadata" => {
                     in_metadata = true;
                     metadata_found = true;
                     cover_meta_element_name = child_element_name(event.name().as_ref(), "meta");
@@ -604,7 +597,7 @@ pub(super) fn update_package_cover_xml(
                         .write_event(Event::Start(event.into_owned()))
                         .map_err(|error| error.to_string())?;
                 }
-                b"manifest" => {
+                "manifest" => {
                     in_manifest = true;
                     manifest_found = true;
                     cover_item_element_name = child_element_name(event.name().as_ref(), "item");
@@ -612,16 +605,16 @@ pub(super) fn update_package_cover_xml(
                         .write_event(Event::Start(event.into_owned()))
                         .map_err(|error| error.to_string())?;
                 }
-                b"meta" if in_metadata && is_cover_meta(&reader, &event) => {
+                "meta" if in_metadata && is_cover_meta(&event) => {
                     skip_cover_meta_depth = 1;
                 }
-                b"item" if in_manifest => {
-                    let attributes = attributes_map(&reader, &event);
+                "item" if in_manifest => {
+                    let attributes = attributes_map(&event);
                     let selected = local_attribute(&attributes, "id")
                         .is_some_and(|id| id == &plan.cover_item_id);
                     if selected {
                         selected_item_found = true;
-                        let rewritten = rewritten_item_event(&reader, &event, plan, output_format)?;
+                        let rewritten = rewritten_item_event(&event, plan, output_format)?;
                         writer
                             .write_event(Event::Start(rewritten))
                             .map_err(|error| error.to_string())?;
@@ -636,11 +629,10 @@ pub(super) fn update_package_cover_xml(
                     .map_err(|error| error.to_string())?,
             },
             Event::Empty(event) => match event.local_name().as_ref() {
-                b"metadata" => {
+                "metadata" => {
                     metadata_found = true;
                     if write_epub2_meta {
-                        let element_name =
-                            String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                        let element_name = event.name().as_ref().to_string();
                         let meta_element_name = child_element_name(event.name().as_ref(), "meta");
                         writer
                             .write_event(Event::Start(event.into_owned()))
@@ -655,11 +647,10 @@ pub(super) fn update_package_cover_xml(
                             .map_err(|error| error.to_string())?;
                     }
                 }
-                b"manifest" => {
+                "manifest" => {
                     manifest_found = true;
                     if !plan.existing_cover {
-                        let element_name =
-                            String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                        let element_name = event.name().as_ref().to_string();
                         let item_element_name = child_element_name(event.name().as_ref(), "item");
                         writer
                             .write_event(Event::Start(event.into_owned()))
@@ -675,14 +666,14 @@ pub(super) fn update_package_cover_xml(
                             .map_err(|error| error.to_string())?;
                     }
                 }
-                b"meta" if in_metadata && is_cover_meta(&reader, &event) => {}
-                b"item" if in_manifest => {
-                    let attributes = attributes_map(&reader, &event);
+                "meta" if in_metadata && is_cover_meta(&event) => {}
+                "item" if in_manifest => {
+                    let attributes = attributes_map(&event);
                     let selected = local_attribute(&attributes, "id")
                         .is_some_and(|id| id == &plan.cover_item_id);
                     if selected {
                         selected_item_found = true;
-                        let rewritten = rewritten_item_event(&reader, &event, plan, output_format)?;
+                        let rewritten = rewritten_item_event(&event, plan, output_format)?;
                         writer
                             .write_event(Event::Empty(rewritten))
                             .map_err(|error| error.to_string())?;
@@ -696,7 +687,7 @@ pub(super) fn update_package_cover_xml(
                     .write_event(Event::Empty(event.into_owned()))
                     .map_err(|error| error.to_string())?,
             },
-            Event::End(event) if event.local_name().as_ref() == b"metadata" => {
+            Event::End(event) if event.local_name().as_ref() == "metadata" => {
                 if write_epub2_meta {
                     write_cover_meta(&mut writer, &cover_meta_element_name, &plan.cover_item_id)?;
                 }
@@ -705,7 +696,7 @@ pub(super) fn update_package_cover_xml(
                     .map_err(|error| error.to_string())?;
                 in_metadata = false;
             }
-            Event::End(event) if event.local_name().as_ref() == b"manifest" => {
+            Event::End(event) if event.local_name().as_ref() == "manifest" => {
                 if !plan.existing_cover {
                     write_new_cover_item(
                         &mut writer,

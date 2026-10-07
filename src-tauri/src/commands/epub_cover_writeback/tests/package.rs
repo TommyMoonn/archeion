@@ -47,6 +47,21 @@ fn rejects_cover_metadata_that_targets_an_xhtml_cover_page() {
 }
 
 #[test]
+fn xml_string_api_preserves_exact_prefixed_cover_package_output() {
+    let package = r#"<opf:package xmlns:opf="http://www.idpf.org/2007/opf" version="3.2"><opf:metadata><dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Café &amp; 星</dc:title></opf:metadata><opf:manifest><opf:item id="cover" href="cover%20%C3%A9%26one.png" media-type="image/png" properties="cover-image" data-label="Caf&#233; &amp; 星"/></opf:manifest><opf:spine/><!--keep--></opf:package>"#;
+    let plan = plan_package(
+        package,
+        CoverImageFormat::Png,
+        &[("OEBPS/cover é&one.png", b"cover")],
+    )
+    .unwrap();
+    assert_eq!(plan.cover_zip_path, "OEBPS/cover é&one.png");
+    let updated = update_package_cover_xml(package, &plan, plan.output_format).unwrap();
+    let expected = package.replace("Caf&#233; &amp; 星", "Café &amp; 星");
+    assert_eq!(updated, expected);
+}
+
+#[test]
 fn adds_epub_three_cover_item_without_touching_spine() {
     let package = r#"<package version="3.0"><metadata><dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Title</dc:title></metadata><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
     let plan = plan_package(

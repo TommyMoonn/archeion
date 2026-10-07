@@ -1,20 +1,17 @@
 use std::collections::HashMap;
 
-use quick_xml::{events::BytesStart, Reader};
+use quick_xml::events::BytesStart;
 
 const EPUB_OPS_NAMESPACE: &str = "http://www.idpf.org/2007/ops";
 
-pub(super) fn ordered_attributes(
-    reader: &Reader<&[u8]>,
-    event: &BytesStart<'_>,
-) -> Vec<(String, String)> {
+pub(super) fn ordered_attributes(event: &BytesStart<'_>) -> Vec<(String, String)> {
     event
         .attributes()
         .filter_map(Result::ok)
         .filter_map(|attribute| {
-            let key = String::from_utf8_lossy(attribute.key.as_ref()).into_owned();
+            let key = attribute.key.as_ref().to_string();
             let value = attribute
-                .decoded_and_normalized_value(quick_xml::XmlVersion::Implicit1_0, reader.decoder())
+                .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                 .ok()?
                 .into_owned();
             Some((key, value))
@@ -22,15 +19,11 @@ pub(super) fn ordered_attributes(
         .collect()
 }
 
-pub(super) fn attributes_map(
-    reader: &Reader<&[u8]>,
-    event: &BytesStart<'_>,
-) -> HashMap<String, String> {
-    ordered_attributes(reader, event).into_iter().collect()
+pub(super) fn attributes_map(event: &BytesStart<'_>) -> HashMap<String, String> {
+    ordered_attributes(event).into_iter().collect()
 }
 
 pub(super) fn strict_attributes_map(
-    reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
     resource_label: &str,
 ) -> Result<HashMap<String, String>, String> {
@@ -42,9 +35,9 @@ pub(super) fn strict_attributes_map(
                     "The EPUB {resource_label} contains a malformed attribute. The file was not modified. {error}"
                 )
             })?;
-            let key = String::from_utf8_lossy(attribute.key.as_ref()).into_owned();
+            let key = attribute.key.as_ref().to_string();
             let value = attribute
-                .decoded_and_normalized_value(quick_xml::XmlVersion::Implicit1_0, reader.decoder())
+                .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                 .map_err(|error| {
                     format!(
                         "The EPUB {resource_label} contains an invalid attribute value. The file was not modified. {error}"

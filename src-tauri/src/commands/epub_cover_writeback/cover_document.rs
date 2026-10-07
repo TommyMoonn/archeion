@@ -119,14 +119,13 @@ fn reject_unsafe_document_attributes(
 }
 
 fn inspect_cover_page_element(
-    reader: &Reader<&[u8]>,
     event: &BytesStart<'_>,
     image_hrefs: &mut Vec<String>,
     stylesheet_hrefs: &mut Vec<String>,
 ) -> Result<bool, String> {
-    let attributes = strict_attributes_map(reader, event, "cover page")?;
+    let attributes = strict_attributes_map(event, "cover page")?;
     reject_unsafe_document_attributes(&attributes, "cover page", true)?;
-    if event.local_name().as_ref().eq_ignore_ascii_case(b"base") {
+    if event.local_name().as_ref().eq_ignore_ascii_case("base") {
         return Err(
             "The EPUB cover page contains a base element, so document-relative resources cannot be resolved safely. The file was not modified."
                 .to_string(),
@@ -139,11 +138,11 @@ fn inspect_cover_page_element(
         );
     }
     if let Some(style) = unique_local_attribute(&attributes, "style", "cover page element")? {
-        validate_cover_stylesheet(style.as_bytes())?;
+        validate_cover_stylesheet(&style)?;
     }
 
     match event.local_name().as_ref() {
-        b"img" => {
+        "img" => {
             let href = unique_local_attribute(&attributes, "src", "cover page image")?
                 .ok_or_else(|| {
                     "The EPUB cover page contains an image without a source. The file was not modified."
@@ -152,7 +151,7 @@ fn inspect_cover_page_element(
             image_hrefs.push(href);
             Ok(false)
         }
-        b"image" => {
+        "image" => {
             let href = unique_local_attribute(&attributes, "href", "cover page SVG image")?
                 .ok_or_else(|| {
                     "The EPUB cover page contains an SVG image without an href. The file was not modified."
@@ -161,7 +160,7 @@ fn inspect_cover_page_element(
             image_hrefs.push(href);
             Ok(false)
         }
-        b"link" => {
+        "link" => {
             if unique_local_attribute(&attributes, "rel", "cover page link")?
                 .as_deref()
                 .is_some_and(|value| token_list_contains(value, "stylesheet"))
@@ -175,16 +174,16 @@ fn inspect_cover_page_element(
             }
             Ok(false)
         }
-        b"style" => Ok(true),
-        b"picture" | b"source" => Err(
+        "style" => Ok(true),
+        "picture" | "source" => Err(
             "The EPUB cover page uses alternative image sources that Archeion cannot resolve safely. The file was not modified."
                 .to_string(),
         ),
-        b"script" => Err(
+        "script" => Err(
             "The EPUB cover page uses scripting that Archeion cannot resolve safely. The file was not modified."
                 .to_string(),
         ),
-        b"iframe" | b"object" | b"embed" => Err(
+        "iframe" | "object" | "embed" => Err(
             "The EPUB cover page uses embedded content that Archeion cannot resolve safely. The file was not modified."
                 .to_string(),
         ),
@@ -196,19 +195,15 @@ fn cover_page_dependencies(page_xml: &[u8]) -> Result<CoverPageDependencies, Str
     let mut reader = Reader::from_reader(page_xml);
     let mut image_hrefs = Vec::new();
     let mut stylesheet_hrefs = Vec::new();
-    let mut inline_style = None::<Vec<u8>>;
+    let mut inline_style = None::<String>;
 
     loop {
         match reader.read_event().map_err(|error| {
             format!("The EPUB cover page is malformed and could not be analyzed safely. {error}")
         })? {
             Event::Start(event) => {
-                if inspect_cover_page_element(
-                    &reader,
-                    &event,
-                    &mut image_hrefs,
-                    &mut stylesheet_hrefs,
-                )? && inline_style.replace(Vec::new()).is_some()
+                if inspect_cover_page_element(&event, &mut image_hrefs, &mut stylesheet_hrefs)?
+                    && inline_style.replace(String::new()).is_some()
                 {
                     return Err(
                         "The EPUB cover page contains nested style elements and cannot be analyzed safely. The file was not modified."
@@ -217,26 +212,21 @@ fn cover_page_dependencies(page_xml: &[u8]) -> Result<CoverPageDependencies, Str
                 }
             }
             Event::Empty(event) => {
-                if inspect_cover_page_element(
-                    &reader,
-                    &event,
-                    &mut image_hrefs,
-                    &mut stylesheet_hrefs,
-                )? {
-                    validate_cover_stylesheet(&[])?;
+                if inspect_cover_page_element(&event, &mut image_hrefs, &mut stylesheet_hrefs)? {
+                    validate_cover_stylesheet("")?;
                 }
             }
             Event::Text(event) => {
                 if let Some(style) = inline_style.as_mut() {
-                    style.extend_from_slice(event.as_ref());
+                    style.push_str(event.as_ref());
                 }
             }
             Event::CData(event) => {
                 if let Some(style) = inline_style.as_mut() {
-                    style.extend_from_slice(event.as_ref());
+                    style.push_str(event.as_ref());
                 }
             }
-            Event::End(event) if event.local_name().as_ref() == b"style" => {
+            Event::End(event) if event.local_name().as_ref() == "style" => {
                 let style = inline_style.take().ok_or_else(|| {
                     "The EPUB cover page contains an unmatched style element. The file was not modified."
                         .to_string()
@@ -282,12 +272,7 @@ fn cover_page_dependencies(page_xml: &[u8]) -> Result<CoverPageDependencies, Str
     })
 }
 
-fn validated_css_text(stylesheet_bytes: &[u8]) -> Result<String, String> {
-    let stylesheet = std::str::from_utf8(stylesheet_bytes).map_err(|error| {
-        format!(
-            "The EPUB cover stylesheet is not valid UTF-8 and cannot be analyzed safely. The file was not modified. {error}"
-        )
-    })?;
+fn validated_css_text(stylesheet: &str) -> Result<String, String> {
     let mut output = String::with_capacity(stylesheet.len());
     let mut characters = stylesheet.chars().peekable();
     let mut quote = None;
@@ -415,8 +400,8 @@ fn css_code_without_strings(stylesheet: &str) -> String {
     output
 }
 
-fn validate_cover_stylesheet(stylesheet_bytes: &[u8]) -> Result<(), String> {
-    let stylesheet = validated_css_text(stylesheet_bytes)?;
+fn validate_cover_stylesheet(stylesheet: &str) -> Result<(), String> {
+    let stylesheet = validated_css_text(stylesheet)?;
     let code = css_code_without_strings(&stylesheet).to_ascii_lowercase();
 
     if code.contains("@import") {
@@ -481,7 +466,12 @@ where
         }
         let stylesheet_bytes =
             read_archive_entry(&stylesheet_zip_path, MAX_COVER_STYLESHEET_BYTES)?;
-        validate_cover_stylesheet(&stylesheet_bytes)?;
+        let stylesheet = std::str::from_utf8(&stylesheet_bytes).map_err(|error| {
+            format!(
+                "The EPUB cover stylesheet is not valid UTF-8 and cannot be analyzed safely. The file was not modified. {error}"
+            )
+        })?;
+        validate_cover_stylesheet(stylesheet)?;
     }
     Ok(())
 }
@@ -617,9 +607,9 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
             )
         })? {
             Event::Start(event) => {
-                let attributes = strict_attributes_map(&reader, &event, "navigation document")?;
+                let attributes = strict_attributes_map(&event, "navigation document")?;
                 reject_unsafe_document_attributes(&attributes, "navigation document", false)?;
-                if event.local_name().as_ref().eq_ignore_ascii_case(b"base") {
+                if event.local_name().as_ref().eq_ignore_ascii_case("base") {
                     return Err(
                         "The EPUB navigation document contains a base element, so document-relative resources cannot be resolved safely. The file was not modified."
                             .to_string(),
@@ -633,7 +623,7 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
                     .last()
                     .expect("the current navigation element namespace scope should exist");
 
-                if event.local_name().as_ref() == b"nav"
+                if event.local_name().as_ref() == "nav"
                     && epub_type_contains(&attributes, namespace_bindings, "landmarks")?
                 {
                     landmarks_count += 1;
@@ -644,7 +634,7 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
                         );
                     }
                     landmarks_depth = Some(depth);
-                } else if event.local_name().as_ref() == b"a"
+                } else if event.local_name().as_ref() == "a"
                     && landmarks_depth.is_some_and(|landmarks| depth > landmarks)
                     && epub_type_contains(&attributes, namespace_bindings, "cover")?
                 {
@@ -659,9 +649,9 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
                 }
             }
             Event::Empty(event) => {
-                let attributes = strict_attributes_map(&reader, &event, "navigation document")?;
+                let attributes = strict_attributes_map(&event, "navigation document")?;
                 reject_unsafe_document_attributes(&attributes, "navigation document", false)?;
-                if event.local_name().as_ref().eq_ignore_ascii_case(b"base") {
+                if event.local_name().as_ref().eq_ignore_ascii_case("base") {
                     return Err(
                         "The EPUB navigation document contains a base element, so document-relative resources cannot be resolved safely. The file was not modified."
                             .to_string(),
@@ -670,7 +660,7 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
                 let mut namespace_bindings = namespace_stack.last().cloned().unwrap_or_default();
                 apply_namespace_declarations(&attributes, &mut namespace_bindings)?;
 
-                if event.local_name().as_ref() == b"nav"
+                if event.local_name().as_ref() == "nav"
                     && epub_type_contains(&attributes, &namespace_bindings, "landmarks")?
                 {
                     landmarks_count += 1;
@@ -680,7 +670,7 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
                                 .to_string(),
                         );
                     }
-                } else if event.local_name().as_ref() == b"a"
+                } else if event.local_name().as_ref() == "a"
                     && landmarks_depth.is_some()
                     && epub_type_contains(&attributes, &namespace_bindings, "cover")?
                 {
@@ -696,7 +686,7 @@ fn navigation_cover_page_href(navigation_xml: &[u8]) -> Result<Option<String>, S
             }
             Event::End(event) => {
                 let depth = namespace_stack.len();
-                if event.local_name().as_ref() == b"nav" && landmarks_depth == Some(depth) {
+                if event.local_name().as_ref() == "nav" && landmarks_depth == Some(depth) {
                     landmarks_depth = None;
                 }
                 if namespace_stack.pop().is_none() {

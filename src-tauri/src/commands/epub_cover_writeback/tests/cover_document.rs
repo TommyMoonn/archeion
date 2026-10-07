@@ -10,6 +10,24 @@ use super::{
 };
 
 #[test]
+fn xml_string_api_preserves_prefixed_cover_dependencies_and_unicode_inline_css() {
+    let package = r#"<package version="2.0"><metadata/><manifest><item id="page" href="cover.xhtml" media-type="application/xhtml+xml"/><item id="image" href="Images/caf%C3%A9%20%26%20one.png" media-type="image/png"/></manifest><spine><itemref idref="page"/></spine><guide><reference type="cover" href="cover.xhtml"/></guide></package>"#;
+    let page = r#"<x:html xmlns:x="http://www.w3.org/1999/xhtml"><x:head><x:style>body { color: black; }</x:style><x:style><![CDATA[body::before { content: "星"; }]]></x:style></x:head><x:body><x:img src="Images/caf%C3%A9%20%26%20one.png" alt="Caf&#233; &amp; 星"/></x:body></x:html>"#;
+    let plan = plan_package(
+        package,
+        CoverImageFormat::Png,
+        &[
+            ("OEBPS/cover.xhtml", page.as_bytes()),
+            ("OEBPS/Images/café & one.png", b"cover"),
+        ],
+    )
+    .unwrap();
+    assert!(plan.existing_cover);
+    assert_eq!(plan.cover_item_id, "image");
+    assert_eq!(plan.cover_zip_path, "OEBPS/Images/café & one.png");
+}
+
+#[test]
 fn resolves_epub_two_guide_only_cover_page_and_preserves_reading_order() {
     let package = r#"<package version="2.0"><metadata></metadata><manifest><item id="cover-page" href="Text/cover.xhtml" media-type="application/xhtml+xml"/><item id="cover-image" href="Images/cover.jpg" media-type="image/jpeg"/><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="cover-page"/><itemref idref="chapter"/></spine><guide><reference type="cover" title="Cover" href="Text/cover.xhtml"/></guide></package>"#;
     let plan = plan_package(
@@ -575,6 +593,11 @@ fn cover_stylesheets_with_image_or_import_dependencies_fail_safely() {
     let cover_page = br#"<html><head><link rel="stylesheet" href="cover.css"/></head><body><img src="cover.jpg"/></body></html>"#;
 
     for (label, css, expected) in [
+        (
+            "invalid UTF-8",
+            b"body { color: \xff; }".as_slice(),
+            "not valid UTF-8",
+        ),
         (
             "background-image",
             b"body { background-image: url('other.jpg'); }".as_slice(),
