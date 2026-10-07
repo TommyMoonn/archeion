@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import JSZip from "jszip";
+import { runFontPreferenceFlows } from "./windowsFontPreferences.mjs";
 
 async function createEpubFixture(destination, chapterText = "Temporary test fixture.") {
   const zip = new JSZip();
@@ -49,7 +50,20 @@ async function waitForIpc(driver) {
   );
 }
 
-export async function runRuntimeFlows({ startSession, closeSession, fixtureRoot, logStep }) {
+async function closeSecondaryWindow(driver, mainHandle) {
+  // Closing only Edge's WebView leaves the native Tauri window owner alive.
+  await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+  await driver.switchTo().window(mainHandle);
+  await driver.wait(async () => (await driver.getAllWindowHandles()).length === 1, 10_000);
+}
+
+export async function runRuntimeFlows({
+  startSession,
+  closeSession,
+  fixtureRoot,
+  logStep,
+  evidenceRoot,
+}) {
   const sourcePath = path.join(fixtureRoot, "smoke.epub");
   const sourceBytes = await createEpubFixture(sourcePath);
   let driver = await startSession();
@@ -201,14 +215,24 @@ export async function runRuntimeFlows({ startSession, closeSession, fixtureRoot,
     await driver.switchTo().window(secondary.handle);
     await waitForIpc(driver);
     assert.deepEqual(await invoke(driver, "list_installed_font_families"), installedFamilies);
-    await driver.close();
-    await driver.switchTo().window(main.handle);
-    await driver.wait(async () => (await driver.getAllWindowHandles()).length === 1, 10_000);
+    await closeSecondaryWindow(driver, main.handle);
     await driver.wait(
       () => driver.executeScript("return document.body.innerText.includes('Smoke Archive')"),
       20_000,
       "The main frontend did not render the archive after Archive Manager closed",
     );
+  });
+
+  driver = await runFontPreferenceFlows({
+    driver,
+    invoke,
+    startSession,
+    closeSession,
+    waitForIpc,
+    closeSecondaryWindow,
+    logStep,
+    installedFamilies,
+    evidenceRoot,
   });
 
   await logStep("replace an EPUB only inside the disposable archive", async () => {

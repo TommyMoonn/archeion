@@ -255,6 +255,7 @@ async function main() {
       closeSession,
       fixtureRoot: path.join(runRoot, "fixtures"),
       logStep,
+      evidenceRoot,
     });
   } catch (error) {
     primaryError = error;
