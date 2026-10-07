@@ -113,6 +113,81 @@ fn metadata_request_based_on_generation_before_cover_write_is_rejected() {
 }
 
 #[test]
+fn xml_string_api_invalid_xml_and_utf8_leave_original_epub_unchanged() {
+    let container = br#"<container><rootfile full-path="OEBPS/content.opf"/></container>"#;
+    let package = br#"<package version="3.2"><metadata/><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="page" href="cover.xhtml" media-type="application/xhtml+xml"/><item id="image" href="cover.png" media-type="image/png"/></manifest><spine><itemref idref="page"/></spine></package>"#;
+    let navigation = br#"<html xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="landmarks"><a epub:type="cover" href="cover.xhtml">Cover</a></nav></body></html>"#;
+    let page = br#"<html><body><img src="cover.png"/></body></html>"#;
+    for invalid_path in [
+        "META-INF/container.xml",
+        "OEBPS/content.opf",
+        "OEBPS/nav.xhtml",
+        "OEBPS/cover.xhtml",
+    ] {
+        for invalid_bytes in [
+            b"<broken></other>".as_slice(),
+            b"<xml>\xff</xml>".as_slice(),
+        ] {
+            let root = test_root();
+            fs::create_dir_all(&root).unwrap();
+            let epub_path = root.join("book.epub");
+            let image_path = root.join("replacement.png");
+            write_image(&image_path, 64, 96);
+            let mut archive = zip::ZipWriter::new(fs::File::create(&epub_path).unwrap());
+            for (path, bytes) in [
+                ("META-INF/container.xml", container.as_slice()),
+                ("OEBPS/content.opf", package.as_slice()),
+                ("OEBPS/nav.xhtml", navigation.as_slice()),
+                ("OEBPS/cover.xhtml", page.as_slice()),
+                ("OEBPS/cover.png", b"original cover".as_slice()),
+            ] {
+                archive
+                    .start_file(path, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                archive
+                    .write_all(if path == invalid_path {
+                        invalid_bytes
+                    } else {
+                        bytes
+                    })
+                    .unwrap();
+            }
+            archive.finish().unwrap();
+            let original = fs::read(&epub_path).unwrap();
+            let (image_size, image_modified_at) = fingerprint(&image_path);
+            let (epub_size, epub_modified_at) = fingerprint(&epub_path);
+            let result = write_cover_at(
+                &root,
+                EpubCoverWritebackInput {
+                    relative_path: "book.epub".to_string(),
+                    book_id: "invalid-xml".to_string(),
+                    image_path: image_path.to_string_lossy().into_owned(),
+                    framing: EpubCoverFraming::Crop,
+                    expected_image_size: image_size,
+                    expected_image_modified_at: image_modified_at,
+                    expected_epub_size: epub_size,
+                    expected_epub_modified_at: epub_modified_at,
+                    keep_successful_backup: false,
+                },
+            );
+            assert!(result.is_err(), "{invalid_path}: {invalid_bytes:?}");
+            assert_eq!(fs::read(&epub_path).unwrap(), original, "{invalid_path}");
+            let mut remaining = fs::read_dir(&root)
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name())
+                .collect::<Vec<_>>();
+            remaining.sort();
+            assert_eq!(
+                remaining,
+                ["book.epub", "replacement.png"],
+                "{invalid_path}"
+            );
+            fs::remove_dir_all(root).unwrap();
+        }
+    }
+}
+
+#[test]
 fn landmark_dependency_analysis_failure_leaves_epub_byte_for_byte_unchanged() {
     let root = test_root();
     fs::create_dir_all(&root).expect("root should be created");

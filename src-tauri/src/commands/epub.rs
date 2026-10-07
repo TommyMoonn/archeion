@@ -21,7 +21,7 @@ fn extract_cover(epub_path: &Path) -> Result<Option<epub_cover_resource::CoverRe
     let file = fs::File::open(epub_path).map_err(|error| error.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
     let package = epub_metadata::read_package_document(&mut archive)?;
-    let elements = epub_metadata::xml_elements(&package.xml, &[b"meta", b"item"]);
+    let elements = epub_metadata::xml_elements(&package.xml, &["meta", "item"]);
     let cover_id = elements.iter().find_map(|(name, attributes)| {
         (name == "meta" && attributes.get("name").is_some_and(|value| value == "cover"))
             .then(|| attributes.get("content").cloned())

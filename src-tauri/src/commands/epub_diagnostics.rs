@@ -369,24 +369,23 @@ fn resolve_link_target(source_path: &str, href: &str) -> LinkTarget {
 
 fn collect_link_document_element(
     event: &quick_xml::events::BytesStart<'_>,
-    reader: &Reader<&[u8]>,
     fragments: &mut BTreeSet<String>,
     links: &mut Vec<String>,
 ) -> Result<(), EntryReadError> {
     let local_name = event.local_name();
-    let is_link = matches!(local_name.as_ref(), b"a" | b"area");
+    let is_link = matches!(local_name.as_ref(), "a" | "area");
     for attribute in event.attributes() {
         let attribute = attribute.map_err(|_| EntryReadError::Unreadable)?;
         let name = attribute.key.local_name();
         let name = name.as_ref();
-        if name != b"id" && name != b"name" && !(is_link && name == b"href") {
+        if name != "id" && name != "name" && !(is_link && name == "href") {
             continue;
         }
         let value = attribute
-            .decoded_and_normalized_value(quick_xml::XmlVersion::Implicit1_0, reader.decoder())
+            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
             .map_err(|_| EntryReadError::Unreadable)?
             .into_owned();
-        if is_link && name == b"href" {
+        if is_link && name == "href" {
             if links.len() == LINKS_PER_DOCUMENT_LIMIT {
                 return Err(EntryReadError::ResourceLimit);
             }
@@ -424,7 +423,7 @@ fn parse_link_document(
                     return Err(EntryReadError::Unreadable);
                 }
                 saw_element = true;
-                collect_link_document_element(&event, &reader, &mut fragments, &mut links)?;
+                collect_link_document_element(&event, &mut fragments, &mut links)?;
                 depth += 1;
             }
             Event::Empty(event) => {
@@ -432,7 +431,7 @@ fn parse_link_document(
                     return Err(EntryReadError::Unreadable);
                 }
                 saw_element = true;
-                collect_link_document_element(&event, &reader, &mut fragments, &mut links)?;
+                collect_link_document_element(&event, &mut fragments, &mut links)?;
             }
             Event::End(_) => {
                 depth = if require_balanced_xml {
@@ -638,18 +637,15 @@ fn encrypted_resources<R: Read + Seek>(
             .map_err(|_| EntryReadError::Unreadable)?
         {
             Event::Start(event) | Event::Empty(event)
-                if event.local_name().as_ref() == b"CipherReference" =>
+                if event.local_name().as_ref() == "CipherReference" =>
             {
                 for attribute in event.attributes() {
                     let attribute = attribute.map_err(|_| EntryReadError::Unreadable)?;
-                    if attribute.key.local_name().as_ref() != b"URI" {
+                    if attribute.key.local_name().as_ref() != "URI" {
                         continue;
                     }
                     let uri = attribute
-                        .decoded_and_normalized_value(
-                            quick_xml::XmlVersion::Implicit1_0,
-                            reader.decoder(),
-                        )
+                        .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                         .map_err(|_| EntryReadError::Unreadable)?;
                     let decoded = epub_metadata::decode_archive_href(&uri);
                     if let Ok(path) = epub_metadata::sanitize_zip_path(&decoded) {
@@ -966,6 +962,56 @@ mod tests {
             .into_iter()
             .map(|issue| issue.code)
             .collect()
+    }
+
+    #[test]
+    fn xml_string_api_preserves_link_entities_percent_encoding_and_unicode() {
+        let chapter = r#"<html><body><a href="chapter%20%C3%A9.xhtml#c&#233;">Read &amp; continue</a></body></html>"#;
+        let target = r#"<html><body><p id="cé">Café 星</p></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", VALID_PACKAGE.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+            ("OEBPS/chapter é.xhtml", target.as_bytes()),
+            ("OEBPS/nav.xhtml", XHTML.as_bytes()),
+        ]));
+        assert!(diagnostics.issues.is_empty(), "{:?}", diagnostics.issues);
+    }
+
+    #[test]
+    fn xml_string_api_rejects_invalid_utf8_with_existing_diagnostic_codes() {
+        for (invalid_path, expected) in [
+            (
+                "META-INF/container.xml",
+                EpubDiagnosticCode::MalformedContainer,
+            ),
+            (
+                "OEBPS/content.opf",
+                EpubDiagnosticCode::MalformedPackageDocument,
+            ),
+            (
+                "OEBPS/nav.xhtml",
+                EpubDiagnosticCode::NavigationResourceUnusable,
+            ),
+            (
+                "OEBPS/chapter.xhtml",
+                EpubDiagnosticCode::ReadableDocumentUnusable,
+            ),
+        ] {
+            let mut entries = vec![
+                ("META-INF/container.xml", CONTAINER.as_bytes()),
+                ("OEBPS/content.opf", VALID_PACKAGE.as_bytes()),
+                ("OEBPS/chapter.xhtml", XHTML.as_bytes()),
+                ("OEBPS/nav.xhtml", XHTML.as_bytes()),
+            ];
+            entries
+                .iter_mut()
+                .find(|(path, _)| *path == invalid_path)
+                .unwrap()
+                .1 = b"<xml>\xff</xml>";
+            let actual = codes(zip(&entries));
+            assert!(actual.contains(&expected), "{invalid_path}: {actual:?}");
+        }
     }
 
     #[test]

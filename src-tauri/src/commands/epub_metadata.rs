@@ -62,7 +62,7 @@ pub(crate) struct EpubPackageDocument {
     pub xml: String,
 }
 
-pub(crate) fn xml_elements(xml: &str, names: &[&[u8]]) -> Vec<(String, HashMap<String, String>)> {
+pub(crate) fn xml_elements(xml: &str, names: &[&str]) -> Vec<(String, HashMap<String, String>)> {
     let mut reader = Reader::from_str(xml);
     let mut elements = Vec::new();
     loop {
@@ -76,22 +76,15 @@ pub(crate) fn xml_elements(xml: &str, names: &[&[u8]]) -> Vec<(String, HashMap<S
                     .attributes()
                     .filter_map(Result::ok)
                     .filter_map(|attribute| {
-                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
-                            .into_owned();
+                        let key = attribute.key.local_name().as_ref().to_string();
                         let value = attribute
-                            .decoded_and_normalized_value(
-                                quick_xml::XmlVersion::Implicit1_0,
-                                reader.decoder(),
-                            )
+                            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                             .ok()?
                             .into_owned();
                         Some((key, value))
                     })
                     .collect();
-                elements.push((
-                    String::from_utf8_lossy(event.local_name().as_ref()).into_owned(),
-                    attributes,
-                ));
+                elements.push((event.local_name().as_ref().to_string(), attributes));
             }
             Ok(Event::Eof) => break,
             Err(_) => break,
@@ -183,7 +176,7 @@ impl std::fmt::Display for EpubContainerPathError {
 pub(crate) fn package_path_from_container(
     container_xml: &str,
 ) -> Result<String, EpubContainerPathError> {
-    let path = xml_elements(container_xml, &[b"rootfile"])
+    let path = xml_elements(container_xml, &["rootfile"])
         .into_iter()
         .find_map(|(_, attributes)| attributes.get("full-path").cloned())
         .ok_or(EpubContainerPathError::MissingRootfile)?;
@@ -214,17 +207,14 @@ pub(crate) struct EpubPackageStructure {
     pub(crate) spine_toc: Option<String>,
 }
 
-fn strict_attributes(
-    event: &BytesStart<'_>,
-    reader: &Reader<&[u8]>,
-) -> Result<HashMap<String, String>, String> {
+fn strict_attributes(event: &BytesStart<'_>) -> Result<HashMap<String, String>, String> {
     event
         .attributes()
         .map(|attribute| {
             let attribute = attribute.map_err(|error| error.to_string())?;
-            let key = String::from_utf8_lossy(attribute.key.local_name().as_ref()).into_owned();
+            let key = attribute.key.local_name().as_ref().to_string();
             let value = attribute
-                .decoded_and_normalized_value(quick_xml::XmlVersion::Implicit1_0, reader.decoder())
+                .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                 .map_err(|error| error.to_string())?
                 .into_owned();
             Ok((key, value))
@@ -242,9 +232,9 @@ pub(crate) fn parse_package_structure(xml: &str) -> Result<EpubPackageStructure,
             Event::Start(event) | Event::Empty(event) => {
                 let name = event.local_name();
                 match name.as_ref() {
-                    b"package" => saw_package = true,
-                    b"item" => {
-                        let attributes = strict_attributes(&event, &reader)?;
+                    "package" => saw_package = true,
+                    "item" => {
+                        let attributes = strict_attributes(&event)?;
                         let Some(id) = attributes.get("id").filter(|value| !value.is_empty())
                         else {
                             continue;
@@ -274,12 +264,12 @@ pub(crate) fn parse_package_structure(xml: &str) -> Result<EpubPackageStructure,
                             },
                         );
                     }
-                    b"spine" => {
-                        let attributes = strict_attributes(&event, &reader)?;
+                    "spine" => {
+                        let attributes = strict_attributes(&event)?;
                         structure.spine_toc = attributes.get("toc").cloned();
                     }
-                    b"itemref" => {
-                        let attributes = strict_attributes(&event, &reader)?;
+                    "itemref" => {
+                        let attributes = strict_attributes(&event)?;
                         if let Some(idref) =
                             attributes.get("idref").filter(|value| !value.is_empty())
                         {
@@ -312,22 +302,21 @@ enum MetadataField {
     Subject,
 }
 
-fn metadata_field(name: &[u8]) -> Option<MetadataField> {
+fn metadata_field(name: &str) -> Option<MetadataField> {
     match name {
-        b"title" => Some(MetadataField::Title),
-        b"creator" => Some(MetadataField::Creator),
-        b"identifier" => Some(MetadataField::Identifier),
-        b"language" => Some(MetadataField::Language),
-        b"publisher" => Some(MetadataField::Publisher),
-        b"date" => Some(MetadataField::Date),
-        b"description" => Some(MetadataField::Description),
-        b"subject" => Some(MetadataField::Subject),
+        "title" => Some(MetadataField::Title),
+        "creator" => Some(MetadataField::Creator),
+        "identifier" => Some(MetadataField::Identifier),
+        "language" => Some(MetadataField::Language),
+        "publisher" => Some(MetadataField::Publisher),
+        "date" => Some(MetadataField::Date),
+        "description" => Some(MetadataField::Description),
+        "subject" => Some(MetadataField::Subject),
         _ => None,
     }
 }
 
-fn decode_xml_text(bytes: &[u8]) -> String {
-    let text = String::from_utf8_lossy(bytes);
+fn unescape_xml_text(text: &str) -> String {
     text.replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
@@ -335,14 +324,14 @@ fn decode_xml_text(bytes: &[u8]) -> String {
         .replace("&apos;", "'")
 }
 
-fn decode_xml_reference(bytes: &[u8]) -> String {
-    match bytes {
-        b"amp" => "&".to_string(),
-        b"lt" => "<".to_string(),
-        b"gt" => ">".to_string(),
-        b"quot" => "\"".to_string(),
-        b"apos" => "'".to_string(),
-        _ => format!("&{};", String::from_utf8_lossy(bytes)),
+fn xml_reference_value(reference: &str) -> String {
+    match reference {
+        "amp" => "&".to_string(),
+        "lt" => "<".to_string(),
+        "gt" => ">".to_string(),
+        "quot" => "\"".to_string(),
+        "apos" => "'".to_string(),
+        _ => format!("&{reference};"),
     }
 }
 
@@ -407,7 +396,7 @@ fn assign_meta_refinement(
 }
 
 fn assign_metadata_refinements(metadata: &mut EpubPackageMetadata, package_xml: &str) {
-    for (_, attributes) in xml_elements(package_xml, &[b"meta"]) {
+    for (_, attributes) in xml_elements(package_xml, &["meta"]) {
         assign_meta_refinement(metadata, &attributes);
     }
 }
@@ -424,7 +413,7 @@ pub(crate) fn parse_core_metadata(package_xml: &str) -> Result<EpubPackageMetada
             Ok(Event::Start(event)) => {
                 let local_name = event.local_name();
                 let name = local_name.as_ref();
-                if name == b"metadata" {
+                if name == "metadata" {
                     in_metadata = true;
                     current_field = None;
                     current_value.clear();
@@ -441,23 +430,23 @@ pub(crate) fn parse_core_metadata(package_xml: &str) -> Result<EpubPackageMetada
             }
             Ok(Event::Text(event)) => {
                 if in_metadata && current_field.is_some() {
-                    current_value.push_str(&decode_xml_text(event.as_ref()));
+                    current_value.push_str(&unescape_xml_text(event.as_ref()));
                 }
             }
             Ok(Event::CData(event)) => {
                 if in_metadata && current_field.is_some() {
-                    current_value.push_str(&decode_xml_text(event.as_ref()));
+                    current_value.push_str(&unescape_xml_text(event.as_ref()));
                 }
             }
             Ok(Event::GeneralRef(event)) => {
                 if in_metadata && current_field.is_some() {
-                    current_value.push_str(&decode_xml_reference(event.as_ref()));
+                    current_value.push_str(&xml_reference_value(event.as_ref()));
                 }
             }
             Ok(Event::End(event)) => {
                 let local_name = event.local_name();
                 let name = local_name.as_ref();
-                if name == b"metadata" {
+                if name == "metadata" {
                     in_metadata = false;
                     current_field = None;
                     current_value.clear();
@@ -482,7 +471,7 @@ pub(crate) fn parse_core_metadata(package_xml: &str) -> Result<EpubPackageMetada
 
 fn metadata_start_has_dc_namespace(event: &BytesStart<'_>) -> bool {
     event.attributes().filter_map(Result::ok).any(|attribute| {
-        attribute.key.as_ref() == b"xmlns:dc" || attribute.key.local_name().as_ref() == b"dc"
+        attribute.key.as_ref() == "xmlns:dc" || attribute.key.local_name().as_ref() == "dc"
     })
 }
 
@@ -503,7 +492,7 @@ fn controlled_meta_refinement(attributes: &HashMap<String, String>) -> bool {
         .unwrap_or(false)
 }
 
-fn writable_metadata_field(name: &[u8]) -> bool {
+fn writable_metadata_field(name: &str) -> bool {
     matches!(
         metadata_field(name),
         Some(
@@ -518,8 +507,8 @@ fn writable_metadata_field(name: &[u8]) -> bool {
     )
 }
 
-fn controlled_empty_metadata_element(name: &[u8], attributes: HashMap<String, String>) -> bool {
-    writable_metadata_field(name) || (name == b"meta" && controlled_meta_refinement(&attributes))
+fn controlled_empty_metadata_element(name: &str, attributes: HashMap<String, String>) -> bool {
+    writable_metadata_field(name) || (name == "meta" && controlled_meta_refinement(&attributes))
 }
 
 fn write_text_metadata_element(
@@ -617,7 +606,7 @@ pub(crate) fn update_package_metadata_xml(
         }
 
         match event {
-            Event::Start(event) if event.local_name().as_ref() == b"metadata" => {
+            Event::Start(event) if event.local_name().as_ref() == "metadata" => {
                 in_metadata = true;
                 metadata_depth = 1;
                 let mut owned = event.into_owned();
@@ -629,28 +618,22 @@ pub(crate) fn update_package_metadata_xml(
                     .map_err(|error| error.to_string())?;
             }
             Event::Start(event) if in_metadata => {
-                let name = event.local_name().as_ref().to_vec();
+                let local_name = event.local_name();
+                let name = local_name.as_ref();
                 let attributes = event
                     .attributes()
                     .filter_map(Result::ok)
                     .filter_map(|attribute| {
-                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
-                            .into_owned();
+                        let key = attribute.key.local_name().as_ref().to_string();
                         let value = attribute
-                            .decoded_and_normalized_value(
-                                quick_xml::XmlVersion::Implicit1_0,
-                                reader.decoder(),
-                            )
+                            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                             .ok()?
                             .into_owned();
                         Some((key, value))
                     })
                     .collect();
-                let is_controlled_meta =
-                    name.as_slice() == b"meta" && controlled_meta_refinement(&attributes);
-                if metadata_depth == 1
-                    && (writable_metadata_field(name.as_slice()) || is_controlled_meta)
-                {
+                let is_controlled_meta = name == "meta" && controlled_meta_refinement(&attributes);
+                if metadata_depth == 1 && (writable_metadata_field(name) || is_controlled_meta) {
                     skip_depth = 1;
                     continue;
                 }
@@ -660,33 +643,28 @@ pub(crate) fn update_package_metadata_xml(
                     .map_err(|error| error.to_string())?;
             }
             Event::Empty(event) if in_metadata => {
-                let name = event.local_name().as_ref().to_vec();
+                let local_name = event.local_name();
+                let name = local_name.as_ref();
                 let attributes = event
                     .attributes()
                     .filter_map(Result::ok)
                     .filter_map(|attribute| {
-                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
-                            .into_owned();
+                        let key = attribute.key.local_name().as_ref().to_string();
                         let value = attribute
-                            .decoded_and_normalized_value(
-                                quick_xml::XmlVersion::Implicit1_0,
-                                reader.decoder(),
-                            )
+                            .normalized_value(quick_xml::XmlVersion::Implicit1_0)
                             .ok()?
                             .into_owned();
                         Some((key, value))
                     })
                     .collect();
-                if metadata_depth == 1
-                    && controlled_empty_metadata_element(name.as_slice(), attributes)
-                {
+                if metadata_depth == 1 && controlled_empty_metadata_element(name, attributes) {
                     continue;
                 }
                 writer
                     .write_event(Event::Empty(event.into_owned()))
                     .map_err(|error| error.to_string())?;
             }
-            Event::End(event) if in_metadata && event.local_name().as_ref() == b"metadata" => {
+            Event::End(event) if in_metadata && event.local_name().as_ref() == "metadata" => {
                 write_metadata_values(&mut writer, metadata)?;
                 writer
                     .write_event(Event::End(event.into_owned()))
@@ -730,7 +708,10 @@ pub(crate) fn decode_archive_href(href: &str) -> String {
 mod tests {
     use std::{fs, io::Write};
 
-    use super::{parse_core_metadata, read_core_metadata, resolve_zip_relative_path};
+    use super::{
+        parse_core_metadata, read_core_metadata, resolve_zip_relative_path,
+        update_package_metadata_xml,
+    };
 
     fn write_epub(path: &std::path::Path, package_xml: &[u8]) {
         let file = fs::File::create(path).expect("EPUB should be created");
@@ -752,6 +733,22 @@ mod tests {
             .write_all(package_xml)
             .expect("package should be written");
         archive.finish().expect("EPUB should finish");
+    }
+
+    #[test]
+    fn xml_string_api_preserves_metadata_entities_unicode_and_refinements() {
+        let package = r#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Café &amp; 星</dc:title><dc:creator><![CDATA[Åsa]]></dc:creator><dc:identifier>urn:book:original</dc:identifier><dc:description>&lt;Note&gt;</dc:description><meta name="calibre:series" content="Série &amp; 星"/><meta name="uncontrolled" content="keep"/></metadata><manifest/><spine/></package>"#;
+        let metadata = parse_core_metadata(package).unwrap();
+        assert_eq!(metadata.title.as_deref(), Some("Café & 星"));
+        assert_eq!(metadata.creator.as_deref(), Some("Åsa"));
+        assert_eq!(metadata.description.as_deref(), Some("<Note>"));
+        assert_eq!(metadata.series.as_deref(), Some("Série & 星"));
+
+        let updated = update_package_metadata_xml(package, &metadata).unwrap();
+        assert_eq!(parse_core_metadata(&updated).unwrap(), metadata);
+        assert!(updated.contains("<dc:identifier>urn:book:original</dc:identifier>"));
+        assert!(updated.contains(r#"<meta name="uncontrolled" content="keep"/>"#));
+        assert!(updated.contains("<manifest/><spine/>"));
     }
 
     #[test]
