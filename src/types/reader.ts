@@ -1,3 +1,5 @@
+import { normalizeFontFamily } from "./fontFamily";
+
 export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderProgressPlacement = "top" | "side";
@@ -10,7 +12,9 @@ export const readerReadingWidthOptions = [
 ] as const;
 export type ReaderReadingWidth = (typeof readerReadingWidthOptions)[number]["value"];
 
-export type ReaderFontFamily = "serif" | "sans" | "system" | "literata" | "atkinson";
+export type ReaderBuiltinFontId = "serif" | "sans" | "system" | "literata" | "atkinson";
+export type ReaderFontSelection =
+  { kind: "builtin"; id: ReaderBuiltinFontId } | { kind: "system"; family: string };
 
 export type ReaderNavigationPosition = {
   cfi?: string;
@@ -47,7 +51,7 @@ export type ReaderNavigationState = {
 
 export type ReaderSettings = {
   fontSize: number;
-  fontFamily: ReaderFontFamily;
+  fontFamily: ReaderFontSelection;
   lineHeight: number;
   readingWidth: ReaderReadingWidth;
   theme: ReaderTheme;
@@ -57,7 +61,7 @@ export type ReaderSettings = {
 
 export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
   fontSize: 18,
-  fontFamily: "serif",
+  fontFamily: Object.freeze({ kind: "builtin", id: "serif" }),
   lineHeight: 1.6,
   readingWidth: "comfortable",
   theme: "dark",
@@ -70,7 +74,7 @@ type ReaderSettingsInput = Partial<Record<keyof ReaderSettings, unknown>>;
 export function normalizeReaderSettings(settings?: ReaderSettingsInput): ReaderSettings {
   return {
     fontSize: numberInRangeOrDefault(settings?.fontSize, 14, 28, defaultReaderSettings.fontSize),
-    fontFamily: normalizeReaderFontFamily(settings?.fontFamily),
+    fontFamily: normalizeReaderFontSelection(settings?.fontFamily),
     lineHeight: numberInRangeOrDefault(
       settings?.lineHeight,
       1.4,
@@ -107,7 +111,7 @@ function numberInRangeOrDefault(
     : fallback;
 }
 
-export function isReaderFontFamily(value: unknown): value is ReaderFontFamily {
+export function isReaderBuiltinFontId(value: unknown): value is ReaderBuiltinFontId {
   return (
     value === "serif" ||
     value === "sans" ||
@@ -117,8 +121,26 @@ export function isReaderFontFamily(value: unknown): value is ReaderFontFamily {
   );
 }
 
-export function normalizeReaderFontFamily(value: unknown): ReaderFontFamily {
-  return isReaderFontFamily(value) ? value : defaultReaderSettings.fontFamily;
+export function normalizeReaderFontSelection(value: unknown): ReaderFontSelection {
+  if (isReaderBuiltinFontId(value)) return { kind: "builtin", id: value };
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const selection = value as Record<string, unknown>;
+    if (selection.kind === "builtin" && isReaderBuiltinFontId(selection.id)) {
+      return { kind: "builtin", id: selection.id };
+    }
+    const family = selection.kind === "system" ? normalizeFontFamily(selection.family) : null;
+    if (family) return { kind: "system", family };
+  }
+  return { kind: "builtin", id: "serif" };
+}
+
+export function readerFontSelectionsEqual(
+  left: ReaderFontSelection,
+  right: ReaderFontSelection,
+): boolean {
+  return left.kind === "builtin"
+    ? right.kind === "builtin" && left.id === right.id
+    : right.kind === "system" && left.family === right.family;
 }
 
 function isReaderTheme(value: unknown): value is ReaderTheme {

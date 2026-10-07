@@ -18,6 +18,7 @@ use tauri::{Emitter, Manager};
 use super::application_fonts::{
     normalize_display_font, normalize_interface_font, DisplayFontSelection, InterfaceFontSelection,
 };
+use super::reader_fonts::{normalize_reader_font, ReaderFontSelection};
 use super::{archive, archive_backup::ArchiveBackupLayout, theme_migration};
 
 const APP_SETTINGS_FILE: &str = "settings.json";
@@ -123,7 +124,7 @@ pub struct ReaderSettings {
     #[serde(default = "default_reader_font_size")]
     pub font_size: f64,
     #[serde(default = "default_reader_font_family")]
-    pub font_family: String,
+    pub font_family: ReaderFontSelection,
     #[serde(default = "default_reader_line_height")]
     pub line_height: f64,
     #[serde(default = "default_reader_reading_width")]
@@ -346,8 +347,8 @@ fn supported_smart_views() -> Vec<String> {
         .chain(["duplicates".to_string(), "epub-issues".to_string()])
         .collect()
 }
-fn default_reader_font_family() -> String {
-    "serif".to_string()
+fn default_reader_font_family() -> ReaderFontSelection {
+    ReaderFontSelection::default()
 }
 fn default_reader_font_size() -> f64 {
     18.0
@@ -905,11 +906,7 @@ fn normalize_reader_settings(settings: Option<&Map<String, Value>>) -> ReaderSet
             28.0,
             default_reader_font_size(),
         ),
-        font_family: normalize_setting(
-            settings.and_then(|value| string_field(value, "fontFamily")),
-            &["serif", "sans", "system", "literata", "atkinson"],
-            "serif",
-        ),
+        font_family: normalize_reader_font(settings.and_then(|value| value.get("fontFamily"))),
         line_height: number_in_range_or_default(
             settings
                 .and_then(|value| number_field(value, "lineHeight"))
@@ -1305,7 +1302,7 @@ impl LibrarySettingsMutation {
 )]
 pub enum ReaderSettingsMutation {
     FontSize(f64),
-    FontFamily(String),
+    FontFamily(ReaderFontSelection),
     LineHeight(f64),
     ReadingWidth(String),
     Theme(String),
@@ -1896,9 +1893,9 @@ mod tests {
     #[test]
     fn app_preferences_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v3.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v4.json"))
                 .expect("shared app settings fixtures should parse");
-        assert_eq!(corpus["version"], 3);
+        assert_eq!(corpus["version"], 4);
 
         for fixture in corpus["cases"]
             .as_array()
@@ -1925,13 +1922,13 @@ mod tests {
     #[test]
     fn app_settings_mutations_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/app-settings-mutations/v2.json"
+            "../../../tests/fixtures/app-settings-mutations/v3.json"
         ))
         .expect("shared mutation fixtures should parse");
         let settings_corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v3.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v4.json"))
                 .expect("shared settings defaults should parse");
-        assert_eq!(corpus["version"], 2);
+        assert_eq!(corpus["version"], 3);
 
         for fixture in corpus["cases"]
             .as_array()

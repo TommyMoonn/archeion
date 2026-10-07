@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  normalizeApplicationFontFamily,
-  normalizeDisplayFontSelection,
-  normalizeInterfaceFontSelection,
-} from "./applicationFonts";
+import { normalizeDisplayFontSelection, normalizeInterfaceFontSelection } from "./applicationFonts";
+
+import { normalizeFontFamily } from "./fontFamily";
 
 describe("application font selections", () => {
   it.each([
@@ -29,7 +27,7 @@ describe("application font selections", () => {
     "bad\ud800",
     "a".repeat(257),
   ])("rejects invalid family %j without accepting control whitespace", (value) => {
-    expect(normalizeApplicationFontFamily(value)).toBeNull();
+    expect(normalizeFontFamily(value)).toBeNull();
     expect(normalizeDisplayFontSelection({ kind: "system", family: value })).toEqual({
       kind: "default",
     });
@@ -41,8 +39,8 @@ describe("application font selections", () => {
       kind: "system",
       family,
     });
-    expect(normalizeApplicationFontFamily("𐐀".repeat(256))).toBe("𐐀".repeat(256));
-    expect(normalizeApplicationFontFamily("𐐀".repeat(257))).toBeNull();
+    expect(normalizeFontFamily("𐐀".repeat(256))).toBe("𐐀".repeat(256));
+    expect(normalizeFontFamily("𐐀".repeat(257))).toBeNull();
   });
 
   it("keeps Display follow-interface explicit rather than migrating defaults to it", () => {

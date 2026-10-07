@@ -1,20 +1,10 @@
 import type { AppearanceSettings } from "../types/appSettings";
-import { normalizeApplicationFontFamily } from "../types/applicationFonts";
+import { resolveInstalledFontStack } from "../types/fontFamily";
 
 // CSS owns the exact foundation stacks. Aliases keep runtime fallbacks in sync
 // without duplicating the type system in JavaScript.
 export const DEFAULT_INTERFACE_FONT_STACK = "var(--font-ui-default)";
 export const DEFAULT_DISPLAY_FONT_STACK = "var(--font-display-default)";
-
-function resolveSystemStack(family: string, families: readonly string[], fallback: string): string {
-  const label = normalizeApplicationFontFamily(family);
-  if (!label || !families.some((installed) => installed.toLowerCase() === label.toLowerCase())) {
-    return fallback;
-  }
-  // Always use a CSS string, never an identifier or raw stylesheet insertion.
-  const quoted = label.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  return `"${quoted}", ${fallback}`;
-}
 
 export function resolveApplicationFontStacks(
   appearance: Pick<AppearanceSettings, "interfaceFont" | "displayFont">,
@@ -22,7 +12,7 @@ export function resolveApplicationFontStacks(
 ): Readonly<{ interface: string; display: string }> {
   const interfaceStack =
     appearance.interfaceFont.kind === "system"
-      ? resolveSystemStack(
+      ? resolveInstalledFontStack(
           appearance.interfaceFont.family,
           installedFamilies,
           DEFAULT_INTERFACE_FONT_STACK,
@@ -32,7 +22,7 @@ export function resolveApplicationFontStacks(
     appearance.displayFont.kind === "interface"
       ? interfaceStack
       : appearance.displayFont.kind === "system"
-        ? resolveSystemStack(
+        ? resolveInstalledFontStack(
             appearance.displayFont.family,
             installedFamilies,
             DEFAULT_DISPLAY_FONT_STACK,

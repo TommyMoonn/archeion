@@ -1,7 +1,6 @@
 import type { AppThemePreset, InterfaceDensity, StartupBehavior } from "../../types/appSettings";
 import type { CollectionCardSize, FolderBrowserView, LibrarySort } from "../../types/library";
 import type { ReaderProgressPlacement, ReaderTheme } from "../../types/reader";
-import { readerTypefaceOptions } from "../reader/readerFonts";
 import type { LibraryView } from "../../types/library";
 import { librarySortOptions } from "../library/librarySortOptions";
 
@@ -9,8 +8,6 @@ type SettingsOption<TValue extends string> = {
   label: string;
   value: TValue;
 };
-
-export const typefaceOptions = readerTypefaceOptions;
 
 export const readerThemeOptions = [
   { label: "Light", value: "light" },

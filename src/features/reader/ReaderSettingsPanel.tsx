@@ -1,8 +1,7 @@
 import { Minus, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
-import { AppSelect } from "../../components/AppSelect";
-import { readerTypefaceOptions } from "./readerFonts";
+import { ReaderTypefaceSelect } from "./ReaderTypefaceSelect";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import {
@@ -145,13 +144,11 @@ export function ReaderSettingsPanel({
         {capabilities.contentAppearance ? (
           <>
             <ReaderSetting label="Typeface">
-              <AppSelect
+              <ReaderTypefaceSelect
                 ariaLabel="Reader typeface"
                 id="reader-font-family"
                 onChange={(fontFamily) => update({ fontFamily })}
-                options={readerTypefaceOptions}
-                size="standard"
-                value={settings.fontFamily}
+                selection={settings.fontFamily}
               />
             </ReaderSetting>
 

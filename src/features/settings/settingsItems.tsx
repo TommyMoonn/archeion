@@ -1,6 +1,7 @@
 import { FolderOpen } from "lucide-react";
 
 import { AppSelect } from "../../components/AppSelect";
+import { ReaderTypefaceSelect } from "../reader/ReaderTypefaceSelect";
 import { Button } from "../../components/Button";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
@@ -28,7 +29,6 @@ import {
   progressPlacementOptions,
   seriesSortOptions,
   startupOptions,
-  typefaceOptions,
   viewOptions,
 } from "./settingsOptions";
 import type { SettingsSection } from "./settingsSections";
@@ -452,11 +452,10 @@ export const settingsItems: readonly SettingsItem[] = [
     label: "Font family",
     render: (context) => (
       <StandardSettingsRow description="Sets the default reader typeface." label="Font family">
-        <AppSelect
+        <ReaderTypefaceSelect
           ariaLabel="Reader font family"
           onChange={(fontFamily) => updateReader(context, { fontFamily })}
-          options={typefaceOptions}
-          value={context.reader.fontFamily}
+          selection={context.reader.fontFamily}
         />
       </StandardSettingsRow>
     ),
