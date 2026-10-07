@@ -40,7 +40,21 @@
 
     <link
       rel="preload"
-      href="assets/fonts/atkinson-regular.woff2"
+      href="assets/fonts/inter-regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="assets/fonts/inter-semibold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="assets/fonts/inter-bold.woff2"
       as="font"
       type="font/woff2"
       crossorigin
@@ -164,80 +178,104 @@
 
     <main id="main-content">
       <section class="hero" id="top" aria-labelledby="hero-title">
-        <div class="hero__noise" aria-hidden="true"></div>
-        <canvas class="home-orbit-canvas" data-home-orbit-canvas aria-hidden="true"></canvas>
         <div class="hero__inner shell">
-          <div class="hero__copy" data-reveal>
-            <p class="eyebrow">Archeion</p>
-            <h1 id="hero-title">Your own EPUB <span>library and reader.</span></h1>
+          <div class="hero__copy">
+            <p class="eyebrow">Local-first EPUB library and reader</p>
+            <h1 id="hero-title">Your EPUB library, organized and read on your terms.</h1>
+            <p class="hero__deck">
+              Archeion turns the EPUBs on your Windows PC into an organized library and focused
+              reader. Your books stay as normal files, with no account, cloud service, or telemetry.
+            </p>
             <div class="hero__actions">
               <a
                 class="button button--primary"
-                href="https://github.com/TommyMoonn/archeion/releases/latest"
-                target="_blank"
-                rel="noreferrer"
+                href="https://github.com/TommyMoonn/archeion/releases/latest/download/Archeion-Setup-x64.exe"
               >
-                Download Archeion
+                Download for Windows
                 <svg aria-hidden="true"><use href="#icon-arrow" /></svg>
               </a>
-              <a
-                class="button button--quiet"
-                href="https://github.com/TommyMoonn/archeion"
-                target="_blank"
-                rel="noreferrer"
-                >View on GitHub</a
-              >
+              <a class="button button--quiet" href="#library">Explore the library</a>
             </div>
           </div>
 
           <div
-            class="home-orbit-stage"
-            data-home-orbit-stage
-            aria-label="Illustration of EPUB books orbiting a local Archeion archive"
+            class="hero-product"
+            role="img"
+            aria-label="Archeion Library with Signal and Dust selected, opening into the Reader while the selected cover remains visible"
           >
-            <div class="home-orbit-scene" data-home-orbit-scene>
-              <div class="home-orbit-halo" aria-hidden="true"></div>
-              <div class="home-orbit-ring home-orbit-ring--outer" aria-hidden="true"></div>
-              <div class="home-orbit-ring home-orbit-ring--middle" aria-hidden="true"></div>
-              <div class="home-orbit-ring home-orbit-ring--inner" aria-hidden="true"></div>
+            <div class="hero-product__library" aria-hidden="true">
+              <div class="hero-product__library-shell">
+                <aside class="hero-product__sidebar">
+                  <strong>Library</strong>
+                  <span class="is-active">All books</span>
+                  <span>Series</span>
+                  <span>Favorites</span>
+                  <small>Folders</small>
+                  <span>Archive</span>
+                </aside>
+                <div class="hero-product__library-main">
+                  <header>
+                    <div>
+                      <span>Archeion Library</span>
+                      <strong>All books</strong>
+                    </div>
+                    <small>12 books · Grid view</small>
+                  </header>
+                  <div class="hero-product__grid">
+                    <div class="hero-product__book">
+                      <img src="assets/images/cover-after.svg" alt="" width="108" height="162" />
+                    </div>
+                    <div class="hero-product__book">
+                      <img src="assets/images/cover-quiet.svg" alt="" width="108" height="162" />
+                    </div>
+                    <div class="hero-product__book hero-product__book--selected">
+                      <img src="assets/images/cover-signal.svg" alt="" width="108" height="162" />
+                      <span>Signal and Dust</span>
+                    </div>
+                    <div class="hero-product__book">
+                      <img src="assets/images/cover-tide.svg" alt="" width="108" height="162" />
+                    </div>
+                    <div class="hero-product__book">
+                      <img
+                        src="assets/images/cover-observatory.svg"
+                        alt=""
+                        width="108"
+                        height="162"
+                      />
+                    </div>
+                    <div class="hero-product__book">
+                      <img src="assets/images/cover-relay.svg" alt="" width="108" height="162" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-              <div class="home-floating-book home-floating-book--one" aria-hidden="true">
-                <span></span>
-                <img src="assets/images/cover-orbit.svg" alt="" />
-              </div>
-              <div class="home-floating-book home-floating-book--two" aria-hidden="true">
-                <span></span>
-                <img src="assets/images/cover-quiet.svg" alt="" />
-              </div>
-              <div class="home-floating-book home-floating-book--three" aria-hidden="true">
-                <span></span>
-                <img src="assets/images/cover-signal.svg" alt="" />
-              </div>
-              <div class="home-floating-book home-floating-book--four" aria-hidden="true">
-                <span></span>
-                <img src="assets/images/cover-tide.svg" alt="" />
-              </div>
+            <div class="hero-product__bridge" aria-hidden="true">
+              <img src="assets/images/cover-signal.svg" alt="" width="94" height="141" />
+              <span>Selected in Library</span>
+            </div>
 
-              <div class="home-archive-core" aria-hidden="true">
-                <span class="home-archive-core-ring"></span>
-                <span class="home-archive-core-ring home-archive-core-ring--two"></span>
-                <span class="home-archive-core-glass">
-                  <img src="assets/images/archeion-icon.png" alt="" width="92" height="92" />
-                </span>
+            <div class="hero-product__reader" aria-hidden="true">
+              <div class="hero-product__reader-bar">
+                <span>← Library</span>
+                <strong>Signal and Dust</strong>
+                <small>68%</small>
               </div>
-
-              <div class="home-orbit-status home-orbit-status--top" aria-hidden="true">
-                <span>Series in order</span>
-                <b>Volume 01 → 12</b>
-              </div>
-              <div class="home-orbit-status home-orbit-status--bottom" aria-hidden="true">
-                <span>Continue reading</span>
-                <b>Chapter 12 · 68%</b>
+              <div class="hero-product__progress"><i></i></div>
+              <div class="hero-product__sheet">
+                <span>Chapter Twelve</span>
+                <h2>The Relay</h2>
+                <p>
+                  The selected book opens into the Reader while its Library context stays visible
+                  behind the page.
+                </p>
+                <i></i>
+                <i></i>
               </div>
             </div>
           </div>
         </div>
-        <div class="hero__scroll" aria-hidden="true"><span></span>Scroll to explore Archeion</div>
       </section>
 
       <section class="library-scene section" id="library" aria-labelledby="library-title">
