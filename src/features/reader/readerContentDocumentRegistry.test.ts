@@ -293,7 +293,7 @@ describe("ReaderContentDocumentRegistry", () => {
     registry.applyTheme(
       null,
       createReaderContentTheme(
-        { ...defaultReaderSettings, fontFamily: "literata" },
+        { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
         resolveBuiltInReaderTheme("dark").tokens,
       ),
       null,
@@ -302,7 +302,7 @@ describe("ReaderContentDocumentRegistry", () => {
     registry.applyTheme(
       null,
       createReaderContentTheme(
-        { ...defaultReaderSettings, fontFamily: "atkinson" },
+        { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "atkinson" } },
         resolveBuiltInReaderTheme("dark").tokens,
       ),
       null,
@@ -310,6 +310,44 @@ describe("ReaderContentDocumentRegistry", () => {
 
     expect(chapter.getElementById("archeion-reader-font-faces")).toBe(style);
     expect(style?.textContent).toContain('font-family: "Atkinson Hyperlegible"');
+  });
+
+  it("switches bundled faces to a system family in the same registered document without touching chrome", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    document.documentElement.style.setProperty("--font-ui", "Inter, sans-serif");
+    const chrome = document.body.appendChild(document.createElement("button"));
+    chrome.style.fontFamily = "var(--font-ui)";
+    const registry = new ReaderContentDocumentRegistry();
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+    const tokens = resolveBuiltInReaderTheme("dark").tokens;
+    registry.applyTheme(
+      null,
+      createReaderContentTheme(
+        { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
+        tokens,
+      ),
+      null,
+    );
+    expect(chapter.getElementById("archeion-reader-font-faces")).not.toBeNull();
+    const register = vi.fn();
+    const select = vi.fn();
+    const rendition = { themes: { register, select } } as unknown as import("epubjs").Rendition;
+    const theme = createReaderContentTheme(
+      { ...defaultReaderSettings, fontFamily: { kind: "system", family: "Arial" } },
+      tokens,
+      ["Arial"],
+    );
+    registry.applyTheme(rendition, theme, null);
+    expect(register).toHaveBeenCalledWith("archeion-reader", theme.rules);
+    expect(select).toHaveBeenCalledWith("archeion-reader");
+    expect(chapter.getElementById("archeion-reader-font-faces")).toBeNull();
+    expect(registry.has(chapter)).toBe(true);
+    expect(frame.contentDocument).toBe(chapter);
+    expect(chrome.isConnected).toBe(true);
+    expect(chrome.style.fontFamily).toBe("var(--font-ui)");
+    expect(document.documentElement.style.getPropertyValue("--font-ui")).toBe("Inter, sans-serif");
+    document.documentElement.style.removeProperty("--font-ui");
   });
 
   it("applies the current reflowable layout when a later iframe document mounts", () => {
@@ -424,7 +462,7 @@ describe("ReaderContentDocumentRegistry", () => {
     registry.applyTheme(
       null,
       createReaderContentTheme(
-        { ...defaultReaderSettings, fontFamily: "literata" },
+        { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
         resolveBuiltInReaderTheme("dark").tokens,
       ),
       null,

@@ -3,8 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { createReaderAppearanceController } from "./readerAppearanceController";
+import {
+  createInstalledFontCatalog,
+  type InstalledFontCatalog,
+} from "../../storage/installedFontCatalog";
 
-function createHarness() {
+function createHarness(
+  fontCatalog: InstalledFontCatalog = createInstalledFontCatalog(async () => []),
+) {
   let preferences: AppPreferences = structuredClone(defaultAppPreferences);
   let resolved = resolveBuiltInReaderTheme("dark");
   const preferenceListeners = new Set<() => void>();
@@ -27,6 +33,7 @@ function createHarness() {
     },
   );
   const controller = createReaderAppearanceController({
+    fontCatalog,
     preferences: {
       getPersistenceSnapshot: () => ({ status: "idle" }),
       getSnapshot: () => preferences,
@@ -58,6 +65,93 @@ function createHarness() {
 }
 
 describe("global Reader appearance controller", () => {
+  it("refreshes the current preview when the cached catalog arrives without persisting availability", async () => {
+    let complete!: (families: string[]) => void;
+    const provider = vi.fn(
+      () =>
+        new Promise<string[]>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const fontCatalog = createInstalledFontCatalog(provider);
+    const { controller, update } = createHarness(fontCatalog);
+    const first = {
+      ...controller.getSnapshot().settings,
+      fontFamily: { kind: "system", family: "First Family" } as const,
+    };
+    await controller.commitSettings(first);
+    const latest = {
+      ...first,
+      fontSize: 22,
+      fontFamily: { kind: "system", family: "Arial" } as const,
+    };
+    controller.previewSettings(latest);
+    expect(controller.getSnapshot().contentTheme.rules.body["font-family"]).not.toContain(
+      '"Arial"',
+    );
+    complete(["Arial"]);
+    await fontCatalog.load();
+    expect(controller.getSnapshot().settings).toEqual(latest);
+    expect(controller.getSnapshot().contentTheme.rules.body["font-family"]).toContain(
+      '"Arial", "Iowan Old Style"',
+    );
+    expect(controller.getSnapshot().contentTheme.rules.body["font-size"]).toBe("22px !important");
+    expect(update).toHaveBeenCalledOnce();
+    await controller.commitSettings();
+    expect(controller.getSnapshot().committedSettings.fontFamily).toEqual(latest.fontFamily);
+    expect(provider).toHaveBeenCalledOnce();
+    controller.teardown();
+  });
+
+  it("ignores catalog settlement after teardown and reuses it on reactivation", async () => {
+    let complete!: (families: string[]) => void;
+    const provider = vi.fn(
+      () =>
+        new Promise<string[]>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const fontCatalog = createInstalledFontCatalog(provider);
+    const { controller } = createHarness(fontCatalog);
+    await controller.commitSettings({
+      ...controller.getSnapshot().settings,
+      fontFamily: { kind: "system", family: "Arial" },
+    });
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    controller.teardown();
+    complete(["Arial"]);
+    await fontCatalog.load();
+    expect(listener).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().contentTheme.rules.body["font-family"]).not.toContain(
+      '"Arial"',
+    );
+    controller.activate();
+    await fontCatalog.load();
+    expect(controller.getSnapshot().contentTheme.rules.body["font-family"]).toContain('"Arial"');
+    expect(provider).toHaveBeenCalledOnce();
+    controller.teardown();
+  });
+
+  it("preserves missing selections on catalog failure and avoids themes for semantically equal selections", async () => {
+    const fontCatalog = createInstalledFontCatalog(async () => {
+      throw new Error("Enumeration unavailable");
+    });
+    const { controller } = createHarness(fontCatalog);
+    await fontCatalog.load();
+    const settings = {
+      ...controller.getSnapshot().settings,
+      fontFamily: { kind: "system", family: "Missing Family" } as const,
+    };
+    await controller.commitSettings(settings);
+    const theme = controller.getSnapshot().contentTheme;
+    controller.previewSettings({ ...settings, fontFamily: { ...settings.fontFamily } });
+    expect(controller.getSnapshot().contentTheme).toBe(theme);
+    expect(theme.rules.body["font-family"]).toContain('"Iowan Old Style"');
+    expect(theme.fontFaceCss).toBe("");
+    expect(controller.getSnapshot().committedSettings.fontFamily).toEqual(settings.fontFamily);
+    controller.teardown();
+  });
   it("reads the committed Reader theme from global preferences", () => {
     const { controller } = createHarness();
 

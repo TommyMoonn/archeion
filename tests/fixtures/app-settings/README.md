@@ -1,6 +1,6 @@
 # App settings contract fixtures
 
-`v3.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
+`v4.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
 test suites.
 
 Compatibility policy:
@@ -19,3 +19,7 @@ Increment the fixture-corpus version only when the persisted contract changes in
 Version 3 adds independent application font roles. Legacy motion-only Appearance payloads
 retain both default stacks. Family labels are bounded to 256 Unicode code points, trimmed,
 and rejected if they contain control characters. Installed availability never changes storage.
+
+Version 4 models Reader fonts as builtin or system selections. All five legacy strings migrate
+to builtin IDs; unknown strings fall back to Book serif. Reader and application families share
+validation and preserve unavailable labels independently of the installed catalog.

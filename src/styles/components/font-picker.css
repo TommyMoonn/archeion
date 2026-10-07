@@ -2,6 +2,11 @@
   max-inline-size: 100%;
 }
 
+.font-picker .app-select__trigger {
+  /* Long family labels must not impose their min-content width on the grid track. */
+  min-inline-size: 0;
+}
+
 .font-picker__popover {
   display: flex;
   flex-direction: column;
@@ -46,12 +51,13 @@
 }
 
 @media (forced-colors: active) {
-  .font-picker__list .app-select__option[data-active="true"],
-  .font-picker__list .app-select__option[aria-selected="true"],
-  .font-picker__list .app-select__option[data-active="true"]:hover,
-  .font-picker__list .app-select__option[aria-selected="true"]:hover {
+  .font-picker .font-picker__list .app-select__option[data-active="true"],
+  .font-picker .font-picker__list .app-select__option[aria-selected="true"],
+  .font-picker .font-picker__list .app-select__option[data-active="true"]:hover,
+  .font-picker .font-picker__list .app-select__option[aria-selected="true"]:hover {
     /* The shared forced-colors hover rule must not put LinkText on Highlight. */
     /* Keep system-color text legible without a conflicting browser text backplate. */
+    /* The picker owner must also outrank later Reader theme option overrides. */
     forced-color-adjust: none;
     color: HighlightText;
     background: Highlight;

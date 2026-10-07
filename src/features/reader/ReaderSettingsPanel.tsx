@@ -1,8 +1,9 @@
 import { Minus, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
-import { AppSelect } from "../../components/AppSelect";
-import { readerTypefaceOptions } from "./readerFonts";
+import { ReaderFontPicker } from "./ReaderFontPicker";
+import { useInstalledFontFamilies } from "../../storage/useInstalledFontFamilies";
+import type { InstalledFontCatalog } from "../../storage/installedFontCatalog";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import {
@@ -18,6 +19,7 @@ import type { ReaderPublicationLayoutCapability } from "./readerSession";
 import { readerControlCapabilities } from "./readerSettingsCapabilities";
 
 type ReaderSettingsPanelProps = {
+  fontCatalog?: InstalledFontCatalog;
   layoutCapability: ReaderPublicationLayoutCapability | null;
   onClose: () => void;
   onReaderThemeCommit: (selection: ReaderThemeSelection) => void;
@@ -72,6 +74,7 @@ function ReaderSetting({
 }
 
 export function ReaderSettingsPanel({
+  fontCatalog,
   layoutCapability,
   onClose,
   onReaderThemeCommit,
@@ -86,6 +89,7 @@ export function ReaderSettingsPanel({
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const capabilities = readerControlCapabilities(layoutCapability);
+  const installedFonts = useInstalledFontFamilies(capabilities.contentAppearance, fontCatalog);
 
   useEffect(() => {
     closeButtonRef.current?.focus({ preventScroll: true });
@@ -145,13 +149,13 @@ export function ReaderSettingsPanel({
         {capabilities.contentAppearance ? (
           <>
             <ReaderSetting label="Typeface">
-              <AppSelect
+              <ReaderFontPicker
                 ariaLabel="Reader typeface"
+                catalogLoading={installedFonts.loading}
                 id="reader-font-family"
+                installedFamilies={installedFonts.families}
                 onChange={(fontFamily) => update({ fontFamily })}
-                options={readerTypefaceOptions}
-                size="standard"
-                value={settings.fontFamily}
+                selection={settings.fontFamily}
               />
             </ReaderSetting>
 

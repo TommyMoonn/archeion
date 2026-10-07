@@ -7,8 +7,8 @@ import {
   normalizeAppPreferences,
 } from "../src/stores/appPreferencesStore";
 import type { AppSettingsMutation, AppSettingsSnapshot } from "../src/types/appSettings";
-import mutationCorpus from "./fixtures/app-settings-mutations/v2.json";
-import settingsCorpus from "./fixtures/app-settings/v3.json";
+import mutationCorpus from "./fixtures/app-settings-mutations/v3.json";
+import settingsCorpus from "./fixtures/app-settings/v4.json";
 
 type JsonObject = Record<string, unknown>;
 
@@ -34,7 +34,7 @@ function expectedSnapshot(step: (typeof mutationCorpus.cases)[number]["steps"][n
 
 describe("shared app settings mutation contract", () => {
   it("uses the current versioned mutation corpus", () => {
-    expect(mutationCorpus.version).toBe(2);
+    expect(mutationCorpus.version).toBe(3);
   });
 
   it.each(mutationCorpus.cases)("$name", async ({ steps }) => {

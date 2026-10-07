@@ -914,6 +914,34 @@ describe("EpubViewer navigation lifecycle", () => {
     });
   });
 
+  it("refreshes an installed font and its missing-family fallback without reopening the book", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const { root } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await resolveNavigation(session);
+    const settings = {
+      ...defaultReaderSettings,
+      fontFamily: { kind: "system", family: "Arial" } as const,
+    };
+    for (const families of [["Arial"], []]) {
+      const contentTheme = createReaderContentTheme(settings, props.readerTheme.tokens, families);
+      await rerenderViewer(root, { ...props, settings, contentTheme });
+      expect(session.rendition.themes.register).toHaveBeenLastCalledWith(
+        "archeion-reader",
+        contentTheme.rules,
+      );
+      expect(contentTheme.rules.body["font-family"]).toContain(
+        families.length ? '"Arial", "Iowan Old Style"' : '"Iowan Old Style"',
+      );
+      expect(contentTheme.fontFaceCss).toBe("");
+    }
+    expect(epubModuleMock.openBook).toHaveBeenCalledOnce();
+    expect(session.renderTo).toHaveBeenCalledOnce();
+    expect(session.rendition.display).toHaveBeenCalledOnce();
+  });
+
   it("uses continuous scrolling and restores the canonical CFI when modes change", async () => {
     const pagedSession = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     const continuousSession = createBookSession("chapter-1", "Text/chapter-1.xhtml");

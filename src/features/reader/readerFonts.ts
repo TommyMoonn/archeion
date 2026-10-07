@@ -12,12 +12,8 @@ import literataLatinItalicUrl from "../../assets/fonts/literata/literata-latin-s
 import literataLatinNormalUrl from "../../assets/fonts/literata/literata-latin-standard-normal.woff2";
 import literataVietnameseItalicUrl from "../../assets/fonts/literata/literata-vietnamese-standard-italic.woff2";
 import literataVietnameseNormalUrl from "../../assets/fonts/literata/literata-vietnamese-standard-normal.woff2";
-import { normalizeReaderFontFamily, type ReaderFontFamily } from "../../types/reader";
-
-type ReaderFontOption = {
-  label: string;
-  value: ReaderFontFamily;
-};
+import { normalizeReaderFontSelection, type ReaderBuiltinFontId } from "../../types/reader";
+import { resolveInstalledFontStack } from "../../types/fontFamily";
 
 type ReaderFontFace = {
   sourceUrl: string;
@@ -30,7 +26,7 @@ type ReaderFontDefinition = {
   fallbackFamily: string;
   faces?: readonly ReaderFontFace[];
   fontFamilyName?: string;
-  id: ReaderFontFamily;
+  id: ReaderBuiltinFontId;
   label: string;
 };
 
@@ -163,18 +159,24 @@ export const readerFontDefinitions: readonly ReaderFontDefinition[] = [
   },
 ];
 
-export const readerTypefaceOptions = readerFontDefinitions.map(({ id, label }) => ({
-  label,
-  value: id,
-})) satisfies ReaderFontOption[];
-
-export function readerFontFamilyForId(fontFamily: unknown): string {
-  const definition = readerFontDefinitionForId(fontFamily);
-  return definition.fallbackFamily;
+export function readerFontFamilyForSelection(
+  fontFamily: unknown,
+  installedFamilies: readonly string[] = [],
+): string {
+  const selection = normalizeReaderFontSelection(fontFamily);
+  return selection.kind === "builtin"
+    ? readerFontDefinitionForId(selection.id).fallbackFamily
+    : resolveInstalledFontStack(
+        selection.family,
+        installedFamilies,
+        readerFontDefinitions[0].fallbackFamily,
+      );
 }
 
-export function readerFontFaceCssForId(fontFamily: unknown): string {
-  const { faces, fontFamilyName } = readerFontDefinitionForId(fontFamily);
+export function readerFontFaceCssForSelection(fontFamily: unknown): string {
+  const selection = normalizeReaderFontSelection(fontFamily);
+  if (selection.kind === "system") return "";
+  const { faces, fontFamilyName } = readerFontDefinitionForId(selection.id);
 
   if (!fontFamilyName || !faces) {
     return "";
@@ -183,12 +185,8 @@ export function readerFontFaceCssForId(fontFamily: unknown): string {
   return faces.map((face) => createFontFaceCss(fontFamilyName, face)).join("\n\n");
 }
 
-function readerFontDefinitionForId(fontFamily: unknown): ReaderFontDefinition {
-  const normalizedFontFamily = normalizeReaderFontFamily(fontFamily);
-  return (
-    readerFontDefinitions.find((font) => font.id === normalizedFontFamily) ??
-    readerFontDefinitions[0]
-  );
+function readerFontDefinitionForId(id: ReaderBuiltinFontId): ReaderFontDefinition {
+  return readerFontDefinitions.find((font) => font.id === id) ?? readerFontDefinitions[0];
 }
 
 function createFontFaceCss(fontFamilyName: string, face: ReaderFontFace): string {

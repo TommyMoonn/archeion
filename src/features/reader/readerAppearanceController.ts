@@ -4,7 +4,15 @@ import { normalizeReaderSettings, type ReaderSettings } from "../../types/reader
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { AppearancePreviewContext, AppearanceRuntime } from "../../themes/AppearanceRuntime";
 import type { AppPreferencesPersistenceStatus } from "../../stores/appPreferencesStore";
-import { createReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
+import {
+  installedFontCatalog,
+  type InstalledFontCatalog,
+} from "../../storage/installedFontCatalog";
+import {
+  createReaderContentTheme,
+  readerContentSettingsEqual,
+  type ReaderContentTheme,
+} from "./readerTheme";
 
 type Listener = () => void;
 
@@ -28,6 +36,7 @@ type ReaderAppearanceRuntime = Pick<
 type ReaderAppearanceControllerOptions = Readonly<{
   preferences: ReaderAppearancePreferences;
   runtime: ReaderAppearanceRuntime;
+  fontCatalog?: InstalledFontCatalog;
 }>;
 
 export type ReaderAppearanceSnapshot = Readonly<{
@@ -62,6 +71,7 @@ type PendingThemeCommit = Readonly<{
 export function createReaderAppearanceController({
   preferences,
   runtime,
+  fontCatalog = installedFontCatalog,
 }: ReaderAppearanceControllerOptions): ReaderAppearanceController {
   let active = true;
   let observedPreferences = preferences.getSnapshot();
@@ -77,10 +87,17 @@ export function createReaderAppearanceController({
   let readerTheme = runtime.getReaderSnapshot();
   let stopPreferences: (() => void) | null = null;
   let stopRuntime: (() => void) | null = null;
+  let catalogRevision = 0;
+  let installedFamilies: readonly string[] = [];
   const listeners = new Set<Listener>();
   let derivedSettings = committedSettings;
   let derivedReaderTheme = readerTheme;
-  let contentTheme = createReaderContentTheme(derivedSettings, derivedReaderTheme.tokens);
+  let derivedFamilies = installedFamilies;
+  let contentTheme = createReaderContentTheme(
+    derivedSettings,
+    derivedReaderTheme.tokens,
+    installedFamilies,
+  );
   let snapshot = createSnapshot();
 
   function currentSelection(): ReaderThemeSelection {
@@ -89,10 +106,15 @@ export function createReaderAppearanceController({
 
   function createSnapshot(): ReaderAppearanceSnapshot {
     const settings = settingsPreview ?? committedSettings;
-    if (!readerSettingsEqual(settings, derivedSettings) || readerTheme !== derivedReaderTheme) {
+    if (
+      !readerSettingsEqual(settings, derivedSettings) ||
+      readerTheme !== derivedReaderTheme ||
+      derivedFamilies !== installedFamilies
+    ) {
       derivedSettings = settings;
       derivedReaderTheme = readerTheme;
-      contentTheme = createReaderContentTheme(settings, readerTheme.tokens);
+      derivedFamilies = installedFamilies;
+      contentTheme = createReaderContentTheme(settings, readerTheme.tokens, installedFamilies);
     }
     return Object.freeze({
       committedReaderTheme: committedTheme,
@@ -150,6 +172,12 @@ export function createReaderAppearanceController({
     readerTheme = runtime.getReaderSnapshot();
     stopPreferences = preferences.subscribe(handlePreferencesChange);
     stopRuntime = runtime.subscribe(handleRuntimeChange);
+    const revision = ++catalogRevision;
+    void fontCatalog.load().then((families) => {
+      if (!active || revision !== catalogRevision || families === installedFamilies) return;
+      installedFamilies = families;
+      publish();
+    });
     publish();
   }
 
@@ -258,6 +286,7 @@ export function createReaderAppearanceController({
     teardown() {
       if (!active && !stopPreferences && !stopRuntime) return;
       active = false;
+      catalogRevision += 1;
       stopPreferences?.();
       stopRuntime?.();
       stopPreferences = null;
@@ -269,10 +298,7 @@ export function createReaderAppearanceController({
 
 function readerSettingsEqual(left: ReaderSettings, right: ReaderSettings): boolean {
   return (
-    left.fontFamily === right.fontFamily &&
-    left.fontSize === right.fontSize &&
-    left.lineHeight === right.lineHeight &&
-    left.readingWidth === right.readingWidth &&
+    readerContentSettingsEqual(left, right) &&
     left.mode === right.mode &&
     left.progressPlacement === right.progressPlacement &&
     left.theme === right.theme

@@ -1,6 +1,6 @@
-import type { ReaderSettings } from "../../types/reader";
+import { readerFontSelectionsEqual, type ReaderSettings } from "../../types/reader";
 import type { ResolvedReaderThemeTokens } from "../../themes/themeTokenRegistry";
-import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
+import { readerFontFaceCssForSelection, readerFontFamilyForSelection } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
@@ -37,14 +37,15 @@ export type ReaderContentTheme = {
 };
 
 export function readerFontFaceCssForSettings(settings: ReaderContentSettings) {
-  return readerFontFaceCssForId(settings.fontFamily);
+  return readerFontFaceCssForSelection(settings.fontFamily);
 }
 
 export function readerThemeForSettings(
   settings: ReaderContentSettings,
   palette: ResolvedReaderThemeTokens,
+  installedFamilies: readonly string[] = [],
 ): ReaderThemeRules {
-  const fontFamily = readerFontFamilyForId(settings.fontFamily);
+  const fontFamily = readerFontFamilyForSelection(settings.fontFamily, installedFamilies);
   return {
     html: {
       background: `${palette.background} !important`,
@@ -90,11 +91,12 @@ export function readerThemeForSettings(
 export function createReaderContentTheme(
   settings: ReaderContentSettings,
   palette: ResolvedReaderThemeTokens,
+  installedFamilies: readonly string[] = [],
 ): ReaderContentTheme {
   return {
     fontFaceCss: readerFontFaceCssForSettings(settings),
     name: READER_CONTENT_THEME_NAME,
-    rules: readerThemeForSettings(settings, palette),
+    rules: readerThemeForSettings(settings, palette, installedFamilies),
   };
 }
 
@@ -103,7 +105,7 @@ export function readerContentSettingsEqual(
   right: ReaderContentSettings,
 ): boolean {
   return (
-    left.fontFamily === right.fontFamily &&
+    readerFontSelectionsEqual(left.fontFamily, right.fontFamily) &&
     left.fontSize === right.fontSize &&
     left.lineHeight === right.lineHeight &&
     left.readingWidth === right.readingWidth

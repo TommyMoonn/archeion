@@ -116,7 +116,6 @@ describe("typography role ownership", () => {
   });
 
   it("keeps Reader content typography outside application token ownership", () => {
-    expect(readerTheme).toContain("readerFontFamilyForId(settings.fontFamily)");
     expect(readerTheme).toContain("settings.fontSize");
     expect(readerTheme).toContain("settings.lineHeight");
     expect(readerTheme).not.toContain("--font-ui");

@@ -18,6 +18,7 @@ import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import type { ReaderPublicationLayoutCapability } from "./readerSession";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
+import { createInstalledFontCatalog } from "../../storage/installedFontCatalog";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -181,6 +182,90 @@ function keyboardEvent(target: Element): KeyboardEvent {
 }
 
 describe("ReaderSettingsPanel", () => {
+  it("loads the shared catalog once and keeps font size and line spacing independent of typeface", async () => {
+    const provider = vi.fn(async () => ["Arial"]);
+    const fontCatalog = createInstalledFontCatalog(provider);
+    const commits = vi.fn();
+    function TypographyPanel() {
+      const [settings, setSettings] = useState<ReaderSettings>({ ...defaultReaderSettings });
+      return (
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          fontCatalog={fontCatalog}
+          onClose={vi.fn()}
+          settings={settings}
+          onSettingsCommit={(next) => {
+            commits(next);
+            setSettings(next);
+          }}
+        />
+      );
+    }
+    const host = createContainer();
+    await act(async () => {
+      root?.render(<TypographyPanel />);
+      await fontCatalog.load();
+    });
+    act(() =>
+      host.querySelector<HTMLButtonElement>('button[aria-label^="Reader typeface:"]')!.click(),
+    );
+    act(() =>
+      [...host.querySelectorAll<HTMLButtonElement>('[role="option"]')]
+        .find((option) => option.textContent === "Arial")!
+        .click(),
+    );
+    expect(commits).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fontFamily: { kind: "system", family: "Arial" },
+        fontSize: 18,
+        lineHeight: 1.6,
+      }),
+    );
+    act(() =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="Increase text size"]')!.click(),
+    );
+    expect(commits).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fontFamily: { kind: "system", family: "Arial" },
+        fontSize: 19,
+        lineHeight: 1.6,
+      }),
+    );
+    act(() =>
+      [...host.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
+        .find((button) => button.textContent === "Airy")!
+        .click(),
+    );
+    expect(commits).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fontFamily: { kind: "system", family: "Arial" },
+        fontSize: 19,
+        lineHeight: 2,
+      }),
+    );
+    act(() =>
+      host.querySelector<HTMLButtonElement>('button[aria-label^="Reader typeface:"]')!.click(),
+    );
+    expect(provider).toHaveBeenCalledOnce();
+  });
+
+  it("does not enumerate fonts while content controls are unavailable", async () => {
+    const provider = vi.fn(async () => ["Arial"]);
+    const fontCatalog = createInstalledFontCatalog(provider);
+    createContainer();
+    await act(async () =>
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          fontCatalog={fontCatalog}
+          layoutCapability="fixed-layout"
+          onClose={vi.fn()}
+        />,
+      ),
+    );
+    expect(provider).not.toHaveBeenCalled();
+  });
+
   it("keeps the full current control set for reflowable publications", () => {
     const rendered = renderPanel();
 
@@ -541,11 +626,13 @@ describe("ReaderSettingsPanel", () => {
     expect(activeTransientSurfaceKind()).toBeNull();
   });
 
-  it("lets an AppSelect own the first Escape before Reader Settings", () => {
+  it("lets the font picker own the first Escape before Reader Settings", () => {
     const host = createContainer();
     const onClose = vi.fn();
     act(() => root?.render(<ControlledPanel onClose={onClose} />));
-    const typeface = host.querySelector<HTMLButtonElement>('button[aria-label="Reader typeface"]')!;
+    const typeface = host.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Reader typeface:"]',
+    )!;
 
     act(() => typeface.click());
     expect(activeTransientSurfaceKind()).toBe("popover");

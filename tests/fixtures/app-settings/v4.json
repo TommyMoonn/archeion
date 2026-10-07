@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "defaults": {
     "appTheme": {
       "kind": "builtin",
@@ -8,8 +8,12 @@
     "appThemePreset": "dark",
     "appearance": {
       "animationsEnabled": false,
-      "interfaceFont": { "kind": "default" },
-      "displayFont": { "kind": "default" }
+      "interfaceFont": {
+        "kind": "default"
+      },
+      "displayFont": {
+        "kind": "default"
+      }
     },
     "confirmDestructiveFileActions": true,
     "density": "comfortable",
@@ -61,7 +65,10 @@
     "navigation": null,
     "reader": {
       "fontSize": 18.0,
-      "fontFamily": "serif",
+      "fontFamily": {
+        "kind": "builtin",
+        "id": "serif"
+      },
       "lineHeight": 1.6,
       "readingWidth": "comfortable",
       "theme": "dark",
@@ -81,31 +88,59 @@
   "cases": [
     {
       "name": "legacy motion-only appearance preserves both default font roles",
-      "input": { "appearance": { "animationsEnabled": true } },
-      "expectedPatch": { "appearance": { "animationsEnabled": true } }
+      "input": {
+        "appearance": {
+          "animationsEnabled": true
+        }
+      },
+      "expectedPatch": {
+        "appearance": {
+          "animationsEnabled": true
+        }
+      }
     },
     {
       "name": "application families preserve punctuation and normalize whitespace without catalog validation",
       "input": {
         "appearance": {
-          "interfaceFont": { "kind": "system", "family": "  Missing, Serif \"Book\" \\  " },
-          "displayFont": { "kind": "interface" }
+          "interfaceFont": {
+            "kind": "system",
+            "family": "  Missing, Serif \"Book\" \\  "
+          },
+          "displayFont": {
+            "kind": "interface"
+          }
         }
       },
       "expectedPatch": {
         "appearance": {
-          "interfaceFont": { "kind": "system", "family": "Missing, Serif \"Book\" \\" },
-          "displayFont": { "kind": "interface" }
+          "interfaceFont": {
+            "kind": "system",
+            "family": "Missing, Serif \"Book\" \\"
+          },
+          "displayFont": {
+            "kind": "interface"
+          }
         }
       }
     },
     {
       "name": "display system selection is independent from interface default",
       "input": {
-        "appearance": { "displayFont": { "kind": "system", "family": "Noto Serif 日本語" } }
+        "appearance": {
+          "displayFont": {
+            "kind": "system",
+            "family": "Noto Serif 日本語"
+          }
+        }
       },
       "expectedPatch": {
-        "appearance": { "displayFont": { "kind": "system", "family": "Noto Serif 日本語" } }
+        "appearance": {
+          "displayFont": {
+            "kind": "system",
+            "family": "Noto Serif 日本語"
+          }
+        }
       }
     },
     {
@@ -113,18 +148,33 @@
       "input": {
         "appearance": {
           "animationsEnabled": true,
-          "interfaceFont": { "kind": "system", "family": "\tArial" },
-          "displayFont": { "kind": "system", "family": "Segoe\u0085UI" }
+          "interfaceFont": {
+            "kind": "system",
+            "family": "\tArial"
+          },
+          "displayFont": {
+            "kind": "system",
+            "family": "SegoeUI"
+          }
         }
       },
-      "expectedPatch": { "appearance": { "animationsEnabled": true } }
+      "expectedPatch": {
+        "appearance": {
+          "animationsEnabled": true
+        }
+      }
     },
     {
       "name": "malformed selections normalize independently",
       "input": {
         "appearance": {
-          "interfaceFont": { "kind": "interface" },
-          "displayFont": { "kind": "system", "family": 42 }
+          "interfaceFont": {
+            "kind": "interface"
+          },
+          "displayFont": {
+            "kind": "system",
+            "family": 42
+          }
         }
       },
       "expectedPatch": {}
@@ -133,12 +183,23 @@
       "name": "BOM and nonbreaking whitespace trim consistently across languages",
       "input": {
         "appearance": {
-          "interfaceFont": { "kind": "system", "family": "\ufeff\u00a0Arial\u00a0\ufeff" },
-          "displayFont": { "kind": "system", "family": "   " }
+          "interfaceFont": {
+            "kind": "system",
+            "family": "﻿ Arial ﻿"
+          },
+          "displayFont": {
+            "kind": "system",
+            "family": "   "
+          }
         }
       },
       "expectedPatch": {
-        "appearance": { "interfaceFont": { "kind": "system", "family": "Arial" } }
+        "appearance": {
+          "interfaceFont": {
+            "kind": "system",
+            "family": "Arial"
+          }
+        }
       }
     },
     {
@@ -349,7 +410,10 @@
         },
         "reader": {
           "fontSize": 22.0,
-          "fontFamily": "literata",
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "literata"
+          },
           "lineHeight": 1.8,
           "readingWidth": "wide",
           "theme": "sepia",
@@ -609,7 +673,10 @@
         },
         "reader": {
           "fontSize": 18.0,
-          "fontFamily": "atkinson",
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "atkinson"
+          },
           "lineHeight": 1.6,
           "readingWidth": "full",
           "theme": "dark",
@@ -1186,6 +1253,189 @@
           "animationsEnabled": true
         },
         "startupBehavior": "show-archive-manager"
+      }
+    },
+    {
+      "name": "legacy Reader serif migrates to builtin selection",
+      "input": {
+        "reader": {
+          "fontFamily": "serif"
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "serif"
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy Reader sans migrates to builtin selection",
+      "input": {
+        "reader": {
+          "fontFamily": "sans"
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "sans"
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy Reader system migrates to builtin selection",
+      "input": {
+        "reader": {
+          "fontFamily": "system"
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "system"
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy Reader literata migrates to builtin selection",
+      "input": {
+        "reader": {
+          "fontFamily": "literata"
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "literata"
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy Reader atkinson migrates to builtin selection",
+      "input": {
+        "reader": {
+          "fontFamily": "atkinson"
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "builtin",
+            "id": "atkinson"
+          }
+        }
+      }
+    },
+    {
+      "name": "missing Reader family survives normalization independently from application roles",
+      "input": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": "  Missing 日本語, Book \"One\" \\ Serif  "
+          },
+          "fontSize": 22.0
+        },
+        "appearance": {
+          "interfaceFont": {
+            "kind": "system",
+            "family": "Arial"
+          }
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": "Missing 日本語, Book \"One\" \\ Serif"
+          },
+          "fontSize": 22.0
+        },
+        "appearance": {
+          "interfaceFont": {
+            "kind": "system",
+            "family": "Arial"
+          }
+        }
+      }
+    },
+    {
+      "name": "invalid Reader family \"\" preserves neighboring settings",
+      "input": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": ""
+          },
+          "fontSize": 22.0
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontSize": 22.0
+        }
+      }
+    },
+    {
+      "name": "invalid Reader family \"bad\\nfont\" preserves neighboring settings",
+      "input": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": "bad\nfont"
+          },
+          "fontSize": 22.0
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontSize": 22.0
+        }
+      }
+    },
+    {
+      "name": "invalid Reader family \"overlong\" preserves neighboring settings",
+      "input": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": "𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀"
+          },
+          "fontSize": 22.0
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontSize": 22.0
+        }
+      }
+    },
+    {
+      "name": "bounded Reader supplementary Unicode family survives",
+      "input": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": "𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀"
+          }
+        }
+      },
+      "expectedPatch": {
+        "reader": {
+          "fontFamily": {
+            "kind": "system",
+            "family": "𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀𐐀"
+          }
+        }
       }
     }
   ]

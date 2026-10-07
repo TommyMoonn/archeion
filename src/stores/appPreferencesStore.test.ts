@@ -1121,7 +1121,7 @@ describe("app preferences", () => {
       navigation: null,
       reader: {
         fontSize: 22,
-        fontFamily: "sans",
+        fontFamily: { kind: "builtin", id: "sans" },
         lineHeight: 1.8,
         readingWidth: "wide",
         theme: "sepia",
@@ -1280,14 +1280,14 @@ describe("app preferences", () => {
           fontFamily: "literata",
         },
       }).reader.fontFamily,
-    ).toBe("literata");
+    ).toEqual({ kind: "builtin", id: "literata" });
     expect(
       normalizeAppPreferences({
         reader: {
           fontFamily: "atkinson",
         },
       }).reader.fontFamily,
-    ).toBe("atkinson");
+    ).toEqual({ kind: "builtin", id: "atkinson" });
   });
 
   it("uses the semantic reading width without mapping retired numeric margins", () => {
@@ -1350,7 +1350,7 @@ describe("app preferences", () => {
           fontFamily: "legacy-custom-font",
         },
       }).reader.fontFamily,
-    ).toBe("serif");
+    ).toEqual({ kind: "builtin", id: "serif" });
   });
 
   it("migrates legacy localStorage preferences into desktop app config", async () => {

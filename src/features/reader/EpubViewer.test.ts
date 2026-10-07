@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
-import { readerTypefaceOptions } from "./readerFonts";
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
   applyReaderContentTheme,
@@ -111,7 +110,7 @@ describe("readerThemeForSettings", () => {
     const theme = readerThemeForSettings(
       {
         ...defaultReaderSettings,
-        fontFamily: "sans",
+        fontFamily: { kind: "builtin", id: "sans" },
         fontSize: 22,
         lineHeight: 1.8,
         readingWidth: "wide",
@@ -162,7 +161,12 @@ describe("readerThemeForSettings", () => {
 
     const palette = readerPalette("dark");
     const theme = readerThemeForSettings(
-      { ...defaultReaderSettings, fontFamily: "atkinson", fontSize: 21, lineHeight: 1.9 },
+      {
+        ...defaultReaderSettings,
+        fontFamily: { kind: "builtin", id: "atkinson" },
+        fontSize: 21,
+        lineHeight: 1.9,
+      },
       palette,
     );
     installThemeRules(chapter, theme);
@@ -424,7 +428,7 @@ describe("readerThemeForSettings", () => {
 
   it("maps bundled Literata into reader theme output", () => {
     const theme = readerThemeForSettings(
-      { ...defaultReaderSettings, fontFamily: "literata" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
       readerPalette(),
     );
 
@@ -432,14 +436,14 @@ describe("readerThemeForSettings", () => {
     expect(
       readerFontFaceCssForSettings({
         ...defaultReaderSettings,
-        fontFamily: "literata",
+        fontFamily: { kind: "builtin", id: "literata" },
       }),
     ).toContain('font-family: "Literata"');
   });
 
   it("maps bundled Atkinson Hyperlegible into reader theme output", () => {
     const theme = readerThemeForSettings(
-      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "atkinson" } },
       readerPalette(),
     );
 
@@ -447,26 +451,16 @@ describe("readerThemeForSettings", () => {
     expect(
       readerFontFaceCssForSettings({
         ...defaultReaderSettings,
-        fontFamily: "atkinson",
+        fontFamily: { kind: "builtin", id: "atkinson" },
       }),
     ).toContain('font-family: "Atkinson Hyperlegible"');
-  });
-
-  it("shares typeface options with the reader settings UI", () => {
-    expect(readerTypefaceOptions.map((option) => option.value)).toEqual([
-      "serif",
-      "sans",
-      "system",
-      "literata",
-      "atkinson",
-    ]);
   });
 
   it("builds one content theme payload for rendition and iframe styling", () => {
     const contentTheme = createReaderContentTheme(
       {
         ...defaultReaderSettings,
-        fontFamily: "literata",
+        fontFamily: { kind: "builtin", id: "literata" },
         fontSize: 20,
         lineHeight: 1.7,
         readingWidth: "narrow",
@@ -491,7 +485,7 @@ describe("readerThemeForSettings", () => {
       },
     };
     const contentTheme = createReaderContentTheme(
-      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "atkinson" } },
       readerPalette(),
     );
 
@@ -513,11 +507,11 @@ describe("readerThemeForSettings", () => {
     const previousBodyFont = document.body.style.fontFamily;
     const chapter = document.implementation.createHTMLDocument("Chapter");
     const literataTheme = createReaderContentTheme(
-      { ...defaultReaderSettings, fontFamily: "literata" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
       readerPalette(),
     );
     const atkinsonTheme = createReaderContentTheme(
-      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "atkinson" } },
       readerPalette(),
     );
 
@@ -556,11 +550,11 @@ describe("readerThemeForSettings", () => {
   it("updates font faces in place when the reader typeface changes", () => {
     const chapter = document.implementation.createHTMLDocument("Chapter");
     const literataTheme = createReaderContentTheme(
-      { ...defaultReaderSettings, fontFamily: "literata" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
       readerPalette(),
     );
     const atkinsonTheme = createReaderContentTheme(
-      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "atkinson" } },
       readerPalette(),
     );
 
@@ -575,7 +569,7 @@ describe("readerThemeForSettings", () => {
 
   it("forces the selected reader font over EPUB-provided element fonts", () => {
     const theme = readerThemeForSettings(
-      { ...defaultReaderSettings, fontFamily: "literata" },
+      { ...defaultReaderSettings, fontFamily: { kind: "builtin", id: "literata" } },
       readerPalette(),
     );
 

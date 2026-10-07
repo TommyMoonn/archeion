@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-const MAX_FAMILY_LENGTH: usize = 256;
+use super::font_family::normalize_family;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -22,19 +22,6 @@ pub enum DisplayFontSelection {
     System {
         family: String,
     },
-}
-
-fn normalize_family(value: Option<&Value>) -> Option<String> {
-    let value = value?.as_str()?;
-    if value.chars().any(char::is_control) {
-        return None;
-    }
-    // Match JavaScript String.trim, including its BOM whitespace behavior.
-    let family = value.trim_matches(|ch: char| ch.is_whitespace() || ch == '\u{feff}');
-    if family.is_empty() || family.chars().count() > MAX_FAMILY_LENGTH {
-        return None;
-    }
-    Some(family.to_string())
 }
 
 pub(super) fn normalize_interface_font(value: Option<&Value>) -> InterfaceFontSelection {
