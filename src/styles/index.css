@@ -11,6 +11,7 @@
 @import "./components/forms.css";
 @import "./components/dialogs.css";
 @import "./components/dropdowns.css";
+@import "./components/font-picker.css";
 @import "./components/menus.css";
 @import "./components/segmented-control.css";
 @import "./components/toggles.css";

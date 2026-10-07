@@ -12,7 +12,9 @@ type UseAppSelectPlacementOptions = {
   activeOptionId?: string;
   contentRevision: string;
   menuRef: RefObject<HTMLDivElement | null>;
+  maxMenuHeight?: number;
   open: boolean;
+  scrollRef?: RefObject<HTMLDivElement | null>;
   triggerRef: RefObject<HTMLButtonElement | null>;
 };
 
@@ -39,13 +41,16 @@ function currentViewport() {
 export function scrollAppSelectOptionIntoView(menu: HTMLElement, option: HTMLElement): void {
   const menuRect = menu.getBoundingClientRect();
   const optionRect = option.getBoundingClientRect();
-  const visibleTop = menuRect.top + menu.clientTop;
-  const visibleBottom = menuRect.bottom - menu.clientTop;
+  // Rects are viewport pixels; scrollTop and border widths are unscaled CSS pixels.
+  const scaleY =
+    menu.offsetHeight > 0 && menuRect.height > 0 ? menuRect.height / menu.offsetHeight : 1;
+  const visibleTop = menuRect.top + menu.clientTop * scaleY;
+  const visibleBottom = menuRect.bottom - menu.clientTop * scaleY;
 
   if (optionRect.top < visibleTop) {
-    menu.scrollTop += optionRect.top - visibleTop;
+    menu.scrollTop += (optionRect.top - visibleTop) / scaleY;
   } else if (optionRect.bottom > visibleBottom) {
-    menu.scrollTop += optionRect.bottom - visibleBottom;
+    menu.scrollTop += (optionRect.bottom - visibleBottom) / scaleY;
   }
 }
 
@@ -53,7 +58,9 @@ export function useAppSelectPlacement({
   activeOptionId,
   contentRevision,
   menuRef,
+  maxMenuHeight,
   open,
+  scrollRef,
   triggerRef,
 }: UseAppSelectPlacementOptions): AppSelectPlacement | null {
   const [placement, setPlacement] = useState<AppSelectPlacement | null>(null);
@@ -75,7 +82,9 @@ export function useAppSelectPlacement({
         0,
         menuRect.height / coordinateSpace.scaleY - menu.clientHeight,
       );
-      const intendedMenuHeight = (menu.scrollHeight + borderHeight) * coordinateSpace.scaleY;
+      const intendedMenuHeight =
+        Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
+        coordinateSpace.scaleY;
       const intendedMenuWidth =
         Math.max(APP_SELECT_MIN_WIDTH, triggerRect.width / coordinateSpace.scaleX) *
         coordinateSpace.scaleX;
@@ -125,15 +134,15 @@ export function useAppSelectPlacement({
       visualViewport?.removeEventListener("resize", scheduleMeasurement);
       visualViewport?.removeEventListener("scroll", scheduleMeasurement);
     };
-  }, [contentRevision, menuRef, open, triggerRef]);
+  }, [contentRevision, maxMenuHeight, menuRef, open, triggerRef]);
 
   useLayoutEffect(() => {
     if (!open || !placement || !activeOptionId) return;
-    const menu = menuRef.current;
+    const menu = (scrollRef ?? menuRef).current;
     const option = menu?.ownerDocument.getElementById(activeOptionId);
     if (!menu || !option || !menu.contains(option)) return;
     scrollAppSelectOptionIntoView(menu, option);
-  }, [activeOptionId, menuRef, open, placement]);
+  }, [activeOptionId, contentRevision, menuRef, open, placement, scrollRef]);
 
   return placement;
 }
