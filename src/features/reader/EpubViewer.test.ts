@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
-import { readerTypefaceOptions } from "./readerFonts";
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
   applyReaderContentTheme,
@@ -455,16 +454,6 @@ describe("readerThemeForSettings", () => {
         fontFamily: { kind: "builtin", id: "atkinson" },
       }),
     ).toContain('font-family: "Atkinson Hyperlegible"');
-  });
-
-  it("shares typeface options with the reader settings UI", () => {
-    expect(readerTypefaceOptions.map((option) => option.value)).toEqual([
-      "serif",
-      "sans",
-      "system",
-      "literata",
-      "atkinson",
-    ]);
   });
 
   it("builds one content theme payload for rendition and iframe styling", () => {

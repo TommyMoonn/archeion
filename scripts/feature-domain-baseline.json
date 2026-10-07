@@ -246,8 +246,8 @@
     {
       "from": "settings",
       "to": "reader",
-      "reason": "Settings reuses the Reader-owned structured typeface control without a second font model.",
-      "files": [["settingsItems.tsx", "ReaderTypefaceSelect.tsx"]]
+      "reason": "Settings reuses the Reader-owned font picker without a second font model or catalog.",
+      "files": [["settingsItems.tsx", "ReaderFontPicker.tsx"]]
     },
     {
       "from": "settings",

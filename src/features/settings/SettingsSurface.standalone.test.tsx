@@ -99,6 +99,51 @@ afterEach(() => {
 });
 
 describe("standalone Settings surface", () => {
+  it("uses the shared catalog in the existing Reader font row without changing other typography preferences", async () => {
+    const provider = vi.fn(async () => ["Arial", "Literata"]);
+    const catalog = createInstalledFontCatalog(provider);
+    vi.spyOn(installedFontCatalog, "load").mockImplementation(catalog.load);
+    await act(async () => {
+      await appPreferencesStore.reset();
+    });
+    const before = appPreferencesStore.getSnapshot();
+    await renderSurface();
+    expect(provider).not.toHaveBeenCalled();
+    await act(async () => {
+      clickButton("Reader");
+      await catalog.load();
+    });
+    const row = container.querySelector('[data-setting-id="reader.font-family"]')!;
+    const trigger = row.querySelector<HTMLButtonElement>("button")!;
+    expect(trigger.textContent).toBe("Book serif (Default)");
+    act(() => trigger.click());
+    expect(
+      [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent),
+    ).toEqual([
+      "Book serif (Default)",
+      "Clean sans",
+      "System",
+      "Literata",
+      "Atkinson Hyperlegible",
+      "Arial",
+    ]);
+    await act(async () => {
+      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (option) => option.textContent === "Arial",
+      )!;
+      option.click();
+    });
+    const after = appPreferencesStore.getSnapshot();
+    expect(after.reader.fontFamily).toEqual({ kind: "system", family: "Arial" });
+    expect(after.reader.fontSize).toBe(before.reader.fontSize);
+    expect(after.reader.lineHeight).toBe(before.reader.lineHeight);
+    expect(after.appearance).toEqual(before.appearance);
+    await act(async () => {
+      clickButton("Appearance");
+    });
+    expect(provider).toHaveBeenCalledOnce();
+  });
+
   it("defers installed fonts until a visible font row needs them and reuses one catalog for both controls and search", async () => {
     const provider = vi.fn(async () => ["Arial", "Georgia"]);
     const catalog = createInstalledFontCatalog(provider);

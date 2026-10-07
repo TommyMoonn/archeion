@@ -7,6 +7,7 @@ import { AppPreferencesStore } from "../../../src/stores/appPreferencesStore";
 import { AppearanceRuntime } from "../../../src/themes/AppearanceRuntime";
 import type { AppPreferencesChanges } from "../../../src/types/appSettings";
 import type { ReaderFontSelection } from "../../../src/types/reader";
+import { mountReaderFontPanel } from "./reader-font-panel";
 import "../../../src/styles/index.css";
 
 declare global {
@@ -85,7 +86,17 @@ const initialDocument = initialFrame?.contentDocument;
 window.readerFontFixture = {
   ready: true,
   async completeCatalog() {
-    complete(["Arial", "Georgia", oddFamily]);
+    complete([
+      "Arial",
+      "Georgia",
+      oddFamily,
+      "Literata",
+      "Atkinson Hyperlegible",
+      "System",
+      "Clean sans",
+      "Book serif (Default)",
+      "Long family name with multilingual 日本語 Ελληνικά and extended unbroken characters ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    ]);
     await fontCatalog.load();
   },
   select: (selection) =>
@@ -103,3 +114,6 @@ window.readerFontFixture = {
     sameChrome: document.getElementById("reader-chrome") === chrome,
   }),
 };
+if (new URLSearchParams(window.location.search).has("panel")) {
+  mountReaderFontPanel(controller, fontCatalog);
+}

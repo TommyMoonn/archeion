@@ -1,22 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  readerFontFaceCssForSelection,
-  readerFontFamilyForSelection,
-  readerTypefaceOptions,
-} from "./readerFonts";
+import { readerFontFaceCssForSelection, readerFontFamilyForSelection } from "./readerFonts";
 
 describe("reader fonts", () => {
-  it("exposes the curated reader typeface options", () => {
-    expect(readerTypefaceOptions).toEqual([
-      { label: "Book serif", value: "serif" },
-      { label: "Clean sans", value: "sans" },
-      { label: "System", value: "system" },
-      { label: "Literata", value: "literata" },
-      { label: "Atkinson Hyperlegible", value: "atkinson" },
-    ]);
-  });
-
   it("resolves bundled reader font stacks", () => {
     expect(readerFontFamilyForSelection("literata")).toContain("Literata");
     expect(readerFontFamilyForSelection("atkinson")).toContain("Atkinson Hyperlegible");

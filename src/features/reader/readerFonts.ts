@@ -15,11 +15,6 @@ import literataVietnameseNormalUrl from "../../assets/fonts/literata/literata-vi
 import { normalizeReaderFontSelection, type ReaderBuiltinFontId } from "../../types/reader";
 import { resolveInstalledFontStack } from "../../types/fontFamily";
 
-type ReaderFontOption = {
-  label: string;
-  value: ReaderBuiltinFontId;
-};
-
 type ReaderFontFace = {
   sourceUrl: string;
   style: "italic" | "normal";
@@ -163,11 +158,6 @@ export const readerFontDefinitions: readonly ReaderFontDefinition[] = [
     label: "Atkinson Hyperlegible",
   },
 ];
-
-export const readerTypefaceOptions = readerFontDefinitions.map(({ id, label }) => ({
-  label,
-  value: id,
-})) satisfies ReaderFontOption[];
 
 export function readerFontFamilyForSelection(
   fontFamily: unknown,

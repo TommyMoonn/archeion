@@ -1042,6 +1042,23 @@ html[data-motion="on"] .reader-side-panel {
   color: var(--reader-text);
 }
 
+.reader-settings .font-picker {
+  --surface: var(--reader-surface);
+  --surface-raised: var(--reader-surface);
+  --line: var(--reader-line);
+  --accent-border: var(--reader-focus);
+  --text: var(--reader-text);
+  --muted: var(--reader-muted);
+
+  color-scheme: dark;
+}
+
+.reader-page:is([data-reader-theme="light"], [data-reader-theme="sepia"])
+  .reader-settings
+  .font-picker {
+  color-scheme: light;
+}
+
 .reader-settings .app-select__trigger {
   border-color: var(--reader-line);
   color: var(--reader-text);
