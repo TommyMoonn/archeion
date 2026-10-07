@@ -5,6 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import { defaultAppPreferences } from "../../types/appSettings";
+import {
+  createInstalledFontCatalog,
+  installedFontCatalog,
+} from "../../storage/installedFontCatalog";
 import { SettingsSurface } from "./SettingsSurface";
 import type { SettingsArchiveBoundary } from "./useSettingsArchiveMaintenance";
 
@@ -94,6 +99,169 @@ afterEach(() => {
 });
 
 describe("standalone Settings surface", () => {
+  it("defers installed fonts until a visible font row needs them and reuses one catalog for both controls and search", async () => {
+    const provider = vi.fn(async () => ["Arial", "Georgia"]);
+    const catalog = createInstalledFontCatalog(provider);
+    const load = vi.spyOn(installedFontCatalog, "load").mockImplementation(catalog.load);
+    await act(async () => {
+      await appPreferencesStore.reset();
+    });
+    await renderSurface();
+    expect(load).not.toHaveBeenCalled();
+    await act(async () => {
+      clickButton("Appearance");
+      await catalog.load();
+    });
+    expect(load).toHaveBeenCalledOnce();
+    expect(provider).toHaveBeenCalledOnce();
+    expect(
+      container.querySelector('[data-setting-id="appearance.interface-font"] button')?.textContent,
+    ).toBe("Inter (Default)");
+    expect(
+      container.querySelector('[data-setting-id="appearance.display-font"] button')?.textContent,
+    ).toBe("Archeion Default");
+    clickButton("General");
+    clickButton("Appearance");
+    await act(async () => {
+      changeInputValue(
+        container.querySelector<HTMLInputElement>('input[name="archeion-settings-search"]')!,
+        "interface font",
+      );
+    });
+    expect(container.querySelector('[data-setting-id="appearance.interface-font"]')).not.toBeNull();
+    expect(load).toHaveBeenCalledOnce();
+  });
+
+  it("selects both font roles through real preference updates, reflects external updates, and resets Appearance without resetting Reader", async () => {
+    vi.spyOn(installedFontCatalog, "load").mockResolvedValue(["Arial", "Georgia"]);
+    await act(async () => {
+      await appPreferencesStore.reset({
+        appTheme: { kind: "builtin", id: "light" },
+        density: "compact",
+        appearance: { animationsEnabled: true },
+        readerTheme: { kind: "builtin", id: "sepia" },
+      });
+    });
+    const reader = appPreferencesStore.getSnapshot().reader;
+    await renderSurface();
+    await act(async () => {
+      clickButton("Appearance");
+    });
+    const select = async (id: string, label: string) => {
+      const row = container.querySelector(`[data-setting-id="${id}"]`)!;
+      act(() => row.querySelector<HTMLButtonElement>(".app-select__trigger")!.click());
+      const option = Array.from(row.querySelectorAll<HTMLButtonElement>('[role="option"]')).find(
+        (candidate) => candidate.textContent === label,
+      )!;
+      await act(async () => {
+        option.click();
+      });
+    };
+    await select("appearance.interface-font", "Arial");
+    await select("appearance.display-font", "Use interface font");
+    expect(appPreferencesStore.getSnapshot().appearance).toEqual({
+      animationsEnabled: true,
+      interfaceFont: { kind: "system", family: "Arial" },
+      displayFont: { kind: "interface" },
+    });
+    await select("appearance.display-font", "Georgia");
+    expect(appPreferencesStore.getSnapshot().appearance.displayFont).toEqual({
+      kind: "system",
+      family: "Georgia",
+    });
+    await act(async () => {
+      await appPreferencesStore.update({
+        appearance: { interfaceFont: { kind: "system", family: "External Missing" } },
+      });
+    });
+    expect(
+      container.querySelector('[data-setting-id="appearance.interface-font"] button')?.textContent,
+    ).toBe("External Missing (Unavailable)");
+    await act(async () => {
+      clickButton("Reset appearance");
+    });
+    const preferences = appPreferencesStore.getSnapshot();
+    expect(preferences.appearance).toEqual(defaultAppPreferences.appearance);
+    expect(preferences.appTheme).toEqual(defaultAppPreferences.appTheme);
+    expect(preferences.density).toBe(defaultAppPreferences.density);
+    expect(preferences.readerTheme).toEqual({ kind: "builtin", id: "sepia" });
+    expect(preferences.reader).toBe(reader);
+    expect(
+      container.querySelector('[data-setting-id="appearance.interface-font"] button')?.textContent,
+    ).toBe("Inter (Default)");
+    expect(
+      container.querySelector('[data-setting-id="appearance.display-font"] button')?.textContent,
+    ).toBe("Archeion Default");
+    expect(container.textContent).toContain("Appearance settings reset.");
+  });
+
+  it("opening Appearance and either missing-family picker does not clear saved families", async () => {
+    vi.spyOn(installedFontCatalog, "load").mockResolvedValue([]);
+    const appearance = {
+      animationsEnabled: false,
+      interfaceFont: { kind: "system" as const, family: "Missing UI" },
+      displayFont: { kind: "system" as const, family: "Missing Display" },
+    };
+    await act(async () => {
+      await appPreferencesStore.reset({ appearance });
+    });
+    const update = vi.spyOn(appPreferencesStore, "update");
+    await renderSurface();
+    await act(async () => {
+      clickButton("Appearance");
+    });
+    for (const id of ["appearance.interface-font", "appearance.display-font"]) {
+      const trigger = container.querySelector<HTMLButtonElement>(
+        `[data-setting-id="${id}"] .app-select__trigger`,
+      )!;
+      expect(trigger.textContent).toContain("(Unavailable)");
+      act(() => trigger.click());
+      act(() => trigger.click());
+    }
+    expect(update).not.toHaveBeenCalled();
+    expect(appPreferencesStore.getSnapshot().appearance).toEqual(appearance);
+  });
+
+  it("reports a failed font save through the existing Settings status and permits a successful replacement", async () => {
+    vi.spyOn(installedFontCatalog, "load").mockResolvedValue(["Arial", "Georgia"]);
+    await act(async () => {
+      await appPreferencesStore.reset();
+    });
+    await renderSurface();
+    await act(async () => {
+      clickButton("Appearance");
+    });
+    const save = vi.spyOn(window.localStorage, "setItem").mockImplementationOnce(() => {
+      throw new Error("Storage unavailable");
+    });
+    const trigger = () =>
+      container.querySelector<HTMLButtonElement>(
+        '[data-setting-id="appearance.interface-font"] .app-select__trigger',
+      )!;
+    const choose = async (family: string) => {
+      act(() => trigger().click());
+      const option = Array.from(
+        container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      ).find((candidate) => candidate.textContent === family)!;
+      await act(async () => {
+        option.click();
+      });
+    };
+    await choose("Arial");
+    expect(save).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "App settings could not be saved.",
+    );
+    expect(trigger().textContent).toBe("Arial");
+    expect(appPreferencesStore.getSnapshot().appearance.interfaceFont).toEqual({
+      kind: "system",
+      family: "Arial",
+    });
+    await choose("Georgia");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.textContent).toContain("Settings saved.");
+    expect(trigger().textContent).toBe("Georgia");
+  });
   it("keeps global settings usable and marks archive operations unavailable without storage", async () => {
     await renderSurface();
 

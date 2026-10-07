@@ -15,6 +15,9 @@ use crate::atomic_file::{
 };
 use tauri::{Emitter, Manager};
 
+use super::application_fonts::{
+    normalize_display_font, normalize_interface_font, DisplayFontSelection, InterfaceFontSelection,
+};
 use super::{archive, archive_backup::ArchiveBackupLayout, theme_migration};
 
 const APP_SETTINGS_FILE: &str = "settings.json";
@@ -26,6 +29,10 @@ const THEME_MIGRATION_RECEIPT_FILE: &str = "theme-package-migration-v1.json";
 pub struct AppearanceSettings {
     #[serde(default)]
     pub animations_enabled: bool,
+    #[serde(default)]
+    pub interface_font: InterfaceFontSelection,
+    #[serde(default)]
+    pub display_font: DisplayFontSelection,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -981,6 +988,12 @@ fn normalize_app_preferences_value(value: &Value) -> AppPreferences {
         appearance: AppearanceSettings {
             animations_enabled: appearance
                 .is_some_and(|value| true_field(value, "animationsEnabled")),
+            interface_font: normalize_interface_font(
+                appearance.and_then(|value| value.get("interfaceFont")),
+            ),
+            display_font: normalize_display_font(
+                appearance.and_then(|value| value.get("displayFont")),
+            ),
         },
         confirm_destructive_file_actions: !false_field(settings, "confirmDestructiveFileActions"),
         density: normalize_setting(
@@ -1883,9 +1896,9 @@ mod tests {
     #[test]
     fn app_preferences_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v2.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v3.json"))
                 .expect("shared app settings fixtures should parse");
-        assert_eq!(corpus["version"], 2);
+        assert_eq!(corpus["version"], 3);
 
         for fixture in corpus["cases"]
             .as_array()
@@ -1912,13 +1925,13 @@ mod tests {
     #[test]
     fn app_settings_mutations_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/app-settings-mutations/v1.json"
+            "../../../tests/fixtures/app-settings-mutations/v2.json"
         ))
         .expect("shared mutation fixtures should parse");
         let settings_corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v2.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v3.json"))
                 .expect("shared settings defaults should parse");
-        assert_eq!(corpus["version"], 1);
+        assert_eq!(corpus["version"], 2);
 
         for fixture in corpus["cases"]
             .as_array()
@@ -2277,6 +2290,10 @@ mod tests {
             density: "compact".to_string(),
             appearance: AppearanceSettings {
                 animations_enabled: true,
+                interface_font: super::InterfaceFontSelection::System {
+                    family: "Missing UI".to_string(),
+                },
+                display_font: super::DisplayFontSelection::Interface,
             },
             keyboard: KeyboardPreferences {
                 shortcuts: [
@@ -2344,6 +2361,23 @@ mod tests {
 
         assert_eq!(loaded, preferences);
         assert_eq!(loaded.reader.mode, "continuous");
+    }
+
+    #[test]
+    fn legacy_appearance_mutation_supplies_default_font_roles() {
+        let mutation: AppSettingsMutation = serde_json::from_value(serde_json::json!({
+            "area": "appearance", "value": { "animationsEnabled": true }
+        }))
+        .expect("legacy appearance wire values remain compatible");
+        let mut preferences = AppPreferences::default();
+        mutation.apply(&mut preferences);
+        assert_eq!(
+            preferences.appearance,
+            AppearanceSettings {
+                animations_enabled: true,
+                ..AppearanceSettings::default()
+            }
+        );
     }
 
     #[test]

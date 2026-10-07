@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "vocabulary": {
     "areas": [
       "appTheme",
@@ -53,6 +53,80 @@
     ]
   },
   "cases": [
+    {
+      "name": "application font selections round trip through the appearance mutation owner",
+      "steps": [
+        {
+          "mutation": {
+            "area": "appearance",
+            "value": {
+              "animationsEnabled": false,
+              "interfaceFont": { "kind": "system", "family": "Missing Font" },
+              "displayFont": { "kind": "interface" }
+            }
+          },
+          "expected": {
+            "revision": 1,
+            "preferencesPatch": {
+              "appearance": {
+                "interfaceFont": { "kind": "system", "family": "Missing Font" },
+                "displayFont": { "kind": "interface" }
+              }
+            }
+          }
+        },
+        {
+          "mutation": {
+            "area": "appearance",
+            "value": {
+              "animationsEnabled": false,
+              "interfaceFont": { "kind": "system", "family": "Missing Font" },
+              "displayFont": { "kind": "system", "family": "Palatino Linotype" }
+            }
+          },
+          "expected": {
+            "revision": 2,
+            "preferencesPatch": {
+              "appearance": {
+                "interfaceFont": { "kind": "system", "family": "Missing Font" },
+                "displayFont": { "kind": "system", "family": "Palatino Linotype" }
+              }
+            }
+          }
+        },
+        {
+          "mutation": {
+            "area": "appearance",
+            "value": {
+              "animationsEnabled": false,
+              "interfaceFont": { "kind": "default" },
+              "displayFont": { "kind": "default" }
+            }
+          },
+          "expected": { "revision": 3, "preferencesPatch": {} }
+        },
+        {
+          "mutation": {
+            "area": "appearance",
+            "value": {
+              "animationsEnabled": true,
+              "interfaceFont": { "kind": "system", "family": "bad\nfont" },
+              "displayFont": { "kind": "system", "family": "  Arial  " }
+            }
+          },
+          "emittedByFrontend": false,
+          "expected": {
+            "revision": 4,
+            "preferencesPatch": {
+              "appearance": {
+                "animationsEnabled": true,
+                "displayFont": { "kind": "system", "family": "Arial" }
+              }
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "top-level density and same-leaf revert advance revisions",
       "steps": [
@@ -170,7 +244,14 @@
       "name": "app appearance and import settings remain independent",
       "steps": [
         {
-          "mutation": { "area": "appearance", "value": { "animationsEnabled": true } },
+          "mutation": {
+            "area": "appearance",
+            "value": {
+              "animationsEnabled": true,
+              "interfaceFont": { "kind": "default" },
+              "displayFont": { "kind": "default" }
+            }
+          },
           "expected": {
             "revision": 1,
             "preferencesPatch": { "appearance": { "animationsEnabled": true } }

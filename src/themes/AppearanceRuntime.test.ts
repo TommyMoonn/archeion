@@ -10,6 +10,7 @@ import {
   type GlobalAppearanceSource,
 } from "./AppearanceRuntime";
 import { ThemeCatalog } from "./ThemeCatalog";
+import { createInstalledFontCatalog } from "../storage/installedFontCatalog";
 import { resolveBuiltInAppTheme } from "./resolveTheme";
 
 function createPreferencesSource(
@@ -87,6 +88,129 @@ async function settle() {
 }
 
 describe("global AppearanceRuntime", () => {
+  it("uses the latest font choice when catalog loading completes and keeps theme previews independent", async () => {
+    let resolve!: (families: string[]) => void;
+    const provider = vi.fn(
+      () =>
+        new Promise<string[]>((settle) => {
+          resolve = settle;
+        }),
+    );
+    const fontCatalog = createInstalledFontCatalog(provider);
+    const preferences = createPreferencesSource();
+    const root = document.createElement("html");
+    const runtime = new AppearanceRuntime({
+      fontCatalog,
+      globalPreferences: preferences.source,
+      getDocumentRoot: () => root,
+    });
+    const stop = runtime.start();
+    try {
+      await settle();
+      runtime.applyPreview(resolveBuiltInAppTheme("light"));
+      const previewContext = runtime.getPreviewContext();
+      const reader = runtime.getReaderSnapshot();
+      await preferences.update({
+        appearance: {
+          animationsEnabled: false,
+          interfaceFont: { kind: "system", family: "Arial" },
+          displayFont: { kind: "interface" },
+        },
+      });
+      expect(root.style.getPropertyValue("--font-ui")).toBe("var(--font-ui-default)");
+      await preferences.update({
+        appearance: {
+          animationsEnabled: false,
+          interfaceFont: { kind: "system", family: "Georgia" },
+          displayFont: { kind: "interface" },
+        },
+      });
+      resolve(["Arial", "Georgia"]);
+      await settle();
+      expect(root.style.getPropertyValue("--font-ui")).toBe('"Georgia", var(--font-ui-default)');
+      expect(root.style.getPropertyValue("--font-display")).toBe(
+        root.style.getPropertyValue("--font-ui"),
+      );
+      expect(root.dataset.appTheme).toBe("light");
+      expect(runtime.getPreviewContext()).toBe(previewContext);
+      expect(runtime.getReaderSnapshot()).toBe(reader);
+      runtime.clearPreview();
+      expect(root.style.getPropertyValue("--font-ui")).toBe('"Georgia", var(--font-ui-default)');
+      expect(preferences.source.getSnapshot().appearance.displayFont).toEqual({
+        kind: "interface",
+      });
+      expect(provider).toHaveBeenCalledOnce();
+    } finally {
+      stop();
+    }
+  });
+
+  it("does not apply late font catalog results after stop and reuses the catalog on restart", async () => {
+    let resolve!: (families: string[]) => void;
+    const provider = vi.fn(
+      () =>
+        new Promise<string[]>((settle) => {
+          resolve = settle;
+        }),
+    );
+    const fontCatalog = createInstalledFontCatalog(provider);
+    const preferences = createPreferencesSource();
+    const root = document.createElement("html");
+    const runtime = new AppearanceRuntime({
+      fontCatalog,
+      globalPreferences: preferences.source,
+      getDocumentRoot: () => root,
+    });
+    runtime.start();
+    await settle();
+    await preferences.update({
+      appearance: {
+        animationsEnabled: false,
+        interfaceFont: { kind: "system", family: "Arial" },
+        displayFont: { kind: "default" },
+      },
+    });
+    runtime.stop();
+    root.style.setProperty("--font-ui", "stopped-runtime");
+    resolve(["Arial"]);
+    await settle();
+    expect(root.style.getPropertyValue("--font-ui")).toBe("stopped-runtime");
+    const stop = runtime.start();
+    await settle();
+    expect(root.style.getPropertyValue("--font-ui")).toBe('"Arial", var(--font-ui-default)');
+    expect(provider).toHaveBeenCalledOnce();
+    stop();
+  });
+
+  it("renders a saved family with defaults when enumeration fails without changing preferences", async () => {
+    const fontCatalog = createInstalledFontCatalog(async () => {
+      throw new Error("Unavailable");
+    });
+    const preferences = createPreferencesSource();
+    await preferences.update({
+      appearance: {
+        animationsEnabled: false,
+        interfaceFont: { kind: "system", family: "Saved Family" },
+        displayFont: { kind: "interface" },
+      },
+    });
+    const root = document.createElement("html");
+    const runtime = new AppearanceRuntime({
+      fontCatalog,
+      globalPreferences: preferences.source,
+      getDocumentRoot: () => root,
+    });
+    const stop = runtime.start();
+    await settle();
+    expect(root.style.getPropertyValue("--font-display")).toBe("var(--font-ui-default)");
+    expect(preferences.source.getSnapshot().appearance.interfaceFont).toEqual({
+      kind: "system",
+      family: "Saved Family",
+    });
+    expect(preferences.update).toHaveBeenCalledOnce();
+    stop();
+  });
+
   it("keeps temporary previews local and applies committed themes in independent webview roots", async () => {
     const preferences = createPreferencesSource();
     const mainRoot = document.createElement("html");

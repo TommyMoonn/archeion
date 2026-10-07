@@ -6,7 +6,7 @@ import type { SettingsController } from "./useSettingsController";
 export type SettingsItemGroupStyle = "standard" | "actions";
 
 export type SettingsDeferredDataRequirement =
-  "themeCatalog" | "coverCacheStatus" | "epubWritebackBackupStatus";
+  "themeCatalog" | "installedFonts" | "coverCacheStatus" | "epubWritebackBackupStatus";
 
 export type SettingsItem = {
   deferredData?: readonly SettingsDeferredDataRequirement[];

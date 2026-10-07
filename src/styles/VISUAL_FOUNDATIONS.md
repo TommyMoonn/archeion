@@ -33,6 +33,18 @@ These values apply to application surfaces such as the shell, library, archive a
 
 Reader typography has separate ownership. `.reader-page` and `.reader-status-page` retain the established reader-control scale through scoped overrides, while reader-selected typefaces, sizes, and bundled reading fonts continue to apply only inside EPUB publication content. Shared UI control weights and ordinary Lucide strokes may follow application roles; application typography must not leak into publication fonts or layout.
 
+Application font families have two independent Appearance preferences. Interface defaults to
+bundled Inter; an available system selection precedes the unchanged defensive UI stack.
+Display defaults to `"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`; it can
+follow the effective Interface stack or prepend its own available system family.
+
+`tokens.css` owns the canonical stacks as `--font-ui-default` and `--font-display-default`.
+`AppearanceRuntime` resolves preferences through the session installed-font catalog and sets
+only `--font-ui` and `--font-display` on the application root. Existing semantic selectors,
+weights, sizes, and line heights stay unchanged. Missing families render with their role's
+default stack without erasing the stored selection. Font preferences are not theme-package
+tokens and are never applied to EPUB publication documents.
+
 Use the named text roles from `tokens.css`:
 
 - `--type-caption` for secondary labels and compact metadata

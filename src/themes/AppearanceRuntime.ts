@@ -1,4 +1,6 @@
-import type { AppPreferences } from "../types/appSettings";
+import type { AppearanceSettings, AppPreferences } from "../types/appSettings";
+import { installedFontCatalog, type InstalledFontCatalog } from "../storage/installedFontCatalog";
+import { applyApplicationFontStacks } from "./applicationFonts";
 import type { AppThemeSelection, ReaderThemeSelection } from "../types/settings";
 import {
   ThemeCatalog,
@@ -22,7 +24,7 @@ type Listener = () => void;
 export type GlobalAppearancePreferences = Pick<AppPreferences, "appTheme" | "readerTheme">;
 
 export type GlobalAppearanceSource = Readonly<{
-  getSnapshot: () => GlobalAppearancePreferences;
+  getSnapshot: () => GlobalAppearancePreferences & Pick<AppPreferences, "appearance">;
   subscribe: (listener: Listener) => () => void;
   update: (changes: Partial<GlobalAppearancePreferences>) => Promise<AppPreferences>;
 }>;
@@ -38,6 +40,7 @@ export type AppearancePreviewContext = Readonly<{
 
 export type AppearanceRuntimeOptions = Readonly<{
   catalog?: ThemeCatalog;
+  fontCatalog?: InstalledFontCatalog;
   getDocumentRoot?: () => HTMLElement | null;
   globalPreferences: GlobalAppearanceSource;
   matchMedia?: (query: string) => MediaQueryList;
@@ -51,6 +54,10 @@ export class AppearanceRuntime {
   private appliedAppTheme: ResolvedAppTheme | null = null;
   private appliedDocumentRoot: HTMLElement | null = null;
   private readonly catalog: ThemeCatalog;
+  private readonly fontCatalog: InstalledFontCatalog;
+  private fontCatalogRevision = 0;
+  private fontFamilies: readonly string[] = [];
+  private appearance: AppearanceSettings;
   private committedContext: AppearancePreviewContext;
   private committedResolution: ThemeSelectionResolution | null = null;
   private readonly customThemes = new WeakMap<ThemeManifestV1, ResolvedTheme>();
@@ -72,6 +79,8 @@ export class AppearanceRuntime {
 
   constructor(options: AppearanceRuntimeOptions) {
     this.catalog = options.catalog ?? new ThemeCatalog();
+    this.fontCatalog = options.fontCatalog ?? installedFontCatalog;
+    this.appearance = options.globalPreferences.getSnapshot().appearance;
     this.getDocumentRoot =
       options.getDocumentRoot ??
       (() => (typeof document === "undefined" ? null : document.documentElement));
@@ -105,10 +114,23 @@ export class AppearanceRuntime {
     this.stopCatalogSynchronization = this.catalog.startSynchronization();
     this.stopPreferences = this.globalPreferences.subscribe(this.handlePreferencesChange);
     this.adoptPreferences(this.globalPreferences.getSnapshot());
+    const revision = ++this.fontCatalogRevision;
+    void this.fontCatalog
+      .load()
+      .then((families) => {
+        if (revision !== this.fontCatalogRevision || !this.stopPreferences) return;
+        this.fontFamilies = families;
+        // Resolve the latest settings, not those captured before enumeration.
+        this.applyFonts();
+      })
+      .catch((error: unknown) => {
+        if (revision === this.fontCatalogRevision && this.stopPreferences) this.onError(error);
+      });
     return () => this.stop();
   }
 
   stop(): void {
+    this.fontCatalogRevision += 1;
     this.stopPreferences?.();
     this.stopPreferences = null;
     this.stopCatalog?.();
@@ -208,7 +230,11 @@ export class AppearanceRuntime {
     void this.resolveCommittedAppearance();
   };
 
-  private adoptPreferences(preferences: GlobalAppearancePreferences): void {
+  private adoptPreferences(
+    preferences: GlobalAppearancePreferences & Pick<AppPreferences, "appearance">,
+  ): void {
+    this.appearance = preferences.appearance;
+    this.applyFonts();
     const next = freezePreferences(preferences);
     if (samePreferences(this.preferences, next) && this.committedResolution) return;
     const appChanged = !sameAppSelection(this.preferences.appTheme, next.appTheme);
@@ -252,6 +278,7 @@ export class AppearanceRuntime {
       reader: this.readerPreview ?? committed.reader,
     });
     const root = this.getDocumentRoot();
+    if (root) applyApplicationFontStacks(root, this.appearance, this.fontFamilies);
     if (!root) {
       this.appliedDocumentRoot = null;
     } else if (root !== this.appliedDocumentRoot || snapshot.app !== this.appliedAppTheme) {
@@ -261,6 +288,11 @@ export class AppearanceRuntime {
     }
     this.snapshot = snapshot;
     this.listeners.forEach((listener) => listener());
+  }
+
+  private applyFonts(): void {
+    const root = this.getDocumentRoot();
+    if (root) applyApplicationFontStacks(root, this.appearance, this.fontFamilies);
   }
 
   private safeSnapshot(preferences: GlobalAppearancePreferences): AppearanceRuntimeSnapshot {

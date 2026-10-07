@@ -1,6 +1,6 @@
 # App settings contract fixtures
 
-`v2.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
+`v3.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
 test suites.
 
 Compatibility policy:
@@ -15,3 +15,7 @@ Compatibility policy:
 - Current normalized settings round-trip without semantic changes.
 
 Increment the fixture-corpus version only when the persisted contract changes intentionally.
+
+Version 3 adds independent application font roles. Legacy motion-only Appearance payloads
+retain both default stacks. Family labels are bounded to 256 Unicode code points, trimmed,
+and rejected if they contain control characters. Installed availability never changes storage.

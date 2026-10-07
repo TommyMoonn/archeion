@@ -13,11 +13,7 @@ const sectionLabels = new Map<SettingsSection, string>(
   settingsSections.map((section) => [section.id, section.label]),
 );
 
-const removedSettingsSearchTerms = new Set([
-  "appearance and window",
-  "files and maintenance",
-  "interface",
-]);
+const removedSettingsSearchTerms = new Set(["appearance and window", "files and maintenance"]);
 
 export type SettingsSearchResult = {
   item: SettingsItem;

@@ -9,8 +9,10 @@
    * Icon roles separate the visible glyph from its stable layout slot.
    * Control, radius, border, and elevation scales are shared by recurring surfaces.
    */
-  --font-ui: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-ui-default: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display-default: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-ui: var(--font-ui-default);
+  --font-display: var(--font-display-default);
   --font-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
   --font-weight-regular: 400;
   --font-weight-medium: 500;

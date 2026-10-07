@@ -9,6 +9,7 @@ import {
   APP_SETTINGS_CHANGED_EVENT,
   type AppearanceSettings,
   type AppPreferences,
+  type AppPreferencesChanges,
   type AppSettingsMutation,
   type AppSettingsSnapshot,
   type FilesAndMetadataSettingsMutation,
@@ -17,6 +18,10 @@ import {
   type ReaderSettingsMutation,
   type RememberedNavigationState,
 } from "../types/appSettings";
+import {
+  normalizeDisplayFontSelection,
+  normalizeInterfaceFontSelection,
+} from "../types/applicationFonts";
 import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 import {
   DEFAULT_BOOKS_COLLECTION_PREFERENCES,
@@ -267,6 +272,8 @@ function normalizeAppearanceSettings(value: unknown): AppearanceSettings {
   const settings = isRecord(value) ? value : {};
   return {
     animationsEnabled: settings.animationsEnabled === true,
+    interfaceFont: normalizeInterfaceFontSelection(settings.interfaceFont),
+    displayFont: normalizeDisplayFontSelection(settings.displayFont),
   };
 }
 
@@ -375,10 +382,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
   };
 }
 
-function mergeAppPreferences(
-  base: AppPreferences,
-  changes: Partial<AppPreferences>,
-): AppPreferences {
+function mergeAppPreferences(base: AppPreferences, changes: AppPreferencesChanges): AppPreferences {
   const next = normalizeAppPreferences({
     ...base,
     ...changes,
@@ -968,7 +972,7 @@ export class AppPreferencesStore {
     return initialization;
   }
 
-  async update(changes: Partial<AppPreferences>): Promise<AppPreferences> {
+  async update(changes: AppPreferencesChanges): Promise<AppPreferences> {
     await this.initialize();
 
     const next = mergeAppPreferences(this.preferences, changes);
@@ -1018,7 +1022,7 @@ export class AppPreferencesStore {
     }
   }
 
-  reset(changes: Partial<AppPreferences> = {}): Promise<AppPreferences> {
+  reset(changes: AppPreferencesChanges = {}): Promise<AppPreferences> {
     return this.update(mergeAppPreferences(defaultAppPreferences, changes));
   }
 

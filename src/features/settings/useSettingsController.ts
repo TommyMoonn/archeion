@@ -8,7 +8,11 @@ import {
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
-import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
+import {
+  defaultAppPreferences,
+  type AppPreferences,
+  type AppPreferencesChanges,
+} from "../../types/appSettings";
 import type { KnownArchive } from "../../types/archive";
 import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
@@ -42,6 +46,8 @@ export type SettingsControllerOptions = {
   archiveGeneration?: number;
   archiveIdentity?: KnownArchive | null;
   archiveMaintenance?: SettingsArchiveMaintenance | null;
+  installedFontFamilies?: readonly string[];
+  installedFontsLoading?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
   onOpenThemeManager?: () => void;
@@ -54,6 +60,8 @@ export function useSettingsController({
   archiveGeneration = 0,
   archiveIdentity = null,
   archiveMaintenance = null,
+  installedFontFamilies = [],
+  installedFontsLoading = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
   onOpenThemeManager,
@@ -348,7 +356,7 @@ export function useSettingsController({
   }
 
   function updateAppPreferences(
-    changes: Partial<AppPreferences>,
+    changes: AppPreferencesChanges,
     options?: { successMessage?: string | false },
   ): Promise<boolean> {
     return persistAppPreferences(() => appPreferencesStore.update(changes), options);
@@ -646,6 +654,8 @@ export function useSettingsController({
     epubWritebackBackupStatusState: currentEpubWritebackBackupStatus.status,
     files,
     importSettings,
+    installedFontFamilies,
+    installedFontsLoading,
     library,
     openArchiveManager,
     openThemeManager,

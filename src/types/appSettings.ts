@@ -6,6 +6,7 @@ import type {
   ReaderThemeSelection,
 } from "./settings";
 import type { KeyboardPreferences } from "./keyboard";
+import type { DisplayFontSelection, InterfaceFontSelection } from "./applicationFonts";
 import {
   createDefaultLibraryFilters,
   DEFAULT_BOOKS_COLLECTION_PREFERENCES,
@@ -35,6 +36,8 @@ export type PersistedWindowState = {
 
 export type AppearanceSettings = {
   animationsEnabled: boolean;
+  interfaceFont: InterfaceFontSelection;
+  displayFont: DisplayFontSelection;
 };
 
 export type AppPreferences = {
@@ -60,6 +63,12 @@ export type AppPreferences = {
 export type AppSettingsSnapshot = {
   revision: number;
   preferences: AppPreferences;
+};
+
+// Appearance updates merge into their existing owner, so a motion-only update
+// cannot discard either font role.
+export type AppPreferencesChanges = Omit<Partial<AppPreferences>, "appearance"> & {
+  appearance?: Partial<AppearanceSettings>;
 };
 
 export type LibrarySettingsMutation =
@@ -183,6 +192,8 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   appThemePreset: "dark",
   appearance: Object.freeze({
     animationsEnabled: false,
+    interfaceFont: Object.freeze({ kind: "default" }),
+    displayFont: Object.freeze({ kind: "default" }),
   }),
   confirmDestructiveFileActions: true,
   density: "comfortable",

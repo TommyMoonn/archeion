@@ -47,11 +47,18 @@
 
 @media (forced-colors: active) {
   .font-picker__list .app-select__option[data-active="true"],
-  .font-picker__list .app-select__option[aria-selected="true"] {
+  .font-picker__list .app-select__option[aria-selected="true"],
+  .font-picker__list .app-select__option[data-active="true"]:hover,
+  .font-picker__list .app-select__option[aria-selected="true"]:hover {
+    /* The shared forced-colors hover rule must not put LinkText on Highlight. */
     /* Keep system-color text legible without a conflicting browser text backplate. */
     forced-color-adjust: none;
     color: HighlightText;
     background: Highlight;
     outline-color: Highlight;
+  }
+
+  .font-picker__list .app-select__option .icon-slot {
+    forced-color-adjust: none;
   }
 }
