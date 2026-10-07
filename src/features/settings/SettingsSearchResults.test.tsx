@@ -29,6 +29,8 @@ function createController(overrides: Partial<SettingsController> = {}) {
     epubWritebackBackupStatusState: "loaded",
     files: preferences.filesAndMetadata,
     importSettings: preferences.import,
+    installedFontFamilies: ["Arial", "Georgia"],
+    installedFontsLoading: false,
     library: preferences.library,
     openArchiveManager: vi.fn(),
     openConfirmation: vi.fn(),
@@ -76,6 +78,28 @@ function renderResults(query: string, controller = createController(), onClearSe
 }
 
 describe("SettingsSearchResults", () => {
+  it.each([
+    ["interface font", "appearance.interface-font", "Interface font"],
+    ["display font", "appearance.display-font", "Display font"],
+  ])("renders a usable %s control in search results", (query, id, label) => {
+    const rendered = renderResults(query);
+    roots.push(rendered.root);
+    const row = rendered.container.querySelector(`[data-setting-id="${id}"]`)!;
+    const trigger = row.querySelector<HTMLButtonElement>(".font-picker button")!;
+    expect(trigger.getAttribute("aria-label")).toContain(label);
+    act(() => trigger.click());
+    const option = row.querySelector<HTMLButtonElement>('[role="option"]')!;
+    expect(option.textContent).toBe(
+      label === "Interface font" ? "Inter (Default)" : "Use interface font",
+    );
+    act(() => option.click());
+    expect(rendered.controller.updateAppPreferences).toHaveBeenCalledWith({
+      appearance:
+        label === "Interface font"
+          ? { interfaceFont: { kind: "default" } }
+          : { displayFont: { kind: "interface" } },
+    });
+  });
   const roots: Root[] = [];
 
   beforeEach(() => {

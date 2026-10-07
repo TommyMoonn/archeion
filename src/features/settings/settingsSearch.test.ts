@@ -3,6 +3,26 @@ import { describe, expect, it } from "vitest";
 import { findSettingsSearchResults } from "./settingsSearch";
 
 describe("settingsSearch", () => {
+  it("finds both application font roles in Appearance without resurrecting removed composite labels", () => {
+    for (const [query, id] of [
+      ["interface font", "appearance.interface-font"],
+      ["display font", "appearance.display-font"],
+    ]) {
+      expect(findSettingsSearchResults(query)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            item: expect.objectContaining({ id, sectionId: "appearance" }),
+            sectionLabel: "Appearance",
+          }),
+        ]),
+      );
+    }
+    expect(findSettingsSearchResults("interface").map(({ item }) => item.id)).toContain(
+      "appearance.interface-font",
+    );
+    expect(findSettingsSearchResults("appearance and window")).toEqual([]);
+    expect(findSettingsSearchResults("files and maintenance")).toEqual([]);
+  });
   it("finds current labels and group terms", () => {
     expect(findSettingsSearchResults("display density").map((result) => result.item.id)).toContain(
       "appearance.display-density",

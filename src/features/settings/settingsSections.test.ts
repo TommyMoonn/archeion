@@ -42,7 +42,6 @@ describe("settingsSections", () => {
     expect(sectionMatches("storage", "archive maintenance")).toBe(false);
     expect(sectionMatches("storage", "files and maintenance")).toBe(false);
     expect(sectionMatches("storage", "scan preferences")).toBe(false);
-    expect(sectionMatches("appearance", "interface")).toBe(false);
   });
 
   it("matches current section labels and group terms", () => {
@@ -57,6 +56,9 @@ describe("settingsSections", () => {
     expect(sectionMatches("storage", "epub writeback backups")).toBe(true);
     expect(sectionMatches("storage", "archive metadata and recovery")).toBe(true);
     expect(sectionMatches("appearance", "display density")).toBe(true);
+    expect(sectionMatches("appearance", "interface font")).toBe(true);
+    expect(sectionMatches("appearance", "display font")).toBe(true);
+    expect(sectionMatches("appearance", "interface")).toBe(true);
     expect(sectionMatches("appearance", "animations")).toBe(true);
   });
 

@@ -18,6 +18,8 @@ export type FontPickerPinnedOption<TValue extends string = string> = {
 
 export type FontPickerProps<TValue extends string = string> = {
   ariaLabel: string;
+  /** Unknown availability must not be presented as an unavailable saved family. */
+  catalogLoading?: boolean;
   className?: string;
   disabled?: boolean;
   id?: string;
@@ -47,6 +49,7 @@ function selectionKey(selection: FontPickerSelection<string>): string {
 
 export function FontPicker<TValue extends string>({
   ariaLabel,
+  catalogLoading = false,
   className = "",
   disabled = false,
   id,
@@ -99,6 +102,7 @@ export function FontPicker<TValue extends string>({
   }, [installedFamilies, pinnedOptions, suppressInstalledDuplicates]);
 
   const unavailable =
+    !catalogLoading &&
     value.kind === "system" &&
     !installedFamilies.some((family) => family.toLowerCase() === value.family.toLowerCase());
   const selectedLabel = unavailable
@@ -191,6 +195,7 @@ export function FontPicker<TValue extends string>({
       ref={rootRef}
     >
       <button
+        aria-busy={catalogLoading || undefined}
         aria-controls={isOpen ? listId : undefined}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
@@ -290,7 +295,7 @@ export function FontPicker<TValue extends string>({
             className={visibleRows.length ? "sr-only" : "font-picker__empty"}
             role="status"
           >
-            {visibleRows.length ? "" : "No fonts found."}
+            {visibleRows.length ? "" : catalogLoading ? "Loading fonts…" : "No fonts found."}
           </div>
         </div>
       ) : null}

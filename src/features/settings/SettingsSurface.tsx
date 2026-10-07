@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { InstalledFontCatalog } from "../../storage/installedFontCatalog";
+import { useInstalledFontFamilies } from "../../storage/useInstalledFontFamilies";
 import { getProgrammaticScrollBehavior, isAppMotionEnabled } from "../../utils/motion";
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -25,6 +27,7 @@ import type { SettingsArchiveBoundary } from "./useSettingsArchiveMaintenance";
 
 type SettingsSurfaceProps = {
   archiveBoundary?: SettingsArchiveBoundary;
+  fontCatalog?: InstalledFontCatalog;
 };
 
 function scrollSettingsContent(content: HTMLElement | null) {
@@ -60,7 +63,10 @@ function renderSettingsSection(
   }
 }
 
-export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
+export function SettingsSurface({
+  archiveBoundary,
+  fontCatalog: installedFonts,
+}: SettingsSurfaceProps) {
   const contentRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
@@ -85,10 +91,16 @@ export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
     [visibleSettingsItems],
   );
   const themeCatalog = useThemeCatalogEntries(dataRequirements.has("themeCatalog"));
+  const fontCatalog = useInstalledFontFamilies(
+    dataRequirements.has("installedFonts"),
+    installedFonts,
+  );
   const controller = useSettingsController({
     archiveGeneration: archiveBoundary?.snapshot.generation,
     archiveIdentity: archiveBoundary?.snapshot.archive,
     archiveMaintenance: archiveBoundary?.maintenance,
+    installedFontFamilies: fontCatalog.families,
+    installedFontsLoading: fontCatalog.loading,
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
     onOpenThemeManager: () => {

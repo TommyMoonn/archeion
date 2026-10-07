@@ -46,6 +46,8 @@ export type SettingsControllerOptions = {
   archiveGeneration?: number;
   archiveIdentity?: KnownArchive | null;
   archiveMaintenance?: SettingsArchiveMaintenance | null;
+  installedFontFamilies?: readonly string[];
+  installedFontsLoading?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
   onOpenThemeManager?: () => void;
@@ -58,6 +60,8 @@ export function useSettingsController({
   archiveGeneration = 0,
   archiveIdentity = null,
   archiveMaintenance = null,
+  installedFontFamilies = [],
+  installedFontsLoading = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
   onOpenThemeManager,
@@ -650,6 +654,8 @@ export function useSettingsController({
     epubWritebackBackupStatusState: currentEpubWritebackBackupStatus.status,
     files,
     importSettings,
+    installedFontFamilies,
+    installedFontsLoading,
     library,
     openArchiveManager,
     openThemeManager,

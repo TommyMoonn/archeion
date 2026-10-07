@@ -1,13 +1,46 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { createRoot } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../../types/appSettings";
 import type { SettingsController } from "../useSettingsController";
 import { appearanceSettingsItems } from "./appearanceSettingsItems";
+
+const fontRenders: Array<{ root: Root; container: HTMLDivElement }> = [];
+afterEach(() => {
+  act(() =>
+    fontRenders.splice(0).forEach(({ root, container }) => {
+      root.unmount();
+      container.remove();
+    }),
+  );
+});
+
+function renderFontRole(
+  id: "appearance.interface-font" | "appearance.display-font",
+  context = controller(),
+) {
+  const item = appearanceSettingsItems.find((candidate) => candidate.id === id)!;
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  fontRenders.push({ root, container });
+  act(() => root.render(item.render(context)));
+  const trigger = () => container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+  const options = () =>
+    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+  const open = () => act(() => trigger().click());
+  const query = (value: string) =>
+    act(() => {
+      const input = container.querySelector<HTMLInputElement>('input[role="combobox"]')!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  return { container, context, open, options, query, root, trigger };
+}
 
 function controller(): SettingsController {
   const preferences = {
@@ -16,6 +49,8 @@ function controller(): SettingsController {
     readerTheme: { kind: "custom" as const, id: "moon-ink" },
   };
   return {
+    installedFontFamilies: ["Zulu", "Arial", "Georgia"],
+    installedFontsLoading: false,
     openThemeManager: vi.fn(),
     preferences,
     refreshThemeCatalog: vi.fn(async () => true),
@@ -49,10 +84,96 @@ function controller(): SettingsController {
 }
 
 describe("appearanceSettingsItems", () => {
+  it.each([
+    ["appearance.interface-font", ["Inter (Default)", "Arial", "Georgia", "Zulu"]],
+    [
+      "appearance.display-font",
+      ["Use interface font", "Archeion Default", "Arial", "Georgia", "Zulu"],
+    ],
+  ] as const)("%s places pinned entries before plain sorted installed families", (id, expected) => {
+    const rendered = renderFontRole(id);
+    rendered.open();
+    expect(rendered.options().map((option) => option.textContent)).toEqual(expected);
+    expect(rendered.container.querySelector("h3")).toBeNull();
+    expect(rendered.container.textContent).not.toMatch(/font source|category|preview|advanced/i);
+    expect(rendered.context.updateAppPreferences).not.toHaveBeenCalled();
+  });
+
+  it.each(["appearance.interface-font", "appearance.display-font"] as const)(
+    "%s searches installed and pinned labels, then persists a system choice immediately",
+    (id) => {
+      const rendered = renderFontRole(id);
+      rendered.open();
+      rendered.query(id === "appearance.interface-font" ? "inter" : "Archeion");
+      expect(rendered.options().map((option) => option.textContent)).toEqual([
+        id === "appearance.interface-font" ? "Inter (Default)" : "Archeion Default",
+      ]);
+      rendered.query("aRiAl");
+      expect(rendered.options().map((option) => option.textContent)).toEqual(["Arial"]);
+      act(() => rendered.options()[0].click());
+      expect(rendered.context.updateAppPreferences).toHaveBeenCalledOnce();
+      expect(rendered.context.updateAppPreferences).toHaveBeenCalledWith({
+        appearance:
+          id === "appearance.interface-font"
+            ? { interfaceFont: { kind: "system", family: "Arial" } }
+            : { displayFont: { kind: "system", family: "Arial" } },
+      });
+      expect(rendered.container.querySelector('[role="listbox"]')).toBeNull();
+    },
+  );
+
+  it("maps both Display pinned entries to their persisted semantic kinds", () => {
+    const rendered = renderFontRole("appearance.display-font");
+    rendered.open();
+    act(() => rendered.options()[0].click());
+    rendered.open();
+    act(() => rendered.options()[1].click());
+    expect(rendered.context.updateAppPreferences).toHaveBeenNthCalledWith(1, {
+      appearance: { displayFont: { kind: "interface" } },
+    });
+    expect(rendered.context.updateAppPreferences).toHaveBeenNthCalledWith(2, {
+      appearance: { displayFont: { kind: "default" } },
+    });
+  });
+
+  it.each(["appearance.interface-font", "appearance.display-font"] as const)(
+    "%s retains unavailable context without changing preferences on open",
+    (id) => {
+      const context = controller();
+      context.preferences = {
+        ...context.preferences,
+        appearance: {
+          ...context.preferences.appearance,
+          interfaceFont: { kind: "system", family: "Missing UI" },
+          displayFont: { kind: "system", family: "Missing Display" },
+        },
+      };
+      const rendered = renderFontRole(id, context);
+      const name = id === "appearance.interface-font" ? "Missing UI" : "Missing Display";
+      expect(rendered.trigger().textContent).toBe(`${name} (Unavailable)`);
+      rendered.open();
+      const unavailable = rendered
+        .options()
+        .find((option) => option.textContent === `${name} (Unavailable)`)!;
+      expect(unavailable.disabled).toBe(true);
+      expect(unavailable.getAttribute("aria-selected")).toBe("true");
+      expect(context.updateAppPreferences).not.toHaveBeenCalled();
+      expect(context.preferences.appearance.interfaceFont).toEqual({
+        kind: "system",
+        family: "Missing UI",
+      });
+      expect(context.preferences.appearance.displayFont).toEqual({
+        kind: "system",
+        family: "Missing Display",
+      });
+    },
+  );
   it("keeps appearance definitions in one focused registry spread", () => {
     expect(appearanceSettingsItems.map((item) => item.id)).toEqual([
       "reader.theme",
       "appearance.app-themes",
+      "appearance.interface-font",
+      "appearance.display-font",
       "appearance.animations",
       "appearance.display-density",
       "appearance.reset-appearance",

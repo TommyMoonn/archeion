@@ -70,6 +70,31 @@ afterEach(() => {
 });
 
 describe("FontPicker", () => {
+  it("keeps a saved name neutral while the catalog is loading and leaves pinned choices usable", () => {
+    render({
+      catalogLoading: true,
+      installedFamilies: [],
+      value: { kind: "system", family: "Arial" },
+    });
+    expect(trigger().getAttribute("aria-label")).toBe("Family: Arial");
+    expect(trigger().getAttribute("aria-busy")).toBe("true");
+    open();
+    query("Arial");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Loading fonts…");
+    expect(options()).toEqual([]);
+    render({ catalogLoading: false, installedFamilies: ["Arial"] });
+    expect(trigger().getAttribute("aria-busy")).toBeNull();
+    expect(options()[0].getAttribute("aria-selected")).toBe("true");
+    expect(props.onChange).not.toHaveBeenCalled();
+    render({
+      catalogLoading: true,
+      installedFamilies: [],
+      value: { kind: "system", family: "Missing" },
+    });
+    query("");
+    act(() => options()[0].click());
+    expect(props.onChange).toHaveBeenCalledWith({ kind: "pinned", value: "default" });
+  });
   it("opens with a named search field focused and pinned rows before sorted installed families", () => {
     open();
     expect(document.activeElement).toBe(search());

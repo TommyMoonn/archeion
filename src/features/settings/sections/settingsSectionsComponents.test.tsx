@@ -28,6 +28,8 @@ function createController(overrides: Partial<SettingsController> = {}): Settings
     epubWritebackBackupStatusState: "loaded",
     files: preferences.filesAndMetadata,
     importSettings: preferences.import,
+    installedFontFamilies: [],
+    installedFontsLoading: false,
     library: preferences.library,
     openArchiveManager: vi.fn(),
     openConfirmation: vi.fn(),
@@ -121,6 +123,8 @@ describe("settings section components", () => {
     expect(markup).toContain("App appearance");
     expect(markup).toContain("Animations");
     expect(markup).toContain("Display density");
+    expect(markup).toContain("Interface font");
+    expect(markup).toContain("Display font");
     expect(markup).not.toContain("Window behavior");
     expect(markup).not.toContain("Interface density");
   });
