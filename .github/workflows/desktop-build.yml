@@ -67,10 +67,11 @@ jobs:
         run: >-
           ./scripts/stage-windows-bundles.ps1
           -BundleRoot ./src-tauri/target/x86_64-pc-windows-msvc/release/bundle
+          --installers-only
 
       - name: Verify staged installers and checksums
         shell: pwsh
-        run: ./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows
+        run: ./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows --installers-only
 
       - name: Smoke test staged NSIS installer
         shell: pwsh

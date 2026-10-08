@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 
 import { readRelease, releaseHasTag, tagTarget } from "./detect-release-candidate.mjs";
 import { readReleaseNote } from "./release-notes.mjs";
+import { windowsReleaseAssetNames } from "./windows-update-manifest.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
-const assetNames = ["Archeion-Setup-x64.exe", "Archeion-x64.msi", "SHA256SUMS.txt"];
+const assetNames = windowsReleaseAssetNames;
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const commitPattern = /^[0-9a-f]{40,64}$/;
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -236,6 +237,8 @@ export function publishReleaseCandidate({
         "-NoProfile",
         "-File",
         path.join(scriptRoot, "verify-windows-release.ps1"),
+        "--project",
+        projectRoot,
         "--artifacts-dir",
         artifactsDirectory,
       ],

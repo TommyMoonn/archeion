@@ -182,6 +182,7 @@ successful recovery.
 --bundle-dir <path>
 -o, --output <path>
 -p, --project <path>
+--installers-only
 -h, --help
 ```
 
@@ -189,20 +190,47 @@ The default bundle directory is `src-tauri/target/release/bundle`; the default
 output is `artifacts/windows`. Staging reports validation, installer discovery,
 copying, and checksum creation as permanent steps. The final summary lists the
 stable EXE/MSI/checksum names with their sizes and the output directory in a
-fixed order.
+fixed order. Default release staging requires exactly one version-matched x64
+NSIS installer/signature pair and one MSI installer/signature pair. It generates
+`latest.json` from the canonical release note, and hashes all five payload files.
+The exact public set is the EXE, MSI, both `.sig` files, `latest.json`, and
+`SHA256SUMS.txt`.
+
+Staging validates a temporary sibling directory before replacing previous
+generated output. Unknown content, linked paths, project/drive roots, and output
+overlapping the bundle tree are refused. Generation failure preserves the previous
+output. `--installers-only` is an explicit non-release mode used by the manual
+desktop workflow: it stages only unsigned installers and their checksums.
 
 ## `verify-windows-release.ps1`
 
 ```text
 --artifacts-dir <path>
+-p, --project <path>
+--installers-only
 -h, --help
 ```
 
-The default directory is `artifacts/windows`. Verification requires exactly the
-two staged installers and `SHA256SUMS.txt`; it fails if a file is missing,
-unexpected, empty, or has a mismatched checksum. Expected-asset and checksum
-verification are permanent steps, followed by a deterministic artifact summary
-only after every check has passed.
+The default directory is `artifacts/windows`; the project defaults to this
+repository. Release verification requires exactly the six public assets. All
+must be nonempty regular files. Checksums must cover each of the five payload
+files exactly once. The manifest must match the project's stable version,
+canonical Changes text/date, exact-tag bundle-specific URLs, and signature-file
+contents. No generic Windows platform entry is accepted. `--installers-only`
+verifies the manual build's two installers and checksum file, not an updater
+release. Success is reported only after all applicable checks pass.
+
+## `windows-update-manifest.mjs`
+
+```powershell
+node scripts/windows-update-manifest.mjs generate --project . --artifacts-dir artifacts/windows
+node scripts/windows-update-manifest.mjs verify --project . --artifacts-dir artifacts/windows
+```
+
+The staging/verifying scripts invoke this focused manifest owner. It reuses
+`release-notes.mjs`, maps the tracked date to UTC midnight, preserves signature
+text verbatim, and writes deterministic UTF-8 JSON. It checks metadata parity,
+not cryptographic authenticity; the native updater owns signature verification.
 
 ## `smoke-windows-installer.ps1`
 

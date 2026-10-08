@@ -9,13 +9,17 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { detectReleaseCandidate, readRelease } from "../scripts/detect-release-candidate.mjs";
 import { publishReleaseCandidate } from "../scripts/publish-release.mjs";
+import {
+  createWindowsUpdateManifest,
+  windowsReleaseAssetNames,
+} from "../scripts/windows-update-manifest.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const commit = "a".repeat(40);
 const otherCommit = "b".repeat(40);
 const tag = "v1.5.5";
 const body = "## Changes\n\n- Fixture release.\n";
-const assetNames = ["Archeion-Setup-x64.exe", "Archeion-x64.msi", "SHA256SUMS.txt"];
+const assetNames = windowsReleaseAssetNames;
 const temporaryRoots: string[] = [];
 const hasPowerShell =
   spawnSync("pwsh", ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"], {
@@ -56,11 +60,26 @@ function fixture(
   );
   const exe = Buffer.from("fixture NSIS installer");
   const msi = Buffer.from("fixture MSI installer");
-  fs.writeFileSync(path.join(artifactsDirectory, assetNames[0]), exe);
-  fs.writeFileSync(path.join(artifactsDirectory, assetNames[1]), msi);
+  fs.writeFileSync(path.join(artifactsDirectory, "Archeion-Setup-x64.exe"), exe);
+  fs.writeFileSync(path.join(artifactsDirectory, "Archeion-x64.msi"), msi);
   fs.writeFileSync(
-    path.join(artifactsDirectory, assetNames[2]),
-    `${digest(exe).slice(7)}  ${assetNames[0]}\n${digest(msi).slice(7)}  ${assetNames[1]}\n`,
+    path.join(artifactsDirectory, "Archeion-Setup-x64.exe.sig"),
+    "fixture NSIS signature",
+  );
+  fs.writeFileSync(path.join(artifactsDirectory, "Archeion-x64.msi.sig"), "fixture MSI signature");
+  fs.writeFileSync(
+    path.join(artifactsDirectory, "latest.json"),
+    JSON.stringify(createWindowsUpdateManifest(root, artifactsDirectory)),
+  );
+  fs.writeFileSync(
+    path.join(artifactsDirectory, "SHA256SUMS.txt"),
+    assetNames
+      .filter((name) => name !== "SHA256SUMS.txt")
+      .map(
+        (name) =>
+          `${digest(fs.readFileSync(path.join(artifactsDirectory, name))).slice(7)}  ${name}\n`,
+      )
+      .join(""),
   );
 
   let tagSha = options.tagSha ?? null;
@@ -239,7 +258,7 @@ describe("pending-tag release identity", () => {
 });
 
 (hasPowerShell ? describe : describe.skip)("release publication", () => {
-  it("creates the exact-SHA tag only after verification, then publishes the tracked note and three assets", () => {
+  it("creates the exact-SHA tag only after verification, then publishes the tracked note and six assets", () => {
     const state = fixture({ restPlaceholder: true });
     expect(state.publish()).toEqual({ published: true, reused: false, tag, sha: commit });
     expect(state.mutations).toEqual([

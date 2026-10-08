@@ -164,6 +164,19 @@ describe("CI workflow contract", () => {
     expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
   });
 
+  it("keeps unsigned manual packaging explicit and separate from signed release staging", () => {
+    expect(desktopWorkflow).toContain(
+      "-BundleRoot ./src-tauri/target/x86_64-pc-windows-msvc/release/bundle\n          --installers-only",
+    );
+    expect(desktopWorkflow).toContain(
+      "./scripts/verify-windows-release.ps1 --artifacts-dir artifacts/windows --installers-only",
+    );
+    expect(desktopWorkflow).not.toContain("TAURI_SIGNING_PRIVATE_KEY");
+    expect(
+      fs.readFileSync(path.join(projectRoot, ".github/workflows/release.yml"), "utf8"),
+    ).not.toContain("--installers-only");
+  });
+
   it("smoke tests the same staged NSIS installer before either workflow uploads it", () => {
     const releaseWorkflow = fs.readFileSync(
       path.join(projectRoot, ".github", "workflows", "release.yml"),

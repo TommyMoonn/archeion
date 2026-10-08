@@ -115,8 +115,40 @@ only to the repository-owned candidate build after the successful exact-SHA
 `main` CI run and deliberate version transition have been validated. Never
 expose them to PR jobs, untrusted workflow sources, documentation jobs, or the
 publication job. The overlay only enables artifact creation. Signing-secret
-wiring, manifest staging, verification, and publication are subsequent updater
-phases; the existing release workflow does not yet opt into this overlay.
+wiring and publication are subsequent updater phases; the existing release
+workflow does not yet opt into this overlay.
+
+## Signed Windows artifact contract
+
+After a trusted signed candidate build, stage and verify the bundle:
+
+```powershell
+./scripts/stage-windows-release.ps1 --bundle-dir ./src-tauri/target/release/bundle
+./scripts/verify-windows-release.ps1 --artifacts-dir ./artifacts/windows
+```
+
+Default release staging requires one version-matched x64 installer and its
+matching `.sig` in each of the NSIS/MSI bundle directories. It produces exactly:
+
+- `Archeion-Setup-x64.exe` and `Archeion-Setup-x64.exe.sig`;
+- `Archeion-x64.msi` and `Archeion-x64.msi.sig`;
+- `latest.json`;
+- `SHA256SUMS.txt`, covering the five other files.
+
+The manifest reuses the validated `release-notes/vX.Y.Z.md` Changes section and
+tracked date (UTC midnight). It contains only `windows-x86_64-nsis` and
+`windows-x86_64-msi`, exact `vX.Y.Z` download URLs, and verbatim signature-file
+contents. Verification rejects asset, checksum, version, notes/date, URL,
+platform, or signature-content drift. These tooling checks do not establish
+cryptographic authenticity; the native updater verifies signatures.
+
+The manual desktop workflow explicitly passes `--installers-only` to both
+scripts. That non-release mode packages unsigned installers and checksums without
+production secrets or a release note. It cannot pass default release verification.
+
+Hosted signing, six-asset upload, and publication integration remain phase
+1.6.0.3 work. Until that integration is complete, the existing release workflow
+cannot produce the new default contract and must not be used to publish a candidate.
 
 ## Release tag authorization
 
@@ -148,10 +180,12 @@ compares the application version with that commit's first parent. Ordinary
 commits with an unchanged version have no release side effects, even if `main`
 has advanced after an earlier version bump.
 
-For a valid candidate, the workflow builds the Windows NSIS and MSI installers
-from that exact SHA, stages `Archeion-Setup-x64.exe`, `Archeion-x64.msi`, and
-`SHA256SUMS.txt`, then verifies the downloaded candidate artifact before the
-publication job receives `contents: write`. Publication rechecks the source,
+The hosted candidate build/upload wiring still needs phase 1.6.0.3 integration
+before it can supply the six-asset contract above. Once integrated, the workflow
+must build from the exact candidate SHA and verify the downloaded candidate
+artifact before the publication job receives `contents: write`.
+
+The publication tool already requires the six-file contract. It rechecks the source,
 metadata, and artifact; creates the new `vX.Y.Z` tag at the candidate SHA
 under the creation-allowed policy; creates or resumes a draft with the tracked
 release-note body; verifies the exact asset set, sizes, and GitHub-reported
@@ -160,7 +194,7 @@ not created by local validation or PR CI.
 
 Inspect the hosted Release run and resulting GitHub Release. Confirm the tag
 resolves to the green candidate SHA, the title and body match the tracked
-note, and the three assets and their digests match the verified bundle. A
+note, and the six assets and their digests match the verified bundle. A
 green workflow alone is not evidence that repository tag protections or
 immutable-release behavior have been exercised.
 
