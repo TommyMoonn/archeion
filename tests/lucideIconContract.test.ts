@@ -80,6 +80,10 @@ function assertValidLucideExports(iconNames: Iterable<string>) {
 }
 
 function heavierIconOverrides(filePath: string, source: string): string[] {
+  // Matching attributes must contain this exact token. Skip irrelevant files
+  // before building and walking their ASTs, especially under V8 coverage.
+  if (!source.includes("strokeWidth")) return [];
+
   const sourceFile = ts.createSourceFile(
     filePath,
     source,
@@ -109,6 +113,24 @@ function heavierIconOverrides(filePath: string, source: string): string[] {
 }
 
 describe("Lucide icon integration", () => {
+  it.each([
+    ["source without stroke attributes", "export const icon = <Search />;", []],
+    ["a comment containing the token", "// strokeWidth={2.25}\nconst icon = <Search />;", []],
+    ["a non-emphasized stroke", "const icon = <Search strokeWidth={2} />;", []],
+    [
+      "nested and paired emphasized glyphs",
+      "const icon = <div><Check strokeWidth={2.25} /><Plus strokeWidth={2.25}></Plus></div>;",
+      ["Check", "Plus"],
+    ],
+    [
+      "an ordinary glyph with an invalid override",
+      "const icon = <Search strokeWidth={2.25} />;",
+      ["Search"],
+    ],
+  ])("detects heavier overrides in %s", (_description, source, expected) => {
+    expect(heavierIconOverrides("fixture.tsx", source)).toEqual(expected);
+  });
+
   it("supports default, emphasized, decorative, and persistent filled-state glyphs", () => {
     expect(renderToStaticMarkup(createElement(lucideIcons.X))).toContain('stroke-width="2"');
     expect(renderToStaticMarkup(createElement(lucideIcons.Check, { strokeWidth: 2.25 }))).toContain(
