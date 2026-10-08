@@ -9,13 +9,17 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { detectReleaseCandidate, readRelease } from "../scripts/detect-release-candidate.mjs";
 import { publishReleaseCandidate } from "../scripts/publish-release.mjs";
+import {
+  createWindowsUpdateManifest,
+  windowsReleaseAssetNames,
+} from "../scripts/windows-update-manifest.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const commit = "a".repeat(40);
 const otherCommit = "b".repeat(40);
 const tag = "v1.5.5";
 const body = "## Changes\n\n- Fixture release.\n";
-const assetNames = ["Archeion-Setup-x64.exe", "Archeion-x64.msi", "SHA256SUMS.txt"];
+const assetNames = windowsReleaseAssetNames;
 const temporaryRoots: string[] = [];
 const hasPowerShell =
   spawnSync("pwsh", ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"], {
@@ -29,6 +33,7 @@ function digest(bytes: Buffer) {
 
 function fixture(
   options: {
+    headSha?: string;
     tagSha?: string;
     published?: boolean;
     draft?: boolean;
@@ -56,11 +61,26 @@ function fixture(
   );
   const exe = Buffer.from("fixture NSIS installer");
   const msi = Buffer.from("fixture MSI installer");
-  fs.writeFileSync(path.join(artifactsDirectory, assetNames[0]), exe);
-  fs.writeFileSync(path.join(artifactsDirectory, assetNames[1]), msi);
+  fs.writeFileSync(path.join(artifactsDirectory, "Archeion-Setup-x64.exe"), exe);
+  fs.writeFileSync(path.join(artifactsDirectory, "Archeion-x64.msi"), msi);
   fs.writeFileSync(
-    path.join(artifactsDirectory, assetNames[2]),
-    `${digest(exe).slice(7)}  ${assetNames[0]}\n${digest(msi).slice(7)}  ${assetNames[1]}\n`,
+    path.join(artifactsDirectory, "Archeion-Setup-x64.exe.sig"),
+    "fixture NSIS signature",
+  );
+  fs.writeFileSync(path.join(artifactsDirectory, "Archeion-x64.msi.sig"), "fixture MSI signature");
+  fs.writeFileSync(
+    path.join(artifactsDirectory, "latest.json"),
+    JSON.stringify(createWindowsUpdateManifest(root, artifactsDirectory)),
+  );
+  fs.writeFileSync(
+    path.join(artifactsDirectory, "SHA256SUMS.txt"),
+    assetNames
+      .filter((name) => name !== "SHA256SUMS.txt")
+      .map(
+        (name) =>
+          `${digest(fs.readFileSync(path.join(artifactsDirectory, name))).slice(7)}  ${name}\n`,
+      )
+      .join(""),
   );
 
   let tagSha = options.tagSha ?? null;
@@ -70,6 +90,7 @@ function fixture(
       : null;
   const mutations: string[] = [];
   const reads: string[] = [];
+  const uploads: string[][] = [];
   const result = (status: number, stdout = "", stderr = "") => ({ status, stdout, stderr });
   const assetMetadata = () =>
     assetNames.map((name) => {
@@ -79,7 +100,8 @@ function fixture(
   if (options.published && release) release.assets = assetMetadata();
 
   const run = (command: string, args: string[], _cwd: string, input?: string) => {
-    if (command === "git" && args[0] === "rev-parse") return result(0, `${commit}\n`);
+    if (command === "git" && args[0] === "rev-parse")
+      return result(0, `${options.headSha ?? commit}\n`);
     if (command === "git" && args[0] === "show") {
       return result(0, JSON.stringify({ version: "1.5.4" }));
     }
@@ -176,6 +198,7 @@ function fixture(
       const uploadedNames = new Set(
         args.slice(3, args.indexOf("--repo")).map((file) => path.basename(file)),
       );
+      uploads.push([...uploadedNames]);
       release.assets = [
         ...(release.assets as Array<Record<string, unknown>>),
         ...assetMetadata().filter((asset) => uploadedNames.has(asset.name)),
@@ -191,6 +214,8 @@ function fixture(
     artifactsDirectory,
     mutations,
     reads,
+    uploads,
+    assetMetadata,
     detect: () =>
       detectReleaseCandidate({
         projectRoot: root,
@@ -239,7 +264,7 @@ describe("pending-tag release identity", () => {
 });
 
 (hasPowerShell ? describe : describe.skip)("release publication", () => {
-  it("creates the exact-SHA tag only after verification, then publishes the tracked note and three assets", () => {
+  it("creates the exact-SHA tag only after verification, then publishes the tracked note and six assets", () => {
     const state = fixture({ restPlaceholder: true });
     expect(state.publish()).toEqual({ published: true, reused: false, tag, sha: commit });
     expect(state.mutations).toEqual([
@@ -282,6 +307,140 @@ describe("pending-tag release identity", () => {
     expect(state.publish()).toEqual({ published: true, reused: false, tag, sha: commit });
     expect(state.mutations).not.toContain("POST repos/TommyMoonn/archeion/git/refs");
   }, 30_000);
+
+  it("uploads exactly six public assets and reuses a matching published release without mutation", () => {
+    const state = fixture();
+    state.publish();
+    expect(state.uploads).toEqual([
+      [
+        "Archeion-Setup-x64.exe",
+        "Archeion-Setup-x64.exe.sig",
+        "Archeion-x64.msi",
+        "Archeion-x64.msi.sig",
+        "latest.json",
+        "SHA256SUMS.txt",
+      ],
+    ]);
+    expect(state.release()?.assets).toEqual(state.assetMetadata());
+    const before = [...state.mutations];
+    expect(state.publish()).toEqual({ published: true, reused: true, tag, sha: commit });
+    expect(state.mutations).toEqual(before);
+    expect(state.uploads).toHaveLength(1);
+  }, 30_000);
+
+  it("resumes a same-SHA draft with existing signatures and manifest without replacing them", () => {
+    const state = fixture({ tagSha: commit, draft: true });
+    const existing = state
+      .assetMetadata()
+      .filter((asset) => asset.name.endsWith(".sig") || asset.name === "latest.json");
+    state.setRelease({ assets: existing });
+    expect(state.publish()).toMatchObject({ published: true, reused: false });
+    expect(state.uploads).toEqual([
+      ["Archeion-Setup-x64.exe", "Archeion-x64.msi", "SHA256SUMS.txt"],
+    ]);
+    const final = state.release()?.assets as Array<Record<string, unknown>>;
+    for (const asset of existing)
+      expect(final.find((item) => item.name === asset.name)).toEqual(asset);
+  }, 30_000);
+
+  it.each(["latest.json", "Archeion-Setup-x64.exe.sig", "Archeion-x64.msi.sig"])(
+    "rejects a stale local %s even with recomputed checksums before any remote mutation",
+    (name) => {
+      const state = fixture();
+      const file = path.join(state.artifactsDirectory, name);
+      if (name === "latest.json") {
+        const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+        manifest.version = "1.5.4";
+        fs.writeFileSync(file, JSON.stringify(manifest));
+      } else fs.writeFileSync(file, "sample signature from an older release");
+      fs.writeFileSync(
+        path.join(state.artifactsDirectory, "SHA256SUMS.txt"),
+        assetNames
+          .filter((asset) => asset !== "SHA256SUMS.txt")
+          .map(
+            (asset) =>
+              `${digest(fs.readFileSync(path.join(state.artifactsDirectory, asset))).slice(7)}  ${asset}\n`,
+          )
+          .join(""),
+      );
+      expect(() => state.publish()).toThrow("Release installer verification failed");
+      expect(state.mutations).toEqual([]);
+    },
+    30_000,
+  );
+
+  it.each(["latest.json", "Archeion-Setup-x64.exe.sig", "Archeion-x64.msi.sig"])(
+    "rejects a stale draft %s before mutating release metadata",
+    (name) => {
+      const state = fixture({ tagSha: commit, draft: true });
+      const asset = state.assetMetadata().find((item) => item.name === name);
+      if (!asset) throw new Error("Missing updater asset fixture.");
+      state.setRelease({ assets: [{ ...asset, digest: `sha256:${"0".repeat(64)}` }] });
+      expect(() => state.publish()).toThrow("does not match the verified bundle");
+      expect(state.mutations).toEqual([]);
+      expect(state.uploads).toEqual([]);
+    },
+    30_000,
+  );
+
+  it.each(
+    assetNames.flatMap((name) => [
+      [name, "size"],
+      [name, "digest"],
+    ]),
+  )(
+    "checks published %s %s against the verified candidate",
+    (name, field) => {
+      const state = fixture({ tagSha: commit, published: true });
+      const assets = state.assetMetadata().map((asset) =>
+        asset.name !== name
+          ? asset
+          : {
+              ...asset,
+              [field]: field === "size" ? asset.size + 1 : `sha256:${"0".repeat(64)}`,
+            },
+      );
+      state.setRelease({ assets });
+      expect(() => state.publish()).toThrow("does not match the verified bundle");
+      expect(state.mutations).toEqual([]);
+    },
+    30_000,
+  );
+
+  it.each(["unexpected name", "duplicate name", "not uploaded", "missing asset", "extra asset"])(
+    "rejects a published bundle with %s",
+    (conflict) => {
+      const state = fixture({ tagSha: commit, published: true });
+      const assets = state.assetMetadata();
+      if (conflict === "unexpected name") assets[0].name = "unexpected.exe";
+      else if (conflict === "duplicate name") assets[1] = { ...assets[0] };
+      else if (conflict === "not uploaded") assets[2].state = "pending";
+      else if (conflict === "missing asset") assets.pop();
+      else assets.push({ ...assets[0], name: "unexpected.exe" });
+      state.setRelease({ assets });
+      expect(() => state.publish()).toThrow();
+      expect(state.mutations).toEqual([]);
+    },
+    30_000,
+  );
+
+  it.each([null, {}])(
+    "rejects malformed draft assets before metadata mutation: %j",
+    (assets) => {
+      const state = fixture({ tagSha: commit, draft: true });
+      state.setRelease({ assets });
+      expect(() => state.publish()).toThrow("not a valid draft before asset upload");
+      expect(state.mutations).toEqual([]);
+    },
+    30_000,
+  );
+
+  it("rejects the wrong checkout SHA before reading or mutating remote release state", () => {
+    const state = fixture({ headSha: otherCommit });
+    expect(() => state.publish()).toThrow("Checkout HEAD does not match green candidate");
+    expect(state.reads).toEqual([]);
+    expect(state.mutations).toEqual([]);
+  });
 
   it("resumes a pending-tag draft whose REST representation has an untagged placeholder", () => {
     const state = fixture({ tagSha: commit, draft: true, restPlaceholder: true });

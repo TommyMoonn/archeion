@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 
 import { readRelease, releaseHasTag, tagTarget } from "./detect-release-candidate.mjs";
 import { readReleaseNote } from "./release-notes.mjs";
+import { windowsReleaseAssetNames } from "./windows-update-manifest.mjs";
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
-const assetNames = ["Archeion-Setup-x64.exe", "Archeion-x64.msi", "SHA256SUMS.txt"];
+const assetNames = windowsReleaseAssetNames;
 const versionPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const commitPattern = /^[0-9a-f]{40,64}$/;
 const repositoryPattern = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -236,6 +237,8 @@ export function publishReleaseCandidate({
         "-NoProfile",
         "-File",
         path.join(scriptRoot, "verify-windows-release.ps1"),
+        "--project",
+        projectRoot,
         "--artifacts-dir",
         artifactsDirectory,
       ],
@@ -255,6 +258,14 @@ export function publishReleaseCandidate({
   if (release && !release.draft) {
     verifyRelease(release, tag, body, assets);
     return { published: true, reused: true, tag, sha: commit };
+  }
+  if (release) {
+    if (!Array.isArray(release.assets)) {
+      throw new Error(`Release ${tag} is not a valid draft before asset upload.`);
+    }
+    // Reject stale/conflicting updater assets before editing draft metadata.
+    // Recheck after the ID-based read below to retain race/conflict protection.
+    verifyExistingAssets(release.assets, tag, assets);
   }
 
   if (!target) {

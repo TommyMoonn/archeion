@@ -29,6 +29,9 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
             let archive_registry =
                 commands::archive::ArchiveRegistryService::from_app(app.handle())
                     .map_err(std::io::Error::other)?;

@@ -101,8 +101,8 @@ function createFixture({
   return root;
 }
 
-function createStagedInstallerFixture() {
-  const root = createFixture();
+function createBundleFixture(options: FixtureOptions = {}) {
+  const root = createFixture(options);
   const bundleRoot = path.join(root, "bundle");
   const outputDirectory = path.join(root, "artifacts", "windows");
   fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
@@ -115,20 +115,45 @@ function createStagedInstallerFixture() {
     path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"),
     "fixture MSI installer",
   );
+  addSignatureFixtures(bundleRoot);
 
-  const result = runPowerShell("stage-windows-release.ps1", [
+  return { root, bundleRoot, outputDirectory };
+}
+
+function stageFixture(
+  { root, bundleRoot, outputDirectory }: ReturnType<typeof createBundleFixture>,
+  extraArgs: string[] = [],
+) {
+  return runPowerShell("stage-windows-release.ps1", [
     "--project",
     root,
     "--bundle-dir",
     bundleRoot,
     "--output",
     outputDirectory,
+    ...extraArgs,
   ]);
+}
+
+function createStagedInstallerFixture() {
+  const fixture = createBundleFixture();
+  const result = stageFixture(fixture);
   if (result.status !== 0) {
     throw new Error(`Could not stage installer fixture: ${combinedOutput(result)}`);
   }
 
-  return { root, bundleRoot, outputDirectory };
+  return fixture;
+}
+
+function addSignatureFixtures(bundleRoot: string) {
+  fs.writeFileSync(
+    path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe.sig"),
+    "fixture NSIS signature",
+  );
+  fs.writeFileSync(
+    path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi.sig"),
+    "fixture MSI signature",
+  );
 }
 
 function releaseToolingEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
@@ -166,6 +191,14 @@ function runPowerShell(
 
 function combinedOutput(result: ReturnType<typeof runPowerShell>): string {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+}
+
+function expectStagingOutputDirectory(output: string, outputDirectory: string) {
+  const reportedDirectory = output.match(/^[ \t]+Output[ \t]+([^\r\n]+)\r?$/m)?.[1];
+  if (!reportedDirectory) throw new Error("Missing staging output directory summary");
+
+  // Windows temp paths can use an 8.3 alias while PowerShell reports the long path.
+  expect(fs.realpathSync.native(reportedDirectory)).toBe(fs.realpathSync.native(outputDirectory));
 }
 
 function expectFragmentsInOrder(output: string, fragments: string[]) {
@@ -340,6 +373,7 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
       fs.writeFileSync(path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"), nsisContents);
       fs.writeFileSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"), msiContents);
+      addSignatureFixtures(bundleRoot);
 
       const result = runPowerShell("stage-windows-release.ps1", [
         "--project",
@@ -362,11 +396,14 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       expect(output).toMatch(/EXE\s+Archeion-Setup-x64\.exe \(\d+ B\)/);
       expect(output).toMatch(/MSI\s+Archeion-x64\.msi \(\d+ B\)/);
       expect(output).toMatch(/Checksums\s+SHA256SUMS\.txt \(\d+ B\)/);
-      expect(output).toContain(outputDirectory);
+      expectStagingOutputDirectory(output, outputDirectory);
       expect(fs.readdirSync(outputDirectory).sort()).toEqual([
         "Archeion-Setup-x64.exe",
+        "Archeion-Setup-x64.exe.sig",
         "Archeion-x64.msi",
+        "Archeion-x64.msi.sig",
         "SHA256SUMS.txt",
+        "latest.json",
       ]);
       expect(fs.readFileSync(path.join(outputDirectory, "Archeion-Setup-x64.exe"), "utf8")).toBe(
         nsisContents,
@@ -378,16 +415,73 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
         fs.readFileSync(path.join(outputDirectory, "SHA256SUMS.txt"), "utf8").trim().split(/\r?\n/),
       ).toEqual([
         `${sha256(nsisContents)}  Archeion-Setup-x64.exe`,
+        `${sha256("fixture NSIS signature")}  Archeion-Setup-x64.exe.sig`,
         `${sha256(msiContents)}  Archeion-x64.msi`,
+        `${sha256("fixture MSI signature")}  Archeion-x64.msi.sig`,
+        `${sha256(fs.readFileSync(path.join(outputDirectory, "latest.json"), "utf8"))}  latest.json`,
       ]);
+      expect(
+        JSON.parse(fs.readFileSync(path.join(outputDirectory, "latest.json"), "utf8")),
+      ).toEqual({
+        version: "0.3.0",
+        notes: "- Fixture release.",
+        pub_date: "2026-07-12T00:00:00Z",
+        platforms: {
+          "windows-x86_64-nsis": {
+            url: "https://github.com/TommyMoonn/archeion/releases/download/v0.3.0/Archeion-Setup-x64.exe",
+            signature: "fixture NSIS signature",
+          },
+          "windows-x86_64-msi": {
+            url: "https://github.com/TommyMoonn/archeion/releases/download/v0.3.0/Archeion-x64.msi",
+            signature: "fixture MSI signature",
+          },
+        },
+      });
     },
     releaseProcessTimeout,
+  );
+
+  it.skipIf(process.platform !== "win32")(
+    "matches staging output by directory identity across Windows short-path aliases",
+    ({ skip }) => {
+      const root = createFixture();
+      const longDirectory = fs.realpathSync.native(root);
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-Command",
+          "$ErrorActionPreference = 'Stop'; (New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:ARCHEION_TEST_DIRECTORY).ShortPath",
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, ARCHEION_TEST_DIRECTORY: longDirectory },
+          windowsHide: true,
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      const shortDirectory = result.stdout.trim();
+      if (shortDirectory === longDirectory) skip("Windows 8.3 short-path aliases are unavailable");
+      expect(fs.realpathSync.native(shortDirectory)).toBe(longDirectory);
+
+      expectStagingOutputDirectory(`  Output       ${longDirectory}\r\n`, shortDirectory);
+      expectStagingOutputDirectory(`  Output       ${shortDirectory}\r\n`, longDirectory);
+
+      const otherDirectory = path.join(root, "other");
+      fs.mkdirSync(otherDirectory);
+      expect(() =>
+        expectStagingOutputDirectory(`  Output       ${longDirectory}\r\n`, otherDirectory),
+      ).toThrow();
+      expect(() => expectStagingOutputDirectory(longDirectory, longDirectory)).toThrow(
+        "Missing staging output directory summary",
+      );
+    },
   );
 
   it(
     "verifies the staged installer bundle and accepts an unchanged rerun",
     () => {
-      const { outputDirectory } = createStagedInstallerFixture();
+      const { root, outputDirectory } = createStagedInstallerFixture();
       const before = fs
         .readdirSync(outputDirectory)
         .map((name) => [name, sha256(fs.readFileSync(path.join(outputDirectory, name), "utf8"))]);
@@ -396,12 +490,15 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
         const result = runPowerShell("verify-windows-release.ps1", [
           "--artifacts-dir",
           outputDirectory,
+          "--project",
+          root,
         ]);
         expect(result.status).toBe(0);
         const output = combinedOutput(result);
         expectFragmentsInOrder(output, [
-          "[1/2] Checking expected asset set",
-          "[2/2] Verifying installer checksums",
+          "[1/3] Checking expected asset set",
+          "[2/3] Verifying asset checksums",
+          "[3/3] Verifying update manifest",
           "Windows release verified",
         ]);
         expect(output).toMatch(/EXE\s+Archeion-Setup-x64\.exe \(\d+ B\)/);
@@ -429,17 +526,28 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
     ],
     ["missing checksum", (directory: string) => fs.rmSync(path.join(directory, "SHA256SUMS.txt"))],
     [
+      "changed signature",
+      (directory: string) =>
+        fs.appendFileSync(path.join(directory, "Archeion-x64.msi.sig"), "tampered"),
+    ],
+    [
+      "changed manifest",
+      (directory: string) => fs.appendFileSync(path.join(directory, "latest.json"), "tampered"),
+    ],
+    [
       "extra asset",
       (directory: string) => fs.writeFileSync(path.join(directory, "unexpected.txt"), "extra"),
     ],
   ])(
     "rejects a %s before the candidate artifact can be accepted",
     (_case, modify) => {
-      const { outputDirectory } = createStagedInstallerFixture();
+      const { root, outputDirectory } = createStagedInstallerFixture();
       modify(outputDirectory);
       const result = runPowerShell("verify-windows-release.ps1", [
         "--artifacts-dir",
         outputDirectory,
+        "--project",
+        root,
       ]);
       expect(result.status).not.toBe(0);
     },
@@ -469,6 +577,185 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
     expect(combinedOutput(result)).toContain("Expected exactly one MSI installer");
     expect(fs.existsSync(outputDirectory)).toBe(false);
   });
+
+  it.each([
+    ["missing signature", "nsis/Archeion_0.3.0_x64-setup.exe.sig", "remove"],
+    ["empty signature", "msi/Archeion_0.3.0_x64_en-US.msi.sig", "empty"],
+    ["wrong-version signature", "nsis/Archeion_0.3.0_x64-setup.exe.sig", "rename"],
+    ["extra signature", "msi/orphan.msi.sig", "extra"],
+    ["duplicate installer", "nsis/Archeion_0.3.0_x64-copy-setup.exe", "extra"],
+    ["duplicate MSI installer", "msi/Archeion_0.3.0_x64_fr-FR.msi", "extra"],
+    ["wrong-version installer", "nsis/Archeion_0.3.0_x64-setup.exe", "rename"],
+    ["empty installer", "msi/Archeion_0.3.0_x64_en-US.msi", "empty"],
+  ])(
+    "rejects %s without replacing existing output",
+    (_case, relativePath, mutation) => {
+      const fixture = createBundleFixture();
+      fs.mkdirSync(fixture.outputDirectory, { recursive: true });
+      const previous = path.join(fixture.outputDirectory, "latest.json");
+      fs.writeFileSync(previous, "previous output");
+      const filename = path.join(fixture.bundleRoot, relativePath);
+      if (mutation === "remove") fs.rmSync(filename);
+      else if (mutation === "rename") fs.renameSync(filename, filename.replace("0.3.0", "10.3.0"));
+      else fs.writeFileSync(filename, mutation === "empty" ? "" : "extra fixture asset");
+      const result = stageFixture(fixture);
+      expect(result.status, combinedOutput(result)).not.toBe(0);
+      expect(fs.readdirSync(fixture.outputDirectory)).toEqual(["latest.json"]);
+      expect(fs.readFileSync(previous, "utf8")).toBe("previous output");
+    },
+    releaseProcessTimeout,
+  );
+
+  it(
+    "preserves previous output when canonical release metadata cannot generate a manifest",
+    () => {
+      const fixture = createBundleFixture({ releaseNote: null });
+      fs.mkdirSync(fixture.outputDirectory, { recursive: true });
+      fs.writeFileSync(path.join(fixture.outputDirectory, "latest.json"), "previous output");
+      const result = stageFixture(fixture);
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toContain("release note is missing");
+      expect(fs.readFileSync(path.join(fixture.outputDirectory, "latest.json"), "utf8")).toBe(
+        "previous output",
+      );
+      expect(fs.readdirSync(path.dirname(fixture.outputDirectory))).toEqual(["windows"]);
+    },
+    releaseProcessTimeout,
+  );
+
+  it(
+    "reproduces bytes across reruns and a path containing spaces and an apostrophe",
+    () => {
+      const fixture = createStagedInstallerFixture();
+      const snapshot = () =>
+        fs
+          .readdirSync(fixture.outputDirectory)
+          .map((name) => [
+            name,
+            fs.readFileSync(path.join(fixture.outputDirectory, name)).toString("hex"),
+          ]);
+      const before = snapshot();
+      expect(stageFixture(fixture).status).toBe(0);
+      expect(snapshot()).toEqual(before);
+      const other = {
+        ...fixture,
+        outputDirectory: path.join(fixture.root, "operator's output", "Windows assets"),
+      };
+      expect(stageFixture(other).status).toBe(0);
+      for (const name of fs.readdirSync(fixture.outputDirectory)) {
+        expect(fs.readFileSync(path.join(other.outputDirectory, name))).toEqual(
+          fs.readFileSync(path.join(fixture.outputDirectory, name)),
+        );
+      }
+    },
+    releaseProcessTimeout,
+  );
+
+  it(
+    "keeps installer-only manual builds usable without signatures or release notes",
+    () => {
+      const fixture = createBundleFixture({ releaseNote: null });
+      for (const relativePath of [
+        "nsis/Archeion_0.3.0_x64-setup.exe.sig",
+        "msi/Archeion_0.3.0_x64_en-US.msi.sig",
+      ])
+        fs.rmSync(path.join(fixture.bundleRoot, relativePath));
+      const result = stageFixture(fixture, ["--installers-only"]);
+      expect(result.status, combinedOutput(result)).toBe(0);
+      expect(fs.readdirSync(fixture.outputDirectory).sort()).toEqual([
+        "Archeion-Setup-x64.exe",
+        "Archeion-x64.msi",
+        "SHA256SUMS.txt",
+      ]);
+      expect(
+        runPowerShell("verify-windows-release.ps1", [
+          "--artifacts-dir",
+          fixture.outputDirectory,
+          "--project",
+          fixture.root,
+        ]).status,
+      ).not.toBe(0);
+    },
+    releaseProcessTimeout,
+  );
+
+  it.each(["project", "bundle", "Git metadata", "unknown output"])(
+    "refuses destructive replacement of %s",
+    (target) => {
+      const fixture = createBundleFixture();
+      if (target === "project") fixture.outputDirectory = fixture.root;
+      else if (target === "bundle") fixture.outputDirectory = fixture.bundleRoot;
+      else if (target === "Git metadata")
+        fixture.outputDirectory = path.join(fixture.root, ".git", "staged");
+      else {
+        fs.mkdirSync(fixture.outputDirectory, { recursive: true });
+        fs.writeFileSync(path.join(fixture.outputDirectory, "keep.txt"), "user-owned");
+      }
+      const result = stageFixture(fixture);
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toMatch(/Unsafe output directory|unexpected output content/);
+      expect(fs.existsSync(path.join(fixture.root, "package.json"))).toBe(true);
+      expect(
+        fs.existsSync(path.join(fixture.bundleRoot, "nsis/Archeion_0.3.0_x64-setup.exe")),
+      ).toBe(true);
+      if (target === "unknown output")
+        expect(fs.readFileSync(path.join(fixture.outputDirectory, "keep.txt"), "utf8")).toBe(
+          "user-owned",
+        );
+    },
+  );
+
+  it(
+    "rejects semantic manifest drift even after its checksum has been recomputed",
+    () => {
+      const { root, outputDirectory } = createStagedInstallerFixture();
+      const manifestPath = path.join(outputDirectory, "latest.json");
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      manifest.platforms["windows-x86_64-msi"].url = manifest.platforms["windows-x86_64-nsis"].url;
+      const contents = JSON.stringify(manifest);
+      fs.writeFileSync(manifestPath, contents);
+      const checksumPath = path.join(outputDirectory, "SHA256SUMS.txt");
+      fs.writeFileSync(
+        checksumPath,
+        fs
+          .readFileSync(checksumPath, "utf8")
+          .replace(/^[0-9a-f]{64} {2}latest\.json$/m, `${sha256(contents)}  latest.json`),
+      );
+      const result = runPowerShell("verify-windows-release.ps1", [
+        "--project",
+        root,
+        "--artifacts-dir",
+        outputDirectory,
+      ]);
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toContain("[3/3] Verifying update manifest");
+      expect(combinedOutput(result)).toContain("latest.json does not match");
+    },
+    releaseProcessTimeout,
+  );
+
+  it.each(["duplicate", "missing", "unexpected", "empty asset"])(
+    "rejects %s checksum coverage or payload",
+    (variant) => {
+      const { root, outputDirectory } = createStagedInstallerFixture();
+      const checksumPath = path.join(outputDirectory, "SHA256SUMS.txt");
+      const lines = fs.readFileSync(checksumPath, "utf8").trim().split(/\r?\n/);
+      if (variant === "duplicate") lines[1] = lines[0];
+      else if (variant === "missing") lines.pop();
+      else if (variant === "unexpected") lines[1] = `${"0".repeat(64)}  ../outside.exe`;
+      else fs.writeFileSync(path.join(outputDirectory, "Archeion-Setup-x64.exe.sig"), "");
+      fs.writeFileSync(checksumPath, `${lines.join("\n")}\n`);
+      const result = runPowerShell("verify-windows-release.ps1", [
+        "--project",
+        root,
+        "--artifacts-dir",
+        outputDirectory,
+      ]);
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toMatch(/checksum|nonempty regular file/);
+    },
+    releaseProcessTimeout,
+  );
 
   it(
     "updates all application version sources as one transaction",
@@ -549,6 +836,7 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
         path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"),
         "fixture MSI installer",
       );
+      addSignatureFixtures(bundleRoot);
 
       const result = runPowerShell(
         "stage-windows-release.ps1",

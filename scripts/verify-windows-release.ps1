@@ -2,82 +2,79 @@
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
-
 . (Join-Path $PSScriptRoot "Cli.Common.ps1")
 
 $cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
     'artifacts-dir' = @{ Aliases = @('-ArtifactsDirectory'); Default = (Join-Path $PSScriptRoot "../artifacts/windows") }
+    project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Join-Path $PSScriptRoot '..') }
+    'installers-only' = @{ Kind = 'Switch' }
 }
-
 if ($cli['help']) {
     Write-CliHelp @'
 Usage: .\scripts\verify-windows-release.ps1 [options]
 
 Options:
-  --artifacts-dir <path>        Directory containing the staged release assets.
+  --artifacts-dir <path>        Directory containing staged assets.
+  -p, --project <path>          Project root for canonical release metadata.
+  --installers-only            Verify unsigned manual-build installers, not a release.
   -h, --help                    Show this help.
 '@
     return
 }
-
-$artifactsDirectory = [System.IO.Path]::GetFullPath([string]$cli['artifacts-dir'])
+$artifactsDirectory = [IO.Path]::GetFullPath([string]$cli['artifacts-dir'])
 if (-not (Test-Path -LiteralPath $artifactsDirectory -PathType Container)) {
     throw "Release artifact directory does not exist: $artifactsDirectory"
 }
-
-Write-CliHeading "Verify Windows release"
-Write-CliStep -Current 1 -Total 2 -Message "Checking expected asset set"
-
-$installerNames = @('Archeion-Setup-x64.exe', 'Archeion-x64.msi')
-$expectedNames = @($installerNames + 'SHA256SUMS.txt' | Sort-Object)
-$actualNames = @(Get-ChildItem -LiteralPath $artifactsDirectory | ForEach-Object Name | Sort-Object)
-if (($actualNames -join "`n") -ne ($expectedNames -join "`n")) {
-    throw "Release artifact files do not match the expected installers and checksum manifest."
+if ((Get-Item -LiteralPath $artifactsDirectory).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+    throw "Release artifact directory must not be a reparse point."
 }
-
-Write-CliStep -Current 2 -Total 2 -Message "Verifying installer checksums"
-
+Write-CliHeading "Verify Windows release"
+Write-CliStep -Current 1 -Total 3 -Message "Checking expected asset set"
+$assetNames = @('Archeion-Setup-x64.exe', 'Archeion-x64.msi')
+if (-not $cli['installers-only']) {
+    $assetNames = @('Archeion-Setup-x64.exe', 'Archeion-Setup-x64.exe.sig', 'Archeion-x64.msi', 'Archeion-x64.msi.sig', 'latest.json')
+}
+$expectedNames = @($assetNames + 'SHA256SUMS.txt' | Sort-Object -CaseSensitive)
+$items = @(Get-ChildItem -LiteralPath $artifactsDirectory -Force)
+$actualNames = @($items | ForEach-Object Name | Sort-Object -CaseSensitive)
+if (($actualNames -join "`n") -cne ($expectedNames -join "`n")) {
+    throw "Release artifact files do not match the expected asset set."
+}
+foreach ($item in $items) {
+    if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.Length -eq 0) {
+        throw "Release asset must be a nonempty regular file: $($item.Name)"
+    }
+}
+Write-CliStep -Current 2 -Total 3 -Message "Verifying asset checksums"
 $checksumPath = Join-Path $artifactsDirectory 'SHA256SUMS.txt'
 $checksumLines = @(Get-Content -LiteralPath $checksumPath)
-if ($checksumLines.Count -ne $installerNames.Count) {
-    throw "SHA256SUMS.txt must contain exactly one checksum for each installer."
+if ($checksumLines.Count -ne $assetNames.Count) {
+    throw "SHA256SUMS.txt must contain exactly one checksum for each non-checksum asset."
 }
-
-$checksums = @{}
+$checksums = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::Ordinal)
 foreach ($line in $checksumLines) {
-    if ($line -notmatch '^([0-9a-f]{64})  (Archeion-Setup-x64\.exe|Archeion-x64\.msi)$') {
-        throw "SHA256SUMS.txt contains an invalid installer checksum entry."
+    if ($line -cnotmatch '^([0-9a-f]{64})  (.+)$' -or $assetNames -cnotcontains $Matches[2]) {
+        throw "SHA256SUMS.txt contains an invalid asset checksum entry."
     }
-
     $name = $Matches[2]
-    if ($checksums.ContainsKey($name)) {
-        throw "SHA256SUMS.txt contains a duplicate checksum for $name."
-    }
-    $checksums[$name] = $Matches[1]
+    if ($checksums.ContainsKey($name)) { throw "SHA256SUMS.txt contains a duplicate checksum for $name." }
+    $checksums.Add($name, $Matches[1])
 }
-
-foreach ($name in $installerNames) {
-    if (-not $checksums.ContainsKey($name)) {
-        throw "SHA256SUMS.txt does not contain a checksum for $name."
-    }
-
-    $installerPath = Join-Path $artifactsDirectory $name
-    if ((Get-Item -LiteralPath $installerPath).Length -eq 0) {
-        throw "Release installer is empty: $name"
-    }
-
-    $actualHash = (Get-FileHash -LiteralPath $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actualHash -ne $checksums[$name]) {
-        throw "Release installer checksum does not match SHA256SUMS.txt: $name"
-    }
+foreach ($name in $assetNames) {
+    if (-not $checksums.ContainsKey($name)) { throw "SHA256SUMS.txt does not contain a checksum for $name." }
+    $actualHash = (Get-FileHash -LiteralPath (Join-Path $artifactsDirectory $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualHash -cne $checksums[$name]) { throw "Release asset checksum does not match SHA256SUMS.txt: $name" }
 }
-
-$verifiedExe = Get-Item -LiteralPath (Join-Path $artifactsDirectory 'Archeion-Setup-x64.exe')
-$verifiedMsi = Get-Item -LiteralPath (Join-Path $artifactsDirectory 'Archeion-x64.msi')
-$verifiedChecksums = Get-Item -LiteralPath $checksumPath
-
+Write-CliStep -Current 3 -Total 3 -Message "Verifying update manifest"
+if ($cli['installers-only']) {
+    Write-CliDetail -Label 'Mode' -Value 'Unsigned manual build; no updater manifest'
+} else {
+    & node (Join-Path $PSScriptRoot 'windows-update-manifest.mjs') verify --project $cli['project'] --artifacts-dir $artifactsDirectory
+    if ($LASTEXITCODE -ne 0) { throw "Windows update manifest verification failed." }
+}
 Write-CliSuccess "Windows release verified"
-Write-CliDetail -Label "EXE" -Value "$($verifiedExe.Name) ($(Format-CliByteSize -Bytes $verifiedExe.Length))"
-Write-CliDetail -Label "MSI" -Value "$($verifiedMsi.Name) ($(Format-CliByteSize -Bytes $verifiedMsi.Length))"
-Write-CliDetail -Label "Checksums" -Value "$($verifiedChecksums.Name) ($(Format-CliByteSize -Bytes $verifiedChecksums.Length))"
-Write-CliDetail -Label "Directory" -Value $artifactsDirectory -ValueTone 'Important'
+foreach ($entry in @(@('EXE', 'Archeion-Setup-x64.exe'), @('MSI', 'Archeion-x64.msi'), @('Checksums', 'SHA256SUMS.txt'))) {
+    $item = Get-Item -LiteralPath (Join-Path $artifactsDirectory $entry[1])
+    Write-CliDetail -Label $entry[0] -Value "$($item.Name) ($(Format-CliByteSize -Bytes $item.Length))"
+}
+Write-CliDetail -Label 'Directory' -Value $artifactsDirectory -ValueTone 'Important'

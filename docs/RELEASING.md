@@ -60,6 +60,100 @@ and review requirements. Do not bypass the main ruleset. An ordinary
 `workflow_dispatch` Windows installer build is separate from release
 publication and does not substitute for the successful `main` CI run.
 
+## Updater signing key custody
+
+Windows updater support uses the official Rust updater plugin on the coordinated
+Tauri 2.12 / Rust 1.90 stack. The application trusts one long-lived Tauri
+signing public key. Updater signatures are separate from Windows Authenticode.
+The configured updater must require signed versions, reject downgrades, and use
+only the stable HTTPS GitHub Releases endpoint.
+
+The production public key is tracked in `src-tauri/tauri.conf.json`. Reuse its
+matching private key for every release. The following generation procedure is
+for initial provisioning only, not for routine release preparation.
+
+For initial provisioning, generate a password-protected keypair once using the
+repository's installed Tauri CLI. Choose a private location outside every
+repository, build directory, and synchronized log or artifact folder. For
+example, replace the drive/path below with the approved secure storage location:
+
+```powershell
+npm run tauri -- signer generate --write-keys D:/Secure/Archeion/updater.key
+```
+
+Enter a non-empty password at the interactive prompt. Do not pass it on the
+command line, put it in an `.env` file, or paste it into chat. Do not use `--force`
+to replace an existing key. Track only the generated `.pub` file's contents in
+`plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, never a key file path.
+Never commit or log the private key or its password, and never copy either into
+test fixtures or uploaded build artifacts.
+
+Store the generated private key and its password as repository Actions secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY`: the full contents of the generated private key
+  file, not the public key or a path to the operator's machine.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: the non-empty password used when
+  generating the private key.
+
+Keep a reviewed offline backup of the encrypted private key and a recoverable
+password record outside GitHub Actions. Confirm both backups can be recovered
+before enabling a production release. GitHub secrets are not a backup. Losing
+the key or password prevents already-installed clients from trusting future
+updates signed with a replacement key. Do not regenerate this key for ordinary
+releases; key rotation and recovery need a separate reviewed design.
+
+The ordinary `tauri:dev` and `tauri:build*` commands leave updater artifact
+generation disabled and need no production signing secrets. An explicitly
+trusted release-candidate build can opt into the release overlay:
+
+```powershell
+npm run tauri:build:windows -- --config src-tauri/tauri.release.conf.json
+```
+
+That build requires the two signing environment variables above. Scope them
+only to the repository-owned candidate build after the successful exact-SHA
+`main` CI run and deliberate version transition have been validated. Never
+expose them to PR jobs, untrusted workflow sources, documentation jobs, or the
+publication job. The overlay only enables artifact creation. The release
+workflow selects it only in the Windows candidate build step, with both secrets
+bound to that step's environment. A missing or blank key/password fails before
+the build starts. Dependency installation, staging, verification, and publication
+do not receive these signing secrets.
+
+## Signed Windows artifact contract
+
+After a trusted signed candidate build, stage and verify the bundle:
+
+```powershell
+./scripts/stage-windows-release.ps1 --bundle-dir ./src-tauri/target/release/bundle
+./scripts/verify-windows-release.ps1 --artifacts-dir ./artifacts/windows
+```
+
+Default release staging requires one version-matched x64 installer and its
+matching `.sig` in each of the NSIS/MSI bundle directories. It produces exactly:
+
+- `Archeion-Setup-x64.exe` and `Archeion-Setup-x64.exe.sig`;
+- `Archeion-x64.msi` and `Archeion-x64.msi.sig`;
+- `latest.json`;
+- `SHA256SUMS.txt`, covering the five other files.
+
+The manifest reuses the validated `release-notes/vX.Y.Z.md` Changes section and
+tracked date (UTC midnight). It contains only `windows-x86_64-nsis` and
+`windows-x86_64-msi`, exact `vX.Y.Z` download URLs, and verbatim signature-file
+contents. Verification rejects asset, checksum, version, notes/date, URL,
+platform, or signature-content drift. These tooling checks do not establish
+cryptographic authenticity; the native updater verifies signatures.
+
+The manual desktop workflow explicitly passes `--installers-only` to both
+scripts. That non-release mode packages unsigned installers and checksums without
+production secrets or a release note. It cannot pass default release verification.
+
+The release workflow uploads all six files in one candidate artifact named for
+the candidate version and exact SHA. The independent verifier and publisher
+download that same artifact. The verifier uses the repository's Node version,
+checks its checkout SHA, and runs default release verification with read-only
+permissions; only the downstream publication job receives `contents: write`.
+
 ## Release tag authorization
 
 Before relying on automatic publication, confirm the active `Protect tag`
@@ -90,10 +184,13 @@ compares the application version with that commit's first parent. Ordinary
 commits with an unchanged version have no release side effects, even if `main`
 has advanced after an earlier version bump.
 
-For a valid candidate, the workflow builds the Windows NSIS and MSI installers
-from that exact SHA, stages `Archeion-Setup-x64.exe`, `Archeion-x64.msi`, and
-`SHA256SUMS.txt`, then verifies the downloaded candidate artifact before the
-publication job receives `contents: write`. Publication rechecks the source,
+For a validated candidate, the workflow builds signed NSIS/MSI installers from
+that exact SHA using the release-only overlay. It stages and verifies the six-file
+contract, smoke-tests the staged NSIS installer, and uploads the candidate bundle.
+The independent verifier checks the downloaded artifact before the publication
+job receives `contents: write`.
+
+The publication tool requires the six-file contract. It rechecks the source,
 metadata, and artifact; creates the new `vX.Y.Z` tag at the candidate SHA
 under the creation-allowed policy; creates or resumes a draft with the tracked
 release-note body; verifies the exact asset set, sizes, and GitHub-reported
@@ -102,9 +199,11 @@ not created by local validation or PR CI.
 
 Inspect the hosted Release run and resulting GitHub Release. Confirm the tag
 resolves to the green candidate SHA, the title and body match the tracked
-note, and the three assets and their digests match the verified bundle. A
-green workflow alone is not evidence that repository tag protections or
-immutable-release behavior have been exercised.
+note, and the six assets and their digests match the verified bundle. A
+green local test run is not evidence that hosted signing, repository tag
+protections, or immutable-release behavior have been exercised. Confirm hosted
+signing uses the key matching the tracked public key, and verify actual NSIS/MSI
+update/install/relaunch behavior separately before claiming updater acceptance.
 
 ## Retry and conflicts
 
@@ -112,6 +211,11 @@ immutable-release behavior have been exercised.
   Release workflow for the same green source SHA. A same-SHA draft can resume
   with missing assets; already-valid assets are preserved. A fully matching
   published release is verified without remote mutation on a rerun.
+- Existing draft assets are checked against the candidate's names, sizes, and
+  SHA-256 digests before draft metadata is changed, then rechecked before upload
+  and publication. A stale `latest.json` or `.sig` asset is a conflict, not a
+  resumable asset: do not overwrite it or use `--clobber`. Diagnose the mismatch
+  and agree on reviewed recovery. Missing assets alone can be uploaded safely.
 - Draft discovery uses GraphQL's pending-tag lookup because GitHub's REST
   release-by-tag endpoint returns published releases. Publication confirms the
   pending tag and numeric release ID before re-reading the draft through REST.

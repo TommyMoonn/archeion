@@ -21,6 +21,14 @@ function releaseJob(jobId: string): string {
   const end = workflowLines.findIndex((line, index) => index > start && /^ {2}[\w-]+:$/.test(line));
   return workflowLines.slice(start, end < 0 ? undefined : end).join("\n");
 }
+
+function releaseStep(jobId: string, name: string): string {
+  const lines = releaseJob(jobId).split("\n");
+  const start = lines.indexOf(`      - name: ${name}`);
+  if (start < 0) throw new Error(`Missing ${jobId} step: ${name}`);
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("      - "));
+  return lines.slice(start, end < 0 ? undefined : end).join("\n");
+}
 const commit = "a".repeat(40);
 const otherCommit = "b".repeat(40);
 const temporaryRoots: string[] = [];
@@ -149,6 +157,118 @@ afterEach(() => {
 });
 
 describe("release-candidate workflow", () => {
+  it("scopes both signing secrets exclusively to the trusted candidate build step", () => {
+    const build = releaseJob("build-windows");
+    const signing = releaseStep("build-windows", "Build NSIS and MSI installers");
+    for (const secret of ["TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"]) {
+      const binding = `${secret}: \${{ secrets.${secret} }}`;
+      expect(signing).toContain(binding);
+      expect(releaseWorkflow.split(binding)).toHaveLength(2);
+      for (const job of ["detect-candidate", "verify-candidate", "publish-release"]) {
+        expect(releaseJob(job)).not.toContain(secret);
+      }
+    }
+    expect(signing).toContain("--config src-tauri/tauri.release.conf.json");
+    expect(build).toContain("needs: detect-candidate");
+    expect(build).toContain("if: needs.detect-candidate.outputs.candidate == 'true'");
+    expect(build.indexOf("Verify candidate source and release metadata")).toBeLessThan(
+      build.indexOf("Build NSIS and MSI installers"),
+    );
+    const signingOffset = build.indexOf(signing);
+    expect(build.slice(0, signingOffset)).not.toContain("TAURI_SIGNING");
+    expect(build.slice(signingOffset + signing.length)).not.toContain("TAURI_SIGNING");
+    expect(releaseWorkflow.slice(0, releaseWorkflow.indexOf("jobs:"))).not.toContain(
+      "TAURI_SIGNING",
+    );
+    expect(releaseJob("detect-candidate")).toContain("workflow_run.head_branch == 'main'");
+    const workflowDirectory = path.join(projectRoot, ".github/workflows");
+    for (const filename of fs
+      .readdirSync(workflowDirectory)
+      .filter((name) => /\.ya?ml$/.test(name) && name !== "release.yml")) {
+      expect(fs.readFileSync(path.join(workflowDirectory, filename), "utf8")).not.toContain(
+        "TAURI_SIGNING",
+      );
+    }
+  });
+
+  it("uploads exactly six updater assets and verifies the same SHA-named download without write permission", () => {
+    const upload = releaseStep("build-windows", "Upload candidate artifact");
+    const paths = upload
+      .split("\n")
+      .filter((line) => line.startsWith("            artifacts/windows/"))
+      .map((line) => line.trim());
+    expect(paths).toEqual([
+      "artifacts/windows/Archeion-Setup-x64.exe",
+      "artifacts/windows/Archeion-Setup-x64.exe.sig",
+      "artifacts/windows/Archeion-x64.msi",
+      "artifacts/windows/Archeion-x64.msi.sig",
+      "artifacts/windows/latest.json",
+      "artifacts/windows/SHA256SUMS.txt",
+    ]);
+    const name =
+      "name: archeion-v${{ needs.detect-candidate.outputs.version }}-${{ needs.detect-candidate.outputs.sha }}-windows-x64";
+    for (const step of [
+      upload,
+      releaseStep("verify-candidate", "Download candidate artifact"),
+      releaseStep("publish-release", "Download verified candidate artifact"),
+    ]) {
+      expect(step).toContain(name);
+    }
+    const verifier = releaseJob("verify-candidate");
+    expect(verifier).not.toContain("contents: write");
+    expect(verifier).not.toContain("--installers-only");
+    expect(verifier).toContain("node-version-file: .node-version");
+    expect(verifier.indexOf("Set up Node.js")).toBeLessThan(
+      verifier.indexOf("Verify candidate SHA and checksums"),
+    );
+  });
+
+  itWithPowerShell.each([
+    ["missing private key", "", "fixture password", false, 0],
+    ["missing password", "fixture key", "", false, 0],
+    ["blank password", "fixture key", " \t", false, 0],
+    ["configured fixture secrets", "fixture key", "fixture password", true, 0],
+    ["failed native build", "fixture key", "fixture password", true, 42],
+  ])(
+    "executes the build-step guard for %s without exposing secret contents",
+    (_case, key, password, invokesBuild, buildExit) => {
+      const lines = releaseStep("build-windows", "Build NSIS and MSI installers").split("\n");
+      const runIndex = lines.indexOf("        run: |");
+      expect(runIndex).toBeGreaterThan(-1);
+      const script = lines
+        .slice(runIndex + 1)
+        .filter((line) => line.startsWith("          "))
+        .map((line) => line.slice(10))
+        .join("\n");
+      const environment = {
+        ...process.env,
+        TAURI_SIGNING_PRIVATE_KEY: key,
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: password,
+      };
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          `$ErrorActionPreference = 'Stop'\nfunction npm { Write-Output ('BUILD ' + ($args -join ' ')); $global:LASTEXITCODE = ${buildExit} }\n${script}`,
+        ],
+        { encoding: "utf8", windowsHide: true, env: environment },
+      );
+      const output = `${result.stdout}\n${result.stderr}`;
+      expect(result.stdout.includes("BUILD ")).toBe(invokesBuild);
+      if (!invokesBuild) {
+        expect(result.status).not.toBe(0);
+        expect(output).toContain("Both updater signing secrets are required");
+      } else {
+        expect(result.status).toBe(buildExit);
+        expect(result.stdout).toContain("--config src-tauri/tauri.release.conf.json");
+      }
+      expect(output).not.toContain("fixture key");
+      expect(output).not.toContain("fixture password");
+    },
+  );
+
   it("runs only after successful push CI on the exact main SHA, with read-only detection", () => {
     expect(releaseWorkflow).toContain("workflow_run:");
     expect(releaseWorkflow).toContain("workflows: [CI]");

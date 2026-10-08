@@ -22,12 +22,17 @@ describe("tracked release documentation and toolchain sources", () => {
     expect(major).toBe("22");
     expect(engine.engines.node).toMatch(/^>=22\./);
 
-    const setupSteps = workflows.flatMap((file) => [
-      ...read(file).matchAll(
+    const sources = workflows.map(read);
+    const setupSteps = sources.flatMap((source) => [
+      ...source.matchAll(
         /uses: actions\/setup-node@[a-f0-9]{40}(?:[^\r\n]*)\r?\n {8}with:\r?\n((?: {10}.+\r?\n)+)/g,
       ),
     ]);
-    expect(setupSteps).toHaveLength(10);
+    const setupUses = sources.flatMap((source) => [
+      ...source.matchAll(/uses: actions\/setup-node@/g),
+    ]);
+    expect(setupUses.length).toBeGreaterThan(0);
+    expect(setupSteps).toHaveLength(setupUses.length);
     for (const [, inputs] of setupSteps) {
       expect(inputs).toContain("node-version-file: .node-version");
       expect(inputs).not.toMatch(/\bnode-version:/);
