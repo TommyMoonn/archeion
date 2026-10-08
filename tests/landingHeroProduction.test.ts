@@ -80,8 +80,8 @@ describe("production landing Hero", () => {
         manifestAsset?.sha256,
       );
     }
-    expect(landingCss).toContain('--sans: "Inter", "Segoe UI", sans-serif;');
-    expect(landingCss).toContain('--display: "Literata", Georgia, serif;');
+    expect(landingCss).toContain('--site-sans: "Inter", "Segoe UI", sans-serif;');
+    expect(landingCss).toContain('--site-display: "Literata", Georgia, serif;');
     expect(landingHtml).toContain('href="assets/fonts/literata-regular.woff2"');
     expect(landingHtml).not.toContain('href="assets/fonts/atkinson-regular.woff2"');
     expect(thirdPartyNotices).toContain("## Inter");
