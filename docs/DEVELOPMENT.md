@@ -12,7 +12,7 @@ Archeion development currently targets Windows and requires:
   version.
 - npm with the committed `package-lock.json`.
 - Rust and Cargo. `rust-toolchain.toml` pins the development and normal CI
-  toolchain to Rust 1.97.1. `src-tauri/Cargo.toml` declares Rust 1.88 as the
+  toolchain to Rust 1.97.1. `src-tauri/Cargo.toml` declares Rust 1.90 as the
   minimum supported Rust version (MSRV), which CI checks separately; it is not
   the development toolchain pin.
 - PowerShell 7.

@@ -276,7 +276,7 @@ jobs:
           .scratch/font-catalog-tests
 
   msrv:
-    name: Rust 1.88 check
+    name: Rust 1.90 check
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -286,20 +286,20 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Rust 1.88
+      - name: Set up Rust 1.90
         uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
-          toolchain: 1.88.0
+          toolchain: 1.90.0
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
         with:
           workspaces: |
             src-tauri -> target
-          shared-key: msrv-1.88
+          shared-key: msrv-1.90
 
       - name: Check minimum Rust version
-        run: cargo +1.88.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml
+        run: cargo +1.90.0 check --locked --all-targets --manifest-path src-tauri/Cargo.toml
 
   ci-gate:
     name: CI Gate

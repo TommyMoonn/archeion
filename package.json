@@ -92,8 +92,8 @@
     "zip:workspace": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1 --mode workspace"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
     "epubjs": "^0.3.93",
     "lucide-react": "^1.51.0",
     "react": "^19.3.0",
