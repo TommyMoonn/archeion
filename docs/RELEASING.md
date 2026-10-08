@@ -60,6 +60,64 @@ and review requirements. Do not bypass the main ruleset. An ordinary
 `workflow_dispatch` Windows installer build is separate from release
 publication and does not substitute for the successful `main` CI run.
 
+## Updater signing key custody
+
+Windows updater support uses the official Rust updater plugin on the coordinated
+Tauri 2.12 / Rust 1.90 stack. The application trusts one long-lived Tauri
+signing public key. Updater signatures are separate from Windows Authenticode.
+The configured updater must require signed versions, reject downgrades, and use
+only the stable HTTPS GitHub Releases endpoint.
+
+The production public key is tracked in `src-tauri/tauri.conf.json`. Reuse its
+matching private key for every release. The following generation procedure is
+for initial provisioning only, not for routine release preparation.
+
+For initial provisioning, generate a password-protected keypair once using the
+repository's installed Tauri CLI. Choose a private location outside every
+repository, build directory, and synchronized log or artifact folder. For
+example, replace the drive/path below with the approved secure storage location:
+
+```powershell
+npm run tauri -- signer generate --write-keys D:/Secure/Archeion/updater.key
+```
+
+Enter a non-empty password at the interactive prompt. Do not pass it on the
+command line, put it in an `.env` file, or paste it into chat. Do not use `--force`
+to replace an existing key. Track only the generated `.pub` file's contents in
+`plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, never a key file path.
+Never commit or log the private key or its password, and never copy either into
+test fixtures or uploaded build artifacts.
+
+Store the generated private key and its password as repository Actions secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY`: the full contents of the generated private key
+  file, not the public key or a path to the operator's machine.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: the non-empty password used when
+  generating the private key.
+
+Keep a reviewed offline backup of the encrypted private key and a recoverable
+password record outside GitHub Actions. Confirm both backups can be recovered
+before enabling a production release. GitHub secrets are not a backup. Losing
+the key or password prevents already-installed clients from trusting future
+updates signed with a replacement key. Do not regenerate this key for ordinary
+releases; key rotation and recovery need a separate reviewed design.
+
+The ordinary `tauri:dev` and `tauri:build*` commands leave updater artifact
+generation disabled and need no production signing secrets. An explicitly
+trusted release-candidate build can opt into the release overlay:
+
+```powershell
+npm run tauri:build:windows -- --config src-tauri/tauri.release.conf.json
+```
+
+That build requires the two signing environment variables above. Scope them
+only to the repository-owned candidate build after the successful exact-SHA
+`main` CI run and deliberate version transition have been validated. Never
+expose them to PR jobs, untrusted workflow sources, documentation jobs, or the
+publication job. The overlay only enables artifact creation. Signing-secret
+wiring, manifest staging, verification, and publication are subsequent updater
+phases; the existing release workflow does not yet opt into this overlay.
+
 ## Release tag authorization
 
 Before relying on automatic publication, confirm the active `Protect tag`
