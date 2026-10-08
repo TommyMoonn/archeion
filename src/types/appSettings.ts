@@ -41,6 +41,7 @@ export type AppearanceSettings = {
 };
 
 export type AppPreferences = {
+  automaticallyCheckForUpdates: boolean;
   appTheme: AppThemeSelection;
   appThemePreset: AppThemePreset;
   appearance: AppearanceSettings;
@@ -164,6 +165,7 @@ export type FilesAndMetadataSettingsMutation =
     };
 
 export type AppSettingsMutation =
+  | { area: "automaticallyCheckForUpdates"; value: boolean }
   | { area: "appTheme"; value: AppPreferences["appTheme"] }
   | { area: "appThemePreset"; value: AppPreferences["appThemePreset"] }
   | { area: "appearance"; value: AppPreferences["appearance"] }
@@ -188,6 +190,7 @@ export type AppSettingsMutation =
 export const APP_SETTINGS_CHANGED_EVENT = "app-settings-changed";
 
 export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
+  automaticallyCheckForUpdates: true,
   appTheme: Object.freeze({ kind: "builtin", id: "dark" }),
   appThemePreset: "dark",
   appearance: Object.freeze({

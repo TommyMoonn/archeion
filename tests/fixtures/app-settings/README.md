@@ -1,6 +1,6 @@
 # App settings contract fixtures
 
-`v4.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
+`v5.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
 test suites.
 
 Compatibility policy:
@@ -23,3 +23,7 @@ and rejected if they contain control characters. Installed availability never ch
 Version 4 models Reader fonts as builtin or system selections. All five legacy strings migrate
 to builtin IDs; unknown strings fall back to Book serif. Reader and application families share
 validation and preserve unavailable labels independently of the installed catalog.
+
+Version 5 adds the app-global `automaticallyCheckForUpdates` preference. Missing or malformed
+values default to true; an explicit false remains false. Snooze and completion metadata are
+not preferences and are excluded from this contract.

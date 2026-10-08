@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use super::app_update_prompts::{UpdatePromptPolicy, UpdatePromptSnapshot};
 use serde::{Deserialize, Serialize};
 use tokio::sync::watch;
 
@@ -55,6 +56,7 @@ pub struct UpdateOperationError {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppUpdateSnapshot {
+    pub prompt: UpdatePromptSnapshot,
     pub revision: u64,
     pub supported: bool,
     pub current_version: String,
@@ -88,6 +90,7 @@ struct ActiveOperation {
 }
 
 struct UpdateState {
+    prompt: UpdatePromptPolicy,
     snapshot: AppUpdateSnapshot,
     pending: Option<PendingUpdate>,
     verified_bytes: Option<Vec<u8>>,
@@ -125,11 +128,13 @@ impl AppUpdateService {
         current_version: String,
         supported: bool,
         backend: Arc<dyn UpdateBackend>,
+        prompt: UpdatePromptPolicy,
         publish: impl Fn(AppUpdateSnapshot) + Send + Sync + 'static,
     ) -> Self {
         Self {
             state: Arc::new(Mutex::new(UpdateState {
                 snapshot: AppUpdateSnapshot {
+                    prompt: prompt.snapshot(),
                     revision: 0,
                     supported,
                     current_version,
@@ -143,6 +148,7 @@ impl AppUpdateService {
                 verified_bytes: None,
                 active: None,
                 next_operation: 0,
+                prompt,
             })),
             backend,
             publish: Arc::new(publish),
@@ -151,6 +157,53 @@ impl AppUpdateService {
 
     pub fn snapshot(&self) -> Outcome {
         self.with_state(|state| Ok(state.snapshot.clone()))
+    }
+
+    pub fn defer(&self, version: &str) -> Outcome {
+        let snapshot = self.with_state(|state| {
+            if !state.snapshot.supported
+                || state.active.is_some()
+                || state
+                    .snapshot
+                    .available
+                    .as_ref()
+                    .map(|update| update.version.as_str())
+                    != Some(version)
+            {
+                return Err("The available update changed. Refresh update status.".to_string());
+            }
+            let revision = state
+                .snapshot
+                .revision
+                .checked_add(1)
+                .ok_or("Update snapshot revision is exhausted.")?;
+            match state.snapshot.status {
+                UpdateStatus::Available => state.prompt.snooze(version)?,
+                UpdateStatus::Ready => state.prompt.defer_restart(),
+                _ => return Err("This update cannot be deferred yet.".to_string()),
+            }
+            state.snapshot.prompt = state.prompt.snapshot();
+            state.snapshot.revision = revision;
+            Ok(state.snapshot.clone())
+        })?;
+        (self.publish)(snapshot.clone());
+        Ok(snapshot)
+    }
+
+    pub fn acknowledge_completed(&self, version: &str) -> Outcome {
+        let snapshot = self.with_state(|state| {
+            let revision = state
+                .snapshot
+                .revision
+                .checked_add(1)
+                .ok_or("Update snapshot revision is exhausted.")?;
+            state.prompt.acknowledge(version)?;
+            state.snapshot.prompt = state.prompt.snapshot();
+            state.snapshot.revision = revision;
+            Ok(state.snapshot.clone())
+        })?;
+        (self.publish)(snapshot.clone());
+        Ok(snapshot)
     }
 
     pub async fn check(&self, intent: CheckIntent) -> Outcome {
@@ -211,12 +264,14 @@ impl AppUpdateService {
                 .ok_or("Update snapshot revision is exhausted.")?;
             let work = match operation {
                 UpdateOperation::Check => Work::Check,
-                UpdateOperation::Download => Work::Download(
-                    state
+                UpdateOperation::Download => {
+                    let pending = state
                         .pending
                         .clone()
-                        .ok_or("No update is available to download.")?,
-                ),
+                        .ok_or("No update is available to download.")?;
+                    state.prompt.clear_snooze(&pending.metadata.version)?;
+                    Work::Download(pending)
+                }
                 UpdateOperation::Install => {
                     if state.snapshot.status != UpdateStatus::Ready {
                         return Err("No verified update is ready to install.".to_string());
@@ -225,6 +280,15 @@ impl AppUpdateService {
                         .pending
                         .clone()
                         .ok_or("No update is ready to install.")?;
+                    if state.verified_bytes.is_none() {
+                        return Err("No verified update is ready to install.".to_string());
+                    }
+                    // Windows installer launch exits this process without returning.
+                    // Persist before consuming bytes or entering the plugin.
+                    state.prompt.prepare_install(
+                        &state.snapshot.current_version,
+                        &pending.metadata.version,
+                    )?;
                     let bytes = state
                         .verified_bytes
                         .take()
@@ -242,6 +306,7 @@ impl AppUpdateService {
                 result: receiver,
             });
             state.snapshot.revision = revision;
+            state.snapshot.prompt = state.prompt.snapshot();
             state.snapshot.error = None;
             state.snapshot.status = match operation {
                 UpdateOperation::Check => UpdateStatus::Checking,
@@ -375,6 +440,11 @@ impl AppUpdateService {
             match result {
                 Ok(value) => apply(state, value),
                 Err(detail) => {
+                    if active.operation == UpdateOperation::Install {
+                        if let Err(error) = state.prompt.cancel_install() {
+                            eprintln!("Failed installation marker could not be cleared: {error}");
+                        }
+                    }
                     eprintln!("Update {:?} failed: {detail}", active.operation);
                     state.snapshot.status = if state.pending.is_some() {
                         UpdateStatus::Available
@@ -406,6 +476,7 @@ impl AppUpdateService {
                 }
             }
             state.snapshot.revision = revision;
+            state.snapshot.prompt = state.prompt.snapshot();
             Ok(state.snapshot.clone())
         })?;
         (self.publish)(snapshot.clone());

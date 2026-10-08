@@ -67,6 +67,8 @@ pub fn run() {
             commands::app_updates::check_app_update,
             commands::app_updates::download_app_update,
             commands::app_updates::install_app_update,
+            commands::app_updates::defer_app_update,
+            commands::app_updates::acknowledge_completed_app_update,
             commands::fonts::list_installed_font_families,
             commands::archive::activate_archive,
             commands::archive::complete_archive_reconciliation,

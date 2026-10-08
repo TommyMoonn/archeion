@@ -18,6 +18,19 @@ import {
   useConfirmDestructiveFileActionsPreference,
 } from "./appPreferencesStore";
 
+describe("automatic update preference compatibility", () => {
+  it("defaults existing and malformed preferences on, while retaining explicit off", () => {
+    expect(normalizeAppPreferences({}).automaticallyCheckForUpdates).toBe(true);
+    expect(
+      normalizeAppPreferences({ automaticallyCheckForUpdates: "false" })
+        .automaticallyCheckForUpdates,
+    ).toBe(true);
+    expect(
+      normalizeAppPreferences({ automaticallyCheckForUpdates: false }).automaticallyCheckForUpdates,
+    ).toBe(false);
+  });
+});
+
 function createPersistence(
   overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
 ) {
@@ -320,6 +333,22 @@ describe("desktop app preference read model", () => {
 });
 
 describe("cross-window app preference synchronization", () => {
+  it("synchronizes the automatic update preference through the existing mutation owner", async () => {
+    const harness = createDesktopSettingsHarness();
+    const mainWindow = harness.createWindow();
+    const settingsWindow = harness.createWindow();
+    const main = new AppPreferencesStore(mainWindow.persistence);
+    const settings = new AppPreferencesStore(settingsWindow.persistence);
+    await Promise.all([main.initialize(), settings.initialize()]);
+    expect(main.getSnapshot().automaticallyCheckForUpdates).toBe(true);
+    await settings.update({ automaticallyCheckForUpdates: false });
+    expect(main.getSnapshot().automaticallyCheckForUpdates).toBe(false);
+    expect(settingsWindow.mutateDesktop).toHaveBeenCalledWith({
+      area: "automaticallyCheckForUpdates",
+      value: false,
+    });
+    expect(mainWindow.mutateDesktop).not.toHaveBeenCalled();
+  });
   it("applies a newer native settings event to every window mirror without echoing a write", async () => {
     const harness = createDesktopSettingsHarness(nativeSnapshot({}, 4));
     const firstWindow = harness.createWindow();
@@ -1078,6 +1107,7 @@ describe("app preferences", () => {
       }),
     ).toEqual({
       appTheme: { kind: "system" },
+      automaticallyCheckForUpdates: true,
       appThemePreset: "light",
       appearance: {
         animationsEnabled: true,

@@ -50,7 +50,22 @@ const mocks = vi.hoisted(() => ({
   providerStorages: [] as unknown[],
   refreshActiveArchive: vi.fn(async () => true),
   windowMode: "main" as "about" | "archive-manager" | "main" | "settings" | "theme-manager",
+  startUpdateRuntime: vi.fn(),
+  stopUpdateRuntime: vi.fn(),
 }));
+
+vi.mock("../features/updates/AppUpdateRuntime", async () => {
+  const { useEffect } = await import("react");
+  return {
+    AppUpdateRuntime: () => {
+      useEffect(() => {
+        mocks.startUpdateRuntime();
+        return mocks.stopUpdateRuntime;
+      }, []);
+      return null;
+    },
+  };
+});
 
 vi.mock("react-router-dom", () => ({
   RouterProvider: () => <div data-testid="router" />,
@@ -193,6 +208,8 @@ function storageFor(label: string) {
 }
 
 beforeEach(() => {
+  mocks.startUpdateRuntime.mockClear();
+  mocks.stopUpdateRuntime.mockClear();
   mocks.focusMainWindow.mockClear();
   mocks.gatePreparations.length = 0;
   mocks.getLibraryStorage.mockReset();
@@ -214,6 +231,22 @@ afterEach(() => {
 });
 
 describe("App window mode and startup shell ownership", () => {
+  it("mounts update scheduling only after normal usable startup, and tears it down", async () => {
+    const startup = deferred<MainStartupResult>();
+    mocks.initializeMainStartup.mockReturnValue(startup.promise);
+    await renderApp();
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
+    startup.resolve({
+      preparedArchive: { archiveId: "a", rootPath: "C:\\archive", storage: storageFor("a") },
+      restoredReader: false,
+      showArchiveManager: false,
+    });
+    await flushStartup();
+    expect(mocks.startUpdateRuntime).toHaveBeenCalledOnce();
+    act(() => root?.unmount());
+    root = null;
+    expect(mocks.stopUpdateRuntime).toHaveBeenCalledOnce();
+  });
   it("mounts the Archive Manager root without the main application tree", async () => {
     mocks.windowMode = "archive-manager";
 
@@ -226,6 +259,7 @@ describe("App window mode and startup shell ownership", () => {
     expect(mocks.gatePreparations).toHaveLength(0);
     expect(mocks.focusMainWindow).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
   });
 
   it("mounts the standalone Settings root without the main application tree", async () => {
@@ -240,6 +274,7 @@ describe("App window mode and startup shell ownership", () => {
     expect(mocks.gatePreparations).toHaveLength(0);
     expect(mocks.focusMainWindow).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
   });
 
   it("mounts the Theme Manager root without the main application tree", async () => {
@@ -254,6 +289,7 @@ describe("App window mode and startup shell ownership", () => {
     expect(mocks.gatePreparations).toHaveLength(0);
     expect(mocks.focusMainWindow).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
   });
 
   it("mounts the standalone About root without the main application tree", async () => {
@@ -268,6 +304,7 @@ describe("App window mode and startup shell ownership", () => {
     expect(mocks.gatePreparations).toHaveLength(0);
     expect(mocks.focusMainWindow).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
   });
 
   it("keeps startup failures on the dedicated status surface outside the Library shell", async () => {
@@ -285,6 +322,7 @@ describe("App window mode and startup shell ownership", () => {
     ).toEqual(["Retry", "Quit"]);
     expect(container?.querySelector(".window-app--main-shell")).toBeNull();
     expect(container?.querySelector('[data-testid="router"]')).toBeNull();
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
   });
 
   it("accepts an early close before the manager startup result commits", async () => {
@@ -302,6 +340,7 @@ describe("App window mode and startup shell ownership", () => {
 
     expect(mocks.listener).not.toBeNull();
     expect(container?.textContent).toContain("Opening Archeion");
+    expect(mocks.startUpdateRuntime).not.toHaveBeenCalled();
     expect(mocks.refreshActiveArchive).not.toHaveBeenCalled();
 
     act(() => mocks.listener?.());
@@ -319,6 +358,7 @@ describe("App window mode and startup shell ownership", () => {
     expect(storage.reset).toHaveBeenCalledWith("D:\\archive-b");
     expect(mocks.navigate).toHaveBeenCalledTimes(1);
     expect(mocks.providerStorages.at(-1)).toBe(storage);
+    expect(mocks.startUpdateRuntime).toHaveBeenCalledOnce();
     expect(mocks.gatePreparations.at(-1)).toEqual({
       id: "archive-b",
       rootPath: "D:\\archive-b",

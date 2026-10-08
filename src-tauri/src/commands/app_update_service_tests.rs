@@ -1,9 +1,30 @@
+use super::super::app_update_prompts::{
+    UpdatePromptMetadata, UpdatePromptPersistence, UpdatePromptPolicy,
+};
 use super::*;
 use std::{
     collections::VecDeque,
     sync::atomic::{AtomicUsize, Ordering},
 };
 use tokio::sync::{Notify, Semaphore};
+
+#[derive(Default)]
+struct PromptStore {
+    metadata: Mutex<UpdatePromptMetadata>,
+    fail: std::sync::atomic::AtomicBool,
+}
+impl UpdatePromptPersistence for PromptStore {
+    fn load(&self) -> Result<UpdatePromptMetadata, String> {
+        Ok(self.metadata.lock().unwrap().clone())
+    }
+    fn save(&self, value: &UpdatePromptMetadata) -> Result<(), String> {
+        if self.fail.load(Ordering::SeqCst) {
+            return Err("fixture metadata write failed".to_string());
+        }
+        *self.metadata.lock().unwrap() = value.clone();
+        Ok(())
+    }
+}
 
 type CheckResult = Result<Option<PendingUpdate>, String>;
 
@@ -130,9 +151,148 @@ fn fixture(
         "1.6.0".to_string(),
         supported,
         backend.clone(),
+        UpdatePromptPolicy::load("1.6.0", Arc::new(PromptStore::default()), || Ok(1000)).unwrap(),
         move |snapshot| published.lock().unwrap().push(snapshot),
     );
     (service, backend, events)
+}
+
+#[tokio::test]
+async fn available_later_is_version_guarded_and_manual_checks_bypass_snooze() {
+    let handle = Arc::new(FakeHandle::default());
+    let (service, backend, events) = fixture(
+        vec![
+            Ok(Some(candidate(handle.clone()))),
+            Ok(Some(candidate(handle))),
+        ],
+        true,
+    );
+    service.check(CheckIntent::Automatic).await.unwrap();
+    assert!(service.defer("1.6.2").is_err());
+    let snoozed = service.defer("1.6.1").unwrap();
+    assert_eq!(snoozed.prompt.snoozed_until, Some(86_401_000));
+    let manual = service.check(CheckIntent::Manual).await.unwrap();
+    assert_eq!(backend.calls.load(Ordering::SeqCst), 2);
+    assert_eq!(manual.available.unwrap().version, "1.6.1");
+    assert_eq!(manual.prompt.snoozed_until, snoozed.prompt.snoozed_until);
+    assert_eq!(events.lock().unwrap().last().unwrap().prompt, manual.prompt);
+}
+
+#[tokio::test]
+async fn download_clears_selected_snooze_and_ready_later_only_defers_the_session() {
+    let (service, _, _) = fixture(
+        vec![Ok(Some(candidate(Arc::new(FakeHandle::default()))))],
+        true,
+    );
+    service.check(CheckIntent::Manual).await.unwrap();
+    service.defer("1.6.1").unwrap();
+    let ready = service.download().await.unwrap();
+    assert_eq!(ready.prompt.snoozed_version, None);
+    let later = service.defer("1.6.1").unwrap();
+    assert!(later.prompt.restart_deferred);
+    assert_eq!(later.prompt.snoozed_until, None);
+    assert!(service.state.lock().unwrap().verified_bytes.is_some());
+    assert_eq!(
+        service.install().await.unwrap().status,
+        UpdateStatus::Installing
+    );
+}
+
+#[tokio::test]
+async fn install_writes_marker_before_plugin_and_persistence_failure_retains_ready_bytes() {
+    let handle = Arc::new(FakeHandle::default());
+    let (service, _, _) = fixture(vec![Ok(Some(candidate(handle.clone())))], true);
+    let store = Arc::new(PromptStore::default());
+    service.state.lock().unwrap().prompt =
+        UpdatePromptPolicy::load("1.6.0", store.clone(), || Ok(100)).unwrap();
+    service.check(CheckIntent::Manual).await.unwrap();
+    service.download().await.unwrap();
+    store.fail.store(true, Ordering::SeqCst);
+    assert!(service.install().await.is_err());
+    assert_eq!(handle.installs.load(Ordering::SeqCst), 0);
+    assert_eq!(service.snapshot().unwrap().status, UpdateStatus::Ready);
+    assert!(service.state.lock().unwrap().verified_bytes.is_some());
+    store.fail.store(false, Ordering::SeqCst);
+    handle.install_gate.acquire().await.unwrap().forget();
+    let installing_service = service.clone();
+    let operation = tokio::spawn(async move { installing_service.install().await });
+    handle.installing.notified().await;
+    assert!(store.load().unwrap().pending_transition.is_some());
+    handle.install_gate.add_permits(1);
+    operation.await.unwrap().unwrap();
+    let target = UpdatePromptPolicy::load("1.6.1", store, || Ok(200)).unwrap();
+    assert_eq!(
+        target.snapshot().completed_version.as_deref(),
+        Some("1.6.1")
+    );
+}
+
+#[tokio::test]
+async fn failed_install_clears_attempt_and_retires_the_operation() {
+    let handle = Arc::new(FakeHandle {
+        fail_install: true,
+        ..Default::default()
+    });
+    let (service, _, _) = fixture(vec![Ok(Some(candidate(handle.clone())))], true);
+    let store = Arc::new(PromptStore::default());
+    service.state.lock().unwrap().prompt =
+        UpdatePromptPolicy::load("1.6.0", store.clone(), || Ok(100)).unwrap();
+    service.check(CheckIntent::Manual).await.unwrap();
+    service.download().await.unwrap();
+    assert!(service.install().await.is_err());
+    assert_eq!(store.load().unwrap().pending_transition, None);
+    assert!(service.state.lock().unwrap().active.is_none());
+}
+
+#[tokio::test]
+async fn failed_prompt_write_does_not_publish_a_snooze_or_start_a_download() {
+    let handle = Arc::new(FakeHandle::default());
+    let (service, _, events) = fixture(vec![Ok(Some(candidate(handle.clone())))], true);
+    let store = Arc::new(PromptStore::default());
+    service.state.lock().unwrap().prompt =
+        UpdatePromptPolicy::load("1.6.0", store.clone(), || Ok(100)).unwrap();
+    service.check(CheckIntent::Manual).await.unwrap();
+    let before = service.snapshot().unwrap();
+    let event_count = events.lock().unwrap().len();
+    store.fail.store(true, Ordering::SeqCst);
+    assert!(service.defer("1.6.1").is_err());
+    assert_eq!(service.snapshot().unwrap(), before);
+    assert_eq!(events.lock().unwrap().len(), event_count);
+    store.fail.store(false, Ordering::SeqCst);
+    service.defer("1.6.1").unwrap();
+    store.fail.store(true, Ordering::SeqCst);
+    assert!(service.download().await.is_err());
+    assert_eq!(handle.downloads.load(Ordering::SeqCst), 0);
+    assert_eq!(service.snapshot().unwrap().status, UpdateStatus::Available);
+}
+
+#[tokio::test]
+async fn marker_cleanup_failure_does_not_strand_a_failed_install_operation() {
+    let handle = Arc::new(FakeHandle {
+        fail_install: true,
+        ..Default::default()
+    });
+    let (service, _, _) = fixture(vec![Ok(Some(candidate(handle.clone())))], true);
+    let store = Arc::new(PromptStore::default());
+    service.state.lock().unwrap().prompt =
+        UpdatePromptPolicy::load("1.6.0", store.clone(), || Ok(100)).unwrap();
+    service.check(CheckIntent::Manual).await.unwrap();
+    service.download().await.unwrap();
+    handle.install_gate.acquire().await.unwrap().forget();
+    let installing_service = service.clone();
+    let operation = tokio::spawn(async move { installing_service.install().await });
+    handle.installing.notified().await;
+    store.fail.store(true, Ordering::SeqCst);
+    handle.install_gate.add_permits(1);
+    assert!(operation.await.unwrap().is_err());
+    let snapshot = service.snapshot().unwrap();
+    assert_eq!(snapshot.status, UpdateStatus::Idle);
+    assert_eq!(snapshot.error.unwrap().operation, UpdateOperation::Install);
+    assert!(service.state.lock().unwrap().active.is_none());
+    store.fail.store(false, Ordering::SeqCst);
+    let old_build = UpdatePromptPolicy::load("1.6.0", store.clone(), || Ok(200)).unwrap();
+    assert_eq!(old_build.snapshot().completed_version, None);
+    assert_eq!(store.load().unwrap().pending_transition, None);
 }
 
 #[tokio::test]
@@ -417,6 +577,7 @@ fn snapshot_wire_contract_exposes_only_public_metadata() {
         serde_json::json!({
             "revision": 0, "supported": true, "currentVersion": "1.6.0", "status": "idle",
             "available": null, "downloadedBytes": 0, "totalBytes": null, "error": null,
+            "prompt": { "snoozedVersion": null, "snoozedUntil": null, "restartDeferred": false, "completedVersion": null },
         })
     );
     assert_eq!(

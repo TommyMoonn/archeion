@@ -15,6 +15,8 @@ export type AppUpdateBackend = Readonly<{
   check: (intent: CheckIntent) => Promise<AppUpdateSnapshot>;
   download: () => Promise<AppUpdateSnapshot>;
   install: () => Promise<AppUpdateSnapshot>;
+  defer: (version: string) => Promise<AppUpdateSnapshot>;
+  acknowledgeCompleted: (version: string) => Promise<AppUpdateSnapshot>;
   subscribe: (listener: (snapshot: AppUpdateSnapshot) => void) => Promise<() => void>;
 }>;
 
@@ -24,6 +26,9 @@ const nativeBackend: AppUpdateBackend = {
   check: (intent) => invoke<AppUpdateSnapshot>("check_app_update", { intent }),
   download: () => invoke<AppUpdateSnapshot>("download_app_update"),
   install: () => invoke<AppUpdateSnapshot>("install_app_update"),
+  defer: (version) => invoke<AppUpdateSnapshot>("defer_app_update", { version }),
+  acknowledgeCompleted: (version) =>
+    invoke<AppUpdateSnapshot>("acknowledge_completed_app_update", { version }),
   subscribe: (listener) =>
     listen<AppUpdateSnapshot>(APP_UPDATE_CHANGED_EVENT, (event) => listener(event.payload)),
 };
@@ -74,11 +79,21 @@ export class AppUpdateClient {
   download = (): Promise<AppUpdateSnapshot> => this.action(() => this.backend.download());
 
   install = (): Promise<AppUpdateSnapshot> => this.action(() => this.backend.install());
+  defer = (version: string): Promise<AppUpdateSnapshot> =>
+    this.action(() => this.backend.defer(version));
+  acknowledgeCompleted = (version: string): Promise<AppUpdateSnapshot> =>
+    this.action(() => this.backend.acknowledgeCompleted(version));
 
   private async initializeNow(generation: number): Promise<void> {
     if (!this.backend.isDesktop()) {
       this.apply({
         revision: 0,
+        prompt: {
+          snoozedVersion: null,
+          snoozedUntil: null,
+          restartDeferred: false,
+          completedVersion: null,
+        },
         supported: false,
         currentVersion: APPLICATION_VERSION_FALLBACK,
         status: "idle",

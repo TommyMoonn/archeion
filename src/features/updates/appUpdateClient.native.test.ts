@@ -27,6 +27,12 @@ const idle: AppUpdateSnapshot = {
   downloadedBytes: 0,
   totalBytes: null,
   error: null,
+  prompt: {
+    snoozedVersion: null,
+    snoozedUntil: null,
+    restartDeferred: false,
+    completedVersion: null,
+  },
 };
 
 afterEach(() => vi.resetAllMocks());
@@ -44,12 +50,16 @@ describe("native app update IPC boundary", () => {
     await client.check("automatic");
     await client.download();
     await client.install();
+    await client.defer("1.6.1");
+    await client.acknowledgeCompleted("1.6.0");
     expect(native.invoke.mock.calls).toEqual([
       ["get_app_update_snapshot"],
       ["check_app_update", { intent: "manual" }],
       ["check_app_update", { intent: "automatic" }],
       ["download_app_update"],
       ["install_app_update"],
+      ["defer_app_update", { version: "1.6.1" }],
+      ["acknowledge_completed_app_update", { version: "1.6.0" }],
     ]);
     native.listen.mock.calls[0][1]({ payload: { ...idle, revision: 1, status: "checking" } });
     expect(client.getSnapshot().update?.status).toBe("checking");

@@ -1,13 +1,13 @@
 # App settings mutation contract
 
-`v3.json` is the shared wire-mutation corpus for the TypeScript and Rust test suites. Its
+`v4.json` is the shared wire-mutation corpus for the TypeScript and Rust test suites. Its
 `vocabulary` lists every supported top-level area and nested field. Add a new variant there and
 add a representative case when its behavior differs from existing cases. The static contract
 check compares this vocabulary with both language definitions and checks that valid JSON
 mutations typecheck while invalid JSON mutations do not.
 
 Each valid sequence starts at revision 0 with the shared normalized defaults in
-`../app-settings/v4.json`. Every step is a serialized mutation and an expected post-mutation
+`../app-settings/v5.json`. Every step is a serialized mutation and an expected post-mutation
 snapshot. `preferencesPatch` is applied to those defaults to make the full expected preferences.
 `emittedByFrontend: false` marks a wire mutation that TypeScript would normalize away before
 emitting but Rust still accepts and commits. Invalid cases must be rejected by Rust deserialization
@@ -23,3 +23,6 @@ Version 3 changes the Reader font leaf to structured selections. Native mutation
 still accepts legacy font strings, but the frontend emits only the structured model.
 frontendTypechecks: false identifies those accepted legacy wires, which must fail the current
 frontend typecheck. Malformed structured selections are rejected in both languages.
+
+Version 4 adds the boolean `automaticallyCheckForUpdates` mutation. It can disable or restore
+scheduled checks without changing any other preference; non-boolean wires are rejected.

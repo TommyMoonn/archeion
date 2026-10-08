@@ -99,6 +99,30 @@ afterEach(() => {
 });
 
 describe("standalone Settings surface", () => {
+  it("exposes the named update switch, synchronizes external changes, and includes it in General reset", async () => {
+    await act(async () => {
+      await appPreferencesStore.reset({ automaticallyCheckForUpdates: false, density: "compact" });
+    });
+    await renderSurface();
+    const getSwitch = () =>
+      container.querySelector<HTMLButtonElement>(
+        '[role="switch"][aria-label="Automatically check for updates"]',
+      )!;
+    expect(getSwitch().getAttribute("aria-checked")).toBe("false");
+    expect(getSwitch().disabled).toBe(false);
+    getSwitch().focus();
+    expect(document.activeElement).toBe(getSwitch());
+    await act(async () => getSwitch().click());
+    expect(appPreferencesStore.getSnapshot().automaticallyCheckForUpdates).toBe(true);
+    expect(document.activeElement).toBe(getSwitch());
+    await act(async () => {
+      await appPreferencesStore.update({ automaticallyCheckForUpdates: false });
+    });
+    expect(getSwitch().getAttribute("aria-checked")).toBe("false");
+    await act(async () => clickButton("Reset general"));
+    expect(getSwitch().getAttribute("aria-checked")).toBe("true");
+    expect(appPreferencesStore.getSnapshot().density).toBe("compact");
+  });
   it("uses the shared catalog in the existing Reader font row without changing other typography preferences", async () => {
     const provider = vi.fn(async () => ["Arial", "Literata"]);
     const catalog = createInstalledFontCatalog(provider);

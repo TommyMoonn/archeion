@@ -1,5 +1,6 @@
 pub mod app_settings;
 pub(crate) mod app_update_backend;
+pub(crate) mod app_update_prompts;
 pub(crate) mod app_update_service;
 pub mod app_updates;
 pub(crate) mod application_fonts;

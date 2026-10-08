@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const fixturePath = path.join(root, "tests/fixtures/app-settings-mutations/v3.json");
+const fixturePath = path.join(root, "tests/fixtures/app-settings-mutations/v4.json");
 const typePath = path.join(root, "src/types/appSettings.ts");
 const rustPath = path.join(root, "src-tauri/src/commands/app_settings.rs");
 const groups = [
@@ -144,7 +144,7 @@ function checkFixtureTypes(corpus) {
 
 function check() {
   const corpus = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
-  if (corpus.version !== 3 || !corpus.cases?.length || !corpus.invalid?.length) {
+  if (corpus.version !== 4 || !corpus.cases?.length || !corpus.invalid?.length) {
     throw new Error("Expected a nonempty v3 settings mutation corpus.");
   }
   const source = ts.createSourceFile(

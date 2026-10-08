@@ -6,6 +6,12 @@ export type UpdateStatus =
   "idle" | "checking" | "available" | "downloading" | "ready" | "installing";
 
 export type AppUpdateSnapshot = Readonly<{
+  prompt: Readonly<{
+    snoozedVersion: string | null;
+    snoozedUntil: number | null;
+    restartDeferred: boolean;
+    completedVersion: string | null;
+  }>;
   revision: number;
   supported: boolean;
   currentVersion: string;

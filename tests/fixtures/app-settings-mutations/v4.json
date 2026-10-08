@@ -1,7 +1,8 @@
 {
-  "version": 3,
+  "version": 4,
   "vocabulary": {
     "areas": [
+      "automaticallyCheckForUpdates",
       "appTheme",
       "appThemePreset",
       "appearance",
@@ -53,6 +54,25 @@
     ]
   },
   "cases": [
+    {
+      "name": "automatic updates can be disabled and restored independently",
+      "steps": [
+        {
+          "mutation": { "area": "automaticallyCheckForUpdates", "value": false },
+          "expected": {
+            "revision": 1,
+            "preferencesPatch": { "automaticallyCheckForUpdates": false }
+          }
+        },
+        {
+          "mutation": { "area": "automaticallyCheckForUpdates", "value": true },
+          "expected": {
+            "revision": 2,
+            "preferencesPatch": { "automaticallyCheckForUpdates": true }
+          }
+        }
+      ]
+    },
     {
       "name": "application font selections round trip through the appearance mutation owner",
       "steps": [
@@ -723,6 +743,10 @@
     }
   ],
   "invalid": [
+    {
+      "name": "automatic update preference requires a boolean",
+      "mutation": { "area": "automaticallyCheckForUpdates", "value": "false" }
+    },
     {
       "name": "unknown area",
       "mutation": {

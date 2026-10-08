@@ -13,6 +13,12 @@ function snapshot(revision = 0, status: AppUpdateSnapshot["status"] = "idle"): A
     downloadedBytes: 0,
     totalBytes: null,
     error: null,
+    prompt: {
+      snoozedVersion: null,
+      snoozedUntil: null,
+      restartDeferred: false,
+      completedVersion: null,
+    },
   };
 }
 
@@ -35,6 +41,8 @@ function fixture() {
     check: vi.fn(async () => snapshot(1, "available")),
     download: vi.fn(async () => snapshot(2, "ready")),
     install: vi.fn(async () => snapshot(3, "installing")),
+    defer: vi.fn(async () => snapshot(4, "available")),
+    acknowledgeCompleted: vi.fn(async () => snapshot(5)),
     subscribe: vi.fn(async (listener: (snapshot: AppUpdateSnapshot) => void) => {
       listeners.add(listener);
       return () => {
