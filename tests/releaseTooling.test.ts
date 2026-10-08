@@ -193,6 +193,14 @@ function combinedOutput(result: ReturnType<typeof runPowerShell>): string {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
+function expectStagingOutputDirectory(output: string, outputDirectory: string) {
+  const reportedDirectory = output.match(/^[ \t]+Output[ \t]+([^\r\n]+)\r?$/m)?.[1];
+  if (!reportedDirectory) throw new Error("Missing staging output directory summary");
+
+  // Windows temp paths can use an 8.3 alias while PowerShell reports the long path.
+  expect(fs.realpathSync.native(reportedDirectory)).toBe(fs.realpathSync.native(outputDirectory));
+}
+
 function expectFragmentsInOrder(output: string, fragments: string[]) {
   let previousIndex = -1;
   for (const fragment of fragments) {
@@ -388,7 +396,7 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       expect(output).toMatch(/EXE\s+Archeion-Setup-x64\.exe \(\d+ B\)/);
       expect(output).toMatch(/MSI\s+Archeion-x64\.msi \(\d+ B\)/);
       expect(output).toMatch(/Checksums\s+SHA256SUMS\.txt \(\d+ B\)/);
-      expect(output).toContain(outputDirectory);
+      expectStagingOutputDirectory(output, outputDirectory);
       expect(fs.readdirSync(outputDirectory).sort()).toEqual([
         "Archeion-Setup-x64.exe",
         "Archeion-Setup-x64.exe.sig",
@@ -431,6 +439,43 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       });
     },
     releaseProcessTimeout,
+  );
+
+  it.skipIf(process.platform !== "win32")(
+    "matches staging output by directory identity across Windows short-path aliases",
+    ({ skip }) => {
+      const root = createFixture();
+      const longDirectory = fs.realpathSync.native(root);
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-Command",
+          "$ErrorActionPreference = 'Stop'; (New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:ARCHEION_TEST_DIRECTORY).ShortPath",
+        ],
+        {
+          encoding: "utf8",
+          env: { ...process.env, ARCHEION_TEST_DIRECTORY: longDirectory },
+          windowsHide: true,
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      const shortDirectory = result.stdout.trim();
+      if (shortDirectory === longDirectory) skip("Windows 8.3 short-path aliases are unavailable");
+      expect(fs.realpathSync.native(shortDirectory)).toBe(longDirectory);
+
+      expectStagingOutputDirectory(`  Output       ${longDirectory}\r\n`, shortDirectory);
+      expectStagingOutputDirectory(`  Output       ${shortDirectory}\r\n`, longDirectory);
+
+      const otherDirectory = path.join(root, "other");
+      fs.mkdirSync(otherDirectory);
+      expect(() =>
+        expectStagingOutputDirectory(`  Output       ${longDirectory}\r\n`, otherDirectory),
+      ).toThrow();
+      expect(() => expectStagingOutputDirectory(longDirectory, longDirectory)).toThrow(
+        "Missing staging output directory summary",
+      );
+    },
   );
 
   it(
