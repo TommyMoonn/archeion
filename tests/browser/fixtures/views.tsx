@@ -16,6 +16,8 @@ import { DictionaryToggleFixture, LibraryToggleFixture, ReaderToggleFixture } fr
 import { ArchiveShellFixture } from "./archive-shell-view";
 import { ThemeManagerFixture } from "./theme-manager-view";
 import { TypographyFixture } from "./typography-view";
+import { UpdateToast } from "../../../src/features/updates/UpdateToast";
+import { createUpdateToastFixture } from "./update-toast-backend";
 
 const archive: KnownArchive = {
   id: "browser-fixture",
@@ -47,12 +49,22 @@ function ReaderFixture() {
   );
 }
 
-function LibraryFixture() {
+function LibraryFixture({ updates = false }: { updates?: boolean }) {
+  const [updateFixture] = useState(() => (updates ? createUpdateToastFixture() : null));
+  useEffect(() => {
+    if (!updateFixture) return;
+    window.updateToastFixture = updateFixture;
+    return () => {
+      delete window.updateToastFixture;
+      updateFixture.client.dispose();
+    };
+  }, [updateFixture]);
   const { collapseAvailable, collapsed, setCollapsed } = useLibrarySidebarState();
   const [location, setLocation] = useState<LibraryLocation>({ type: "library" });
   const expandedContentRef = useRef<HTMLDivElement>(null);
   const sidebarNavigationRef = useRef<HTMLElement>(null);
   const [readerOpen, setReaderOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const shellColors = new URLSearchParams(window.location.search).get("shellColors");
   const style =
     shellColors === "equal"
@@ -95,6 +107,7 @@ function LibraryFixture() {
             </main>
           ) : (
             <PageShell
+              notice={updateFixture ? <UpdateToast client={updateFixture.client} /> : undefined}
               sidebarCollapsed={collapsed}
               sidebar={
                 <>
@@ -134,8 +147,22 @@ function LibraryFixture() {
               <button type="button" onClick={() => setReaderOpen(true)}>
                 Enter Reader
               </button>
+              {updates ? (
+                <>
+                  <button type="button" onClick={() => setDialogOpen(true)}>
+                    Open Library overlay
+                  </button>
+                  <div style={{ height: 1400 }} />
+                  <button type="button">Last Library action</button>
+                </>
+              ) : null}
             </PageShell>
           )}
+          {dialogOpen ? (
+            <Dialog title="Library overlay" onClose={() => setDialogOpen(false)}>
+              <p>Overlay content</p>
+            </Dialog>
+          ) : null}
         </div>
       </div>
     </TooltipProvider>
@@ -176,6 +203,7 @@ export function BrowserFixture() {
   if (view === "typography") return <TypographyFixture />;
   if (view === "reader") return <ReaderFixture />;
   if (view === "library") return <LibraryFixture />;
+  if (view === "library-updates") return <LibraryFixture updates />;
   if (view === "dialog") return <DialogFixture />;
   if (view === "note-confirmation") return <ReaderNoteConfirmationFixture />;
   if (view === "library-confirmations") return <LibraryConfirmationFixture />;

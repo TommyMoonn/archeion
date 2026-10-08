@@ -3,7 +3,7 @@ import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
 import { BrowserFixture } from "./views";
 import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
-import { resolveTheme } from "../../../src/themes/resolveTheme";
+import { resolveAppTheme, resolveTheme } from "../../../src/themes/resolveTheme";
 import { applyResolvedAppTheme } from "../../../src/themes/themeCssVariables";
 import { validateThemeManifest } from "../../../src/themes/validateThemeManifest";
 import "../../../src/styles/index.css";
@@ -11,6 +11,9 @@ import "../../../src/styles/index.css";
 const root = document.getElementById("root");
 if (!root) throw new Error("Browser fixture root is missing.");
 const stressTheme = new URLSearchParams(window.location.search).get("themeStress");
+if (new URLSearchParams(window.location.search).has("light")) {
+  applyResolvedAppTheme(document.documentElement, resolveAppTheme("light", {}));
+}
 if (stressTheme !== null) {
   if (stressTheme !== "equal" && stressTheme !== "distinct")
     throw new Error("Unknown shell stress theme.");

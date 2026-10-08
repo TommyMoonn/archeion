@@ -2,6 +2,12 @@
   "version": 1,
   "groups": [
     {
+      "from": "library",
+      "to": "updates",
+      "reason": "The Library viewport hosts the updater-owned observation notice without owning network, prompt persistence, or installer state.",
+      "files": [["LibraryWorkspaceSurface.tsx", "UpdateToast.tsx"]]
+    },
+    {
       "from": "archive",
       "to": "library",
       "reason": "The archive gate scopes library cover URLs to the active archive.",

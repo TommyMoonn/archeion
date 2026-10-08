@@ -22,6 +22,7 @@
 
 @import "./features/archive.css";
 @import "./features/library.css";
+@import "./features/updates.css";
 @import "./features/filesystem.css";
 @import "./features/folders.css";
 @import "./features/reader.css";
