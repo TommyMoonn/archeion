@@ -1,6 +1,7 @@
 {
-  "version": 4,
+  "version": 5,
   "defaults": {
+    "automaticallyCheckForUpdates": true,
     "appTheme": {
       "kind": "builtin",
       "id": "dark"
@@ -86,6 +87,16 @@
     "window": null
   },
   "cases": [
+    {
+      "name": "automatic update checks retain explicit false for existing users",
+      "input": { "automaticallyCheckForUpdates": false },
+      "expectedPatch": { "automaticallyCheckForUpdates": false }
+    },
+    {
+      "name": "malformed automatic update preference falls back on independently",
+      "input": { "automaticallyCheckForUpdates": "false", "density": "compact" },
+      "expectedPatch": { "automaticallyCheckForUpdates": true, "density": "compact" }
+    },
     {
       "name": "legacy motion-only appearance preserves both default font roles",
       "input": {

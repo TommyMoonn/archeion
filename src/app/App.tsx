@@ -37,6 +37,7 @@ import { resolveWindowMode } from "./windowMode";
 import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 import { startupTrace } from "./startupTrace";
 import { focusPresentationRuntime } from "./inputModality";
+import { AppUpdateRuntime } from "../features/updates/AppUpdateRuntime";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -417,6 +418,7 @@ function MainWindowApp() {
       <WindowTitlebar canMaximize />
       <div className="window-app__content">
         <AppErrorBoundary>
+          <AppUpdateRuntime />
           <LibraryStorageProvider storage={startupState.preparedArchive.storage}>
             <QuickActionsProvider>
               <ArchiveGate

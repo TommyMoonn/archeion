@@ -372,6 +372,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
     reader: normalizeReader(value.reader),
     readerTheme: normalizeReaderTheme(value.readerTheme),
     rememberWindowState: value.rememberWindowState === true,
+    automaticallyCheckForUpdates: value.automaticallyCheckForUpdates !== false,
     restoreLastReader: value.restoreLastReader === true,
     showContinueReading: value.showContinueReading !== false,
     startupBehavior:
@@ -696,6 +697,12 @@ export function createAppSettingsMutations(
   }
   if (persisted.rememberWindowState !== target.rememberWindowState) {
     mutations.push({ area: "rememberWindowState", value: target.rememberWindowState });
+  }
+  if (persisted.automaticallyCheckForUpdates !== target.automaticallyCheckForUpdates) {
+    mutations.push({
+      area: "automaticallyCheckForUpdates",
+      value: target.automaticallyCheckForUpdates,
+    });
   }
   if (persisted.restoreLastReader !== target.restoreLastReader) {
     mutations.push({ area: "restoreLastReader", value: target.restoreLastReader });

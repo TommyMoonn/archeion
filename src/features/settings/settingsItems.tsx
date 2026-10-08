@@ -62,6 +62,27 @@ function updateSmartViewVisibility(
 
 export const settingsItems: readonly SettingsItem[] = [
   {
+    description: "Check for new versions at startup and while Archeion is open.",
+    id: "general.automatically-check-for-updates",
+    label: "Automatically check for updates",
+    render: (context) => (
+      <StandardSettingsRow
+        description="Check for new versions at startup and while Archeion is open."
+        label="Automatically check for updates"
+      >
+        <Toggle
+          checked={context.preferences.automaticallyCheckForUpdates}
+          label="Automatically check for updates"
+          onChange={(automaticallyCheckForUpdates) =>
+            void context.updateAppPreferences({ automaticallyCheckForUpdates })
+          }
+        />
+      </StandardSettingsRow>
+    ),
+    searchTerms: ["updates", "automatic", "stable", "check"],
+    sectionId: "general",
+  },
+  {
     description: "Choose what opens when Archeion starts.",
     id: "general.startup-behavior",
     label: "Startup behavior",

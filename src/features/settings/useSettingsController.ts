@@ -580,6 +580,7 @@ export function useSettingsController({
   async function resetGeneral() {
     await updateAppPreferences(
       {
+        automaticallyCheckForUpdates: defaultAppPreferences.automaticallyCheckForUpdates,
         confirmDestructiveFileActions: defaultAppPreferences.confirmDestructiveFileActions,
         restoreLastReader: defaultAppPreferences.restoreLastReader,
         startupBehavior: defaultAppPreferences.startupBehavior,

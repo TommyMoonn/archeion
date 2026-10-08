@@ -267,6 +267,7 @@ pub struct PersistedWindowState {
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPreferences {
+    pub automatically_check_for_updates: bool,
     pub app_theme: AppThemeSelection,
     pub app_theme_preset: String,
     pub appearance: AppearanceSettings,
@@ -1016,6 +1017,7 @@ fn normalize_app_preferences_value(value: &Value) -> AppPreferences {
         reader: normalize_reader_settings(object_field(settings, "reader")),
         reader_theme: parse_reader_theme_selection(settings.get("readerTheme")).unwrap_or_default(),
         remember_window_state: true_field(settings, "rememberWindowState"),
+        automatically_check_for_updates: !false_field(settings, "automaticallyCheckForUpdates"),
         restore_last_reader: true_field(settings, "restoreLastReader"),
         show_continue_reading: !false_field(settings, "showContinueReading"),
         startup_behavior: normalize_setting(
@@ -1217,6 +1219,7 @@ impl Default for GlobalImportSettings {
 impl Default for AppPreferences {
     fn default() -> Self {
         Self {
+            automatically_check_for_updates: true,
             app_theme: AppThemeSelection::default(),
             app_theme_preset: default_app_theme_preset(),
             appearance: AppearanceSettings::default(),
@@ -1352,6 +1355,7 @@ impl FilesAndMetadataSettingsMutation {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "area", content = "value", rename_all = "camelCase")]
 pub enum AppSettingsMutation {
+    AutomaticallyCheckForUpdates(bool),
     AppTheme(AppThemeSelection),
     AppThemePreset(String),
     Appearance(AppearanceSettings),
@@ -1374,6 +1378,9 @@ pub enum AppSettingsMutation {
 impl AppSettingsMutation {
     fn apply(self, preferences: &mut AppPreferences) {
         match self {
+            Self::AutomaticallyCheckForUpdates(value) => {
+                preferences.automatically_check_for_updates = value
+            }
             Self::AppTheme(value) => preferences.app_theme = value,
             Self::AppThemePreset(value) => preferences.app_theme_preset = value,
             Self::Appearance(value) => preferences.appearance = value,
@@ -1893,9 +1900,9 @@ mod tests {
     #[test]
     fn app_preferences_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v4.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v5.json"))
                 .expect("shared app settings fixtures should parse");
-        assert_eq!(corpus["version"], 4);
+        assert_eq!(corpus["version"], 5);
 
         for fixture in corpus["cases"]
             .as_array()
@@ -1922,13 +1929,13 @@ mod tests {
     #[test]
     fn app_settings_mutations_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value = serde_json::from_str(include_str!(
-            "../../../tests/fixtures/app-settings-mutations/v3.json"
+            "../../../tests/fixtures/app-settings-mutations/v4.json"
         ))
         .expect("shared mutation fixtures should parse");
         let settings_corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v4.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v5.json"))
                 .expect("shared settings defaults should parse");
-        assert_eq!(corpus["version"], 3);
+        assert_eq!(corpus["version"], 4);
 
         for fixture in corpus["cases"]
             .as_array()
@@ -2103,6 +2110,7 @@ mod tests {
         .expect("old app preferences should parse");
 
         assert_eq!(parsed.density, "compact");
+        assert!(parsed.automatically_check_for_updates);
         assert_eq!(parsed.library.collections.books.card_size, "large");
         assert!(!parsed.show_continue_reading);
         assert_eq!(parsed.startup_behavior, "open-last-archive");
