@@ -259,6 +259,14 @@ export function publishReleaseCandidate({
     verifyRelease(release, tag, body, assets);
     return { published: true, reused: true, tag, sha: commit };
   }
+  if (release) {
+    if (!Array.isArray(release.assets)) {
+      throw new Error(`Release ${tag} is not a valid draft before asset upload.`);
+    }
+    // Reject stale/conflicting updater assets before editing draft metadata.
+    // Recheck after the ID-based read below to retain race/conflict protection.
+    verifyExistingAssets(release.assets, tag, assets);
+  }
 
   if (!target) {
     const created = run(

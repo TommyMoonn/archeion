@@ -114,9 +114,11 @@ That build requires the two signing environment variables above. Scope them
 only to the repository-owned candidate build after the successful exact-SHA
 `main` CI run and deliberate version transition have been validated. Never
 expose them to PR jobs, untrusted workflow sources, documentation jobs, or the
-publication job. The overlay only enables artifact creation. Signing-secret
-wiring and publication are subsequent updater phases; the existing release
-workflow does not yet opt into this overlay.
+publication job. The overlay only enables artifact creation. The release
+workflow selects it only in the Windows candidate build step, with both secrets
+bound to that step's environment. A missing or blank key/password fails before
+the build starts. Dependency installation, staging, verification, and publication
+do not receive these signing secrets.
 
 ## Signed Windows artifact contract
 
@@ -146,9 +148,11 @@ The manual desktop workflow explicitly passes `--installers-only` to both
 scripts. That non-release mode packages unsigned installers and checksums without
 production secrets or a release note. It cannot pass default release verification.
 
-Hosted signing, six-asset upload, and publication integration remain phase
-1.6.0.3 work. Until that integration is complete, the existing release workflow
-cannot produce the new default contract and must not be used to publish a candidate.
+The release workflow uploads all six files in one candidate artifact named for
+the candidate version and exact SHA. The independent verifier and publisher
+download that same artifact. The verifier uses the repository's Node version,
+checks its checkout SHA, and runs default release verification with read-only
+permissions; only the downstream publication job receives `contents: write`.
 
 ## Release tag authorization
 
@@ -180,12 +184,13 @@ compares the application version with that commit's first parent. Ordinary
 commits with an unchanged version have no release side effects, even if `main`
 has advanced after an earlier version bump.
 
-The hosted candidate build/upload wiring still needs phase 1.6.0.3 integration
-before it can supply the six-asset contract above. Once integrated, the workflow
-must build from the exact candidate SHA and verify the downloaded candidate
-artifact before the publication job receives `contents: write`.
+For a validated candidate, the workflow builds signed NSIS/MSI installers from
+that exact SHA using the release-only overlay. It stages and verifies the six-file
+contract, smoke-tests the staged NSIS installer, and uploads the candidate bundle.
+The independent verifier checks the downloaded artifact before the publication
+job receives `contents: write`.
 
-The publication tool already requires the six-file contract. It rechecks the source,
+The publication tool requires the six-file contract. It rechecks the source,
 metadata, and artifact; creates the new `vX.Y.Z` tag at the candidate SHA
 under the creation-allowed policy; creates or resumes a draft with the tracked
 release-note body; verifies the exact asset set, sizes, and GitHub-reported
@@ -195,8 +200,10 @@ not created by local validation or PR CI.
 Inspect the hosted Release run and resulting GitHub Release. Confirm the tag
 resolves to the green candidate SHA, the title and body match the tracked
 note, and the six assets and their digests match the verified bundle. A
-green workflow alone is not evidence that repository tag protections or
-immutable-release behavior have been exercised.
+green local test run is not evidence that hosted signing, repository tag
+protections, or immutable-release behavior have been exercised. Confirm hosted
+signing uses the key matching the tracked public key, and verify actual NSIS/MSI
+update/install/relaunch behavior separately before claiming updater acceptance.
 
 ## Retry and conflicts
 
@@ -204,6 +211,11 @@ immutable-release behavior have been exercised.
   Release workflow for the same green source SHA. A same-SHA draft can resume
   with missing assets; already-valid assets are preserved. A fully matching
   published release is verified without remote mutation on a rerun.
+- Existing draft assets are checked against the candidate's names, sizes, and
+  SHA-256 digests before draft metadata is changed, then rechecked before upload
+  and publication. A stale `latest.json` or `.sig` asset is a conflict, not a
+  resumable asset: do not overwrite it or use `--clobber`. Diagnose the mismatch
+  and agree on reviewed recovery. Missing assets alone can be uploaded safely.
 - Draft discovery uses GraphQL's pending-tag lookup because GitHub's REST
   release-by-tag endpoint returns published releases. Publication confirms the
   pending tag and numeric release ID before re-reading the draft through REST.
