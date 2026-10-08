@@ -5,20 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Archeion is a desktop EPUB library for organizing folders, browsing series, filtering collections, and reading with saved progress."
+      content="Archeion is a local-first Windows desktop app for organizing and reading EPUB libraries. Keep your books as normal files, with no account, cloud service, or telemetry."
     />
     <meta name="theme-color" content="#171717" />
-    <title>Archeion – EPUB Library and Reader</title>
+    <title>Archeion - Local-first EPUB Library and Reader</title>
     <link rel="canonical" href="https://tommymoonn.github.io/archeion/" />
     <link rel="icon" href="assets/images/archeion-icon.png" />
     <link rel="apple-touch-icon" href="assets/images/archeion-icon.png" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Archeion" />
-    <meta property="og:title" content="Archeion – EPUB Library and Reader" />
+    <meta property="og:title" content="Archeion - Local-first EPUB Library and Reader" />
     <meta
       property="og:description"
-      content="Archeion is a desktop EPUB library for organizing folders, browsing series, filtering collections, and reading with saved progress."
+      content="Archeion is a local-first Windows desktop app for organizing and reading EPUB libraries. Keep your books as normal files, with no account, cloud service, or telemetry."
     />
     <meta property="og:url" content="https://tommymoonn.github.io/archeion/" />
     <meta
@@ -28,10 +28,10 @@
     <meta property="og:image:width" content="1544" />
     <meta property="og:image:height" content="1012" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Archeion – EPUB Library and Reader" />
+    <meta name="twitter:title" content="Archeion - Local-first EPUB Library and Reader" />
     <meta
       name="twitter:description"
-      content="Archeion is a desktop EPUB library for organizing folders, browsing series, filtering collections, and reading with saved progress."
+      content="Archeion is a local-first Windows desktop app for organizing and reading EPUB libraries. Keep your books as normal files, with no account, cloud service, or telemetry."
     />
     <meta
       name="twitter:image"
@@ -131,13 +131,6 @@
         <path d="M5 4h14v12l-4 4H5z" />
         <path d="M15 20v-4h4M8 8h8M8 12h5" />
       </symbol>
-      <symbol id="icon-copy" viewBox="0 0 24 24">
-        <rect x="8" y="8" width="11" height="11" rx="2" />
-        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
-      </symbol>
-      <symbol id="icon-check" viewBox="0 0 24 24">
-        <path d="m5 12 4 4L19 6" />
-      </symbol>
       <symbol id="icon-menu" viewBox="0 0 24 24">
         <path d="M4 7h16M4 12h16M4 17h16" />
       </symbol>
@@ -166,8 +159,8 @@
         <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
           <a href="#library">Library</a>
           <a href="#reader">Reader</a>
-          <a href="#architecture">Features</a>
-          <a href="#get-started">Get started</a>
+          <a href="#local-first">Local-first</a>
+          <a href="#get-started">Get Started</a>
         </nav>
 
         <a
@@ -706,13 +699,13 @@
               >
                 <p class="reader-running-head">Signal and Dust · Chapter Twelve</p>
                 <p class="reader-dropcap">
-                  By the time the signal crossed the station network, Mara had already stopped listening
-                  for a reply. The station had taught her that silence was not the absence of
-                  information. It was a shape, a pressure, a thing with weight.
+                  By the time the signal crossed the station network, Mara had already stopped
+                  listening for a reply. The station had taught her that silence was not the absence
+                  of information. It was a shape, a pressure, a thing with weight.
                 </p>
                 <p>
-                  Outside the glass, the catalogue lights moved in strict intervals. Each pulse marked
-                  a volume returned to its place, a record made legible again.
+                  Outside the glass, the catalogue lights moved in strict intervals. Each pulse
+                  marked a volume returned to its place, a record made legible again.
                 </p>
                 <blockquote>Nothing was lost. It had only been waiting for an index.</blockquote>
                 <p>The console warmed beneath her hands. One more book was ready to be read.</p>
@@ -861,12 +854,7 @@
               <div class="reader-console__group">
                 <span>Reading mode</span>
                 <div class="reader-mode-switch" role="group" aria-label="Reader mode">
-                  <button
-                    type="button"
-                    class="active"
-                    data-reader-mode="paged"
-                    aria-pressed="true"
-                  >
+                  <button type="button" class="active" data-reader-mode="paged" aria-pressed="true">
                     Paged
                   </button>
                   <button type="button" data-reader-mode="continuous" aria-pressed="false">
@@ -947,7 +935,7 @@
 
       <section
         class="local-first-scene section"
-        id="architecture"
+        id="local-first"
         aria-labelledby="local-first-title"
       >
         <div class="shell">
@@ -1060,55 +1048,50 @@
         id="get-started"
         aria-labelledby="get-started-title"
       >
-        <div class="get-started__rings" aria-hidden="true"></div>
         <div class="shell get-started__inner">
           <div class="get-started__copy" data-reveal>
-            <p class="section-label">Get started</p>
+            <p class="section-label">Get Started</p>
             <h2 id="get-started-title">Start with the EPUBs you already have.</h2>
-            <div class="entry-points">
-              <span>Follow the installation and archive setup guides</span>
-              <span>Download the latest Windows release</span>
-              <span>Open an existing EPUB folder or create a new archive</span>
-            </div>
+            <p class="get-started__intro">
+              Download Archeion for Windows, then open an existing EPUB folder or create a new
+              archive.
+            </p>
+
             <div class="get-started__actions">
-              <a class="button button--primary" href="documentation/">
-                Get started
+              <a
+                class="button button--primary"
+                href="https://github.com/TommyMoonn/archeion/releases/latest/download/Archeion-Setup-x64.exe"
+              >
+                Download for Windows
                 <svg aria-hidden="true"><use href="#icon-arrow" /></svg>
               </a>
-              <a
-                class="button button--light"
-                href="https://github.com/TommyMoonn/archeion/releases/latest"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <svg aria-hidden="true"><use href="#icon-github" /></svg>
-                View latest release
-              </a>
+              <a class="button button--light" href="documentation/">Read the documentation</a>
             </div>
-          </div>
 
-          <div class="terminal-card" data-reveal>
-            <div class="terminal-card__top">
-              <div><i></i><i></i><i></i></div>
-              <button type="button" data-copy-command aria-label="Copy setup commands">
-                <svg aria-hidden="true"><use href="#icon-copy" /></svg>
-                <span>Copy</span>
-              </button>
-            </div>
-            <pre><code id="setup-command"><span class="prompt">❯</span> git clone https://github.com/TommyMoonn/archeion.git
-<span class="prompt">❯</span> cd archeion
-<span class="prompt">❯</span> npm install
-<span class="prompt">❯</span> npm run tauri:dev</code></pre>
-            <p
-              class="sr-only"
-              data-copy-status
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-            ></p>
-            <div class="terminal-card__status">
-              <span></span>Prefer the source? Clone, install, and run Archeion locally.
-            </div>
+            <details class="developer-path">
+              <summary>
+                <span>Build from source</span>
+                <small>Developer</small>
+              </summary>
+              <div class="developer-path__body">
+                <p>
+                  Source setup is for contributors and developers. The Windows installer above is
+                  the recommended path for normal use.
+                </p>
+                <pre><code>git clone https://github.com/TommyMoonn/archeion.git
+cd archeion
+npm install
+npm run tauri:dev</code></pre>
+                <a
+                  class="developer-path__link"
+                  href="https://github.com/TommyMoonn/archeion/blob/main/docs/DEVELOPMENT.md"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Read the development guide
+                </a>
+              </div>
+            </details>
           </div>
         </div>
       </section>
@@ -1124,7 +1107,7 @@
             alt=""
             loading="lazy"
             decoding="async"
-          /><span>Archeion by Khoa Luong</span>
+          /><span>Archeion</span>
         </div>
         <a href="https://github.com/TommyMoonn/archeion" target="_blank" rel="noreferrer"
           >github.com/TommyMoonn/archeion</a

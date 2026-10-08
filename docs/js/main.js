@@ -169,6 +169,9 @@
   window.addEventListener("scroll", requestPageScrollUpdate, { passive: true });
   window.addEventListener("resize", requestPageMetricsRefresh);
   window.addEventListener("load", refreshPageMetrics, { once: true });
+  document
+    .querySelectorAll("main details")
+    .forEach((details) => details.addEventListener("toggle", requestPageMetricsRefresh));
   document.fonts?.ready.then(refreshPageMetrics).catch(() => undefined);
   refreshPageMetrics();
 
@@ -252,9 +255,9 @@
             : true;
       const searchable = normalized(`${card.dataset.title} ${card.dataset.author}`);
       const progress = Number(card.dataset.progress || 0);
-      const matchesProgress =
-        !libraryState.inProgressOnly || (progress > 0 && progress < 100);
-      const visible = matchesDestination && matchesProgress && (!query || searchable.includes(query));
+      const matchesProgress = !libraryState.inProgressOnly || (progress > 0 && progress < 100);
+      const visible =
+        matchesDestination && matchesProgress && (!query || searchable.includes(query));
       card.classList.toggle("is-hidden", !visible);
       bookGrid.append(card);
       if (visible) visibleCount += 1;
@@ -367,9 +370,7 @@
   });
 
   folderOverviewButtons.forEach((button) => {
-    button.addEventListener("click", () =>
-      setFolderView(button.dataset.libraryFolderCard || ""),
-    );
+    button.addEventListener("click", () => setFolderView(button.dataset.libraryFolderCard || ""));
   });
 
   librarySearch?.addEventListener("input", () => {
@@ -1012,67 +1013,4 @@
   });
 
   renderReaderPage(readerPageIndex);
-
-  const copyButton = document.querySelector("[data-copy-command]");
-  const copyStatus = document.querySelector("[data-copy-status]");
-  let copyResetTimer = 0;
-  const setupCommand = [
-    "git clone https://github.com/TommyMoonn/archeion.git",
-    "cd archeion",
-    "npm install",
-    "npm run tauri dev",
-  ].join("\n");
-
-  const writeClipboard = async (text) => {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.append(textarea);
-    const previousFocus = document.activeElement;
-    try {
-      textarea.select();
-      if (!document.execCommand("copy")) throw new Error("Copy command was unavailable.");
-    } finally {
-      textarea.remove();
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
-        previousFocus.focus({ preventScroll: true });
-      }
-    }
-  };
-
-  copyButton?.addEventListener("click", async () => {
-    if (copyButton.getAttribute("aria-busy") === "true") return;
-    copyButton.setAttribute("aria-busy", "true");
-    window.clearTimeout(copyResetTimer);
-    const label = copyButton.querySelector("span");
-    const use = copyButton.querySelector("use");
-    if (label) label.textContent = "Copy";
-    use?.setAttribute("href", "#icon-copy");
-    if (copyStatus) copyStatus.textContent = "Copying setup commands…";
-    try {
-      await writeClipboard(setupCommand);
-      if (label) label.textContent = "Copied";
-      if (copyStatus) copyStatus.textContent = "Setup commands copied.";
-      use?.setAttribute("href", "#icon-check");
-      copyResetTimer = window.setTimeout(() => {
-        if (label) label.textContent = "Copy";
-        use?.setAttribute("href", "#icon-copy");
-      }, 1800);
-    } catch {
-      if (label) label.textContent = "Select text";
-      if (copyStatus) {
-        copyStatus.textContent =
-          "Unable to copy setup commands. Select the commands and copy them manually.";
-      }
-    } finally {
-      copyButton.removeAttribute("aria-busy");
-    }
-  });
 })();

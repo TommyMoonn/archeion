@@ -1,28 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 const passageQuote = "Nothing was lost. It had only been waiting for an index.";
-const copyFailure = "Unable to copy setup commands. Select the commands and copy them manually.";
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
-
-async function mockClipboard(page: Page, outcomes: ("success" | "failure")[]) {
-  await page.addInitScript((results) => {
-    let calls = 0;
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: {
-        writeText: async (text: string) => {
-          document.documentElement.dataset.clipboardArgument = text;
-          document.documentElement.dataset.clipboardCalls = String(++calls);
-          if (results[calls - 1] === "failure")
-            throw new DOMException("Permission denied", "NotAllowedError");
-        },
-      },
-    });
-  }, outcomes);
-}
 
 test("passage identity survives highlight, note, and removal actions", async ({ page }) => {
   await page.goto("/docs/", { waitUntil: "domcontentloaded" });
@@ -130,67 +112,6 @@ test("theme radios expose one selection with arrow, Home, End, and Tab behavior"
   await group.getByRole("radio", { name: "Light theme", exact: true }).click();
   await expect(group.getByRole("radio", { name: "Light theme", checked: true })).toBeFocused();
 });
-
-for (const outcome of ["success", "failure"] as const) {
-  test(`copy ${outcome} updates a persistent polite status without moving focus`, async ({
-    page,
-  }) => {
-    await mockClipboard(page, [outcome]);
-    await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-    const copy = page.getByRole("button", { name: "Copy setup commands", exact: true });
-    const status = page.locator("[data-copy-status]");
-    await expect(status).toHaveAttribute("role", "status");
-    await expect(status).toHaveAttribute("aria-live", "polite");
-    await expect(status).toBeEmpty();
-    await copy.press("Space");
-    await expect(status).toHaveText(outcome === "success" ? "Setup commands copied." : copyFailure);
-    await expect(copy).toBeFocused();
-    await expect(page.locator("html")).toHaveAttribute("data-clipboard-calls", "1");
-  });
-}
-
-test("copy retry clears earlier visual reset timers and preserves failure feedback", async ({
-  page,
-}) => {
-  await page.clock.install();
-  await mockClipboard(page, ["success", "failure"]);
-  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-  const copy = page.getByRole("button", { name: "Copy setup commands", exact: true });
-  const status = page.locator("[data-copy-status]");
-  await copy.press("Space");
-  await expect(status).toHaveText("Setup commands copied.");
-  await copy.press("Space");
-  await expect(status).toHaveText(copyFailure);
-  await page.clock.runFor(2000);
-  await expect(copy.locator("span")).toHaveText("Select text");
-  await expect(status).toHaveText(copyFailure);
-  await expect(copy).toBeFocused();
-});
-
-for (const outcome of ["success", "denied", "throws"] as const) {
-  test(`legacy clipboard ${outcome} announces its result and releases the temporary control`, async ({
-    page,
-  }) => {
-    await page.addInitScript((result) => {
-      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
-      Object.defineProperty(document, "execCommand", {
-        configurable: true,
-        value: () => {
-          if (result === "throws") throw new Error("Clipboard unavailable");
-          return result === "success";
-        },
-      });
-    }, outcome);
-    await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-    const copy = page.getByRole("button", { name: "Copy setup commands", exact: true });
-    await copy.press("Space");
-    await expect(page.locator("[data-copy-status]")).toHaveText(
-      outcome === "success" ? "Setup commands copied." : copyFailure,
-    );
-    await expect(copy).toBeFocused();
-    await expect(page.locator("textarea[readonly]")).toHaveCount(0);
-  });
-}
 
 for (const theme of ["dark", "light"]) {
   test(`Reader semantic updates preserve the ${theme} appearance`, async ({ page }) => {
