@@ -39,6 +39,9 @@ pub fn run() {
             let app_settings = commands::app_settings::AppSettingsService::from_app(app.handle())
                 .map_err(std::io::Error::other)?;
             app.manage(app_settings);
+            app.manage(commands::app_update_service::AppUpdateService::from_app(
+                app.handle(),
+            ));
             Ok(())
         })
         .manage(dictionary_catalog_service)
@@ -60,6 +63,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_settings::load_app_settings_snapshot,
             commands::app_settings::update_app_settings,
+            commands::app_updates::get_app_update_snapshot,
+            commands::app_updates::check_app_update,
+            commands::app_updates::download_app_update,
+            commands::app_updates::install_app_update,
             commands::fonts::list_installed_font_families,
             commands::archive::activate_archive,
             commands::archive::complete_archive_reconciliation,
