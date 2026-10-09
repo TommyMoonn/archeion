@@ -10,7 +10,7 @@
   <a href="https://tommymoonn.github.io/archeion/"><img src="https://img.shields.io/badge/Website-Visit-238636?style=flat" alt="Website"></a>
   <a href="https://github.com/TommyMoonn/archeion/releases/latest"><img src="https://img.shields.io/badge/Download-Windows-0969da?style=flat&logo=windows11&logoColor=white" alt="Download for Windows"></a>
   <a href="https://github.com/TommyMoonn/archeion/releases"><img src="https://img.shields.io/badge/Releases-GitHub-57606a?style=flat&logo=github&logoColor=white" alt="GitHub Releases"></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-History-b45309?style=flat&logo=git&logoColor=white" alt="Changelog"></a>
+  <a href="https://tommymoonn.github.io/archeion/documentation/changelog/"><img src="https://img.shields.io/badge/Changelog-History-b45309?style=flat&logo=git&logoColor=white" alt="Changelog"></a>
 </p>
 
 <p align="center">
@@ -25,8 +25,17 @@
 
 ## About Archeion
 
-Archeion turns a normal folder of EPUB files into a fast personal archive. It keeps
-books on your computer, preserves your existing folder structure, and stores archive-specific reading data beside the books while keeping application-wide preferences and resources in Archeion application data, without requiring an account or cloud service.
+Archeion is my dive into agentic coding workflows. This app was mainly for my personal use, getting to explore agentic coding is a nice bonus to it.
+
+It is a local-first EPUB library that is based on literal files on your system. So if you have a folder lying around that stores all your EPUBs (for some reason) like me, and you have a need to read it on your desktop/laptop then this app is for you. Otherwise, this app is just a nothing burger, that's the one specific use-case of this app lol.
+
+## Transparency
+
+I have not read or written a single line of code in here, and all of the documentation on this app are written by LLMs.
+
+I want to make it very clear that maintanence on this app will be based on vibes (literally). All the fixes or improvements here has been from just using the app myself; finding out bugs or wanting features that improves my experience.
+
+Still, all feedback is appreciated if there's any.
 
 ## Download Archeion
 
@@ -35,7 +44,7 @@ books on your computer, preserves your existing folder structure, and stores arc
 
 ### Releases
 
-Archeion currently targets Windows 11 on x64 systems. Other desktop platforms are not packaged or supported yet.
+Currently, there's only support for windows systems. No Linux, macOS support yet, i'm too dumb for that right now.
 
 See the [latest release notes](https://github.com/TommyMoonn/archeion/releases/latest)
 or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
@@ -44,48 +53,40 @@ or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
 
 - **Real folder archives** - open an existing EPUB folder or create a new archive.
 - **Library organization** - browse folders and series, search, sort, filter, select, and manage books in bulk.
-- **Paged and continuous reading** - choose a page-turning or scrolling reading experience with persistent progress.
-- **Bookmarks and highlights** - save important locations and highlighted passages locally.
-- **Attached notes** - add notes to highlights and manage annotations from one reader panel.
-- **EPUB metadata editing** - update book metadata and embedded covers with transactional writeback and rollback protection.
-- **File management** - add, rename, move, export, reveal, and delete EPUBs and folders.
-- **Quick Actions** - reach common library and reader commands from the keyboard.
-- **Customizable appearance** - configure application appearance, library density, and reader typography.
-- **Offline dictionaries and Define** - install local dictionaries and look up selected Reader text without a cloud dictionary service.
-- **Standalone utility windows** - keep Settings, Theme Manager, and About open independently of the Library.
+- **Bookmarks and highlights** - bookmark, highlight and write notes while reading.
+- **EPUB metadata editing** - update a book's metadata such as its title, author, publisher, and more.
+- **Customizable appearance** - you can customize the app's theme, refer to the [Custom theme documentation](https://tommymoonn.github.io/archeion/documentation/customization/custom-themes/).
+- **Offline dictionaries** - install local dictionaries and look up words you don't know.
 
-## Local-first by design
+## Local-first
 
-Archeion has no account system, cloud sync, or telemetry. Your EPUB files remain
-normal files that can be opened, copied, backed up, and organized outside the app.
+An "archive" is literally just a folder on your system, so the books are just the `.epub` files under that folder. Each "archive" contains a `.archeion` folder that stores data such as reading progress, annotations/bookmarks, etc.
 
-Each archive may contain a hidden `.archeion` folder for archive-specific metadata and recovery data:
+`.archeion` file structure:
 
 ```txt
 Your Archive/
-  Book.epub
-  Series/
-    Volume 01.epub
-  .archeion/
-    annotations.json
-    library.json
-    progress.json
-    scanner-cache.json
-    covers/
-    backups/
-      annotations/
-      epub-writeback/
-      library/
-      progress/
-      scanner-cache/
+├── Meditations.epub
+├── Series/
+│   └── Crime and Punishment.epub
+└── .archeion/
+    ├── annotations.json
+    ├── library.json
+    ├── progress.json
+    ├── scanner-cache.json
+    ├── covers/
+    └── backups/
+        ├── annotations/
+        ├── epub-writeback/
+        ├── library/
+        ├── progress/
+        └── scanner-cache/
 ```
 
-Active metadata stays directly under `.archeion`. Recovery copies are grouped under
-`.archeion/backups/<category>/`, while retained EPUB writeback backups are stored under
-`.archeion/backups/epub-writeback/`. Back up the complete archive folder, including the
-hidden `.archeion` directory, so books and their archive-owned recovery data remain together. Application-wide preferences, installed dictionaries, and custom theme packages live separately in Archeion application data.
-
 ## Project documentation
+
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
 
 - [Development guide](docs/DEVELOPMENT.md)
 - [Project scripts](scripts/README.md)
