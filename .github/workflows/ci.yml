@@ -256,6 +256,52 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  windows-updater:
+    name: Windows installed updater smoke
+    runs-on: windows-2022
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
+        with:
+          toolchain: 1.97.1
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@f0d9c3887740aee45f6153b24b3a6b815192ec16 # v2
+        with:
+          workspaces: |
+            src-tauri -> target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Tauri WebDriver bridge
+        run: cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
+
+      - name: Verify isolated signed NSIS and MSI updates
+        run: npm run test:updater:windows
+
+      - name: Upload updater evidence
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-updater-smoke
+          path: test-results/updater-smoke/
+          if-no-files-found: ignore
+          retention-days: 7
+
   font-catalog-portability:
     name: Linux font catalog
     runs-on: ubuntu-latest
@@ -313,6 +359,7 @@ jobs:
       - rust-checks
       - font-catalog-portability
       - windows-runtime
+      - windows-updater
       - msrv
     runs-on: ubuntu-latest
     timeout-minutes: 5

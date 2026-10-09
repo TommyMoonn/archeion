@@ -104,7 +104,11 @@ describe("semantic documentation articles", () => {
 
   it("keeps onboarding ordered, reference tables consultable, and code examples intact", () => {
     const installing = readPage("docs/documentation/getting-started/installing/index.html");
-    expect(installing.querySelectorAll("[data-doc-article] ol")).toHaveLength(2);
+    const orderedSteps = [...installing.querySelectorAll("[data-doc-article] ol")];
+    expect(orderedSteps).toHaveLength(3);
+    expect(orderedSteps.map((list) => list.querySelectorAll("li").length)).toEqual([3, 3, 3]);
+    expect(text(orderedSteps[2])).toContain("Update now");
+    expect(text(orderedSteps[2])).toContain("Restart now");
     expect(installing.querySelector("#after-installing")?.tagName).toBe("P");
     expect(text(installing.querySelector("[data-doc-article]")!)).toContain(
       "Archive Manager opens",
