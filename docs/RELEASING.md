@@ -154,6 +154,67 @@ download that same artifact. The verifier uses the repository's Node version,
 checks its checkout SHA, and runs default release verification with read-only
 permissions; only the downstream publication job receives `contents: write`.
 
+## Isolated Windows updater verification
+
+Before preparing the bootstrap release, run the installed updater smoke on
+Windows with WebView2 and the repository's Tauri WebDriver bridge installed.
+The complete NSIS/MSI run requires an elevated administrator terminal because
+the MSI keeps the bundler's normal all-users scope. The harness checks this
+before building or installing anything; it does not elevate itself:
+
+```powershell
+cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
+npm run test:updater:windows
+```
+
+The harness builds synthetic `1.6.0` and `1.6.1` releases with one ephemeral
+signing key, a unique application/installer identity, and a controlled loopback
+manifest. It installs an isolated copy for each NSIS/MSI family, rejects
+modified bytes and a wrong signed version, then verifies download, ready state,
+explicit installation, source-process exit, target-process relaunch and version,
+and the matching native completion marker. NSIS remains per-user. MSI keeps the
+bundler's normal installation scope and validates its unique product code and
+owned installation path. The test does not change production installer settings
+or use the ordinary Archeion installer identity.
+
+Generated test windows enable loopback debugging through the WebView API and
+use the same nonce-owned profile expected by the driver. This is necessary for
+elevated WebView2, which ignores environment-variable overrides. These debugging
+settings exist only in the synthetic build overlays, not production configuration.
+
+Target relaunch has a bounded ten-minute observation window. MSI source-install
+and updater logs are retained in the evidence directory so a timeout can be
+diagnosed rather than hidden by an unbounded wait or a forced service restart.
+
+Only generated build overlays allow HTTP or enable MSI diagnostic logging. The
+production config stays HTTPS-only, version-bound, and downgrade-disabled. The
+harness clears inherited signing variables before generating its test key. Do
+not supply production signing material. Test keys, installer files, isolated
+application data and installations are removed after bounded teardown. Cleanup
+failure fails the run and retains diagnostic state rather than claiming success;
+the ephemeral signing key is deleted even when installation cleanup fails. Do
+not kill the shared Windows Installer service to bypass a stalled transaction.
+
+Evidence is written under `test-results/updater-smoke/run-<nonce>/`, including
+the requests, rejected fixtures, process identities, completion marker and cleanup
+result. `--bundle nsis` or `--bundle msi` may isolate a diagnosis, but one family
+alone is not full updater acceptance. Browser fixtures are separate evidence for
+presentation and keyboard behavior, not proof of installed updates.
+
+## Future release expectations
+
+`1.6.0` is the bootstrap release: `1.5.x` users install it manually once. Later
+stable versions use the same long-lived production public/private key pair and
+exact-SHA release pipeline. Do not replace the signing key or introduce a second
+publication path. Prepare the canonical release note before the version bump so
+both the Changelog anchor and manifest notes derive from the same source.
+
+For every hosted release, check all six assets and checksum coverage, exact-tag
+NSIS/MSI URLs with no generic platform fallback, matching signature-file contents,
+and signed-version enforcement. Staging validates metadata and bytes; successful
+native signature verification establishes authenticity. A newer manifest must
+never refer to an older artifact signed for another version.
+
 ## Release tag authorization
 
 Before relying on automatic publication, confirm the active `Protect tag`

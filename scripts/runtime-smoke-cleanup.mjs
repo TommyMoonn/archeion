@@ -48,9 +48,9 @@ export async function removeOwnedDirectory(target, parent, { remove = rm, wait =
   }
 }
 
-async function listWindowsProcesses() {
+export async function listWindowsProcesses() {
   const command =
-    '$items = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, @{Name="StartedAt"; Expression={if ($_.CreationDate) {$_.CreationDate.ToString("o")}}}); ConvertTo-Json -InputObject $items -Compress';
+    '$items = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath, CommandLine, @{Name="StartedAt"; Expression={if ($_.CreationDate) {$_.CreationDate.ToString("o")}}}); ConvertTo-Json -InputObject $items -Compress';
   const { stdout } = await execFileAsync(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-Command", command],
@@ -59,10 +59,53 @@ async function listWindowsProcesses() {
   return JSON.parse(stdout.trim().replace(/^\uFEFF/, ""));
 }
 
-async function terminateProcessTree(pid) {
+export async function terminateProcessTree(pid) {
   await execFileAsync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], {
     windowsHide: true,
   });
+}
+
+export async function listOwnedApplications(
+  application,
+  startedAt,
+  snapshot = listWindowsProcesses,
+) {
+  return (await snapshot()).filter((process) => {
+    if (
+      !process.ExecutablePath ||
+      path.resolve(process.ExecutablePath).toLowerCase() !== path.resolve(application).toLowerCase()
+    )
+      return false;
+    assert.ok(
+      process.StartedAt && Number.isFinite(Date.parse(process.StartedAt)),
+      "Missing owned application creation time",
+    );
+    return Date.parse(process.StartedAt) >= startedAt;
+  });
+}
+
+export async function stopOwnedApplications(
+  application,
+  startedAt,
+  {
+    snapshot = listWindowsProcesses,
+    terminate = terminateProcessTree,
+    wait = pause,
+    now = Date.now,
+  } = {},
+) {
+  const captured = await listOwnedApplications(application, startedAt, snapshot);
+  for (const process of captured) {
+    const current = (await listOwnedApplications(application, startedAt, snapshot)).find(
+      (item) => item.ProcessId === process.ProcessId && item.StartedAt === process.StartedAt,
+    );
+    if (current) await terminate(current.ProcessId);
+  }
+  const deadline = now() + 10_000;
+  while ((await listOwnedApplications(application, startedAt, snapshot)).length) {
+    if (now() >= deadline) throw new Error("Owned updater applications did not exit");
+    await wait(100);
+  }
 }
 
 function collectOwnedProcesses(processes, rootPid, owned) {

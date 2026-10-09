@@ -27,6 +27,26 @@ function link(route: string, href: string) {
 }
 
 describe("released behavior documentation depth", () => {
+  it("explains the manual updater bootstrap and explicit download/restart decisions", () => {
+    const copy = text("getting-started/installing");
+    for (const term of [
+      "1.5.x",
+      "1.6.0",
+      "manually",
+      "Update now",
+      "Restart now",
+      "24 hours",
+      "What's new",
+      "Library",
+      "About",
+      "Automatically check for updates",
+    ])
+      expect(copy).toContain(term);
+    link("getting-started/installing", "../../guides/settings/#automatic-updates");
+    link("getting-started/installing", "../../changelog/");
+    expect(text("guides/settings")).toContain("enabled by default");
+    expect(text("reference/about-resources")).toContain("Changelog");
+  });
   it("explains density and both owners of motion permission", () => {
     const copy = text("customization/appearance");
     for (const term of [
