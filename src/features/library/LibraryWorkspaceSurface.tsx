@@ -22,6 +22,7 @@ import {
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
+import { UpdateToast } from "../updates/UpdateToast";
 import type { QuickActionRegistration } from "../quick-actions/quickActions";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -191,6 +192,7 @@ export function LibraryWorkspaceSurface({
 
   return (
     <PageShell
+      notice={<UpdateToast />}
       importDropTarget={importDropTarget}
       mainRef={mainRef}
       sidebar={

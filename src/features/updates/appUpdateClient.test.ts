@@ -60,6 +60,66 @@ function fixture() {
 }
 
 describe("app update observation client", () => {
+  it("joins a pending completion acknowledgement without clearing native metadata early", async () => {
+    const { client, backend } = fixture();
+    const completed = {
+      ...snapshot(),
+      prompt: { ...snapshot().prompt, completedVersion: "1.6.0" },
+    };
+    backend.read.mockResolvedValue(completed);
+    await client.initialize();
+    const acknowledged = deferred<AppUpdateSnapshot>();
+    backend.acknowledgeCompleted.mockReturnValueOnce(acknowledged.promise);
+    const first = client.acknowledgeCompleted("1.6.0");
+    expect(client.acknowledgeCompleted("1.6.0")).toBe(first);
+    expect(client.hasPendingCompletionAcknowledgement("1.6.0")).toBe(true);
+    await Promise.resolve();
+    expect(backend.acknowledgeCompleted).toHaveBeenCalledOnce();
+    expect(client.getSnapshot().update).toBe(completed);
+    acknowledged.resolve(snapshot(1));
+    await first;
+    expect(client.hasPendingCompletionAcknowledgement("1.6.0")).toBe(false);
+    expect(client.getSnapshot().update?.prompt.completedVersion).toBeNull();
+  });
+
+  it("retains a failed acknowledgement marker and permits a later retry", async () => {
+    const { client, backend } = fixture();
+    const completed = {
+      ...snapshot(),
+      prompt: { ...snapshot().prompt, completedVersion: "1.6.0" },
+    };
+    backend.read.mockResolvedValue(completed);
+    await client.initialize();
+    backend.acknowledgeCompleted.mockRejectedValueOnce(new Error("fixture write failed"));
+    await expect(client.acknowledgeCompleted("1.6.0")).rejects.toThrow("fixture write failed");
+    expect(client.hasPendingCompletionAcknowledgement("1.6.0")).toBe(false);
+    expect(client.getSnapshot().update).toBe(completed);
+    await client.acknowledgeCompleted("1.6.0");
+    expect(backend.acknowledgeCompleted).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let a retired acknowledgement clear a restarted pending request", async () => {
+    const { client, backend } = fixture();
+    await client.initialize();
+    const retired = deferred<AppUpdateSnapshot>();
+    const current = deferred<AppUpdateSnapshot>();
+    backend.acknowledgeCompleted
+      .mockReturnValueOnce(retired.promise)
+      .mockReturnValueOnce(current.promise);
+    const first = client.acknowledgeCompleted("1.6.0");
+    await Promise.resolve();
+    client.dispose();
+    await client.initialize();
+    const second = client.acknowledgeCompleted("1.6.0");
+    retired.resolve(snapshot(99));
+    await expect(first).rejects.toThrow("The update client stopped.");
+    expect(client.hasPendingCompletionAcknowledgement("1.6.0")).toBe(true);
+    expect(client.getSnapshot().update?.revision).toBe(0);
+    current.resolve(snapshot(1));
+    await second;
+    expect(client.hasPendingCompletionAcknowledgement("1.6.0")).toBe(false);
+  });
+
   it("coalesces initialization and subscribes before reading without initiating any operation", async () => {
     const { client, backend } = fixture();
     const read = deferred<AppUpdateSnapshot>();

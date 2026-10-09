@@ -2,8 +2,9 @@ import { createRoot } from "react-dom/client";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
 import { BrowserFixture } from "./views";
+import { APPLICATION_VERSION_FALLBACK } from "../../../src/app/appVersion";
 import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
-import { resolveTheme } from "../../../src/themes/resolveTheme";
+import { resolveAppTheme, resolveTheme } from "../../../src/themes/resolveTheme";
 import { applyResolvedAppTheme } from "../../../src/themes/themeCssVariables";
 import { validateThemeManifest } from "../../../src/themes/validateThemeManifest";
 import "../../../src/styles/index.css";
@@ -11,6 +12,9 @@ import "../../../src/styles/index.css";
 const root = document.getElementById("root");
 if (!root) throw new Error("Browser fixture root is missing.");
 const stressTheme = new URLSearchParams(window.location.search).get("themeStress");
+if (new URLSearchParams(window.location.search).has("light")) {
+  applyResolvedAppTheme(document.documentElement, resolveAppTheme("light", {}));
+}
 if (stressTheme !== null) {
   if (stressTheme !== "equal" && stressTheme !== "distinct")
     throw new Error("Unknown shell stress theme.");
@@ -28,6 +32,33 @@ if (new URLSearchParams(window.location.search).get("view") === "archive-shell")
       return;
     }
     throw new Error(`Unexpected Archive Manager fixture command: ${command}`);
+  });
+}
+if (
+  ["about-updates", "library-updates"].includes(
+    new URLSearchParams(window.location.search).get("view") ?? "",
+  )
+) {
+  if (new URLSearchParams(window.location.search).get("view") === "about-updates") {
+    Object.defineProperty(globalThis, "isTauri", { value: true, configurable: true });
+    mockWindows("about");
+  }
+  mockIPC((command, args) => {
+    if (command === "plugin:app|version") return APPLICATION_VERSION_FALLBACK;
+    if (command === "plugin:window|minimize" || command === "plugin:window|close") {
+      document.documentElement.dataset.lastWindowCommand = command;
+      return;
+    }
+    if (
+      command === "open_external_url" &&
+      typeof args === "object" &&
+      args !== null &&
+      "url" in args
+    ) {
+      document.documentElement.dataset.lastExternalUrl = String(args.url);
+      return;
+    }
+    throw new Error(`Unexpected update fixture command: ${command}`);
   });
 }
 createRoot(root).render(<BrowserFixture />);
