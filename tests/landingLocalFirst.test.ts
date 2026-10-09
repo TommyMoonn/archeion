@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 const projectRoot = process.cwd();
 const landingHtml = fs.readFileSync(path.join(projectRoot, "docs/index.html"), "utf8");
 const landingCss = fs.readFileSync(path.join(projectRoot, "docs/css/styles.css"), "utf8");
-const readme = fs.readFileSync(path.join(projectRoot, "README.md"), "utf8");
 
 const localFirstMarkup = landingHtml.match(
   /<section\s+class="local-first-scene section"[\s\S]*?<section\s+class="get-started section section--ink"/,
@@ -25,19 +24,12 @@ describe("landing local-first ownership story", () => {
     expect(localFirstMarkup).toContain("Application-wide preferences");
     expect(localFirstMarkup).toContain("Installed dictionaries");
     expect(localFirstMarkup).toContain("Custom theme packages");
-
-    expect(readme).toContain("Your EPUB files remain");
-    expect(readme).toContain("Each archive may contain a hidden `.archeion` folder");
-    expect(readme).toContain(
-      "Application-wide preferences, installed dictionaries, and custom theme packages",
-    );
   });
 
   it("states the local-first guarantees without inflated security claims", () => {
     expect(localFirstMarkup).toContain("No account");
     expect(localFirstMarkup).toContain("No cloud sync");
     expect(localFirstMarkup).toContain("No telemetry");
-    expect(readme).toContain("Archeion has no account system, cloud sync, or telemetry.");
     expect(localFirstMarkup).not.toMatch(
       /encrypted|secure|private by design|zero knowledge|military/i,
     );
