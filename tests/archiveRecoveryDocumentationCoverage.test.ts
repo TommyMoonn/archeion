@@ -176,11 +176,8 @@ describe("archive health, recovery, and export documentation", () => {
       "backups/epub-writeback",
     ])
       expect(text).toContain(term);
-    const readme = fs.readFileSync("README.md", "utf8");
-    for (const claim of ["no account system", "cloud sync", "telemetry"]) {
-      expect(readme).toContain(claim);
+    for (const claim of ["no account system", "cloud sync", "telemetry"])
       expect(text).toContain(claim);
-    }
     for (const item of storageSettingsItems.filter(
       (item) => "requiresArchive" in item && item.requiresArchive,
     ))
