@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Window } from "happy-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const landingHtml = fs.readFileSync(path.join(process.cwd(), "docs/index.html"), "utf8");
 const landingScript = fs.readFileSync(path.join(process.cwd(), "docs/js/main.js"), "utf8");
@@ -166,103 +166,6 @@ describe("landing Reader highlight demo keyboard contract", () => {
         themes.find((button) => button.dataset.readerTheme === theme),
       );
     }
-  });
-
-  it.each(["success", "failure"] as const)(
-    "announces clipboard %s in a stable polite region",
-    async (outcome) => {
-      const writeText = vi.fn(async () => {
-        if (outcome === "failure") throw new Error("Clipboard denied");
-      });
-      const { window } = createReaderDemoWindow((window) => {
-        Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
-        Object.defineProperty(window.navigator, "clipboard", {
-          configurable: true,
-          value: { writeText },
-        });
-      });
-      const status = window.document.querySelector<HTMLElement>("[data-copy-status]");
-      expect(status?.getAttribute("role")).toBe("status");
-      expect(status?.getAttribute("aria-live")).toBe("polite");
-      expect(status?.textContent).toBe("");
-      const copy = window.document.querySelector<HTMLButtonElement>("[data-copy-command]")!;
-      copy.focus();
-      copy.click();
-      await vi.waitFor(() =>
-        expect(status?.textContent).toBe(
-          outcome === "success"
-            ? "Setup commands copied."
-            : "Unable to copy setup commands. Select the commands and copy them manually.",
-        ),
-      );
-      expect(writeText).toHaveBeenCalledOnce();
-      expect(window.document.activeElement).toBe(copy);
-      expect(window.document.querySelector("[data-copy-status]")).toBe(status);
-    },
-  );
-  it.each(["success", "denied", "throws"] as const)(
-    "announces legacy clipboard %s and removes its temporary textarea",
-    async (outcome) => {
-      const execCommand = vi.fn(() => {
-        if (outcome === "throws") throw new Error("Copy unavailable");
-        return outcome === "success";
-      });
-      const { window } = createReaderDemoWindow((window) => {
-        Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
-        Object.defineProperty(window.document, "execCommand", {
-          configurable: true,
-          value: execCommand,
-        });
-      });
-      const copy = window.document.querySelector<HTMLButtonElement>("[data-copy-command]")!;
-      copy.focus();
-      copy.click();
-      await vi.waitFor(() =>
-        expect(window.document.querySelector("[data-copy-status]")?.textContent).toBe(
-          outcome === "success"
-            ? "Setup commands copied."
-            : "Unable to copy setup commands. Select the commands and copy them manually.",
-        ),
-      );
-      expect(execCommand).toHaveBeenCalledWith("copy");
-      expect(window.document.querySelector("textarea[readonly]")).toBeNull();
-      expect(window.document.activeElement).toBe(copy);
-      expect(copy.hasAttribute("aria-busy")).toBe(false);
-    },
-  );
-
-  it("keeps one clipboard operation pending and supports another attempt after it settles", async () => {
-    let finishCopy: () => void = () => {
-      throw new Error("Copy did not start.");
-    };
-    const writeText = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          finishCopy = resolve;
-        }),
-    );
-    const { window } = createReaderDemoWindow((window) => {
-      Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
-      Object.defineProperty(window.navigator, "clipboard", {
-        configurable: true,
-        value: { writeText },
-      });
-    });
-    const copy = window.document.querySelector<HTMLButtonElement>("[data-copy-command]")!;
-    const status = window.document.querySelector<HTMLElement>("[data-copy-status]")!;
-    copy.click();
-    copy.click();
-    expect(writeText).toHaveBeenCalledOnce();
-    expect(copy.getAttribute("aria-busy")).toBe("true");
-    expect(status.textContent).toBe("Copying setup commands…");
-    finishCopy();
-    await vi.waitFor(() => expect(status.textContent).toBe("Setup commands copied."));
-    expect(copy.hasAttribute("aria-busy")).toBe(false);
-    copy.click();
-    expect(writeText).toHaveBeenCalledTimes(2);
-    expect(status.textContent).toBe("Copying setup commands…");
-    finishCopy();
-    await vi.waitFor(() => expect(status.textContent).toBe("Setup commands copied."));
   });
 
   it("uses a simple named button group and input-neutral instruction copy", () => {

@@ -43,7 +43,19 @@ for (const dismissal of ["Escape", "toggle", "outside"] as const) {
     await toggle.press("Enter");
     if (dismissal === "Escape") await page.keyboard.press("Escape");
     else if (dismissal === "toggle") await toggle.click();
-    else await page.locator("#hero-title").click();
+    else {
+      const outsidePoint = await page.locator("#site-nav").evaluate((navigation) => ({
+        x: window.innerWidth / 2,
+        y: (navigation.getBoundingClientRect().bottom + window.innerHeight) / 2,
+      }));
+      expect(
+        await page.evaluate(
+          ({ x, y }) => document.querySelector("main")?.contains(document.elementFromPoint(x, y)),
+          outsidePoint,
+        ),
+      ).toBe(true);
+      await page.mouse.click(outsidePoint.x, outsidePoint.y);
+    }
     await expect(toggle).toBeFocused();
     await expect(page.locator("#site-nav")).toHaveAttribute("inert", "");
   });
