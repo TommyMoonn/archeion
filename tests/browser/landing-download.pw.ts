@@ -32,9 +32,7 @@ test("primary navigation matches the final landing destinations", async ({ page 
   );
 });
 
-test("Get Started keeps the end-user path visible before developer details", async ({
-  page,
-}) => {
+test("Get Started keeps the end-user path visible before developer details", async ({ page }) => {
   const section = page.locator("#get-started");
   const primary = section.getByRole("link", { name: "Download for Windows", exact: true });
   const documentation = section.getByRole("link", { name: "Read the documentation", exact: true });
@@ -69,6 +67,43 @@ test("Get Started keeps the end-user path visible before developer details", asy
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     ),
   ).toBe(true);
+});
+
+test("navigation follows section positions after content reflows without a viewport resize", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+  });
+  const navigation = page.locator("#site-nav");
+  const libraryLink = navigation.locator('a[href="#library"]');
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await libraryLink.click();
+  await expect(libraryLink).toHaveAttribute("aria-current", "true");
+
+  await page.locator(".site-header .brand").click();
+  await expect(page).toHaveURL(/#top$/);
+  const libraryTop = await page.locator("#library").evaluate((element) => {
+    return element.getBoundingClientRect().top + window.scrollY;
+  });
+  await page.locator(".hero-product").evaluate((element) => {
+    (element as HTMLElement).style.display = "none";
+  });
+  await expect
+    .poll(() =>
+      page
+        .locator("#library")
+        .evaluate((element) => element.getBoundingClientRect().top + window.scrollY),
+    )
+    .toBeLessThan(libraryTop - 100);
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await libraryLink.click();
+  await expect(page).toHaveURL(/#library$/);
+  await expect(libraryLink).toHaveAttribute("aria-current", "true");
+  await expect(page.locator("#library")).toBeFocused();
 });
 
 for (const viewport of [
@@ -133,10 +168,7 @@ for (const viewport of [
       }
       await navigation.locator(`a[href="#${id}"]`).click();
       await expect(page).toHaveURL(new RegExp(`#${id}$`));
-      await expect(navigation.locator(`a[href="#${id}"]`)).toHaveAttribute(
-        "aria-current",
-        "true",
-      );
+      await expect(navigation.locator(`a[href="#${id}"]`)).toHaveAttribute("aria-current", "true");
 
       const offset = await page.locator(`#${id}`).evaluate((element) => {
         const header = document.querySelector(".site-header");
@@ -152,7 +184,9 @@ for (const viewport of [
     }
 
     const section = page.locator("#get-started");
-    const sectionHeight = await section.evaluate((element) => element.getBoundingClientRect().height);
+    const sectionHeight = await section.evaluate(
+      (element) => element.getBoundingClientRect().height,
+    );
     const headerHeight = await page
       .locator(".site-header")
       .evaluate((element) => element.getBoundingClientRect().height);

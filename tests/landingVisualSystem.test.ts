@@ -6,7 +6,9 @@ import { describe, expect, it } from "vitest";
 const css = fs.readFileSync(path.join(process.cwd(), "docs/css/styles.css"), "utf8");
 const html = fs.readFileSync(path.join(process.cwd(), "docs/index.html"), "utf8");
 const rule = (selector: string) =>
-  css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+  css.match(
+    new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`),
+  )?.[1] ?? "";
 
 describe("landing visual system", () => {
   it("uses the application-derived light/dark palette instead of old marketing color tokens", () => {
@@ -23,7 +25,11 @@ describe("landing visual system", () => {
     expect(css).toContain('--site-display: "Literata", Georgia, serif;');
     expect(css).toContain("--site-type-body: 16px;");
     expect(css).toContain("--site-type-section: clamp(44px, 5vw, 72px);");
-    for (const heading of [".section-heading h2", ".local-first-heading h2", ".get-started__copy h2"]) {
+    for (const heading of [
+      ".section-heading h2",
+      ".local-first-heading h2",
+      ".get-started__copy h2",
+    ]) {
       expect(rule(heading)).toContain("font-size: var(--site-type-section)");
     }
     expect(rule("body")).toContain("font-size: var(--site-type-body)");

@@ -23,8 +23,8 @@ for (const viewport of viewports) {
     await expect(reader).toBeVisible();
     await expect(bridge).toBeVisible();
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Your EPUB library");
-    await expect(page.getByRole("link", { name: "Download for Windows" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Explore the library" })).toBeVisible();
+    await expect(hero.getByRole("link", { name: "Download for Windows" })).toBeVisible();
+    await expect(hero.getByRole("link", { name: "Explore the library" })).toBeVisible();
 
     await page.waitForTimeout(900);
 
@@ -109,11 +109,12 @@ test("Hero actions are keyboard reachable and no-animation rendering keeps the p
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/docs/", { waitUntil: "networkidle" });
 
-  const primary = page.getByRole("link", { name: "Download for Windows" });
+  const hero = page.locator(".hero");
+  const primary = hero.getByRole("link", { name: "Download for Windows" });
   await primary.focus();
   await expect(primary).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Explore the library" })).toBeFocused();
+  await expect(hero.getByRole("link", { name: "Explore the library" })).toBeFocused();
 
   await page.addStyleTag({
     content:
@@ -136,8 +137,9 @@ test("coarse pointer keeps the complete H04 product relationship", async ({ brow
   await expect(page.locator(".hero-product__library")).toBeVisible();
   await expect(page.locator(".hero-product__bridge")).toBeVisible();
   await expect(page.locator(".hero-product__reader")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Download for Windows" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Explore the library" })).toBeVisible();
+  const hero = page.locator(".hero");
+  await expect(hero.getByRole("link", { name: "Download for Windows" })).toBeVisible();
+  await expect(hero.getByRole("link", { name: "Explore the library" })).toBeVisible();
 
   await context.close();
 });

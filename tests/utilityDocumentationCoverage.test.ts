@@ -149,8 +149,13 @@ describe("Settings, dictionaries, theme, and About documentation coverage", () =
     expect(readme).toMatch(/Settings.*Theme Manager.*About/is);
     expect(readme).toMatch(/application data/i);
 
-    const landing = text(path.join(projectRoot, "docs/index.html"));
-    expect(landing).toMatch(/Dictionar.*Define/is);
+    const landingWindow = new Window();
+    landingWindow.document.write(read(path.join(projectRoot, "docs/index.html")));
+    const readerNotes = landingWindow.document.querySelector("#reader .reader-notes")?.textContent;
+    expect(readerNotes).toMatch(/\bDefine\b/i);
+    expect(readerNotes).toMatch(/\bdictionar(?:y|ies)\b/i);
+
+    const landing = landingWindow.document.body.textContent ?? "";
     expect(landing).toContain("Theme Manager");
     expect(landing).toContain("Settings");
     expect(landing).toContain("About");

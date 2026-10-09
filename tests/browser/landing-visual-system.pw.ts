@@ -40,8 +40,8 @@ test("focus, Reader themes and reduced motion remain meaningful", async ({ page 
   const search = page.locator(".app-library__search input");
   await search.focus();
   await expect(search).toBeFocused();
-  const searchFocus = await search.evaluate((element) =>
-    getComputedStyle(element.parentElement!).boxShadow,
+  const searchFocus = await search.evaluate(
+    (element) => getComputedStyle(element.parentElement!).boxShadow,
   );
   expect(searchFocus).not.toBe("none");
 
@@ -51,10 +51,17 @@ test("focus, Reader themes and reduced motion remain meaningful", async ({ page 
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload({ waitUntil: "networkidle" });
-  const styles = await page.locator("[data-reveal]").first().evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { opacity: style.opacity, transform: style.transform, duration: style.transitionDuration };
-  });
+  const styles = await page
+    .locator("[data-reveal]")
+    .first()
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        opacity: style.opacity,
+        transform: style.transform,
+        duration: style.transitionDuration,
+      };
+    });
   expect(styles.opacity).toBe("1");
   expect(styles.transform).toBe("none");
   expect(styles.duration.split(",").every((value) => parseFloat(value) <= 0.001)).toBe(true);

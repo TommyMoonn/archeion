@@ -166,6 +166,11 @@
     });
   };
 
+  if ("ResizeObserver" in window) {
+    const sectionResizeObserver = new ResizeObserver(requestPageMetricsRefresh);
+    sections.forEach((section) => sectionResizeObserver.observe(section));
+  }
+
   window.addEventListener("scroll", requestPageScrollUpdate, { passive: true });
   window.addEventListener("resize", requestPageMetricsRefresh);
   window.addEventListener("load", refreshPageMetrics, { once: true });

@@ -2459,7 +2459,8 @@ svg {
 .local-first-scene {
   overflow: hidden;
   background:
-    radial-gradient(circle at 16% 10%, rgb(143 193 227 / 7%), transparent 26rem), var(--site-light-canvas);
+    radial-gradient(circle at 16% 10%, rgb(143 193 227 / 7%), transparent 26rem),
+    var(--site-light-canvas);
 }
 
 .local-first-heading {
@@ -3643,7 +3644,8 @@ svg {
     transition-duration: 0.01ms !important;
   }
 
-  [data-reveal] {
+  [data-reveal],
+  [data-reveal].is-visible {
     opacity: 1;
     transform: none;
   }

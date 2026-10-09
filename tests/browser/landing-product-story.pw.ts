@@ -51,7 +51,9 @@ test("Library preview controls remain reachable at mobile width", async ({ page 
     await expect(control).toBeFocused();
   }
 
-  expect(await preview.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await preview.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+    true,
+  );
 });
 
 test("Reader rail contains only reading controls and preserves their interactions", async ({

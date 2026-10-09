@@ -52,7 +52,7 @@ describe("landing Library and Reader product story", () => {
     expect(landingCss).toMatch(/\.app-library__search[\s\S]*?min-height: 36px/);
     expect(landingCss).toMatch(/\.app-library__filter[\s\S]*?min-height: 36px/);
     expect(landingCss).toMatch(/\.folder-overview button[\s\S]*?min-height: 76px/);
-    expect(landingScript).toContain('libraryFilter.disabled = !showsBooks');
+    expect(landingScript).toContain("libraryFilter.disabled = !showsBooks");
   });
 
   it("removes ledger repetition and keeps only direct collection-management details", () => {
@@ -98,6 +98,8 @@ describe("landing Library and Reader product story", () => {
 
   it("removes the old orbit metaphor from the sample reading passage", () => {
     expect(readerMarkup).not.toMatch(/entered orbit|inner ring|archive lights/i);
-    expect(landingScript).not.toMatch(/entered orbit|signal crossed the inner ring|archive lights moved/i);
+    expect(landingScript).not.toMatch(
+      /entered orbit|signal crossed the inner ring|archive lights moved/i,
+    );
   });
 });

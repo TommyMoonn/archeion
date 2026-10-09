@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Window } from "happy-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const landingHtml = fs.readFileSync(path.join(process.cwd(), "docs/index.html"), "utf8");
 const landingScript = fs.readFileSync(path.join(process.cwd(), "docs/js/main.js"), "utf8");

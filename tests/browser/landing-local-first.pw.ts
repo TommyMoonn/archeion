@@ -14,7 +14,9 @@ test("local-first section presents archive-owned and application-wide storage se
     section.getByRole("heading", { name: "Your EPUBs stay as normal files." }),
   ).toBeVisible();
   await expect(section.getByText("Your Archive/", { exact: true })).toBeVisible();
-  await expect(section.getByText(".archeion/", { exact: true })).toBeVisible();
+  await expect(
+    section.locator(".archive-boundary").getByText(".archeion/", { exact: true }),
+  ).toBeVisible();
   await expect(section.getByText("Archeion application data", { exact: true })).toBeVisible();
   await expect(section.getByText("No account", { exact: true })).toBeVisible();
   await expect(section.getByText("No cloud sync", { exact: true })).toBeVisible();
