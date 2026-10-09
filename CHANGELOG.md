@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-09
+
+Archeion 1.6.0 is the Windows updater bootstrap release and includes installed-font preferences for the application and Reader. Existing 1.5.x users install this release manually once to enable future in-app updates.
+
+### Added
+
+- Added one application-global native updater owner with single-flight check, download, and install operations, revisioned cross-window state, and in-memory signature-verified downloads.
+- Added automatic stable update checks after usable startup and approximately every six hours, an enabled-by-default General preference, per-version 24-hour notification snooze, session-only restart deferral, and updater-driven completion notices.
+- Added bottom-right Library update notices with download progress and explicit restart decisions, shared manual update status in About, and version-specific documentation Changelog links.
+- Added Windows installed-font discovery and searchable family pickers for Interface font, Display font, and Reader typeface. Missing saved families retain their selections and use role-specific fallbacks.
+
+### Changed
+
+- Release candidates now use a release-only signing overlay and stage installers, their signatures, bundle-specific `latest.json`, and checksums as one exact six-file asset set. The manifest derives its notes and date from canonical tracked release notes.
+- Production updater configuration requires signed versions, rejects downgrades, uses the stable HTTPS GitHub Releases endpoint, and preserves NSIS/MSI installer-family continuity. Ordinary development builds require no production signing secrets.
+- Application font preferences remain independent of EPUB publication typography and synchronize across application windows; Reader can use installed Windows families without importing font files into archives.
+
+### Testing
+
+- Added isolated signed NSIS/MSI updater verification for invalid signatures and signed-version mismatch, explicit ready state, installation, target relaunch, native completion metadata, installer continuity, and bounded identity-scoped cleanup.
+- Added updater lifecycle, scheduling, snooze, cross-window, Library/About interaction, release-manifest, and publication contract coverage. The Windows installed-updater smoke is required by the aggregate CI gate.
+
 ## [1.5.6] - 2026-10-06
 
 Archeion 1.5.6 refines the Library and Archive Manager shell, theme previews, and application typography.
@@ -633,7 +655,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.5.6...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/TommyMoonn/archeion/compare/v1.5.6...v1.6.0
 [1.5.6]: https://github.com/TommyMoonn/archeion/compare/v1.5.5...v1.5.6
 [1.5.5]: https://github.com/TommyMoonn/archeion/compare/v1.5.4...v1.5.5
 [1.5.4]: https://github.com/TommyMoonn/archeion/compare/v1.5.3...v1.5.4
