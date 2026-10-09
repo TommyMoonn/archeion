@@ -2,6 +2,15 @@
   "version": 1,
   "groups": [
     {
+      "from": "about",
+      "to": "updates",
+      "reason": "About observes the application-global updater and uses its shared Changelog destination without owning updater lifecycle or persistence.",
+      "files": [
+        ["AboutSurface.tsx", "AboutUpdateStatus.tsx"],
+        ["AboutSurface.tsx", "updateReleaseUrl.ts"]
+      ]
+    },
+    {
       "from": "library",
       "to": "updates",
       "reason": "The Library viewport hosts the updater-owned observation notice without owning network, prompt persistence, or installer state.",

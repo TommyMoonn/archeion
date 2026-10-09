@@ -68,7 +68,8 @@ describe("AboutSurface", () => {
     expect(container.querySelector('img[alt=""]')).not.toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
       "Websitetommymoonn.github.io/archeion",
-      "Documentationtommymoonn.github.io/archeion/documentation",
+      "DocumentationArcheion documentation",
+      "ChangelogRelease history",
       "Source codegithub.com/TommyMoonn/archeion",
     ]);
 
@@ -81,6 +82,7 @@ describe("AboutSurface", () => {
     expect(openExternalUrl.mock.calls).toEqual([
       ["https://tommymoonn.github.io/archeion/"],
       ["https://tommymoonn.github.io/archeion/documentation/"],
+      ["https://tommymoonn.github.io/archeion/documentation/changelog/"],
       ["https://github.com/TommyMoonn/archeion"],
     ]);
   });

@@ -18,6 +18,7 @@ import { ThemeManagerFixture } from "./theme-manager-view";
 import { TypographyFixture } from "./typography-view";
 import { UpdateToast } from "../../../src/features/updates/UpdateToast";
 import { createUpdateToastFixture } from "./update-toast-backend";
+import { AboutUpdateFixture } from "./about-update-view";
 
 const archive: KnownArchive = {
   id: "browser-fixture",
@@ -50,7 +51,23 @@ function ReaderFixture() {
 }
 
 function LibraryFixture({ updates = false }: { updates?: boolean }) {
-  const [updateFixture] = useState(() => (updates ? createUpdateToastFixture() : null));
+  const [updateFixture] = useState(() => {
+    if (!updates) return null;
+    const completed = new URLSearchParams(window.location.search).has("completed");
+    return createUpdateToastFixture(
+      completed
+        ? {
+            currentVersion: "1.6.1",
+            prompt: {
+              snoozedVersion: null,
+              snoozedUntil: null,
+              restartDeferred: false,
+              completedVersion: "1.6.1",
+            },
+          }
+        : {},
+    );
+  });
   useEffect(() => {
     if (!updateFixture) return;
     window.updateToastFixture = updateFixture;
@@ -63,7 +80,9 @@ function LibraryFixture({ updates = false }: { updates?: boolean }) {
   const [location, setLocation] = useState<LibraryLocation>({ type: "library" });
   const expandedContentRef = useRef<HTMLDivElement>(null);
   const sidebarNavigationRef = useRef<HTMLElement>(null);
-  const [readerOpen, setReaderOpen] = useState(false);
+  const [readerOpen, setReaderOpen] = useState(
+    () => updates && new URLSearchParams(window.location.search).has("readerStartup"),
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const shellColors = new URLSearchParams(window.location.search).get("shellColors");
   const style =
@@ -204,6 +223,7 @@ export function BrowserFixture() {
   if (view === "reader") return <ReaderFixture />;
   if (view === "library") return <LibraryFixture />;
   if (view === "library-updates") return <LibraryFixture updates />;
+  if (view === "about-updates") return <AboutUpdateFixture />;
   if (view === "dialog") return <DialogFixture />;
   if (view === "note-confirmation") return <ReaderNoteConfirmationFixture />;
   if (view === "library-confirmations") return <LibraryConfirmationFixture />;

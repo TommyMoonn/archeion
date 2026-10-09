@@ -11,14 +11,20 @@
 
 .about-window__content {
   display: grid;
-  width: min(100%, 440px);
+  width: min(100%, 420px);
   min-height: 100%;
   align-content: center;
   justify-items: center;
-  gap: 20px;
-  padding: 28px 24px;
+  gap: 24px;
+  padding: 16px 24px;
   margin-inline: auto;
   text-align: center;
+}
+
+.about-window__identity {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
 }
 
 .about-window__brand {
@@ -28,8 +34,8 @@
 
 .about-window__brand img {
   display: block;
-  width: 96px;
-  height: 96px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
 }
 
@@ -61,6 +67,50 @@
   font-weight: var(--type-control-label-weight);
 }
 
+.about-update {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.about-update__message {
+  color: var(--text-strong);
+  font-size: var(--type-body);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.about-update__detail {
+  color: var(--muted);
+  font-size: var(--type-meta);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.about-update[data-state="available"] .about-update__message {
+  font-weight: var(--font-weight-semibold);
+}
+.about-update__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.about-update .update-toast__link {
+  justify-self: center;
+}
+.about-update progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+}
+.about-update .button--primary {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+.about-update .button--ghost {
+  color: var(--muted);
+}
+
 .about-window__links {
   display: grid;
   gap: 8px;
@@ -73,21 +123,18 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 54px;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
+  min-height: 52px;
+  padding: 8px;
   border-radius: var(--radius-control);
   color: var(--text);
-  background: var(--surface);
+  background: transparent;
   text-align: start;
   text-decoration: none;
-  transition:
-    border-color var(--motion-duration-standard) var(--motion-ease-standard),
-    background var(--motion-duration-standard) var(--motion-ease-standard);
+  transition: background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .about-window__link > svg:first-child {
-  color: var(--accent);
+  color: var(--muted);
 }
 
 .about-window__link > svg:last-child {
@@ -115,9 +162,8 @@
 
 .about-window__link:hover,
 .about-window__link:focus-visible {
-  border-color: var(--accent);
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--surface) 84%, var(--accent-soft));
+  background: var(--surface-hover);
 }
 
 :root[data-focus-presentation="keyboard-navigation"] .about-window__link:focus-visible {
@@ -134,11 +180,6 @@
 
 @media (max-width: 480px) {
   .about-window__content {
-    padding: 24px 20px;
-  }
-
-  .about-window__brand img {
-    width: 80px;
-    height: 80px;
+    padding: 16px 20px;
   }
 }

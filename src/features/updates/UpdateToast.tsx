@@ -4,6 +4,7 @@ import { Button } from "../../components/Button";
 import { appUpdateClient, type AppUpdateClient } from "./appUpdateClient";
 import { updateReleaseUrl } from "./updateReleaseUrl";
 import { updateToastView, type UpdateToastView } from "./updateToastView";
+import { useCompletedUpdateNotice } from "./useCompletedUpdateNotice";
 
 type Action = "defer" | "download" | "install" | "check" | "link";
 type RequestError = { revision: number; message: string; action: Action };
@@ -39,6 +40,7 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
         }
       : null;
   const view = dismissedRevision === update?.revision ? null : (baseView ?? recoveryView);
+  const completion = useCompletedUpdateNotice(client, update, Boolean(view));
 
   useEffect(() => {
     request.current.active = true;
@@ -58,7 +60,9 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
     ? localError?.action !== "link" && localError
       ? localError.message
       : view.message
-    : "";
+    : completion.version
+      ? `Archeion was updated to ${completion.version}`
+      : "";
   useEffect(() => {
     if (announcementRef.current) {
       announcementRef.current.textContent =
@@ -69,7 +73,7 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
   async function actOnUpdate(action: Action) {
     if (!update || request.current.busy) return;
     const revision = update.revision;
-    const version = update.available?.version;
+    const version = view?.version ?? completion.version;
     const owner = request.current;
     const focusedElement = document.activeElement;
     const ownedFocus = toastRef.current?.contains(focusedElement);
@@ -136,19 +140,20 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
         aria-atomic="true"
         ref={announcementRef}
       />
-      {view ? (
+      {view || completion.version ? (
         <section
           aria-label="Application update"
           className="update-toast"
-          data-state={view.kind}
+          data-state={view?.kind ?? "completed"}
           ref={toastRef}
           tabIndex={-1}
+          {...(!view ? completion.pauseHandlers : {})}
         >
           <p className="update-toast__message">{message}</p>
-          {view.kind === "available" && view.version ? (
+          {(view?.kind === "available" && view.version) || completion.version ? (
             <a
               className="update-toast__link"
-              href={updateReleaseUrl(view.version)}
+              href={updateReleaseUrl(view?.version ?? completion.version!)}
               target="_blank"
               rel="noreferrer"
               onClick={(event) => {
@@ -157,13 +162,16 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
               }}
             >
               What's new <span aria-hidden="true">↗</span>
-              <span className="sr-only"> for Archeion {view.version} (opens in your browser)</span>
+              <span className="sr-only">
+                {" "}
+                for Archeion {view?.version ?? completion.version} (opens in your browser)
+              </span>
             </a>
           ) : null}
           {localError?.action === "link" ? (
             <p className="update-toast__detail">{localError.message}</p>
           ) : null}
-          {view.kind === "downloading" ? (
+          {view?.kind === "downloading" ? (
             <>
               <p className="update-toast__detail">
                 {view.percent === null ? "Downloading…" : `Downloading… ${view.percent}%`}
@@ -175,7 +183,7 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
               />
             </>
           ) : null}
-          {view.kind !== "downloading" && view.kind !== "installing" ? (
+          {view && view.kind !== "downloading" && view.kind !== "installing" ? (
             <div className="update-toast__actions">
               <Button
                 size="standard"

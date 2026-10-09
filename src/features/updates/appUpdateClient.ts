@@ -44,6 +44,10 @@ export class AppUpdateClient {
   private initialization: Promise<void> | null = null;
   private unlisten: (() => void) | null = null;
   private generation = 0;
+  private completionAcknowledgement: {
+    version: string;
+    promise: Promise<AppUpdateSnapshot>;
+  } | null = null;
 
   constructor(private readonly backend: AppUpdateBackend = nativeBackend) {}
 
@@ -70,6 +74,7 @@ export class AppUpdateClient {
     this.unlisten?.();
     this.unlisten = null;
     this.initialization = null;
+    this.completionAcknowledgement = null;
     this.publish({ status: "loading", update: null, error: null });
   }
 
@@ -81,8 +86,25 @@ export class AppUpdateClient {
   install = (): Promise<AppUpdateSnapshot> => this.action(() => this.backend.install());
   defer = (version: string): Promise<AppUpdateSnapshot> =>
     this.action(() => this.backend.defer(version));
-  acknowledgeCompleted = (version: string): Promise<AppUpdateSnapshot> =>
-    this.action(() => this.backend.acknowledgeCompleted(version));
+  hasPendingCompletionAcknowledgement = (version: string): boolean =>
+    this.completionAcknowledgement?.version === version;
+
+  acknowledgeCompleted = (version: string): Promise<AppUpdateSnapshot> => {
+    if (this.completionAcknowledgement?.version === version)
+      return this.completionAcknowledgement.promise;
+    // Request bookkeeping only. The observed marker remains native-owned until
+    // acknowledgement succeeds, including when a Library view is remounted.
+    const operation = {
+      version,
+      promise: this.action(() => this.backend.acknowledgeCompleted(version)),
+    };
+    this.completionAcknowledgement = operation;
+    const settled = () => {
+      if (this.completionAcknowledgement === operation) this.completionAcknowledgement = null;
+    };
+    void operation.promise.then(settled, settled);
+    return operation.promise;
+  };
 
   private async initializeNow(generation: number): Promise<void> {
     if (!this.backend.isDesktop()) {

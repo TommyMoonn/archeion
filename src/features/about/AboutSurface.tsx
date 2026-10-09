@@ -1,9 +1,11 @@
-import { BookOpenText, ExternalLink, GitFork, Globe } from "lucide-react";
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { BookOpenText, ExternalLink, GitFork, Globe, History } from "lucide-react";
+import { useEffect, useRef, useState, type MouseEvent, type ComponentProps } from "react";
 
 import { APPLICATION_VERSION_FALLBACK, resolveApplicationVersion } from "../../app/appVersion";
 import { openExternalUrl } from "../../app/openExternalUrl";
 import archeionIcon from "../../assets/brand/archeion-icon-128.png";
+import { AboutUpdateStatus } from "../updates/AboutUpdateStatus";
+import { CHANGELOG_URL } from "../updates/updateReleaseUrl";
 
 const ABOUT_DESTINATIONS = [
   {
@@ -16,7 +18,13 @@ const ABOUT_DESTINATIONS = [
     href: "https://tommymoonn.github.io/archeion/documentation/",
     icon: BookOpenText,
     label: "Documentation",
-    location: "tommymoonn.github.io/archeion/documentation",
+    location: "Archeion documentation",
+  },
+  {
+    href: CHANGELOG_URL,
+    icon: History,
+    label: "Changelog",
+    location: "Release history",
   },
   {
     href: "https://github.com/TommyMoonn/archeion",
@@ -26,7 +34,11 @@ const ABOUT_DESTINATIONS = [
   },
 ] as const;
 
-export function AboutSurface() {
+export function AboutSurface({
+  updateClient,
+}: {
+  updateClient?: ComponentProps<typeof AboutUpdateStatus>["client"];
+}) {
   const [version, setVersion] = useState(APPLICATION_VERSION_FALLBACK);
   const [externalLinkError, setExternalLinkError] = useState<string | null>(null);
   const linkOperationRef = useRef(0);
@@ -56,14 +68,17 @@ export function AboutSurface() {
 
   return (
     <div className="about-window__content">
-      <div className="about-window__brand" aria-hidden="true">
-        <img alt="" src={archeionIcon} />
-      </div>
+      <header className="about-window__identity">
+        <div className="about-window__brand" aria-hidden="true">
+          <img alt="" src={archeionIcon} />
+        </div>
+        <div className="about-window__copy">
+          <h1 id="about-title">Archeion</h1>
+          <p className="about-window__version">Version {version}</p>
+        </div>
+      </header>
 
-      <div className="about-window__copy">
-        <h1 id="about-title">Archeion</h1>
-        <p className="about-window__version">Version {version}</p>
-      </div>
+      <AboutUpdateStatus client={updateClient} />
 
       <nav aria-label="Archeion links" className="about-window__links">
         {ABOUT_DESTINATIONS.map(({ href, icon: DestinationIcon, label, location }) => (
@@ -75,12 +90,12 @@ export function AboutSurface() {
             rel="noreferrer"
             target="_blank"
           >
-            <DestinationIcon aria-hidden="true" size={20} />
+            <DestinationIcon aria-hidden="true" size={16} />
             <span className="about-window__link-copy">
               <strong>{label}</strong>
               <small>{location}</small>
             </span>
-            <ExternalLink aria-hidden="true" size={18} />
+            <ExternalLink aria-hidden="true" size={14} />
           </a>
         ))}
       </nav>

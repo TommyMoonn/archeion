@@ -1,4 +1,4 @@
-const CHANGELOG_URL = "https://tommymoonn.github.io/archeion/documentation/changelog/";
+export const CHANGELOG_URL = "https://tommymoonn.github.io/archeion/documentation/changelog/";
 
 export function updateReleaseUrl(version: string): string {
   // Updater metadata is not allowed to supply an arbitrary link destination.

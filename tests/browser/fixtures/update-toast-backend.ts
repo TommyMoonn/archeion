@@ -4,7 +4,7 @@ import {
 } from "../../../src/features/updates/appUpdateClient";
 import type { AppUpdateSnapshot } from "../../../src/features/updates/appUpdateTypes";
 
-type FixtureAction = "check" | "download" | "install" | "defer";
+type FixtureAction = "check" | "download" | "install" | "defer" | "acknowledge";
 type UpdateFixture = ReturnType<typeof createUpdateToastFixture>;
 declare global {
   interface Window {
@@ -13,7 +13,7 @@ declare global {
 }
 
 /** Explicit injected provider, never the production updater or IPC backend. */
-export function createUpdateToastFixture() {
+export function createUpdateToastFixture(initial: Partial<AppUpdateSnapshot> = {}) {
   let state: AppUpdateSnapshot = {
     revision: 1,
     supported: true,
@@ -29,9 +29,12 @@ export function createUpdateToastFixture() {
       restartDeferred: false,
       completedVersion: null,
     },
+    ...initial,
   };
   const listeners = new Set<(update: AppUpdateSnapshot) => void>();
   const calls = { check: 0, download: 0, install: 0, defer: 0 };
+  let acknowledgements = 0;
+  let noUpdate = false;
   let failure: FixtureAction | null = null;
   const set = (patch: Partial<AppUpdateSnapshot>) => {
     state = { ...state, ...patch, revision: state.revision + 1 };
@@ -39,7 +42,7 @@ export function createUpdateToastFixture() {
     return state;
   };
   const perform = (action: FixtureAction, patch: Partial<AppUpdateSnapshot>) => {
-    calls[action] += 1;
+    if (action !== "acknowledge") calls[action] += 1;
     if (failure === action) {
       failure = null;
       if (action === "download" || action === "install") {
@@ -71,8 +74,8 @@ export function createUpdateToastFixture() {
     },
     check: () =>
       perform("check", {
-        status: "available",
-        available: { version: "1.6.1", notes: null, publishedAt: null },
+        status: noUpdate ? "idle" : "available",
+        available: noUpdate ? null : { version: "1.6.1", notes: null, publishedAt: null },
         error: null,
       }),
     download: () =>
@@ -95,11 +98,20 @@ export function createUpdateToastFixture() {
                 snoozedUntil: Date.now() + 86_400_000,
               },
       }),
-    acknowledgeCompleted: async () => state,
+    acknowledgeCompleted: () => {
+      acknowledgements += 1;
+      return perform("acknowledge", { prompt: { ...state.prompt, completedVersion: null } });
+    },
   };
   return {
     client: new AppUpdateClient(backend),
     calls,
+    get acknowledgements() {
+      return acknowledgements;
+    },
+    setNoUpdate: (value: boolean) => {
+      noUpdate = value;
+    },
     set,
     failNext: (action: FixtureAction) => {
       failure = action;
