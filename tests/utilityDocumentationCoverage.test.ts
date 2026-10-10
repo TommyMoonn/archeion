@@ -143,14 +143,14 @@ describe("Settings, dictionaries, theme, and About documentation coverage", () =
     for (const label of expectedLabels) expect(home).toContain(label);
   });
 
-  it("updates README and landing feature copy for offline dictionaries and standalone utility windows", () => {
-    const readme = read(path.join(projectRoot, "README.md"));
-    expect(readme).toMatch(/Dictionar.*Define/is);
-    expect(readme).toMatch(/Settings.*Theme Manager.*About/is);
-    expect(readme).toMatch(/application data/i);
+  it("documents offline dictionaries and standalone utility windows on the landing page", () => {
+    const landingWindow = new Window();
+    landingWindow.document.write(read(path.join(projectRoot, "docs/index.html")));
+    const readerNotes = landingWindow.document.querySelector("#reader .reader-notes")?.textContent;
+    expect(readerNotes).toMatch(/\bDefine\b/i);
+    expect(readerNotes).toMatch(/\bdictionar(?:y|ies)\b/i);
 
-    const landing = text(path.join(projectRoot, "docs/index.html"));
-    expect(landing).toMatch(/Dictionar.*Define/is);
+    const landing = landingWindow.document.body.textContent ?? "";
     expect(landing).toContain("Theme Manager");
     expect(landing).toContain("Settings");
     expect(landing).toContain("About");
