@@ -11,7 +11,7 @@ These six EPUBs contain original test prose and a locally authored SVG diagram. 
 | `long-spine`      | Forty-two small sections, with nontrivial media in section 21.                                                    | Each section has a distinct `section-NN-anchor`, searchable prose and paragraph IDs for later bookmark/highlight/remount tests.                                                                |
 | `fixed-layout`    | Two composed pages with EPUB `rendition:layout=pre-paginated`, viewport metadata and absolute positioning.        | Real fixed-layout detection, deliberately offset artwork/text, and a working link to page two. No reflowable styling is applied by the load surface.                                           |
 
-The image height mutations model delayed **sizing**, not delayed network delivery or decoder timing. They run from the parent test surface after `rendition.display()` and do not execute scripts inside the publication. The surface does not compensate scrolling, patch the manager, or force adjacent loading. Real boundary/anchor/input diagnostics and native measurements belong to subsequent work.
+The image height mutations model delayed **sizing**, not delayed network delivery or decoder timing. They run from the parent test surface after `rendition.display()` and do not execute scripts inside the publication. The stock profile does not compensate scrolling, patch the manager, or force adjacent loading. Real boundary/anchor/input diagnostics are documented in [the browser harness guide](../../browser/reader-runtime.md). Windows WebView2 measurements remain separate work.
 
 ## Regenerate and verify
 
@@ -40,6 +40,6 @@ Run `npm run dev -- --host 127.0.0.1`, then open:
 /tests/browser/fixtures/reader-epub.html?fixture=fixed-layout
 ```
 
-The default surface uses Paged mode with no spread. `flow=continuous` selects the stock continuous manager for reflowable books; fixed layout retains Paged mode. It renders actual ZIP bytes with the installed epub.js in managed iframes and applies no production Reader styling or manager overrides.
+The default surface uses Paged mode with no spread. `flow=continuous` selects the stock continuous manager for reflowable books; fixed layout retains Paged mode. It renders actual ZIP bytes with the installed epub.js in managed iframes. The default stock profile applies no production Reader styling or manager overrides. Explicit `profile=archeion` applies the current production layout, content registry, Continuous stabilization and wheel forwarding for integration comparisons.
 
 After the status shows loaded, `window.readerFixture.display(index)` displays a known spine section. `window.readerFixture.changeImageSize()` applies the recorded delayed size; an explicit height supports grow/shrink experiments. The corresponding image section must be mounted. These commands are fixture controls, not evidence that current Reader scrolling defects are fixed.

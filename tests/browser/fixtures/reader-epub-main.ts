@@ -1,6 +1,27 @@
-import ePub from "epubjs";
+import ePub, { type Book, type Contents, type Rendition } from "epubjs";
 import { buildReaderFixture, readerFixtures } from "../../fixtures/reader/readerFixtures";
 import { resolveReaderPublicationLayoutCapability } from "../../../src/features/reader/readerSession";
+import { ReaderContentDocumentRegistry } from "../../../src/features/reader/readerContentDocumentRegistry";
+import {
+  forwardContinuousWheel,
+  stabilizeContinuousRendition,
+} from "../../../src/features/reader/readerContinuousScroll";
+import type { ReaderFixtureId } from "../../fixtures/reader/readerFixtures";
+import {
+  observeReaderRuntime,
+  type RuntimeSnapshot,
+  type RuntimeEvent,
+} from "./reader-runtime-observer";
+
+export type RuntimeOptions = {
+  fixture: ReaderFixtureId;
+  mode?: "paged" | "continuous";
+  profile?: "stock" | "archeion";
+  target?: number | string;
+  width?: number;
+  height?: number;
+  scrollbar?: "visible";
+};
 
 declare global {
   interface Window {
@@ -9,7 +30,16 @@ declare global {
       layout: "fixed-layout" | "reflowable";
       metadataLayout: string;
       spineCount: number;
-      display: (index: number) => Promise<void>;
+      mode: "paged" | "continuous";
+      open: (options: RuntimeOptions) => Promise<void>;
+      switchMode: (mode: "paged" | "continuous") => Promise<void>;
+      display: (target: number | string) => Promise<void>;
+      cfi: (id: string) => string;
+      turn: (direction: "next" | "prev") => Promise<void>;
+      snapshot: () => RuntimeSnapshot;
+      events: () => RuntimeEvent[];
+      clearEvents: () => void;
+      dispose: () => void;
       changeImageSize: (height?: number) => Promise<void>;
     };
   }
@@ -20,28 +50,157 @@ const fixture = readerFixtures.find((candidate) => candidate.id === params.get("
 if (!fixture) throw new Error("Select a known synthetic EPUB fixture");
 const stage = document.getElementById("publication")!;
 const status = document.getElementById("status")!;
-const book = ePub((await buildReaderFixture(fixture.id)).buffer);
-await book.ready;
-const metadata = await book.loaded.metadata;
-const spine = await book.loaded.spine;
-const layout = resolveReaderPublicationLayoutCapability(metadata.layout);
-const continuous = params.get("flow") === "continuous" && layout === "reflowable";
-const rendition = book.renderTo(stage, {
-  width: 1050,
-  height: 750,
-  spread: "none",
-  manager: continuous ? "continuous" : "default",
-  flow: continuous ? "scrolled-continuous" : "paginated",
-  allowScriptedContent: false,
-});
+let generation = 0;
+let active: {
+  book: Book;
+  rendition: Rendition;
+  observer: ReturnType<typeof observeReaderRuntime>;
+  options: RuntimeOptions;
+  release: () => void;
+} | null = null;
+function current() {
+  if (!active) throw new Error("Open a fixture first");
+  return active;
+}
+function display(rendition: Rendition, target: string | number) {
+  return typeof target === "string" ? rendition.display(target) : rendition.display(target);
+}
+function dispose() {
+  generation += 1;
+  window.readerFixture.ready = false;
+  active?.release();
+  active = null;
+}
+async function open(options: RuntimeOptions) {
+  dispose();
+  const token = generation;
+  const selected = readerFixtures.find((candidate) => candidate.id === options.fixture);
+  if (!selected) throw new Error("Select a known synthetic EPUB fixture");
+  const bytes = await buildReaderFixture(selected.id);
+  if (token !== generation) return;
+  const documents = new ReaderContentDocumentRegistry();
+  const book = ePub(bytes.buffer);
+  let observer: ReturnType<typeof observeReaderRuntime> | undefined;
+  let removeContentHook: (() => void) | undefined;
+  let released = false;
+  let retained = false;
+  // The attempt owns cleanup before any await, including partial renderTo/start failures.
+  // Book.destroy owns its rendition, even when renderTo throws before returning it.
+  const release = () => {
+    if (released) return;
+    released = true;
+    observer?.dispose();
+    removeContentHook?.();
+    documents.clear();
+    book.destroy();
+  };
+  try {
+    await book.ready;
+    if (token !== generation) return;
+    const metadata = await book.loaded.metadata;
+    if (token !== generation) return;
+    const layout = resolveReaderPublicationLayoutCapability(metadata.layout);
+    const mode = options.mode === "continuous" && layout === "reflowable" ? "continuous" : "paged";
+    const width = options.width ?? 1050;
+    const height = options.height ?? 750;
+    stage.style.width = `${width}px`;
+    stage.style.height = `${height}px`;
+    stage.toggleAttribute("data-visible-scrollbar", options.scrollbar === "visible");
+    const rendition = book.renderTo(stage, {
+      width,
+      height,
+      spread: "none",
+      manager: mode === "continuous" ? "continuous" : "default",
+      flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
+      allowScriptedContent: false,
+    });
+    if (options.profile === "archeion") {
+      if (layout === "reflowable")
+        documents.applyLayout(
+          {
+            mode,
+            readingWidth: "comfortable",
+            stageSize: { width, height },
+          },
+          stage,
+        );
+      documents.updateOptions({
+        onWheel:
+          mode === "continuous"
+            ? (event) => {
+                forwardContinuousWheel(event, stage.querySelector(".epub-container"));
+              }
+            : undefined,
+      });
+      const bindContents = (contents: Contents) => documents.bind(contents);
+      rendition.hooks.content.register(bindContents);
+      removeContentHook = () => rendition.hooks.content.deregister(bindContents);
+    }
+    await rendition.started;
+    if (token !== generation) return;
+    if (options.profile === "archeion" && mode === "continuous")
+      stabilizeContinuousRendition(rendition);
+    observer = observeReaderRuntime(stage, selected, rendition);
+    active = { book, rendition, observer, options, release };
+    await display(rendition, options.target ?? 0);
+    if (token !== generation) return;
+    const scroller = stage.querySelector<HTMLElement>(".epub-container");
+    if (scroller) scroller.tabIndex = 0;
+    window.readerFixture.mode = mode;
+    window.readerFixture.layout = layout;
+    window.readerFixture.metadataLayout = metadata.layout;
+    window.readerFixture.spineCount = selected.sections.length;
+    window.readerFixture.ready = true;
+    status.textContent = `Loaded synthetic ${selected.id}`;
+    retained = true;
+  } catch (error) {
+    if (token === generation) throw error;
+  } finally {
+    if (!retained) {
+      // Never clear a newer session when an older attempt settles late.
+      if (active?.release === release) active = null;
+      release();
+    }
+  }
+}
 window.readerFixture = {
   ready: false,
-  layout,
-  metadataLayout: metadata.layout,
-  spineCount: spine.length,
-  display: (index) => rendition.display(index),
+  layout: "reflowable",
+  metadataLayout: "",
+  spineCount: 0,
+  mode: "paged",
+  open,
+  switchMode: (mode) => {
+    const session = current();
+    const cfi = session.rendition.location?.start.cfi;
+    return open({ ...session.options, mode, target: cfi ?? session.options.target });
+  },
+  display: (target) => display(current().rendition, target),
+  turn: (direction) => current().rendition[direction](),
+  cfi: (id) => {
+    const session = current();
+    for (const frame of stage.querySelectorAll("iframe")) {
+      const element = frame.contentDocument?.getElementById(id);
+      if (!element) continue;
+      const range = element.ownerDocument.createRange();
+      range.selectNodeContents(element);
+      const contents = session.rendition.getContents();
+      // epub.js declarations say a single Contents, but runtime returns an array.
+      const mounted = Array.isArray(contents) ? (contents as Contents[]) : [contents];
+      const content = mounted.find((candidate) => candidate.document === element.ownerDocument);
+      if (content) return content.cfiFromRange(range);
+    }
+    throw new Error("CFI anchor must be in a mounted synthetic section");
+  },
+  snapshot: () => current().observer.snapshot(),
+  events: () => current().observer.events(),
+  clearEvents: () => current().observer.clear(),
+  dispose,
   async changeImageSize(height) {
-    const change = fixture.sizeChanges[0];
+    const selected = readerFixtures.find(
+      (candidate) => candidate.id === current().options.fixture,
+    )!;
+    const change = selected.sizeChanges[0];
     if (!change) throw new Error("This fixture has no delayed image");
     const element = [...stage.querySelectorAll("iframe")]
       .map((frame) => frame.contentDocument?.getElementById(change.elementId))
@@ -57,7 +216,10 @@ window.readerFixture = {
     );
   },
 };
-await rendition.display(Number(params.get("section") ?? 0));
-window.readerFixture.ready = true;
-status.textContent = `Loaded synthetic ${fixture.id}`;
-window.addEventListener("pagehide", () => book.destroy(), { once: true });
+await open({
+  fixture: fixture.id,
+  mode: params.get("flow") === "continuous" ? "continuous" : "paged",
+  profile: params.get("profile") === "archeion" ? "archeion" : "stock",
+  target: Number(params.get("section") ?? 0),
+});
+window.addEventListener("pagehide", dispose, { once: true });
