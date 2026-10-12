@@ -1,6 +1,10 @@
 import { defineConfig } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:4173";
+const port = Number(process.env.ARCHEION_BROWSER_PORT ?? 4173);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+  throw new Error("ARCHEION_BROWSER_PORT must be an integer between 1024 and 65535");
+}
+const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "./tests/browser",
@@ -18,7 +22,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npx vite --host 127.0.0.1 --port 4173 --strictPort",
+    command: `npx vite --host 127.0.0.1 --port ${port} --strictPort`,
     url: `${baseURL}/docs/`,
     reuseExistingServer: false,
     timeout: 30_000,
