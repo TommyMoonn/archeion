@@ -7,6 +7,7 @@ import {
   stabilizeContinuousRendition,
 } from "../../../src/features/reader/readerContinuousScroll";
 import type { ReaderFixtureId } from "../../fixtures/reader/readerFixtures";
+import { probeReaderPrepend } from "./reader-prepend-probe";
 import {
   observeReaderRuntime,
   type RuntimeSnapshot,
@@ -21,6 +22,9 @@ export type RuntimeOptions = {
   width?: number;
   height?: number;
   scrollbar?: "visible";
+  /** Test-only anchoring A/B, applied before initial display. */
+  anchoring?: "auto" | "none";
+  probePrepend?: boolean;
 };
 
 declare global {
@@ -42,6 +46,7 @@ declare global {
       clearEvents: () => void;
       dispose: () => void;
       changeImageSize: (height?: number) => Promise<void>;
+      prependProbe: () => ReturnType<typeof probeReaderPrepend>;
     };
   }
 }
@@ -58,6 +63,7 @@ let active: {
   observer: ReturnType<typeof observeReaderRuntime>;
   options: RuntimeOptions;
   release: () => void;
+  prependProbe?: ReturnType<typeof probeReaderPrepend>;
 } | null = null;
 function current() {
   if (!active) throw new Error("Open a fixture first");
@@ -83,6 +89,9 @@ async function open(options: RuntimeOptions) {
   const book = ePub(bytes.buffer);
   let observer: ReturnType<typeof observeReaderRuntime> | undefined;
   let removeContentHook: (() => void) | undefined;
+  let releaseContinuousRendition: (() => void) | undefined;
+  let prependProbe: ReturnType<typeof probeReaderPrepend> | undefined;
+  let releaseAnchoring: (() => void) | undefined;
   let released = false;
   let retained = false;
   // The attempt owns cleanup before any await, including partial renderTo/start failures.
@@ -91,6 +100,9 @@ async function open(options: RuntimeOptions) {
     if (released) return;
     released = true;
     observer?.dispose();
+    releaseContinuousRendition?.();
+    releaseAnchoring?.();
+    prependProbe?.dispose();
     removeContentHook?.();
     documents.clear();
     book.destroy();
@@ -140,9 +152,24 @@ async function open(options: RuntimeOptions) {
     await rendition.started;
     if (token !== generation) return;
     if (options.profile === "archeion" && mode === "continuous")
-      stabilizeContinuousRendition(rendition);
+      releaseContinuousRendition = stabilizeContinuousRendition(
+        rendition,
+        () => token === generation && !released,
+      );
+    if (mode === "continuous" && options.anchoring) {
+      const anchoring = options.anchoring;
+      const applyAnchoring = () => {
+        const scroller = stage.querySelector<HTMLElement>(".epub-container");
+        if (token === generation && !released && scroller)
+          scroller.style.overflowAnchor = anchoring;
+      };
+      rendition.on("attached", applyAnchoring);
+      releaseAnchoring = () => rendition.off("attached", applyAnchoring);
+    }
     observer = observeReaderRuntime(stage, selected, rendition);
-    active = { book, rendition, observer, options, release };
+    if (mode === "continuous" && options.probePrepend)
+      prependProbe = probeReaderPrepend(rendition, observer.snapshot);
+    active = { book, rendition, observer, options, release, prependProbe };
     await display(rendition, options.target ?? 0);
     if (token !== generation) return;
     const scroller = stage.querySelector<HTMLElement>(".epub-container");
@@ -198,6 +225,11 @@ window.readerFixture = {
   metrics: () => current().observer.metrics(),
   clearEvents: () => current().observer.clear(),
   dispose,
+  prependProbe: () => {
+    const probe = current().prependProbe;
+    if (!probe) throw new Error("Open with probePrepend to run a controlled experiment");
+    return probe;
+  },
   async changeImageSize(height) {
     const selected = readerFixtures.find(
       (candidate) => candidate.id === current().options.fixture,

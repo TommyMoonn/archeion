@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
-import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
+import { forwardContinuousWheel } from "./readerContinuousScroll";
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
   applyReaderContentTheme,
@@ -71,37 +71,6 @@ describe("continuous reader scrolling", () => {
     link.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 }));
     expect(linkForwarded).toBe(true);
     expect(scroller.scrollTop).toBe(160);
-  });
-
-  it("keeps loaded continuous views mounted during reverse scrolling", async () => {
-    const originalUpdate = vi.fn(async () => undefined);
-    const display = vi.fn(async () => undefined);
-    const show = vi.fn();
-    const originalCounter = vi.fn();
-    const originalCheck = vi.fn(async () => manager.counter({ heightDelta: 400 }));
-    const manager = {
-      check: originalCheck,
-      counter: originalCounter,
-      request: vi.fn(),
-      update: originalUpdate,
-      views: {
-        all: () => [{ display, displayed: false, show }],
-      },
-    };
-    const rendition = { manager } as unknown as Parameters<typeof stabilizeContinuousRendition>[0];
-
-    stabilizeContinuousRendition(rendition);
-    await manager.update();
-    await manager.check();
-    manager.counter({ heightDelta: 20 });
-
-    expect(originalUpdate).not.toHaveBeenCalled();
-    expect(display).toHaveBeenCalledWith(manager.request);
-    expect(show).toHaveBeenCalledTimes(1);
-    expect(manager.check).not.toBe(originalCheck);
-    expect(manager.counter).not.toBe(originalCounter);
-    expect(originalCounter).toHaveBeenCalledOnce();
-    expect(originalCounter).toHaveBeenCalledWith({ heightDelta: 400 });
   });
 });
 

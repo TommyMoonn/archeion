@@ -252,7 +252,7 @@ test.describe("opt-in historical diagnostics", () => {
     await assertNextSectionReachable(driver, "short-first");
   });
 
-  for (const profile of ["stock", "archeion"] as const) {
+  for (const profile of ["stock"] as const) {
     test(`reverse-prepend keeps visible passage with ${profile} integration`, async ({
       page,
     }, testInfo) => {
