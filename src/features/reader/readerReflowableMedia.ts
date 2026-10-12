@@ -28,6 +28,28 @@ type StandaloneMedia = Readonly<{
   media: Element;
 }>;
 
+/** Completion is a measurement signal, never a prerequisite that can stall rendering. */
+export function observeReaderMediaReadiness(document: Document, measure: () => void): () => void {
+  const onImage = (event: Event) => {
+    if ((event.target as Element | null)?.tagName?.toLowerCase() === "img") measure();
+  };
+  document.addEventListener("load", onImage, true);
+  document.addEventListener("error", onImage, true);
+  document.fonts?.addEventListener("loadingdone", measure);
+  document.fonts?.addEventListener("loadingerror", measure);
+  // Cached successes and already failed images do not emit another completion.
+  const frame = window.requestAnimationFrame(() => {
+    if (Array.from(document.querySelectorAll("img")).some((image) => image.complete)) measure();
+  });
+  return () => {
+    window.cancelAnimationFrame(frame);
+    document.removeEventListener("load", onImage, true);
+    document.removeEventListener("error", onImage, true);
+    document.fonts?.removeEventListener("loadingdone", measure);
+    document.fonts?.removeEventListener("loadingerror", measure);
+  };
+}
+
 export function applyReaderReflowableMedia(
   document: Document | null | undefined,
   layout: ReaderReflowableMediaLayout,

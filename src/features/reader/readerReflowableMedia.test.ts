@@ -1,8 +1,49 @@
 // @vitest-environment happy-dom
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
+import { observeReaderMediaReadiness } from "./readerReflowableMedia";
+
+describe("media completion measurement", () => {
+  it("signals cached and already failed images without waiting for decode", () => {
+    const chapter = document.implementation.createHTMLDocument();
+    const image = chapter.createElement("img");
+    chapter.body.appendChild(image);
+    Object.defineProperty(image, "complete", { value: true });
+    Object.defineProperty(image, "naturalWidth", { value: 0 });
+    let callback!: FrameRequestCallback;
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {
+      callback = next;
+      return 1;
+    });
+    const measure = vi.fn();
+    const release = observeReaderMediaReadiness(chapter, measure);
+    callback(0);
+    expect(measure).toHaveBeenCalledOnce();
+    release();
+    raf.mockRestore();
+  });
+
+  it("measures image success/failure and later font completion, then releases listeners", () => {
+    const chapter = document.implementation.createHTMLDocument();
+    const image = chapter.createElement("img");
+    chapter.body.appendChild(image);
+    const fonts = new EventTarget();
+    Object.defineProperty(chapter, "fonts", { configurable: true, value: fonts });
+    const measure = vi.fn();
+    const release = observeReaderMediaReadiness(chapter, measure);
+    image.dispatchEvent(new Event("load"));
+    image.dispatchEvent(new Event("error"));
+    fonts.dispatchEvent(new Event("loadingdone"));
+    fonts.dispatchEvent(new Event("loadingerror"));
+    expect(measure).toHaveBeenCalledTimes(4);
+    release();
+    image.dispatchEvent(new Event("load"));
+    fonts.dispatchEvent(new Event("loadingdone"));
+    expect(measure).toHaveBeenCalledTimes(4);
+  });
+});
 
 const STANDALONE_MEDIA_ATTRIBUTE = "data-archeion-media-fit";
 const MEDIA_FLOW_ATTRIBUTE = "data-archeion-media-flow";
@@ -29,6 +70,7 @@ function mountedChapter(markup: string, publisherCss = "") {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   document.body.replaceChildren();
 });
 

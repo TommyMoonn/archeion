@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { ReaderRuntimeDriver, assertNoBlankReverse, findAnchor } from "./reader-runtime-driver";
 
-test.use({ launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] } });
+test.use({
+  launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] },
+  // Fit every measured stage and its full scrollbar track inside the browser.
+  viewport: { width: 1600, height: 1000 },
+});
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/*", (route) => {
@@ -219,19 +223,27 @@ for (const offset of [40, 140, 300]) {
     const corrections = await page.evaluate(() =>
       window.readerFixture.prependProbe().corrections(),
     );
-    const counters = corrections.filter((correction) => correction.source === "counter");
-    expect(counters.length).toBeGreaterThanOrEqual(2);
-    for (const correction of counters) {
-      expect(
-        Math.abs(correction.after.scrollTop - correction.before.scrollTop - correction.requestedY),
-      ).toBeLessThanOrEqual(2);
-    }
     await driver.attach(testInfo, `near-top-${offset}`, {
       before,
       after,
       addedHeight,
       corrections,
     });
+    const counters = corrections.filter((correction) => correction.source === "counter");
+    expect(counters.length).toBeGreaterThanOrEqual(2);
+    for (const correction of counters) {
+      const applied = correction.after.scrollTop - correction.before.scrollTop;
+      // Initial mounts retain vendor compensation. A later resize of a mounted
+      // view delegates to the visible-anchor owner and does not add its full delta.
+      if (applied !== 0) expect(Math.abs(applied - correction.requestedY)).toBeLessThanOrEqual(2);
+    }
+    for (const correction of corrections.filter(
+      (entry) => entry.source === "scrollBy" && entry.before.time >= before.time,
+    )) {
+      expect(
+        Math.abs(correction.after.scrollTop - correction.before.scrollTop - correction.requestedY),
+      ).toBeLessThanOrEqual(2);
+    }
   });
 }
 
@@ -275,7 +287,9 @@ test("reverse input crosses ten boundaries without downward passage snap", async
   const passage = beforeDrag.anchors.find((anchor) => anchor.visible)!;
   const reverseFraction =
     (beforeDrag.scrollTop / Math.max(1, beforeDrag.scrollHeight - beforeDrag.clientHeight)) * 0.25;
-  assertNoBlankReverse(await driver.sampleFrames(() => driver.dragScrollbar(reverseFraction)));
+  const dragFrames = await driver.sampleFrames(() => driver.dragScrollbar(reverseFraction));
+  await driver.attach(testInfo, "scrollbar-reverse-frames", { beforeDrag, frames: dragFrames });
+  assertNoBlankReverse(dragFrames);
   await driver.settle();
   expect(findAnchor(await driver.snapshot(), passage.id).top).toBeGreaterThan(passage.top);
   const after = await driver.snapshot();

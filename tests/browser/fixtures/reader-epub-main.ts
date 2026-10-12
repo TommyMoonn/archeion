@@ -38,7 +38,9 @@ declare global {
       open: (options: RuntimeOptions) => Promise<void>;
       switchMode: (mode: "paged" | "continuous") => Promise<void>;
       display: (target: number | string) => Promise<void>;
-      cfi: (id: string) => string;
+      cfi: (id: string, textRange?: boolean) => string;
+      textAtCfi: (cfi: string) => Promise<string>;
+      highlight: (cfi: string) => void;
       turn: (direction: "next" | "prev") => Promise<void>;
       snapshot: () => RuntimeSnapshot;
       events: () => RuntimeEvent[];
@@ -205,13 +207,13 @@ window.readerFixture = {
   },
   display: (target) => display(current().rendition, target),
   turn: (direction) => current().rendition[direction](),
-  cfi: (id) => {
+  cfi: (id, textRange = false) => {
     const session = current();
     for (const frame of stage.querySelectorAll("iframe")) {
       const element = frame.contentDocument?.getElementById(id);
       if (!element) continue;
       const range = element.ownerDocument.createRange();
-      range.selectNodeContents(element);
+      range.selectNodeContents(textRange ? (element.firstChild ?? element) : element);
       const contents = session.rendition.getContents();
       // epub.js declarations say a single Contents, but runtime returns an array.
       const mounted = Array.isArray(contents) ? (contents as Contents[]) : [contents];
@@ -219,6 +221,10 @@ window.readerFixture = {
       if (content) return content.cfiFromRange(range);
     }
     throw new Error("CFI anchor must be in a mounted synthetic section");
+  },
+  textAtCfi: async (cfi) => (await current().book.getRange(cfi)).toString(),
+  highlight: (cfi) => {
+    current().rendition.annotations.highlight(cfi, { note: "Synthetic fixture note" });
   },
   snapshot: () => current().observer.snapshot(),
   events: () => current().observer.events(),
