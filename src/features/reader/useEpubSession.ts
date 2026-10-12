@@ -825,8 +825,16 @@ export function useEpubSession({
         await (rendition as RenditionWithManager).started;
         if (!ownsSession(session)) return;
         if (continuousRendition) {
-          releaseContinuousRendition = stabilizeContinuousRendition(continuousRendition, () =>
-            ownsSession(session),
+          releaseContinuousRendition = stabilizeContinuousRendition(
+            continuousRendition,
+            () => ownsSession(session),
+            () => {
+              if (!ownsSession(session)) return;
+              teardownSession(session);
+              sourceHandoff?.release();
+              setSettledSessionKey(sessionKey);
+              bridgeRef.current?.onError(sessionIdentity, { kind: "open-failed" });
+            },
           );
         }
 

@@ -32,6 +32,8 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
   let requestGate: Promise<void> | null = null;
   let releaseRequest: (() => void) | null = null;
   let waiting = false;
+  let rejectNext = false;
+  const requests: string[] = [];
   const record = (source: PrependCorrection["source"], requestedY: number, action: () => void) => {
     const before = snapshot();
     action();
@@ -54,6 +56,7 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
     record("scrollTo", y, () => original.scrollTo.call(manager, x, y, silent));
   };
   manager.request = async function (...args) {
+    requests.push(String(args[0]));
     const gate = requestGate;
     if (gate) {
       requestGate = null;
@@ -61,11 +64,21 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
       await gate;
       waiting = false;
     }
+    if (rejectNext) {
+      rejectNext = false;
+      // Send a missing synthetic archive entry through the real request owner,
+      // so the production failure boundary observes the actual rejected fetch.
+      return original.request.call(manager, "/EPUB/missing-synthetic-chapter.xhtml");
+    }
     return original.request.apply(manager, args);
   };
   return {
     corrections: () => [...corrections],
     waiting: () => waiting,
+    requests: () => [...requests],
+    failNextRequest() {
+      rejectNext = true;
+    },
     holdNextRequest() {
       requestGate = new Promise<void>((resolve) => {
         releaseRequest = resolve;

@@ -25,12 +25,16 @@ export type RuntimeOptions = {
   /** Test-only anchoring A/B, applied before initial display. */
   anchoring?: "auto" | "none";
   probePrepend?: boolean;
+  /** Synthetic short/long chapter geometry for boundary traversal. */
+  alternatingHeights?: boolean;
 };
 
 declare global {
   interface Window {
     readerFixture: {
       ready: boolean;
+      error: string | null;
+      managerState: () => { ignore: boolean };
       layout: "fixed-layout" | "reflowable";
       metadataLayout: string;
       spineCount: number;
@@ -77,6 +81,7 @@ function display(rendition: Rendition, target: string | number) {
 function dispose() {
   generation += 1;
   window.readerFixture.ready = false;
+  window.readerFixture.error = null;
   active?.release();
   active = null;
 }
@@ -129,6 +134,18 @@ async function open(options: RuntimeOptions) {
       flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
       allowScriptedContent: false,
     });
+    if (options.alternatingHeights) {
+      rendition.hooks.content.register((contents: Contents) => {
+        const doc = contents.document;
+        if (!doc.title.startsWith("section-")) return;
+        const style = doc.createElement("style");
+        const lineHeight = Number(doc.title.slice(8)) % 2 === 0 ? 100 : 15;
+        // Size actual passage lines: body min-height is outside epub.js's child
+        // measurement, and empty heading padding is not a visible text anchor.
+        style.textContent = `body { font: 12px/1 serif; } h1 { margin: 0; } p { line-height: ${lineHeight}px; margin-bottom: 0; }`;
+        doc.head.appendChild(style);
+      });
+    }
     if (options.profile === "archeion") {
       if (layout === "reflowable")
         documents.applyLayout(
@@ -157,6 +174,13 @@ async function open(options: RuntimeOptions) {
       releaseContinuousRendition = stabilizeContinuousRendition(
         rendition,
         () => token === generation && !released,
+        () => {
+          if (token !== generation || released) return;
+          window.readerFixture.error = "open-failed";
+          window.readerFixture.ready = false;
+          status.textContent = "Synthetic chapter unavailable. Reopen the fixture to retry.";
+          release();
+        },
       );
     if (mode === "continuous" && options.anchoring) {
       const anchoring = options.anchoring;
@@ -173,7 +197,7 @@ async function open(options: RuntimeOptions) {
       prependProbe = probeReaderPrepend(rendition, observer.snapshot);
     active = { book, rendition, observer, options, release, prependProbe };
     await display(rendition, options.target ?? 0);
-    if (token !== generation) return;
+    if (token !== generation || released) return;
     const scroller = stage.querySelector<HTMLElement>(".epub-container");
     if (scroller) scroller.tabIndex = 0;
     window.readerFixture.mode = mode;
@@ -195,6 +219,11 @@ async function open(options: RuntimeOptions) {
 }
 window.readerFixture = {
   ready: false,
+  error: null,
+  managerState: () => {
+    const manager = (current().rendition as Rendition & { manager: { ignore: boolean } }).manager;
+    return { ignore: manager.ignore };
+  },
   layout: "reflowable",
   metadataLayout: "",
   spineCount: 0,

@@ -248,7 +248,7 @@ test.describe("opt-in historical diagnostics", () => {
     expect(second.atBookEnd).toBe(false);
     expect(settled.scrollHeight).toBeLessThan(initial.scrollHeight);
     expect(second.following).toBe("short-first");
-    test.fail(true, "RDR-01: boundary reconciliation belongs to phase 1.7.0.6");
+    test.fail(true, "RDR-01: stock epub.js has no Archeion boundary reconciliation");
     await assertNextSectionReachable(driver, "short-first");
   });
 

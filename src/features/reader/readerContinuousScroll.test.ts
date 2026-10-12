@@ -24,9 +24,10 @@ function setup() {
   let renderHook: (rendered: typeof view) => void = () => undefined;
   const manager = {
     container: document.createElement("div"),
-    check: vi.fn(async () => undefined),
+    check: vi.fn<() => Promise<unknown>>(async () => undefined),
     counter: vi.fn(),
-    request: {},
+    request: vi.fn(async () => "synthetic section"),
+    settings: { offset: 500 },
     q: { enqueue: vi.fn(async (action: () => Promise<unknown>) => action()) },
     update: vi.fn(async () => undefined),
     views: { all: () => [view] },
@@ -59,6 +60,138 @@ function setup() {
 afterEach(() => vi.restoreAllMocks());
 
 describe("Continuous rendition integration", () => {
+  it("reconciles initial display even when no resize or scroll can occur", async () => {
+    let callback!: FrameRequestCallback;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {
+      callback = next;
+      return 1;
+    });
+    const { rendition, manager, listeners } = setup();
+    stabilizeContinuousRendition(rendition, () => true);
+    listeners.get("displayed")!();
+    expect(callback).toBeDefined();
+    callback(0);
+    await vi.waitFor(() => expect(manager.check).toHaveBeenCalledOnce());
+  });
+
+  it("wakes a near-boundary scroll independently of the vendor ignore branch", async () => {
+    let callback!: FrameRequestCallback;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {
+      callback = next;
+      return 1;
+    });
+    const { rendition, manager } = setup();
+    Object.defineProperties(manager.container, {
+      clientHeight: { value: 750 },
+      scrollHeight: { value: 2000 },
+    });
+    stabilizeContinuousRendition(rendition, () => true);
+    manager.container.scrollTop = 1250;
+    manager.container.dispatchEvent(new Event("scroll"));
+    expect(callback).toBeDefined();
+    callback(0);
+    await vi.waitFor(() => expect(manager.check).toHaveBeenCalledOnce());
+  });
+
+  it("coalesces display and resize notifications while a neighboring load is pending", async () => {
+    const callbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    });
+    const { rendition, manager, listeners, render, viewListeners } = setup();
+    let finish!: () => void;
+    manager.check.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const release = stabilizeContinuousRendition(rendition, () => true);
+    render();
+    listeners.get("displayed")!();
+    viewListeners.get("resized")!({ heightDelta: 200, widthDelta: 0 });
+    expect(callbacks).toHaveLength(1);
+    callbacks[0](0);
+    for (let index = 0; index < 10; index++) listeners.get("displayed")!();
+    callbacks[1](0);
+    expect(manager.check).toHaveBeenCalledOnce();
+    release();
+    finish();
+    await Promise.resolve();
+    expect(manager.check).toHaveBeenCalledOnce();
+  });
+
+  it("does not load outside the measured preload range or churn at actual book ends", async () => {
+    let callback!: FrameRequestCallback;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {
+      callback = next;
+      return 1;
+    });
+    const { rendition, manager, view, listeners } = setup();
+    view.displayed = true;
+    Object.assign(view, { section: { prev: () => null, next: () => null } });
+    Object.defineProperties(manager.container, {
+      clientHeight: { value: 750 },
+      scrollHeight: { value: 5000 },
+    });
+    stabilizeContinuousRendition(rendition, () => true);
+    listeners.get("displayed")!();
+    callback(0);
+    await Promise.resolve();
+    expect(manager.check).not.toHaveBeenCalled();
+    Object.assign(view, { section: { prev: () => ({}), next: () => ({}) } });
+    manager.container.scrollTop = 2000;
+    manager.container.dispatchEvent(new Event("scroll"));
+    await Promise.resolve();
+    expect(manager.check).not.toHaveBeenCalled();
+  });
+
+  it("reports an adjacent request failure once and rejects late retired request results", async () => {
+    const { rendition, manager } = setup();
+    const error = new Error("Chapter unavailable");
+    manager.request.mockRejectedValue(error);
+    const onError = vi.fn();
+    const release = stabilizeContinuousRendition(rendition, () => true, onError);
+    await expect(manager.request()).rejects.toBe(error);
+    await expect(manager.request()).rejects.toThrow("Reader session retired");
+    expect(onError).toHaveBeenCalledExactlyOnceWith(error);
+    release();
+
+    const next = setup();
+    let resolve!: (value: string) => void;
+    next.manager.request.mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const retiredError = vi.fn();
+    const retire = stabilizeContinuousRendition(next.rendition, () => true, retiredError);
+    const request = next.manager.request();
+    retire();
+    resolve("Late section");
+    await expect(request).rejects.toThrow("Reader session retired");
+    expect(retiredError).not.toHaveBeenCalled();
+  });
+
+  it("recognizes the vendor's resolved Error result without starting another boundary check", async () => {
+    let callback!: FrameRequestCallback;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {
+      callback = next;
+      return 1;
+    });
+    const { rendition, manager, listeners } = setup();
+    const error = new Error("Mount unavailable");
+    manager.check.mockImplementation(async () => error);
+    const onError = vi.fn();
+    stabilizeContinuousRendition(rendition, () => true, onError);
+    listeners.get("displayed")!();
+    callback(0);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledExactlyOnceWith(error));
+    listeners.get("displayed")!();
+    expect(manager.check).toHaveBeenCalledOnce();
+  });
   it("pins the retained private update seam to the behavior-tested vendor version", () => {
     expect(epubPackage.version).toBe("0.3.93");
   });
