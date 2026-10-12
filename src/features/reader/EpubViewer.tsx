@@ -20,7 +20,6 @@ import {
   shouldIgnoreReaderWheelEvent,
   type ReaderNavigationIntent,
 } from "./readerNavigation";
-import { forwardContinuousWheel } from "./readerContinuousScroll";
 import { observeReaderStageSize, type ReaderStageSize } from "./readerStageGeometry";
 import type { ReaderContentTheme } from "./readerTheme";
 import { IconButton } from "../../components/IconButton";
@@ -431,15 +430,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
-      if (shouldIgnoreReaderWheelEvent(event)) return;
-
-      if (publicationMode === "continuous") {
-        forwardContinuousWheel(
-          event,
-          containerRef.current?.querySelector<HTMLElement>(".epub-container") ?? null,
-        );
-        return;
-      }
+      if (publicationMode !== "paged" || shouldIgnoreReaderWheelEvent(event)) return;
 
       const deltaY = getReaderWheelDelta(event);
       if (deltaY === null) return;
@@ -504,7 +495,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onKeyDown,
       onPointerDown: handleRegisteredPointerDown,
       onSelectionCollapsed: handleRegisteredSelectionCollapsed,
-      onWheel: handleWheel,
+      onWheel: publicationMode === "paged" ? handleWheel : undefined,
     });
   }, [
     contentDocuments,
@@ -517,6 +508,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     handleRegisteredSelectionCollapsed,
     handleWheel,
     onKeyDown,
+    publicationMode,
   ]);
 
   useEffect(() => {
@@ -531,11 +523,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   useEffect(() => {
     const container = viewerRef.current;
-    if (!container) return;
+    if (!container || publicationMode !== "paged") return;
     const options: AddEventListenerOptions = { passive: false };
     container.addEventListener("wheel", handleWheel, options);
     return () => container.removeEventListener("wheel", handleWheel, options);
-  }, [handleWheel]);
+  }, [handleWheel, publicationMode]);
 
   const prepareNavigation = useCallback(() => {
     dismiss(false);

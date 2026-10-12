@@ -579,7 +579,7 @@ describe("EpubViewer navigation lifecycle", () => {
         );
         expect(session.rendition.next).toHaveBeenCalledOnce();
       } else {
-        expect(scroller.scrollTop).toBe(64);
+        expect(scroller.scrollTop).toBe(40);
         expect(session.rendition.next).not.toHaveBeenCalled();
       }
       expect(container.querySelector(".reader-illustration-viewer")).toBeNull();
@@ -659,15 +659,13 @@ describe("EpubViewer navigation lifecycle", () => {
         ),
       );
 
-      act(() =>
-        link.dispatchEvent(
-          new WheelEvent("wheel", {
-            bubbles: true,
-            cancelable: true,
-            deltaY: mode === "paged" ? 24 : 80,
-          }),
-        ),
-      );
+      const linkWheel = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: mode === "paged" ? 24 : 80,
+      });
+      act(() => link.dispatchEvent(linkWheel));
+      expect(linkWheel.defaultPrevented).toBe(false);
 
       if (mode === "paged") {
         expect(session.rendition.next).not.toHaveBeenCalled();
@@ -684,7 +682,9 @@ describe("EpubViewer navigation lifecycle", () => {
         );
         expect(session.rendition.next).toHaveBeenCalledOnce();
       } else {
-        expect(scroller.scrollTop).toBe(120);
+        // Synthetic events cannot initiate native scrolling. The real-browser
+        // suite proves movement; here the app must neither cancel nor synthesize it.
+        expect(scroller.scrollTop).toBe(40);
         expect(session.rendition.next).not.toHaveBeenCalled();
       }
       expect(session.rendition.prev).not.toHaveBeenCalled();
@@ -763,14 +763,14 @@ describe("EpubViewer navigation lifecycle", () => {
             new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 80 }),
           ),
         );
-        expect(scroller.scrollTop).toBe(120);
+        expect(scroller.scrollTop).toBe(40);
 
         act(() =>
           linked.dispatchEvent(
             new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 80 }),
           ),
         );
-        expect(scroller.scrollTop).toBe(200);
+        expect(scroller.scrollTop).toBe(40);
         expect(session.rendition.next).not.toHaveBeenCalled();
       }
       expect(session.rendition.prev).not.toHaveBeenCalled();
@@ -848,7 +848,7 @@ describe("EpubViewer navigation lifecycle", () => {
         expect(session.rendition.next).toHaveBeenCalledOnce();
         expect(scroller.scrollTop).toBe(40);
       } else {
-        expect(scroller.scrollTop).toBe(120);
+        expect(scroller.scrollTop).toBe(40);
         expect(session.rendition.next).not.toHaveBeenCalled();
       }
       expect(session.rendition.prev).not.toHaveBeenCalled();

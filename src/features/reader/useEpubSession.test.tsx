@@ -134,6 +134,7 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
     },
     eventCallbacks,
     hooks: {
+      render: { register: vi.fn(), deregister: vi.fn() },
       content: {
         register: vi.fn((callback: (content: EpubContent) => void) => {
           contentCallbacks.push(callback);
@@ -1559,6 +1560,50 @@ describe("useEpubSession lifecycle", () => {
     expect(bridge.onReady).toHaveBeenCalledOnce();
     expect(bridge.onReady).toHaveBeenCalledWith(retryIdentity);
     expect(facadeRef.current?.getInteractionSession()).not.toBeNull();
+  });
+
+  it("retires a failed adjacent chapter and retries through the existing Reader recovery path", async () => {
+    const failedSession = createBookSession();
+    const retrySession = createBookSession();
+    const manager = {
+      request: vi.fn(async () => {
+        throw new Error("Adjacent chapter unavailable");
+      }),
+      container: document.createElement("div"),
+      views: { all: () => [] },
+    };
+    Object.assign(failedSession.rendition, { manager });
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["retry-chapter"]));
+    const identity = createSessionIdentity("retry-chapter");
+    epubModuleMock.openBook
+      .mockReturnValueOnce(failedSession.book)
+      .mockReturnValueOnce(retrySession.book);
+    const { root } = await renderHarness(
+      { bridgeRef, fileLease, mode: "continuous", sessionIdentity: identity },
+      facadeRef,
+    );
+    await waitForReady(failedSession, bridge);
+    await act(async () => {
+      await expect(manager.request()).rejects.toThrow("Adjacent chapter unavailable");
+    });
+    expect(bridge.onError).toHaveBeenCalledExactlyOnceWith(identity, { kind: "open-failed" });
+    expect(failedSession.destroy).toHaveBeenCalledOnce();
+    expect(facadeRef.current?.getInteractionSession()).toBeNull();
+    const retryIdentity = createSessionIdentity("retry-chapter");
+    await rerenderHarness(
+      root,
+      { bridgeRef, fileLease, mode: "continuous", sessionIdentity: retryIdentity },
+      facadeRef,
+    );
+    await act(async () => {
+      await vi.waitFor(() => expect(bridge.onReady).toHaveBeenCalledWith(retryIdentity));
+      emitStaleEvent(failedSession, "displayed");
+    });
+    expect(bridge.onError).toHaveBeenCalledOnce();
+    expect(retrySession.destroy).not.toHaveBeenCalled();
   });
 
   it("does not create an EPUB.js book when teardown cancels a pending byte conversion", async () => {

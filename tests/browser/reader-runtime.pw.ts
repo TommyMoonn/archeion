@@ -136,7 +136,7 @@ test("Continuous input uses iframe wheel, PageDown/PageUp and actual scrollbar d
   await driver.settle();
   expect((await driver.snapshot()).scrollTop).toBeGreaterThan(afterDown.scrollTop);
   const evidence = await driver.attach(testInfo, "input-paths");
-  expect(evidence.events.some((event) => event.type === "iframe-wheel" && event.cancelled)).toBe(
+  expect(evidence.events.some((event) => event.type === "iframe-wheel" && !event.cancelled)).toBe(
     true,
   );
 });
@@ -248,11 +248,11 @@ test.describe("opt-in historical diagnostics", () => {
     expect(second.atBookEnd).toBe(false);
     expect(settled.scrollHeight).toBeLessThan(initial.scrollHeight);
     expect(second.following).toBe("short-first");
-    test.fail(true, "RDR-01: boundary reconciliation belongs to phase 1.7.0.6");
+    test.fail(true, "RDR-01: stock epub.js has no Archeion boundary reconciliation");
     await assertNextSectionReachable(driver, "short-first");
   });
 
-  for (const profile of ["stock", "archeion"] as const) {
+  for (const profile of ["stock"] as const) {
     test(`reverse-prepend keeps visible passage with ${profile} integration`, async ({
       page,
     }, testInfo) => {

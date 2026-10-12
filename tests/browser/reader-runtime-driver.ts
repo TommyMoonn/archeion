@@ -171,6 +171,17 @@ export function assertNoBlankReverse(samples: RuntimeSnapshot[]) {
       sample.anchors.some((anchor) => anchor.visible),
       "Authored text/media is actually visible",
     ).toBe(true);
+    expect(
+      sample.readiness.some(
+        (view) =>
+          view.inViewport &&
+          view.displayed &&
+          view.readyState === "complete" &&
+          view.visibility === "visible" &&
+          view.hit,
+      ),
+      "A loaded, shown chapter is hit-testable inside the viewport",
+    ).toBe(true);
   }
 }
 

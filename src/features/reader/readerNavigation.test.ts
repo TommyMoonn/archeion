@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   canRunReaderWheelTurn,
-  getContinuousReaderWheelDelta,
   isReaderKeyboardCommandEligible,
   getReaderWheelDelta,
   getReaderWheelIntentFromDelta,
@@ -235,9 +234,6 @@ describe("reader navigation helpers", () => {
 
     expect(isPagedReaderWheelTargetBlocked(illustration)).toBe(false);
     expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBe(80);
-    expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBe(
-      80,
-    );
     expect(
       isReaderKeyboardCommandEligible(keyEvent({ key: "ArrowRight", target: illustration })),
     ).toBe(false);
@@ -260,9 +256,6 @@ describe("reader navigation helpers", () => {
 
       expect(isPagedReaderWheelTargetBlocked(illustration)).toBe(true);
       expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBeNull();
-      expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBe(
-        80,
-      );
     },
   );
 
@@ -277,7 +270,7 @@ describe("reader navigation helpers", () => {
     expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBeNull();
   });
 
-  it("keeps ordinary targets paged-eligible and interactive targets continuous-eligible", () => {
+  it("keeps ordinary targets paged-eligible and link shortcuts blocked", () => {
     const ordinaryTarget = elementTarget();
     const linkTarget = elementTarget("a[href]");
 
@@ -285,7 +278,6 @@ describe("reader navigation helpers", () => {
     expect(
       isReaderKeyboardCommandEligible(keyEvent({ key: "ArrowRight", target: linkTarget })),
     ).toBe(false);
-    expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: linkTarget }))).toBe(80);
   });
 
   it("throttles wheel page turns", () => {

@@ -26,6 +26,15 @@ export type RuntimeSnapshot = {
   preceding: string | null;
   following: string | null;
   atBookEnd: boolean;
+  readiness: {
+    index: number;
+    displayed: boolean;
+    visibility: string;
+    readyState: string;
+    inViewport: boolean;
+    hit: boolean;
+  }[];
+  queuedWork: number;
 };
 export type RuntimeEvent = {
   type: string;
@@ -61,6 +70,37 @@ export function observeReaderRuntime(
     const sections: RuntimeSnapshot["sections"] = [];
     const anchors: RuntimeAnchor[] = [];
     const views: RuntimeSnapshot["views"] = [];
+    const manager = (
+      rendition as Rendition & {
+        manager: {
+          views: { all: () => (ObservedView & { displayed: boolean })[] };
+          q: { length: () => number };
+        };
+      }
+    ).manager;
+    const readiness: RuntimeSnapshot["readiness"] = [];
+    for (const view of manager.views.all()) {
+      const frame = view.iframe;
+      const box = frame?.getBoundingClientRect();
+      const inViewport = Boolean(box && box.top < viewport.bottom && box.bottom > viewport.top);
+      const hit = Boolean(
+        frame &&
+        box &&
+        inViewport &&
+        document.elementFromPoint(
+          Math.max(viewport.left, box.left) + 10,
+          (Math.max(viewport.top, box.top) + Math.min(viewport.bottom, box.bottom)) / 2,
+        ) === frame,
+      );
+      readiness.push({
+        index: view.section.index,
+        displayed: view.displayed,
+        visibility: frame ? getComputedStyle(frame).visibility : "absent",
+        readyState: frame?.contentDocument?.readyState ?? "absent",
+        inViewport,
+        hit,
+      });
+    }
     // epub.js keeps an empty .epub-view placeholder after destroying its iframe.
     // ref is a read-only vendor DOM marker; do not count it as resident content.
     for (const view of stage.querySelectorAll<HTMLElement>(".epub-view[ref]")) {
@@ -134,6 +174,8 @@ export function observeReaderRuntime(
       atBookEnd:
         last === fixture.sections.length - 1 &&
         Boolean(outer && outer.scrollHeight - outer.clientHeight - outer.scrollTop <= 2),
+      readiness,
+      queuedWork: manager.q.length(),
     };
   };
   const record = (

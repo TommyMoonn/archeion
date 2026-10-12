@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
-import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
 import { applyReaderReflowableLayout } from "./readerReflowableLayout";
 import {
   applyReaderContentTheme,
@@ -29,81 +28,6 @@ function installThemeRules(chapter: Document, rules: ReturnType<typeof readerThe
     .join("\n");
   chapter.head.appendChild(style);
 }
-
-describe("continuous reader scrolling", () => {
-  it("forwards iframe wheel input to the parent rendition scroller", () => {
-    const scroller = document.createElement("div");
-    scroller.scrollTop = 40;
-    const event = new WheelEvent("wheel", { cancelable: true, deltaY: 120 });
-
-    expect(forwardContinuousWheel(event, scroller)).toBe(true);
-    expect(scroller.scrollTop).toBe(160);
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("rejects consumed and transient-surface wheel input without blocking ordinary links", () => {
-    const scroller = document.createElement("div");
-    scroller.scrollTop = 40;
-    const transient = document.createElement("div");
-    transient.dataset.readerIgnoreShortcuts = "";
-    const transientChild = document.createElement("button");
-    transient.append(transientChild);
-    let transientForwarded = true;
-    transient.addEventListener("wheel", (event) => {
-      transientForwarded = forwardContinuousWheel(event, scroller);
-    });
-
-    transientChild.dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 120 }));
-    expect(transientForwarded).toBe(false);
-    expect(scroller.scrollTop).toBe(40);
-
-    const consumed = new WheelEvent("wheel", { cancelable: true, deltaY: 120 });
-    consumed.preventDefault();
-    expect(forwardContinuousWheel(consumed, scroller)).toBe(false);
-    expect(scroller.scrollTop).toBe(40);
-
-    const link = document.createElement("a");
-    link.href = "#chapter";
-    let linkForwarded = false;
-    link.addEventListener("wheel", (event) => {
-      linkForwarded = forwardContinuousWheel(event, scroller);
-    });
-    link.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 120 }));
-    expect(linkForwarded).toBe(true);
-    expect(scroller.scrollTop).toBe(160);
-  });
-
-  it("keeps loaded continuous views mounted during reverse scrolling", async () => {
-    const originalUpdate = vi.fn(async () => undefined);
-    const display = vi.fn(async () => undefined);
-    const show = vi.fn();
-    const originalCounter = vi.fn();
-    const originalCheck = vi.fn(async () => manager.counter({ heightDelta: 400 }));
-    const manager = {
-      check: originalCheck,
-      counter: originalCounter,
-      request: vi.fn(),
-      update: originalUpdate,
-      views: {
-        all: () => [{ display, displayed: false, show }],
-      },
-    };
-    const rendition = { manager } as unknown as Parameters<typeof stabilizeContinuousRendition>[0];
-
-    stabilizeContinuousRendition(rendition);
-    await manager.update();
-    await manager.check();
-    manager.counter({ heightDelta: 20 });
-
-    expect(originalUpdate).not.toHaveBeenCalled();
-    expect(display).toHaveBeenCalledWith(manager.request);
-    expect(show).toHaveBeenCalledTimes(1);
-    expect(manager.check).not.toBe(originalCheck);
-    expect(manager.counter).not.toBe(originalCounter);
-    expect(originalCounter).toHaveBeenCalledOnce();
-    expect(originalCounter).toHaveBeenCalledWith({ heightDelta: 400 });
-  });
-});
 
 describe("readerThemeForSettings", () => {
   it("maps typography and palette settings without taking ownership of rendition geometry", () => {

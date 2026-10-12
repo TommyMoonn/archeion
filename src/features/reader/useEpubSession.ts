@@ -473,6 +473,7 @@ export function useEpubSession({
     let bookDestroyed = false;
     let lifecycle: EpubSessionLifecycle | null = null;
     let cancelPendingBookOpen: () => void = () => undefined;
+    let releaseContinuousRendition: () => void = () => undefined;
     const generation = ++generationRef.current;
     const sessionDocuments = documentSessions.activate();
     activeSessionIdentityRef.current = sessionIdentity;
@@ -513,6 +514,7 @@ export function useEpubSession({
 
       measurePerformance("archeion:reader-session-teardown", () => {
         owner.tornDown = true;
+        releaseContinuousRendition();
         const wasCurrent = sessionRef.current === session;
         if (wasCurrent) sessionRef.current = null;
         if (activeRenditionStageRef.current?.rendition === session.rendition) {
@@ -823,7 +825,17 @@ export function useEpubSession({
         await (rendition as RenditionWithManager).started;
         if (!ownsSession(session)) return;
         if (continuousRendition) {
-          stabilizeContinuousRendition(continuousRendition);
+          releaseContinuousRendition = stabilizeContinuousRendition(
+            continuousRendition,
+            () => ownsSession(session),
+            () => {
+              if (!ownsSession(session)) return;
+              teardownSession(session);
+              sourceHandoff?.release();
+              setSettledSessionKey(sessionKey);
+              bridgeRef.current?.onError(sessionIdentity, { kind: "open-failed" });
+            },
+          );
         }
 
         await measurePerformanceAsync("archeion:reader-first-location-display", async () => {
