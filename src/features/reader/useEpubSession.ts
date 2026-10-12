@@ -18,6 +18,7 @@ import {
 } from "./readerContentDocumentRegistry";
 import type { ReaderContentTheme } from "./readerTheme";
 import { stabilizeContinuousRendition, type RenditionWithManager } from "./readerContinuousScroll";
+import { ReaderContinuousViewManager } from "./ReaderContinuousViewManager";
 import { syncReaderRenditionStageSize, type ReaderStageSize } from "./readerStageGeometry";
 import { loadReaderNavigationModel } from "./readerNavigationModel";
 import {
@@ -165,6 +166,7 @@ type EpubSessionLifecycle = {
   unsubscribeSeekMap: () => void;
   onRelocated: (location: Location) => void;
   onRendered: (section: unknown, view: unknown) => void;
+  onRemoved: () => void;
   onSelected: (cfiRange: string, contents: EpubContent) => void;
   snapshot: EpubSessionSnapshot;
   tornDown: boolean;
@@ -530,6 +532,7 @@ export function useEpubSession({
         owner.cancelDeferredNavigation = () => undefined;
         invalidateTurnOwner(session);
         session.rendition.off("rendered", owner.onRendered);
+        session.rendition.off("removed", owner.onRemoved);
         session.rendition.off("relocated", owner.onRelocated);
         session.rendition.off("selected", owner.onSelected);
         if (wasCurrent) relocationRef.current = null;
@@ -625,7 +628,7 @@ export function useEpubSession({
             width: initialStageSize?.width ?? "100%",
             height: initialStageSize?.height ?? "100%",
             flow: publicationMode === "continuous" ? "scrolled-continuous" : "paginated",
-            manager: publicationMode === "continuous" ? "continuous" : "default",
+            manager: publicationMode === "continuous" ? ReaderContinuousViewManager : "default",
             spread: "none",
             allowScriptedContent: false,
           }),
@@ -737,6 +740,9 @@ export function useEpubSession({
             sessionDocuments.bindRenderedView(view, renderedSectionHref(section));
             bridgeRef.current?.onRendered(section, view);
           },
+          onRemoved: () => {
+            if (ownsSession(session)) sessionDocuments.pruneDisconnected();
+          },
           onRelocated: (location) => {
             if (!ownsSession(session)) return;
 
@@ -819,6 +825,7 @@ export function useEpubSession({
           publicationLayoutCapability,
         );
         rendition.on("rendered", owner.onRendered);
+        rendition.on("removed", owner.onRemoved);
         rendition.on("relocated", owner.onRelocated);
         rendition.on("selected", owner.onSelected);
 

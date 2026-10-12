@@ -9,10 +9,11 @@ type ProbeManager = {
   scrollBy: (x: number, y: number, silent?: boolean) => void;
   scrollTo: (x: number, y: number, silent?: boolean) => void;
   request: (...args: unknown[]) => Promise<unknown>;
+  erase: (view: { element: HTMLElement }, above?: unknown) => void;
   q: { enqueue: (action: () => Promise<unknown>) => Promise<unknown> };
 };
 export type PrependCorrection = {
-  source: "counter" | "scrollBy" | "scrollTo";
+  source: "counter" | "scrollBy" | "scrollTo" | "erase";
   requestedY: number;
   before: RuntimeSnapshot;
   after: RuntimeSnapshot;
@@ -26,9 +27,11 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
     scrollBy: manager.scrollBy,
     scrollTo: manager.scrollTo,
     request: manager.request,
+    erase: manager.erase,
   };
   const corrections: PrependCorrection[] = [];
   let inCounter = false;
+  let inErase = false;
   let requestGate: Promise<void> | null = null;
   let releaseRequest: (() => void) | null = null;
   let waiting = false;
@@ -54,7 +57,18 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
     else record("scrollBy", y, () => original.scrollBy.call(manager, x, y, silent));
   };
   manager.scrollTo = function (x, y, silent) {
-    record("scrollTo", y, () => original.scrollTo.call(manager, x, y, silent));
+    if (inErase) original.scrollTo.call(manager, x, y, silent);
+    else record("scrollTo", y, () => original.scrollTo.call(manager, x, y, silent));
+  };
+  manager.erase = function (view, above) {
+    inErase = true;
+    try {
+      record("erase", above ? -view.element.getBoundingClientRect().height : 0, () =>
+        original.erase.call(manager, view, above),
+      );
+    } finally {
+      inErase = false;
+    }
   };
   manager.request = async function (...args) {
     requests.push(String(args[0]));

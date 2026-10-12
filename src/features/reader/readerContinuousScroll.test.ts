@@ -244,18 +244,18 @@ describe("Continuous rendition integration", () => {
     listeners.get("displayed")!();
     expect(manager.check).toHaveBeenCalledOnce();
   });
-  it("pins the retained private update seam to the behavior-tested vendor version", () => {
+  it("pins the residency adapter to the behavior-tested vendor version", () => {
     expect(epubPackage.version).toBe("0.3.93");
   });
 
-  it("retains loaded views and the vendor check while delegating initial prepend compensation", async () => {
-    const { rendition, manager, view } = setup();
+  it("leaves residency and boundary loading with the manager while delegating initial prepend compensation", async () => {
+    const { rendition, manager } = setup();
     const check = manager.check;
     const counter = manager.counter;
+    const update = manager.update;
     stabilizeContinuousRendition(rendition, () => true);
     await manager.update();
-    expect(view.display).toHaveBeenCalledWith(manager.request);
-    expect(view.show).toHaveBeenCalledOnce();
+    expect(manager.update).toBe(update);
     expect(manager.check).toBe(check);
     const bounds = { heightDelta: 1200, widthDelta: 0 };
     manager.counter(bounds);
@@ -365,26 +365,15 @@ describe("Continuous rendition integration", () => {
     expect(listeners.size).toBe(0);
   });
 
-  it("does not show an awaited view or start another update after session retirement", async () => {
+  it("does not configure a replacement scroller after session retirement", () => {
     const { rendition, manager, listeners, view } = setup();
-    let resolveDisplay!: () => void;
-    view.display.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveDisplay = resolve;
-        }),
-    );
     let current = true;
     stabilizeContinuousRendition(rendition, () => current);
-    const pending = manager.update();
     current = false;
     const replacement = document.createElement("div");
     manager.container = replacement;
     listeners.get("attached")!();
-    resolveDisplay();
-    await pending;
-    await manager.update();
-    expect(view.display).toHaveBeenCalledOnce();
+    expect(view.display).not.toHaveBeenCalled();
     expect(view.show).not.toHaveBeenCalled();
     expect(replacement.style.overflowAnchor).toBe("");
   });

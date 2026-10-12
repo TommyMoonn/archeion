@@ -15,6 +15,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EpubContent } from "./readerContentDocumentRegistry";
+import { ReaderContinuousViewManager } from "./ReaderContinuousViewManager";
 import { createReaderContentTheme } from "./readerTheme";
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
@@ -438,7 +439,8 @@ describe("useEpubSession lifecycle", () => {
 
     act(() => root.unmount());
 
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(renditionOffCount(session, "rendered")).toBe(1);
     expect(renditionOffCount(session, "relocated")).toBe(1);
     expect(renditionOffCount(session, "selected")).toBe(1);
@@ -721,13 +723,15 @@ describe("useEpubSession lifecycle", () => {
     expect(facadeRef.current?.getRelocation()).toBeNull();
     expect(facadeRef.current?.documents.has(registeredDocument)).toBe(false);
     expect(bridge.onSessionEnding).toHaveBeenCalledOnce();
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(session.destroy).toHaveBeenCalledOnce();
 
     act(() => root.unmount());
 
     expect(bridge.onSessionEnding).toHaveBeenCalledOnce();
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(session.destroy).toHaveBeenCalledOnce();
   });
 
@@ -1134,7 +1138,7 @@ describe("useEpubSession lifecycle", () => {
       expect.objectContaining({
         flow: "scrolled-continuous",
         height: 720,
-        manager: "continuous",
+        manager: ReaderContinuousViewManager,
         width: 960,
       }),
     );
@@ -1903,7 +1907,8 @@ describe("useEpubSession lifecycle", () => {
       );
     });
 
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(renditionOffCount(session, "rendered")).toBe(1);
     expect(renditionOffCount(session, "relocated")).toBe(1);
     expect(renditionOffCount(session, "selected")).toBe(1);
@@ -1912,7 +1917,8 @@ describe("useEpubSession lifecycle", () => {
 
     act(() => root.unmount());
 
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(bridge.onSessionEnding).toHaveBeenCalledTimes(1);
     expect(session.destroy).toHaveBeenCalledTimes(1);
   });
@@ -1936,7 +1942,8 @@ describe("useEpubSession lifecycle", () => {
     });
 
     expect(session.rendition.display).toHaveBeenCalledTimes(2);
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(renditionOffCount(session, "rendered")).toBe(1);
     expect(renditionOffCount(session, "relocated")).toBe(1);
     expect(renditionOffCount(session, "selected")).toBe(1);
@@ -1945,7 +1952,8 @@ describe("useEpubSession lifecycle", () => {
 
     act(() => root.unmount());
 
-    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.rendition.off).toHaveBeenCalledTimes(4);
+    expect(renditionOffCount(session, "removed")).toBe(1);
     expect(bridge.onSessionEnding).toHaveBeenCalledTimes(1);
     expect(session.destroy).toHaveBeenCalledTimes(1);
   });

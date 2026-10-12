@@ -6,6 +6,7 @@ import { observeReaderMediaReadiness } from "./readerReflowableMedia";
 type ViewSize = { heightDelta: number; widthDelta: number };
 
 type ContinuousRenditionManager = {
+  setSessionOwner?: (ownsSession: () => boolean, onLoadError: (error: unknown) => void) => void;
   container?: HTMLElement;
   counter?: (bounds: ViewSize) => void;
   check?: () => Promise<unknown>;
@@ -66,6 +67,7 @@ export function stabilizeContinuousRendition(
     checkRequested = false;
     onLoadError(error);
   };
+  manager.setSessionOwner?.(() => current() && !failed, fail);
   // All vendor section loads share this request boundary, including checks queued
   // by epub.js itself. Refuse a late result before it can create an obsolete iframe.
   // 0.3.93 check() resolves failed mounts as Error values instead of rejecting them.
@@ -241,29 +243,6 @@ export function stabilizeContinuousRendition(
   };
   rendition.on("attached", configureScroller);
   configureScroller();
-
-  // Keep loaded views visible and mounted. epub.js's stock update destroys
-  // offscreen iframes, which loses their input listeners and can leave an empty
-  // placeholder while the iframe is recreated during reverse scrolling.
-  manager.update = async () => {
-    if (!current() || failed) return;
-    const views = manager.views?.all() ?? [];
-
-    await Promise.all(
-      views.map(async (view) => {
-        if (!current() || failed) return;
-        if (!view.displayed) {
-          try {
-            await view.display(manager.request);
-          } catch (error) {
-            fail(error);
-            return;
-          }
-        }
-        if (current() && !failed) view.show();
-      }),
-    );
-  };
 
   return () => {
     if (disposed) return;

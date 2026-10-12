@@ -3,6 +3,7 @@ import { buildReaderFixture, readerFixtures } from "../../fixtures/reader/reader
 import { resolveReaderPublicationLayoutCapability } from "../../../src/features/reader/readerSession";
 import { ReaderContentDocumentRegistry } from "../../../src/features/reader/readerContentDocumentRegistry";
 import { stabilizeContinuousRendition } from "../../../src/features/reader/readerContinuousScroll";
+import { ReaderContinuousViewManager } from "../../../src/features/reader/ReaderContinuousViewManager";
 import type { ReaderFixtureId } from "../../fixtures/reader/readerFixtures";
 import { probeReaderPrepend } from "./reader-prepend-probe";
 import {
@@ -34,6 +35,12 @@ declare global {
       ready: boolean;
       error: string | null;
       managerState: () => { ignore: boolean };
+      residency: () => {
+        registeredDocuments: number;
+        observerDocuments: number;
+        observerViews: number;
+      };
+      resize: (width: number, height: number) => void;
       layout: "fixed-layout" | "reflowable";
       metadataLayout: string;
       spineCount: number;
@@ -68,6 +75,7 @@ const status = document.getElementById("status")!;
 let generation = 0;
 let releaseWheelOverlay: (() => void) | undefined;
 let active: {
+  documents: ReaderContentDocumentRegistry;
   book: Book;
   rendition: Rendition;
   observer: ReturnType<typeof observeReaderRuntime>;
@@ -136,7 +144,12 @@ async function open(options: RuntimeOptions) {
       width,
       height,
       spread: "none",
-      manager: mode === "continuous" ? "continuous" : "default",
+      manager:
+        mode === "continuous"
+          ? options.profile === "archeion"
+            ? ReaderContinuousViewManager
+            : "continuous"
+          : "default",
       flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
       allowScriptedContent: false,
     });
@@ -175,8 +188,13 @@ async function open(options: RuntimeOptions) {
             : undefined,
       });
       const bindContents = (contents: Contents) => documents.bind(contents);
+      const pruneDocuments = () => documents.pruneDisconnected();
       rendition.hooks.content.register(bindContents);
-      removeContentHook = () => rendition.hooks.content.deregister(bindContents);
+      rendition.on("removed", pruneDocuments);
+      removeContentHook = () => {
+        rendition.hooks.content.deregister(bindContents);
+        rendition.off("removed", pruneDocuments);
+      };
     }
     await rendition.started;
     if (token !== generation) return;
@@ -205,7 +223,7 @@ async function open(options: RuntimeOptions) {
     observer = observeReaderRuntime(stage, selected, rendition);
     if (mode === "continuous" && options.probePrepend)
       prependProbe = probeReaderPrepend(rendition, observer.snapshot);
-    active = { book, rendition, observer, options, release, prependProbe };
+    active = { book, rendition, observer, options, release, prependProbe, documents };
     await display(rendition, options.target ?? 0);
     if (token !== generation || released) return;
     const scroller = stage.querySelector<HTMLElement>(".epub-container");
@@ -233,6 +251,15 @@ window.readerFixture = {
   managerState: () => {
     const manager = (current().rendition as Rendition & { manager: { ignore: boolean } }).manager;
     return { ignore: manager.ignore };
+  },
+  residency: () => ({
+    registeredDocuments: current().documents.list().length,
+    ...current().observer.metrics().listeners,
+  }),
+  resize: (width, height) => {
+    stage.style.width = `${width}px`;
+    stage.style.height = `${height}px`;
+    current().rendition.resize(width, height);
   },
   layout: "reflowable",
   metadataLayout: "",

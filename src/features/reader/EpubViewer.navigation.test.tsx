@@ -13,6 +13,7 @@ import {
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
+import { ReaderContinuousViewManager } from "./ReaderContinuousViewManager";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
 import { createReaderFileLease } from "./readerFileLease";
 import {
@@ -973,7 +974,10 @@ describe("EpubViewer navigation lifecycle", () => {
     );
     expect(continuousSession.renderTo).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ flow: "scrolled-continuous", manager: "continuous" }),
+      expect.objectContaining({
+        flow: "scrolled-continuous",
+        manager: ReaderContinuousViewManager,
+      }),
     );
     expect(continuousSession.rendition.display).toHaveBeenCalledWith(canonicalCfi);
     expect(container.querySelector(".epub-viewer")?.getAttribute("data-reader-mode")).toBe(

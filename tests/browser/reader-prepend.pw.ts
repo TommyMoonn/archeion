@@ -1,5 +1,31 @@
 import { expect, test } from "@playwright/test";
 import { ReaderRuntimeDriver, assertNoBlankReverse, findAnchor } from "./reader-runtime-driver";
+import type { PrependCorrection } from "./fixtures/reader-prepend-probe";
+
+function prependCompensation(corrections: PrependCorrection[], since: number, validate = true) {
+  let insertedHeight = 0;
+  let expectedShift = 0;
+  for (const correction of corrections.filter((entry) => entry.before.time >= since)) {
+    const applied = correction.after.scrollTop - correction.before.scrollTop;
+    if (correction.source === "counter") {
+      // Ignored mounted-view resizes belong to the anchor owner, not counter.
+      if (applied === 0) continue;
+      if (validate) expect(Math.abs(applied - correction.requestedY)).toBeLessThanOrEqual(2);
+      insertedHeight += Math.max(0, correction.requestedY);
+      expectedShift += correction.requestedY;
+    } else if (correction.source === "scrollBy") {
+      expectedShift += correction.requestedY;
+    } else if (correction.source === "erase") {
+      // Include native clamping during removal, before vendor scrollTo runs.
+      if (validate) expect(Math.abs(applied - correction.requestedY)).toBeLessThanOrEqual(2);
+      expectedShift += correction.requestedY;
+    } else {
+      // Stock erase compensates above removal through an absolute scrollTo.
+      expectedShift += correction.requestedY - correction.before.scrollTop;
+    }
+  }
+  return { insertedHeight, expectedShift };
+}
 
 test.use({
   launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] },
@@ -68,12 +94,14 @@ for (const profile of ["stock", "archeion"] as const) {
       expect(nearTop.scrollTop).toBe(40);
       await driver.settle();
       const settled = await driver.snapshot();
-      const inserted = settled.views
-        .filter((view) => view.index < 2)
-        .reduce((sum, view) => sum + view.height, 0);
       const visibleError = findAnchor(settled, passage.id).top - passage.top;
       const corrections = await page.evaluate(() =>
         window.readerFixture.prependProbe().corrections(),
+      );
+      const { insertedHeight: inserted } = prependCompensation(
+        corrections,
+        nearTop.time,
+        anchoring === "none",
       );
       await driver.attach(testInfo, `near-40-${profile}-${anchoring}`, {
         before: nearTop,
@@ -171,22 +199,22 @@ for (const width of [900, 1050, 1400]) {
     const imageAfter = await driver.snapshot();
     expect(findAnchor(imageAfter, image.id).visible).toBe(true);
     expect(Math.abs(findAnchor(imageAfter, image.id).top - image.top)).toBeLessThanOrEqual(2);
-    const newHeight = imageAfter.views
-      .filter((view) => view.index < 20)
-      .reduce(
-        (sum, view) =>
-          sum + view.height - (imageBefore.views.find((old) => old.id === view.id)?.height ?? 0),
-        0,
-      );
-    expect(newHeight).toBeGreaterThan(0);
-    expect(Math.abs(imageAfter.scrollTop - imageBefore.scrollTop - newHeight)).toBeLessThanOrEqual(
-      2,
+    const corrections = await page.evaluate(() =>
+      window.readerFixture.prependProbe().corrections(),
     );
+    const { insertedHeight: newHeight, expectedShift } = prependCompensation(
+      corrections,
+      imageBefore.time,
+    );
+    expect(newHeight).toBeGreaterThan(0);
+    expect(
+      Math.abs(imageAfter.scrollTop - imageBefore.scrollTop - expectedShift),
+    ).toBeLessThanOrEqual(2);
     await driver.attach(testInfo, `owned-image-${width}`, {
       before: imageBefore,
       after: imageAfter,
       newHeight,
-      corrections: await page.evaluate(() => window.readerFixture.prependProbe().corrections()),
+      corrections,
     });
   });
 }
@@ -213,16 +241,17 @@ for (const offset of [40, 140, 300]) {
     expect(before.scrollTop).toBe(offset);
     await driver.settle();
     const after = await driver.snapshot();
-    const addedHeight = after.views
-      .filter((view) => view.index < 2)
-      .reduce((sum, view) => sum + view.height, 0);
-    expect(after.views.filter((view) => view.index < 2)).toHaveLength(2);
-    expect(Math.abs(after.scrollTop - before.scrollTop - addedHeight)).toBeLessThanOrEqual(2);
-    expect(findAnchor(after, anchor.id).visible).toBe(true);
-    expect(Math.abs(findAnchor(after, anchor.id).top - anchor.top)).toBeLessThanOrEqual(2);
     const corrections = await page.evaluate(() =>
       window.readerFixture.prependProbe().corrections(),
     );
+    const { insertedHeight: addedHeight, expectedShift } = prependCompensation(
+      corrections,
+      before.time,
+    );
+    expect(addedHeight).toBeGreaterThan(0);
+    expect(Math.abs(after.scrollTop - before.scrollTop - expectedShift)).toBeLessThanOrEqual(2);
+    expect(findAnchor(after, anchor.id).visible).toBe(true);
+    expect(Math.abs(findAnchor(after, anchor.id).top - anchor.top)).toBeLessThanOrEqual(2);
     await driver.attach(testInfo, `near-top-${offset}`, {
       before,
       after,
@@ -268,7 +297,11 @@ test("a ready preceding section is shown while the next neighbor request is held
   await driver.wheel(-2000);
   try {
     await expect
-      .poll(() => page.evaluate(() => window.readerFixture.prependProbe().waiting()))
+      .poll(async () => {
+        const waiting = await page.evaluate(() => window.readerFixture.prependProbe().waiting());
+        if (!waiting) await driver.wheel(-600);
+        return waiting;
+      })
       .toBe(true);
     await expect
       .poll(
