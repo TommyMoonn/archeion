@@ -38,6 +38,7 @@ declare global {
       turn: (direction: "next" | "prev") => Promise<void>;
       snapshot: () => RuntimeSnapshot;
       events: () => RuntimeEvent[];
+      metrics: ReturnType<typeof observeReaderRuntime>["metrics"];
       clearEvents: () => void;
       dispose: () => void;
       changeImageSize: (height?: number) => Promise<void>;
@@ -194,6 +195,7 @@ window.readerFixture = {
   },
   snapshot: () => current().observer.snapshot(),
   events: () => current().observer.events(),
+  metrics: () => current().observer.metrics(),
   clearEvents: () => current().observer.clear(),
   dispose,
   async changeImageSize(height) {

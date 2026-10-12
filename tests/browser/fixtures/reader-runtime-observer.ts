@@ -45,6 +45,9 @@ export function observeReaderRuntime(
   rendition: Rendition,
 ) {
   const events: RuntimeEvent[] = [];
+  const counts: Record<string, number> = {};
+  const renderStarts = new Map<number, number>();
+  const renderHookToRenderedMs: number[] = [];
   const cleanup: (() => void)[] = [];
   type ObservedView = View & { iframe?: HTMLIFrameElement; section: { index: number } };
   const viewSubscriptions = new Map<ObservedView, () => void>();
@@ -138,12 +141,14 @@ export function observeReaderRuntime(
     details: Omit<Partial<RuntimeEvent>, "type" | "time" | "snapshot"> = {},
   ) => {
     if (!disposed) {
+      counts[type] = (counts[type] ?? 0) + 1;
       events.push({ type, time: performance.now(), ...details, snapshot: snapshot() });
       // Long local experiments stay bounded. No DOM nodes or publication text retained.
       if (events.length > 300) events.shift();
     }
   };
   const render = (view: ObservedView) => {
+    renderStarts.set(view.section.index, performance.now());
     if (viewSubscriptions.has(view)) return;
     const resized = (bounds: { heightDelta: number }) =>
       record("view-resized", {
@@ -153,8 +158,13 @@ export function observeReaderRuntime(
     view.on("resized", resized);
     viewSubscriptions.set(view, () => view.off("resized", resized));
   };
-  const rendered = (section: { index: number }) =>
+  const rendered = (section: { index: number }) => {
+    const started = renderStarts.get(section.index);
+    if (started !== undefined && renderHookToRenderedMs.length < 1_000)
+      renderHookToRenderedMs.push(performance.now() - started);
+    renderStarts.delete(section.index);
     record("rendered", { section: fixture.sections[section.index]?.id });
+  };
   const relocated = (location: { start: { cfi: string } }) =>
     record("relocated", { cfi: location.start.cfi });
   const resized = () => record("rendition-resized");
@@ -229,6 +239,7 @@ export function observeReaderRuntime(
   return {
     snapshot,
     events: () => [...events],
+    metrics: () => ({ counts: { ...counts }, renderHookToRenderedMs: [...renderHookToRenderedMs] }),
     clear: () => {
       events.length = 0;
     },
@@ -243,6 +254,7 @@ export function observeReaderRuntime(
       viewSubscriptions.clear();
       documentSubscriptions.clear();
       observedFrames.clear();
+      renderStarts.clear();
       rendition.hooks.render.deregister(render);
       rendition.off("rendered", rendered);
       rendition.off("relocated", relocated);
