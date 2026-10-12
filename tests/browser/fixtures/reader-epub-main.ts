@@ -2,10 +2,7 @@ import ePub, { type Book, type Contents, type Rendition } from "epubjs";
 import { buildReaderFixture, readerFixtures } from "../../fixtures/reader/readerFixtures";
 import { resolveReaderPublicationLayoutCapability } from "../../../src/features/reader/readerSession";
 import { ReaderContentDocumentRegistry } from "../../../src/features/reader/readerContentDocumentRegistry";
-import {
-  forwardContinuousWheel,
-  stabilizeContinuousRendition,
-} from "../../../src/features/reader/readerContinuousScroll";
+import { stabilizeContinuousRendition } from "../../../src/features/reader/readerContinuousScroll";
 import type { ReaderFixtureId } from "../../fixtures/reader/readerFixtures";
 import { probeReaderPrepend } from "./reader-prepend-probe";
 import {
@@ -27,6 +24,8 @@ export type RuntimeOptions = {
   probePrepend?: boolean;
   /** Synthetic short/long chapter geometry for boundary traversal. */
   alternatingHeights?: boolean;
+  /** Test-only reproduction of the removed synchronous pixel-wheel path. */
+  legacyWheelForwarding?: boolean;
 };
 
 declare global {
@@ -51,6 +50,10 @@ declare global {
       metrics: ReturnType<typeof observeReaderRuntime>["metrics"];
       clearEvents: () => void;
       dispose: () => void;
+      showWheelOverlay: (
+        kind: "search" | "annotations" | "footnote" | "illustration" | "illustration-loading",
+      ) => Promise<void>;
+      closeWheelOverlay: () => void;
       changeImageSize: (height?: number) => Promise<void>;
       prependProbe: () => ReturnType<typeof probeReaderPrepend>;
     };
@@ -63,6 +66,7 @@ if (!fixture) throw new Error("Select a known synthetic EPUB fixture");
 const stage = document.getElementById("publication")!;
 const status = document.getElementById("status")!;
 let generation = 0;
+let releaseWheelOverlay: (() => void) | undefined;
 let active: {
   book: Book;
   rendition: Rendition;
@@ -79,6 +83,8 @@ function display(rendition: Rendition, target: string | number) {
   return typeof target === "string" ? rendition.display(target) : rendition.display(target);
 }
 function dispose() {
+  releaseWheelOverlay?.();
+  releaseWheelOverlay = undefined;
   generation += 1;
   window.readerFixture.ready = false;
   window.readerFixture.error = null;
@@ -158,9 +164,13 @@ async function open(options: RuntimeOptions) {
         );
       documents.updateOptions({
         onWheel:
-          mode === "continuous"
+          mode === "continuous" && options.legacyWheelForwarding
             ? (event) => {
-                forwardContinuousWheel(event, stage.querySelector(".epub-container"));
+                const scroller = stage.querySelector<HTMLElement>(".epub-container");
+                if (!scroller || event.defaultPrevented || event.deltaMode !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                scroller.scrollTop += event.deltaY;
               }
             : undefined,
       });
@@ -260,6 +270,17 @@ window.readerFixture = {
   metrics: () => current().observer.metrics(),
   clearEvents: () => current().observer.clear(),
   dispose,
+  showWheelOverlay: async (kind) => {
+    const token = generation;
+    const { mountWheelOverlay } = await import("./reader-wheel-overlays");
+    if (token !== generation) return;
+    releaseWheelOverlay?.();
+    releaseWheelOverlay = mountWheelOverlay(kind);
+  },
+  closeWheelOverlay: () => {
+    releaseWheelOverlay?.();
+    releaseWheelOverlay = undefined;
+  },
   prependProbe: () => {
     const probe = current().prependProbe;
     if (!probe) throw new Error("Open with probePrepend to run a controlled experiment");

@@ -247,6 +247,71 @@ for (const offset of [40, 140, 300]) {
   });
 }
 
+test("a ready preceding section is shown while the next neighbor request is held", async ({
+  page,
+}, testInfo) => {
+  const driver = new ReaderRuntimeDriver(page);
+  await driver.open({
+    fixture: "long-spine",
+    mode: "continuous",
+    profile: "archeion",
+    target: "section-37.xhtml#section-37-p7",
+    alternatingHeights: true,
+    probePrepend: true,
+  });
+  const initial = await driver.snapshot();
+  const precedingIndex = Math.min(...initial.views.map((view) => view.index)) - 1;
+  const section = `section-${String(precedingIndex + 1).padStart(2, "0")}`;
+  // The short previous section completes; the subsequent tall neighbor remains
+  // pending inside the vendor's recursive check. No private check is invoked.
+  await page.evaluate(() => window.readerFixture.prependProbe().holdNextRequest(1));
+  await driver.wheel(-2000);
+  try {
+    await expect
+      .poll(() => page.evaluate(() => window.readerFixture.prependProbe().waiting()))
+      .toBe(true);
+    await expect
+      .poll(
+        async () =>
+          (await driver.snapshot()).readiness.find((view) => view.index === precedingIndex)
+            ?.displayed,
+      )
+      .toBe(true);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (section) =>
+            window.readerFixture
+              .events()
+              .some((event) => event.type === "rendered" && event.section === section),
+          section,
+        ),
+      )
+      .toBe(true);
+    const ready = await driver.snapshot();
+    await driver.attach(testInfo, "preceding-ready-before-wheel", { ready, section });
+    expect(ready.readiness.find((view) => view.index === precedingIndex)?.visibility).toBe(
+      "visible",
+    );
+    // Target the measured passage using real input; a fixed delta can leave the
+    // first line above the viewport after publisher height reconciliation.
+    await driver.wheel(findAnchor(ready, `${section}-p1`).top - ready.viewportTop - 100);
+    await expect
+      .poll(async () => findAnchor(await driver.snapshot(), `${section}-p1`).visible)
+      .toBe(true);
+    const sample = await driver.snapshot();
+    const view = sample.readiness.find((view) => view.index === precedingIndex)!;
+    expect(view.readyState).toBe("complete");
+    expect(view.visibility).toBe("visible");
+    expect(view.hit).toBe(true);
+    expect(await page.evaluate(() => window.readerFixture.prependProbe().waiting())).toBe(true);
+    await driver.attach(testInfo, "ready-view-held-neighbor", { sample });
+  } finally {
+    await page.evaluate(() => window.readerFixture.prependProbe().releaseRequest());
+  }
+  await driver.settle();
+});
+
 test("reverse input crosses ten boundaries without downward passage snap", async ({
   page,
 }, testInfo) => {
@@ -259,6 +324,8 @@ test("reverse input crosses ten boundaries without downward passage snap", async
     target: "section-37.xhtml#section-37-p7",
     scrollbar: "visible",
     probePrepend: true,
+    // Test-only comparison against the removed wheel path when a traversal fails.
+    legacyWheelForwarding: process.env.ARCHEION_READER_LEGACY_WHEEL === "1",
   });
   const start = await driver.snapshot();
   const samples = [start];

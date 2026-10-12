@@ -5,7 +5,7 @@ import epubPackage from "epubjs/package.json";
 import { stabilizeContinuousRendition, type RenditionWithManager } from "./readerContinuousScroll";
 
 function setup() {
-  const listeners = new Map<string, () => void>();
+  const listeners = new Map<string, (...args: unknown[]) => void>();
   const display = vi.fn<(request: unknown) => Promise<void>>(async () => undefined);
   const show = vi.fn();
   const viewListeners = new Map<
@@ -43,7 +43,9 @@ function setup() {
       },
     },
     emit: vi.fn(),
-    on: vi.fn((event: string, callback: () => void) => listeners.set(event, callback)),
+    on: vi.fn((event: string, callback: (...args: unknown[]) => void) =>
+      listeners.set(event, callback),
+    ),
     off: vi.fn((event: string) => listeners.delete(event)),
   };
   return {
@@ -53,6 +55,7 @@ function setup() {
     view,
     viewListeners,
     render: () => renderHook(view),
+    contentReady: () => listeners.get("rendered")!(undefined, view),
     emit: rendition.emit,
   };
 }
@@ -60,6 +63,55 @@ function setup() {
 afterEach(() => vi.restoreAllMocks());
 
 describe("Continuous rendition integration", () => {
+  it("shows a content-ready view before an unrelated neighboring check finishes", async () => {
+    let frame!: FrameRequestCallback;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const { rendition, manager, listeners, view, render, contentReady } = setup();
+    let finish!: () => void;
+    let complete = false;
+    manager.check.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = () => {
+            complete = true;
+            resolve();
+          };
+        }),
+    );
+    const release = stabilizeContinuousRendition(rendition, () => true);
+    listeners.get("displayed")!();
+    frame(0);
+    render();
+    expect(view.show).not.toHaveBeenCalled();
+    view.displayed = true;
+    contentReady();
+    expect(complete).toBe(false);
+    expect(view.show).toHaveBeenCalledOnce();
+    finish();
+    await Promise.resolve();
+    release();
+  });
+
+  it("does not show an incomplete view, a removed view or content from a retired session", () => {
+    const { rendition, manager, view, contentReady } = setup();
+    let current = true;
+    const release = stabilizeContinuousRendition(rendition, () => current);
+    contentReady();
+    expect(view.show).not.toHaveBeenCalled();
+    view.displayed = true;
+    current = false;
+    contentReady();
+    expect(view.show).not.toHaveBeenCalled();
+    current = true;
+    manager.views.all = () => [];
+    contentReady();
+    expect(view.show).not.toHaveBeenCalled();
+    release();
+  });
+
   it("reconciles initial display even when no resize or scroll can occur", async () => {
     let callback!: FrameRequestCallback;
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {

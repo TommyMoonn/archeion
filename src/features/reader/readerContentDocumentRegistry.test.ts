@@ -23,6 +23,51 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("leaves native Continuous input unregistered while retaining content interactions", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    const addDocument = vi.spyOn(chapter, "addEventListener");
+    const addWindow = vi.spyOn(frame.contentWindow!, "addEventListener");
+    const onKeyDown = vi.fn();
+    const onContentClick = vi.fn(() => false);
+    const registry = new ReaderContentDocumentRegistry();
+    registry.updateOptions({ onKeyDown, onContentClick });
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+    const wheel = new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 95 });
+    chapter.body.dispatchEvent(wheel);
+    chapter.body.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "PageDown" }));
+    chapter.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(wheel.defaultPrevented).toBe(false);
+    expect(addDocument.mock.calls.filter(([type]) => type === "wheel")).toHaveLength(0);
+    expect(addWindow.mock.calls.filter(([type]) => type === "wheel")).toHaveLength(0);
+    expect(onKeyDown).toHaveBeenCalledOnce();
+    expect(onContentClick).toHaveBeenCalledOnce();
+    registry.clear();
+  });
+
+  it("installs one Paged wheel owner and releases it on capability change and teardown", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    const first = vi.fn();
+    const replacement = vi.fn();
+    const registry = new ReaderContentDocumentRegistry();
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+    registry.updateOptions({ onWheel: first });
+    chapter.body.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    expect(first).toHaveBeenCalledOnce();
+    registry.updateOptions({ onWheel: replacement });
+    chapter.body.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    expect(first).toHaveBeenCalledOnce();
+    expect(replacement).toHaveBeenCalledOnce();
+    registry.updateOptions({});
+    chapter.body.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    expect(replacement).toHaveBeenCalledOnce();
+    registry.updateOptions({ onWheel: replacement });
+    registry.remove(chapter);
+    chapter.body.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
+    expect(replacement).toHaveBeenCalledOnce();
+  });
+
   afterEach(() => {
     resetTransientSurfaceOwnershipForTests();
     document.body.replaceChildren();

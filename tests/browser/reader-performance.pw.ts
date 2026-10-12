@@ -67,7 +67,7 @@ test("performance observation distinguishes iframe input and overlay input, then
     stopped = true;
     const iframe = report.probe.wheels.find((wheel) => wheel.surface === "iframe");
     expect(iframe?.trusted).toBe(true);
-    expect(iframe?.cancelled).toBe(true);
+    expect(iframe?.cancelled).toBe(false);
     expect(iframe?.effectiveDelta).not.toBe(0);
     expect(report.probe.wheels.some((wheel) => wheel.surface === "panel")).toBe(true);
     expect(report.probe.wheels.some((wheel) => wheel.surface === "backdrop")).toBe(true);

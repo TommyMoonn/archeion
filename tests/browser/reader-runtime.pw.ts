@@ -136,7 +136,7 @@ test("Continuous input uses iframe wheel, PageDown/PageUp and actual scrollbar d
   await driver.settle();
   expect((await driver.snapshot()).scrollTop).toBeGreaterThan(afterDown.scrollTop);
   const evidence = await driver.attach(testInfo, "input-paths");
-  expect(evidence.events.some((event) => event.type === "iframe-wheel" && event.cancelled)).toBe(
+  expect(evidence.events.some((event) => event.type === "iframe-wheel" && !event.cancelled)).toBe(
     true,
   );
 });

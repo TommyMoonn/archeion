@@ -1,6 +1,5 @@
 import type { Rendition } from "epubjs";
 
-import { getContinuousReaderWheelDelta } from "./readerNavigation";
 import { captureContinuousAnchor, continuousAnchorDelta } from "./readerContinuousAnchor";
 import { observeReaderMediaReadiness } from "./readerReflowableMedia";
 
@@ -200,7 +199,12 @@ export function stabilizeContinuousRendition(
     });
   };
   const rendered = (_section: unknown, view: ContinuousRenditionView) => {
+    if (!current() || failed) return;
     bindView(view);
+    // Vendor check() waits for recursive neighbors before update() shows views.
+    // This public event follows content hooks: expose each completed owned view
+    // now, so reverse input cannot reach loaded content that is still hidden.
+    if (view.displayed && manager.views?.all().includes(view)) view.show();
     if (!anchor || (frame === null && !checking)) capture();
   };
   const displayed = () => {
@@ -276,17 +280,4 @@ export function stabilizeContinuousRendition(
     for (const release of subscriptions.values()) release();
     subscriptions.clear();
   };
-}
-
-export function forwardContinuousWheel(event: WheelEvent, scroller: HTMLElement | null): boolean {
-  const deltaY = getContinuousReaderWheelDelta(event);
-
-  if (!scroller || deltaY === null) {
-    return false;
-  }
-
-  event.preventDefault();
-  event.stopPropagation();
-  scroller.scrollTop += deltaY;
-  return true;
 }

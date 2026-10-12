@@ -123,17 +123,9 @@ export function isReaderKeyboardCommandEligible(event: KeyboardEvent): boolean {
 }
 
 export function getReaderWheelDelta(event: ReaderWheelEvent): number | null {
-  const delta = getModeEligibleReaderWheelDelta(event);
-  return delta === null || isPagedReaderWheelTargetBlocked(event.target) ? null : delta;
-}
-
-export function getContinuousReaderWheelDelta(event: ReaderWheelEvent): number | null {
-  return getModeEligibleReaderWheelDelta(event);
-}
-
-function getModeEligibleReaderWheelDelta(event: ReaderWheelEvent): number | null {
   if (
     shouldIgnoreReaderWheelEvent(event) ||
+    isPagedReaderWheelTargetBlocked(event.target) ||
     event.altKey ||
     event.ctrlKey ||
     event.metaKey ||

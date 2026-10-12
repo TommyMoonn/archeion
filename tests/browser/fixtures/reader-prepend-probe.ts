@@ -32,6 +32,7 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
   let requestGate: Promise<void> | null = null;
   let releaseRequest: (() => void) | null = null;
   let waiting = false;
+  let requestsBeforeGate = 0;
   let rejectNext = false;
   const requests: string[] = [];
   const record = (source: PrependCorrection["source"], requestedY: number, action: () => void) => {
@@ -57,7 +58,8 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
   };
   manager.request = async function (...args) {
     requests.push(String(args[0]));
-    const gate = requestGate;
+    const gate = requestsBeforeGate === 0 ? requestGate : null;
+    if (requestGate && requestsBeforeGate > 0) requestsBeforeGate -= 1;
     if (gate) {
       requestGate = null;
       waiting = true;
@@ -79,7 +81,8 @@ export function probeReaderPrepend(rendition: Rendition, snapshot: () => Runtime
     failNextRequest() {
       rejectNext = true;
     },
-    holdNextRequest() {
+    holdNextRequest(skip = 0) {
+      requestsBeforeGate = skip;
       requestGate = new Promise<void>((resolve) => {
         releaseRequest = resolve;
       });

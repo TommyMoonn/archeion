@@ -49,6 +49,7 @@ export type ReaderContentDocumentAccess = Readonly<{
 
 type RegisteredDocument = {
   cleanup: () => void;
+  updateWheel: () => void;
   sectionHref?: string;
   window: Window | null;
 };
@@ -75,6 +76,7 @@ export class ReaderContentDocumentRegistry {
 
   updateOptions(options: ReaderContentDocumentRegistryOptions): void {
     this.options = options;
+    for (const registered of this.documents.values()) registered.updateWheel();
   }
 
   bind(content: EpubContent | null): boolean {
@@ -132,11 +134,17 @@ export class ReaderContentDocumentRegistry {
       }
     };
     const onContentWheel: EventListener = (event) => this.options.onWheel?.(event as WheelEvent);
-    const wheelTargets: Array<Window | Document> = window ? [window, document] : [document];
-
-    for (const target of wheelTargets) {
-      target.addEventListener("wheel", onContentWheel, wheelOptions);
-    }
+    let wheelRegistered = false;
+    const updateWheel = () => {
+      const required = Boolean(this.options.onWheel);
+      if (required === wheelRegistered) return;
+      // Continuous uses native cross-frame chaining. Paged owns one cancellable
+      // document listener, so window/document capture cannot consume a delta twice.
+      if (required) document.addEventListener("wheel", onContentWheel, wheelOptions);
+      else document.removeEventListener("wheel", onContentWheel, wheelOptions);
+      wheelRegistered = required;
+    };
+    updateWheel();
     document.addEventListener("keydown", onContentKeyDown, keyOptions);
     document.addEventListener("click", onContentClick, true);
     document.addEventListener("pointerdown", onContentPointerDown, true);
@@ -144,9 +152,7 @@ export class ReaderContentDocumentRegistry {
     window?.addEventListener("pagehide", onContentTeardown);
 
     const cleanup = () => {
-      for (const target of wheelTargets) {
-        target.removeEventListener("wheel", onContentWheel, wheelOptions);
-      }
+      if (wheelRegistered) document.removeEventListener("wheel", onContentWheel, wheelOptions);
       document.removeEventListener("keydown", onContentKeyDown, keyOptions);
       document.removeEventListener("click", onContentClick, true);
       document.removeEventListener("pointerdown", onContentPointerDown, true);
@@ -154,7 +160,12 @@ export class ReaderContentDocumentRegistry {
       window?.removeEventListener("pagehide", onContentTeardown);
     };
 
-    this.documents.set(document, { cleanup, sectionHref: content?.section?.href, window });
+    this.documents.set(document, {
+      cleanup,
+      updateWheel,
+      sectionHref: content?.section?.href,
+      window,
+    });
     return true;
   }
 
