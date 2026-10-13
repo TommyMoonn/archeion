@@ -92,21 +92,26 @@ test("normal input traverses ten alternating short and long boundaries in both d
     probePrepend: true,
     alternatingHeights: true,
   });
-  const visibleIndex = async () =>
-    (await driver.snapshot()).anchors.find((anchor) => anchor.visible)!.section;
+  const recordVisible = async (sections: Set<string>) => {
+    for (const anchor of (await driver.snapshot()).anchors) {
+      if (anchor.visible) sections.add(anchor.section);
+    }
+  };
   const visited = new Set<string>();
   for (let step = 0; step < 35 && visited.size < 12; step++) {
-    visited.add(await visibleIndex());
+    await recordVisible(visited);
     await driver.wheel(650);
     await driver.settle();
   }
   expect(visited.size).toBeGreaterThanOrEqual(12);
   const backward = new Set<string>();
   for (let step = 0; step < 40; step++) {
-    backward.add(await visibleIndex());
+    await recordVisible(backward);
     await driver.wheel(-650);
     await driver.settle();
-    if ((await driver.snapshot()).scrollTop === 0) break;
+    const sample = await driver.snapshot();
+    await recordVisible(backward);
+    if (sample.scrollTop === 0 && sample.preceding === null) break;
   }
   expect(backward.size).toBeGreaterThanOrEqual(11);
   const beginning = await driver.snapshot();

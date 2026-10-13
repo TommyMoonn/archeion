@@ -193,6 +193,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const {
     applyContentTheme,
+    cancelStageReflow,
     documents: contentDocuments,
     getInteractionSession,
     getNavigationHistorySnapshot,
@@ -353,12 +354,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   useEffect(() => {
     bridgeRef.current = {
-      onContent: (content) => {
-        if (content.document) {
-          const context = contentDocuments.contextFor(content.document);
-          if (context) prepareDocument(context);
-        }
-      },
+      onContent: () => undefined,
       onDisplayed: () => {
         annotations.reconcile();
       },
@@ -376,12 +372,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         clearContentActionFeedback();
       },
       onRendered: () => {
-        for (const document of contentDocuments.list()) {
-          const context = contentDocuments.contextFor(document);
-          if (context) prepareDocument(context);
-        }
         refreshAnchor();
-        annotations.reconcile();
+        // epub.js injects durable annotations for this view in its render hook.
+        // Reconcile data changes separately; a mount must not rescan all highlights.
       },
       onSelected: handleSelection,
       onSessionCreated: (session) => {
@@ -418,7 +411,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onNavigationChange,
     onPublicationLayoutCapability,
     onReady,
-    prepareDocument,
     handlePublicationSearchRuntimeEnding,
     handlePublicationSearchRuntimeReady,
     refreshAnchor,
@@ -488,10 +480,20 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useEffect(() => {
     contentDocuments.updateOptions({
       onContentClick: handleContentClick,
-      onContentKeyDown: handleContentKeyDown,
-      onContentPointerDown: handleContentPointerDown,
+      onContentKeyDown: (event, context) => {
+        cancelStageReflow();
+        return handleContentKeyDown(event, context);
+      },
+      onContentPointerDown: (event, context) => {
+        cancelStageReflow();
+        return handleContentPointerDown(event, context);
+      },
       onDocumentRemoved: handleRegisteredDocumentRemoved,
-      onEscape: handleRegisteredEscape,
+      onDocumentReady: prepareDocument,
+      onEscape: () => {
+        cancelStageReflow();
+        return handleRegisteredEscape();
+      },
       onKeyDown,
       onPointerDown: handleRegisteredPointerDown,
       onSelectionCollapsed: handleRegisteredSelectionCollapsed,
@@ -499,6 +501,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     });
   }, [
     contentDocuments,
+    cancelStageReflow,
     handleContentClick,
     handleContentKeyDown,
     handleContentPointerDown,
@@ -508,14 +511,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     handleRegisteredSelectionCollapsed,
     handleWheel,
     onKeyDown,
+    prepareDocument,
     publicationMode,
   ]);
 
   useEffect(() => {
     applyContentTheme(contentTheme, settings.readingWidth, containerRef.current);
-    dismiss(false);
-    dismissDictionaryLookup();
-  }, [applyContentTheme, contentTheme, dismiss, dismissDictionaryLookup, settings.readingWidth]);
+  }, [applyContentTheme, contentTheme, settings.readingWidth]);
 
   useEffect(() => {
     onNavigationChange?.(getNavigationState());

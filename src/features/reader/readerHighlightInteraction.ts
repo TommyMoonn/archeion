@@ -19,6 +19,7 @@ type PendingGesture = {
   annotationId: string;
   cleanup: () => void;
   document: Document;
+  contentDocument: Document;
   startX: number;
   startY: number;
   target: EventTarget | null;
@@ -33,6 +34,17 @@ export type HighlightActivationGestureController = {
 
 function eventDocument(event: Event): Document | null {
   return event.currentTarget instanceof Element ? event.currentTarget.ownerDocument : null;
+}
+
+function eventContentDocument(event: Event): Document | null {
+  const target = event.currentTarget;
+  if (!(target instanceof Element)) return null;
+  // epub.js paints marks beside the iframe, in the host document. Capture the
+  // view's source document before eviction, independently of the gesture listener target.
+  return (
+    target.closest(".epub-view")?.querySelector<HTMLIFrameElement>("iframe")?.contentDocument ??
+    target.ownerDocument
+  );
 }
 
 function eventPoint(event: Event): { x: number; y: number } | null {
@@ -61,6 +73,7 @@ export function createHighlightActivationGestureController(
   let pending: PendingGesture | undefined;
   let suppressedClickTarget: EventTarget | null = null;
   let suppressedClickDocument: Document | null = null;
+  let suppressedClickContentDocument: Document | null = null;
   let clearSuppression: (() => void) | undefined;
 
   function cancelPending() {
@@ -73,12 +86,18 @@ export function createHighlightActivationGestureController(
     clearSuppression = undefined;
     suppressedClickTarget = null;
     suppressedClickDocument = null;
+    suppressedClickContentDocument = null;
   }
 
-  function suppressSyntheticClick(document: Document, target: EventTarget | null) {
+  function suppressSyntheticClick(
+    document: Document,
+    target: EventTarget | null,
+    contentDocument: Document,
+  ) {
     clearSuppressedClick();
     suppressedClickTarget = target;
     suppressedClickDocument = document;
+    suppressedClickContentDocument = contentDocument;
     const clearOnPhysicalPress = () => clearSuppressedClick();
     document.addEventListener("pointerdown", clearOnPhysicalPress, true);
     clearSuppression = () => {
@@ -94,7 +113,8 @@ export function createHighlightActivationGestureController(
     if (moved || documentHasSelection(current.document)) return;
     event.preventDefault();
     event.stopPropagation();
-    if (suppressClick) suppressSyntheticClick(current.document, current.target);
+    if (suppressClick)
+      suppressSyntheticClick(current.document, current.target, current.contentDocument);
     const point = eventPoint(event);
     if (!point) return;
     activate({
@@ -132,6 +152,7 @@ export function createHighlightActivationGestureController(
       annotationId,
       cleanup,
       document,
+      contentDocument: eventContentDocument(event) ?? document,
       startX: point.x,
       startY: point.y,
       target: event.currentTarget,
@@ -160,6 +181,7 @@ export function createHighlightActivationGestureController(
       annotationId,
       cleanup,
       document,
+      contentDocument: eventContentDocument(event) ?? document,
       startX: point.x,
       startY: point.y,
       target: event.currentTarget,
@@ -178,8 +200,9 @@ export function createHighlightActivationGestureController(
       clearSuppressedClick();
     },
     cancelDocument(document) {
-      if (pending?.document === document) cancelPending();
-      if (suppressedClickDocument === document) clearSuppressedClick();
+      if (pending?.document === document || pending?.contentDocument === document) cancelPending();
+      if (suppressedClickDocument === document || suppressedClickContentDocument === document)
+        clearSuppressedClick();
     },
     handle(annotationId, event) {
       if (event.type === "click") {

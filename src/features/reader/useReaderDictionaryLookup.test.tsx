@@ -59,6 +59,7 @@ function sessionIdentity(bookId: string): ReaderSessionIdentity {
 
 function menu(selectedText: string, cfiRange = "epubcfi(/6/2)"): HighlightInteractionMenu {
   return {
+    source: "selection",
     anchor: {
       document,
       resolveRect: () => ({ bottom: 20, height: 10, left: 0, right: 20, top: 10, width: 20 }),
@@ -299,6 +300,17 @@ describe("useReaderDictionaryLookup", () => {
       selectedTerm: "example",
       status: "ready",
     });
+  });
+
+  it("keeps a saved-highlight lookup on selection collapse but retires it with its document", async () => {
+    const owner: HighlightInteractionMenu = { ...menu("Example"), source: "highlight" };
+    const harness = await renderLookup({ owner });
+    act(() => harness.latest().define(owner));
+    await act(async () => Promise.resolve());
+    act(() => harness.latest().handleSelectionCollapsed(owner.anchor.document));
+    expect(harness.latest().state.status).toBe("ready");
+    act(() => harness.latest().handleDocumentRemoved(owner.anchor.document));
+    expect(harness.latest().state.status).toBe("idle");
   });
 
   it("retires the owned lookup when its content document is removed or selection collapses", async () => {

@@ -186,6 +186,8 @@ export class RenderedAnnotationAdapter {
           (event: Event) => {
             const rendered = this.rendered.get(annotationId);
             if (!token.active || rendered?.token !== token) return;
+            const target = event.target as Node | null;
+            if (target?.nodeType && !target.isConnected) return;
             this.options.onHighlightEvent(annotationId, event);
           },
           "archeion-highlight",
@@ -326,7 +328,10 @@ export class RenderedAnnotationAdapter {
         }
       })
       .finally(() => {
-        if (this.pendingValidations.get(highlight.id) === signature) {
+        if (
+          generation === this.generation &&
+          this.pendingValidations.get(highlight.id) === signature
+        ) {
           this.pendingValidations.delete(highlight.id);
         }
         if (

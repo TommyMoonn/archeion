@@ -181,6 +181,7 @@ export function useHighlightInteractionController({
       clearFeedback();
       cancelOperation();
       openPalette({
+        source: "highlight",
         anchor,
         anchorRect,
         existingHighlight: highlight,
@@ -230,6 +231,7 @@ export function useHighlightInteractionController({
       clearFeedback(sourceDocument);
       cancelOperation();
       openPalette({
+        source: "selection",
         anchor,
         anchorRect,
         existingHighlight: resolution.kind === "existing" ? resolution.highlight : undefined,

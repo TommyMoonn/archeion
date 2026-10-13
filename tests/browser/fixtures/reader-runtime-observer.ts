@@ -198,7 +198,17 @@ export function observeReaderRuntime(
         section: fixture.sections[view.section.index]?.id,
       });
     view.on("resized", resized);
-    viewSubscriptions.set(view, () => view.off("resized", resized));
+    const shown = () => record("view-shown", { section: fixture.sections[view.section.index]?.id });
+    const hidden = () =>
+      record("view-hidden", { section: fixture.sections[view.section.index]?.id });
+    view.on("shown", shown);
+    view.on("hidden", hidden);
+    viewSubscriptions.set(view, () => {
+      view.off("resized", resized);
+      view.off("shown", shown);
+      view.off("hidden", hidden);
+    });
+    record("view-created", { section: fixture.sections[view.section.index]?.id });
   };
   const rendered = (section: { index: number }) => {
     const started = renderStarts.get(section.index);
@@ -278,10 +288,31 @@ export function observeReaderRuntime(
     }
   };
   rendition.on("rendered", onRendered);
+  const manager = (
+    rendition as Rendition & {
+      manager: {
+        on(event: string, callback: (...args: unknown[]) => void): void;
+        off(event: string, callback: (...args: unknown[]) => void): void;
+      };
+    }
+  ).manager;
+  const residency = (state: unknown, requested: unknown) => {
+    bind();
+    record(`residency-${String(state)}`);
+    if (Array.isArray(requested)) record(`neighbors-${requested.join(",")}`);
+  };
+  manager.on("reader-residency", residency);
   return {
     snapshot,
     events: () => [...events],
-    metrics: () => ({ counts: { ...counts }, renderHookToRenderedMs: [...renderHookToRenderedMs] }),
+    metrics: () => ({
+      counts: { ...counts },
+      renderHookToRenderedMs: [...renderHookToRenderedMs],
+      listeners: {
+        observerDocuments: documentSubscriptions.size,
+        observerViews: viewSubscriptions.size,
+      },
+    }),
     clear: () => {
       events.length = 0;
     },
@@ -302,6 +333,7 @@ export function observeReaderRuntime(
       rendition.off("relocated", relocated);
       rendition.off("resized", resized);
       rendition.off("rendered", onRendered);
+      manager.off("reader-residency", residency);
     },
   };
 }

@@ -116,6 +116,7 @@ export function applyReaderContentTheme(
   target: ReaderThemeTarget | null | undefined,
   theme: ReaderContentTheme,
   documents: Array<Document | null | undefined> = [],
+  classifyProse = true,
 ): void {
   target?.themes.register(theme.name, theme.rules);
   target?.themes.select(theme.name);
@@ -125,15 +126,26 @@ export function applyReaderContentTheme(
   );
 
   for (const document of uniqueDocuments) {
-    classifyReaderRunningProse(document);
+    if (classifyProse) prepareReaderRunningProse(document);
     applyReaderFontFaces(document, theme.fontFaceCss);
   }
 }
 
-function classifyReaderRunningProse(document: Document): void {
+// Structural classification belongs to a document mount, not a palette update.
+export function prepareReaderRunningProse(document: Document): void {
   for (const paragraph of document.querySelectorAll("p")) {
     paragraph.toggleAttribute(READER_RUNNING_PROSE_ATTRIBUTE, isReaderRunningProse(paragraph));
   }
+}
+
+export function readerContentThemeGeometryKey(theme: ReaderContentTheme): string {
+  const body = theme.rules.body;
+  return JSON.stringify([
+    body?.["font-family"],
+    body?.["font-size"],
+    body?.["line-height"],
+    theme.fontFaceCss,
+  ]);
 }
 
 function isReaderRunningProse(paragraph: Element): boolean {
@@ -171,7 +183,7 @@ function applyReaderFontFaces(document: Document | null, fontFaceCss: string | u
 
   const style = existingStyle ?? document.createElement("style");
   style.id = READER_FONT_FACE_STYLE_ID;
-  style.textContent = fontFaceCss;
+  if (style.textContent !== fontFaceCss) style.textContent = fontFaceCss;
 
   if (!existingStyle) {
     document.head.appendChild(style);

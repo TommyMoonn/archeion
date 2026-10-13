@@ -5,6 +5,29 @@ export type ReaderStageSize = Readonly<{
   width: number;
 }>;
 
+/** Wait for font layout and two paint opportunities, with explicit supersession. */
+export function afterReaderStageLayout(
+  documents: readonly Document[],
+  apply: () => void,
+): () => void {
+  let cancelled = false;
+  let frame: number | null = null;
+  void Promise.allSettled(documents.map((document) => document.fonts?.ready)).then(() => {
+    if (cancelled) return;
+    frame = window.requestAnimationFrame(() => {
+      if (cancelled) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        if (!cancelled) apply();
+      });
+    });
+  });
+  return () => {
+    cancelled = true;
+    if (frame !== null) window.cancelAnimationFrame(frame);
+  };
+}
+
 type LocationPreservingRendition = Rendition & {
   resize(width: number, height: number, epubcfi: string): void;
 };
@@ -31,6 +54,8 @@ export function observeReaderStageSize(
   onSize: (size: ReaderStageSize) => void,
 ): () => void {
   let lastSize: ReaderStageSize | null = null;
+  let pendingSize: ReaderStageSize | null = null;
+  let frame: number | null = null;
 
   const publish = (width: number, height: number) => {
     const nextSize = normalizeReaderStageSize(width, height);
@@ -45,18 +70,44 @@ export function observeReaderStageSize(
 
   publishStageBounds();
 
+  const schedule = (width: number, height: number) => {
+    pendingSize = normalizeReaderStageSize(width, height);
+    if (frame !== null) return;
+    frame = window.requestAnimationFrame(() => {
+      frame = null;
+      const size = pendingSize;
+      pendingSize = null;
+      if (size) publish(size.width, size.height);
+    });
+  };
+  const scheduleStageBounds = () => {
+    const bounds = stage.getBoundingClientRect();
+    schedule(bounds.width, bounds.height);
+  };
+  const cancel = () => {
+    if (frame !== null) window.cancelAnimationFrame(frame);
+    frame = null;
+    pendingSize = null;
+  };
+
   if (typeof ResizeObserver !== "undefined") {
     const observer = new ResizeObserver((entries) => {
       const entry = entries.find((candidate) => candidate.target === stage);
-      if (entry) publish(entry.contentRect.width, entry.contentRect.height);
-      else publishStageBounds();
+      if (entry) schedule(entry.contentRect.width, entry.contentRect.height);
+      else scheduleStageBounds();
     });
     observer.observe(stage);
-    return () => observer.disconnect();
+    return () => {
+      cancel();
+      observer.disconnect();
+    };
   }
 
-  window.addEventListener("resize", publishStageBounds);
-  return () => window.removeEventListener("resize", publishStageBounds);
+  window.addEventListener("resize", scheduleStageBounds);
+  return () => {
+    cancel();
+    window.removeEventListener("resize", scheduleStageBounds);
+  };
 }
 
 function normalizeReaderStageSize(width: number, height: number): ReaderStageSize | null {

@@ -13,6 +13,7 @@ import {
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
+import { ReaderContinuousViewManager } from "./ReaderContinuousViewManager";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
 import { createReaderFileLease } from "./readerFileLease";
 import {
@@ -93,6 +94,7 @@ function createMockRendition(): MockRendition {
       underline: vi.fn(),
     },
     display: vi.fn(async () => undefined),
+    currentLocation: vi.fn(() => undefined),
     next: vi.fn(async () => undefined),
     prev: vi.fn(async () => undefined),
     themes: {
@@ -973,7 +975,10 @@ describe("EpubViewer navigation lifecycle", () => {
     );
     expect(continuousSession.renderTo).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ flow: "scrolled-continuous", manager: "continuous" }),
+      expect.objectContaining({
+        flow: "scrolled-continuous",
+        manager: ReaderContinuousViewManager,
+      }),
     );
     expect(continuousSession.rendition.display).toHaveBeenCalledWith(canonicalCfi);
     expect(container.querySelector(".epub-viewer")?.getAttribute("data-reader-mode")).toBe(
@@ -2471,7 +2476,7 @@ describe("EpubViewer navigation lifecycle", () => {
       expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
     );
     const first = document.createElement("iframe");
-    const second = document.createElement("iframe");
+    let second = document.createElement("iframe");
     document.body.append(first, second);
     for (const frame of [first, second]) {
       const paragraph = frame.contentDocument!.createElement("p");
@@ -2512,6 +2517,14 @@ describe("EpubViewer navigation lifecycle", () => {
     const stoppedSurface = document.createElement("button");
     stoppedSurface.addEventListener("pointerdown", (event) => event.stopPropagation());
     document.body.append(stoppedSurface);
+    second.remove();
+    second = document.body.appendChild(document.createElement("iframe"));
+    Object.defineProperty(second.contentWindow, "frameElement", { value: second });
+    vi.spyOn(second, "getBoundingClientRect").mockReturnValue(clientRect(420, 100, 360, 500));
+    const remountedParagraph = second.contentDocument!.createElement("p");
+    remountedParagraph.textContent =
+      "A realistic highlighted passage with enough text for the saved range.";
+    second.contentDocument!.body.append(remountedParagraph);
     session.rendition.emitContentMock({
       document: second.contentDocument!,
       window: second.contentWindow!,
@@ -2723,14 +2736,20 @@ describe("EpubViewer navigation lifecycle", () => {
     await act(async () => frame.contentWindow!.dispatchEvent(new Event("pagehide")));
     session.rendition.emitContentMock(content);
     session.rendition.emitMock("rendered", {}, { document: frame.contentDocument });
-    expect(addListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(2);
+    expect(addListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(1);
+    expect(removeListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(1);
 
-    Object.defineProperty(frame.contentWindow, "frameElement", {
-      configurable: true,
-      value: null,
-    });
+    frame.remove();
+    const remounted = document.body.appendChild(document.createElement("iframe"));
+    Object.defineProperty(remounted.contentWindow, "frameElement", { value: remounted });
+    const remountAdd = vi.spyOn(remounted.contentDocument!, "addEventListener");
+    const remountRemove = vi.spyOn(remounted.contentDocument!, "removeEventListener");
+    session.rendition.emitContentMock({ document: remounted.contentDocument! });
+    session.rendition.emitMock("rendered", {}, { document: remounted.contentDocument });
+    expect(remountAdd.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(1);
+    remounted.remove();
     await act(async () => session.rendition.emitMock("rendered", {}, {}));
-    expect(removeListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(2);
+    expect(remountRemove.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(1);
   });
 
   it("reports overlap as nonfatal feedback and keeps the rendition mounted", async () => {
@@ -2810,6 +2829,7 @@ describe("EpubViewer navigation lifecycle", () => {
       section: { href: "Text/chapter-1.xhtml" },
       window: { getSelection: () => selection },
     };
+    session.rendition.emitContentMock({ document, window });
 
     await act(async () =>
       session.rendition.emitMock("selected", "epubcfi(/6/2!/4/2,/1:25,/1:40)", contents),

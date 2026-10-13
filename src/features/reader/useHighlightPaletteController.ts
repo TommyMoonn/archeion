@@ -18,6 +18,7 @@ export type ReaderTextSelection = {
 };
 
 export type HighlightInteractionMenu = {
+  source: "selection" | "highlight";
   anchor: HighlightPaletteAnchor;
   anchorRect: ClientRect;
   existingHighlight?: HighlightAnnotation;
@@ -173,7 +174,8 @@ export function useHighlightPaletteController({
   );
   const handleSelectionCollapsed = useCallback(
     (document: Document) => {
-      if (menuRef.current?.anchor.document === document) dismiss(false);
+      const current = menuRef.current;
+      if (current?.source === "selection" && current.anchor.document === document) dismiss(false);
     },
     [dismiss],
   );

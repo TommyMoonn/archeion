@@ -16,9 +16,18 @@ import {
   ReaderContentDocumentSessionOwner,
   type ReaderContentDocumentAccess,
 } from "./readerContentDocumentRegistry";
-import type { ReaderContentTheme } from "./readerTheme";
-import { stabilizeContinuousRendition, type RenditionWithManager } from "./readerContinuousScroll";
-import { syncReaderRenditionStageSize, type ReaderStageSize } from "./readerStageGeometry";
+import { readerContentThemeGeometryKey, type ReaderContentTheme } from "./readerTheme";
+import {
+  stabilizeContinuousRendition,
+  type RenditionWithManager,
+  type ContinuousPositionOwner,
+} from "./readerContinuousScroll";
+import { ReaderContinuousViewManager } from "./ReaderContinuousViewManager";
+import {
+  afterReaderStageLayout,
+  syncReaderRenditionStageSize,
+  type ReaderStageSize,
+} from "./readerStageGeometry";
 import { loadReaderNavigationModel } from "./readerNavigationModel";
 import {
   createReaderDeliberateNavigationController,
@@ -68,6 +77,7 @@ type EpubSessionSnapshot = {
   publicationSearch: ReaderPublicationSearchService;
   rendition: Rendition;
   seekMap: ReaderSeekMap;
+  appearanceGeometry?: string;
 };
 
 export type EpubSessionBridge = {
@@ -92,6 +102,7 @@ type RenditionWithContentHook = Rendition & {
   hooks?: {
     content?: {
       register?: (callback: (contents: EpubContent) => void) => void;
+      deregister?: (callback: (contents: EpubContent) => void) => void;
     };
   };
 };
@@ -146,6 +157,8 @@ type ReaderResizeRelocationOwner = {
   preserveCfi: string;
   restorePagedPosition: boolean;
   restorationStarted: boolean;
+  waitingForLayout?: boolean;
+  cancelRestore?: () => void;
 };
 
 type ActiveRenditionStage = {
@@ -153,11 +166,22 @@ type ActiveRenditionStage = {
   continuousLayout: boolean;
   rendition: Rendition;
   pendingStageSize: ReaderStageSize | null;
+  pendingAppearance: (() => void) | null;
   resizeRelocationOwner: ReaderResizeRelocationOwner | null;
   session: EpubSessionSnapshot;
   sessionKey: object;
   stageSize: ReaderStageSize | null;
 };
+
+function applyPendingStageChanges(active: ActiveRenditionStage | null): void {
+  if (!active) return;
+  const size = active.pendingStageSize;
+  active.pendingStageSize = null;
+  if (size) active.applyStageSize(size);
+  const appearance = active.pendingAppearance;
+  active.pendingAppearance = null;
+  appearance?.();
+}
 
 type EpubSessionLifecycle = {
   cancelDeferredNavigation: () => void;
@@ -165,6 +189,7 @@ type EpubSessionLifecycle = {
   unsubscribeSeekMap: () => void;
   onRelocated: (location: Location) => void;
   onRendered: (section: unknown, view: unknown) => void;
+  onRemoved: () => void;
   onSelected: (cfiRange: string, contents: EpubContent) => void;
   snapshot: EpubSessionSnapshot;
   tornDown: boolean;
@@ -247,6 +272,7 @@ export type UseEpubSessionOptions = {
 };
 
 export type EpubSessionFacade = {
+  cancelStageReflow: () => void;
   applyContentTheme: (
     theme: ReaderContentTheme,
     readingWidth: ReaderSettings["readingWidth"],
@@ -299,6 +325,8 @@ export function useEpubSession({
   const generationRef = useRef(0);
   const canonicalCfiFileRef = useRef<ReaderFileLease | null>(null);
   const turnOwnerRef = useRef<EpubTurnOwner | null>(null);
+  const continuousPositionRef = useRef<ContinuousPositionOwner | null>(null);
+  const displayOwnerRef = useRef<{ session: EpubSessionSnapshot } | null>(null);
   const seekMapListenersRef = useRef(new Set<() => void>());
   const sessionKey = useMemo(
     () => ({ fileLease, mode, sessionIdentity }),
@@ -354,7 +382,11 @@ export function useEpubSession({
 
   const invalidateResizeRelocationOwner = useCallback((session: EpubSessionSnapshot) => {
     const activeRendition = activeRenditionStageRef.current;
-    if (activeRendition?.session === session) activeRendition.resizeRelocationOwner = null;
+    if (activeRendition?.session === session) {
+      activeRendition.resizeRelocationOwner?.cancelRestore?.();
+      activeRendition.resizeRelocationOwner = null;
+    }
+    continuousPositionRef.current?.cancelReflow();
   }, []);
 
   const turn = useCallback(
@@ -398,6 +430,8 @@ export function useEpubSession({
             }
             owner.resetTimer = null;
             turnOwnerRef.current = null;
+            const active = activeRenditionStageRef.current;
+            if (active?.session === session) applyPendingStageChanges(active);
           }, 80);
         }
       }
@@ -413,6 +447,9 @@ export function useEpubSession({
     ) => {
       const target = rawTarget.trim();
       if (!target || sessionRef.current !== session) return false;
+      const owner = { session };
+      displayOwnerRef.current = owner;
+      const finishPositionNavigation = continuousPositionRef.current?.beginNavigation();
 
       try {
         invalidateResizeRelocationOwner(session);
@@ -432,6 +469,15 @@ export function useEpubSession({
         return true;
       } catch {
         return false;
+      } finally {
+        finishPositionNavigation?.();
+        if (displayOwnerRef.current === owner) {
+          displayOwnerRef.current = null;
+          const active = activeRenditionStageRef.current;
+          if (sessionRef.current === session && active?.session === session) {
+            applyPendingStageChanges(active);
+          }
+        }
       }
     },
     [bridgeRef, containerRef, documentSessions, invalidateResizeRelocationOwner],
@@ -473,7 +519,10 @@ export function useEpubSession({
     let bookDestroyed = false;
     let lifecycle: EpubSessionLifecycle | null = null;
     let cancelPendingBookOpen: () => void = () => undefined;
-    let releaseContinuousRendition: () => void = () => undefined;
+    let continuousPosition: ContinuousPositionOwner | null = null;
+    let releaseContentHook: () => void = () => undefined;
+    let releaseViewRetirement: () => void = () => undefined;
+    let releaseStageAttachment: () => void = () => undefined;
     const generation = ++generationRef.current;
     const sessionDocuments = documentSessions.activate();
     activeSessionIdentityRef.current = sessionIdentity;
@@ -514,10 +563,17 @@ export function useEpubSession({
 
       measurePerformance("archeion:reader-session-teardown", () => {
         owner.tornDown = true;
-        releaseContinuousRendition();
+        releaseContentHook();
+        releaseViewRetirement();
+        releaseStageAttachment();
+        continuousPosition?.dispose();
+        if (continuousPositionRef.current === continuousPosition)
+          continuousPositionRef.current = null;
         const wasCurrent = sessionRef.current === session;
         if (wasCurrent) sessionRef.current = null;
+        if (displayOwnerRef.current?.session === session) displayOwnerRef.current = null;
         if (activeRenditionStageRef.current?.rendition === session.rendition) {
+          activeRenditionStageRef.current.resizeRelocationOwner?.cancelRestore?.();
           activeRenditionStageRef.current = null;
         }
         deliberateNavigation.unbindDisplay(session);
@@ -530,6 +586,7 @@ export function useEpubSession({
         owner.cancelDeferredNavigation = () => undefined;
         invalidateTurnOwner(session);
         session.rendition.off("rendered", owner.onRendered);
+        session.rendition.off("removed", owner.onRemoved);
         session.rendition.off("relocated", owner.onRelocated);
         session.rendition.off("selected", owner.onSelected);
         if (wasCurrent) relocationRef.current = null;
@@ -625,7 +682,7 @@ export function useEpubSession({
             width: initialStageSize?.width ?? "100%",
             height: initialStageSize?.height ?? "100%",
             flow: publicationMode === "continuous" ? "scrolled-continuous" : "paginated",
-            manager: publicationMode === "continuous" ? "continuous" : "default",
+            manager: publicationMode === "continuous" ? ReaderContinuousViewManager : "default",
             spread: "none",
             allowScriptedContent: false,
           }),
@@ -670,6 +727,7 @@ export function useEpubSession({
             applyStageSize: () => undefined,
             continuousLayout: publicationMode === "continuous",
             pendingStageSize: null,
+            pendingAppearance: null,
             rendition,
             resizeRelocationOwner: null,
             session,
@@ -685,7 +743,18 @@ export function useEpubSession({
               return;
             }
 
+            // started resolves after manager creation, before attachTo renders
+            // its physical stage. Keep measured changes until that boundary.
+            if ((rendition as RenditionWithManager).manager?.rendered === false) {
+              activeRendition.pendingStageSize = nextStageSize;
+              return;
+            }
+
             const turnOwner = turnOwnerRef.current;
+            if (displayOwnerRef.current?.session === session) {
+              activeRendition.pendingStageSize = nextStageSize;
+              return;
+            }
             if (publicationMode === "paged" && turnOwner?.session === session) {
               if (turnOwner.resetTimer !== null) {
                 window.clearTimeout(turnOwner.resetTimer);
@@ -698,14 +767,18 @@ export function useEpubSession({
             const visualLocation =
               publicationMode === "paged" ? readPagedRenditionLocation(rendition) : null;
             if (visualLocation) acceptRelocation(visualLocation, false);
-            const preserveCfi = visualLocation?.start.cfi ?? relocationRef.current?.cfi;
-            activeRendition.resizeRelocationOwner = preserveCfi
-              ? {
-                  preserveCfi,
-                  restorePagedPosition: publicationMode === "paged",
-                  restorationStarted: false,
-                }
-              : null;
+            const continuousCfi = continuousPosition?.beginReflow(true);
+            const preserveCfi =
+              continuousCfi ?? visualLocation?.start.cfi ?? relocationRef.current?.cfi;
+            activeRendition.resizeRelocationOwner?.cancelRestore?.();
+            activeRendition.resizeRelocationOwner =
+              preserveCfi && !continuousCfi
+                ? {
+                    preserveCfi,
+                    restorePagedPosition: publicationMode === "paged",
+                    restorationStarted: false,
+                  }
+                : null;
             syncReaderRenditionStageSize(rendition, nextStageSize, preserveCfi);
             activeRendition.stageSize = nextStageSize;
             activeRendition.pendingStageSize = null;
@@ -737,19 +810,19 @@ export function useEpubSession({
             sessionDocuments.bindRenderedView(view, renderedSectionHref(section));
             bridgeRef.current?.onRendered(section, view);
           },
+          onRemoved: () => {
+            if (ownsSession(session)) sessionDocuments.pruneDisconnected();
+          },
           onRelocated: (location) => {
             if (!ownsSession(session)) return;
+            if (continuousPosition?.isReflowing()) return;
 
             const activeRendition = activeRenditionStageRef.current;
             const turnOwner = turnOwnerRef.current;
             if (turnOwner?.session === session) {
               acceptRelocation(location, true);
               invalidateTurnOwner(session);
-              const pendingStageSize = activeRendition?.pendingStageSize;
-              if (activeRendition && pendingStageSize) {
-                activeRendition.pendingStageSize = null;
-                activeRendition.applyStageSize(pendingStageSize);
-              }
+              applyPendingStageChanges(activeRendition);
               return;
             }
 
@@ -759,6 +832,7 @@ export function useEpubSession({
                 ? activeRendition.resizeRelocationOwner
                 : null;
             if (activeRendition && resizeOwner) {
+              if (resizeOwner.waitingForLayout) return;
               if (!resizeOwner.restorePagedPosition) {
                 activeRendition.resizeRelocationOwner = null;
                 return;
@@ -787,7 +861,12 @@ export function useEpubSession({
             activateRenditionStageSizing();
           },
           onSelected: (cfiRange, contents) => {
-            if (!ownsSession(session)) return;
+            if (
+              !ownsSession(session) ||
+              !contents.document ||
+              !sessionDocuments.has(contents.document)
+            )
+              return;
             bridgeRef.current?.onSelected(cfiRange, contents);
           },
           snapshot: session,
@@ -795,7 +874,15 @@ export function useEpubSession({
         };
         lifecycle = owner;
         sessionRef.current = session;
-        if (publicationMode === "paged") activateRenditionStageSizing();
+        const onStageAttached = () => {
+          if (!ownsSession(session) || publicationMode !== "paged") return;
+          activateRenditionStageSizing();
+          const active = activeRenditionStageRef.current;
+          if (active?.session === session && active.pendingStageSize)
+            active.applyStageSize(active.pendingStageSize);
+        };
+        rendition.on("attached", onStageAttached);
+        releaseStageAttachment = () => rendition.off("attached", onStageAttached);
         owner.unsubscribeSeekMap = session.seekMap.subscribe(() => {
           if (ownsSession(session)) notifySeekMap();
         });
@@ -806,26 +893,36 @@ export function useEpubSession({
           (target, options) => displayTargetForSession(session, target, options),
           displayCfi,
         );
-        (rendition as RenditionWithContentHook).hooks?.content?.register?.(
-          (content: EpubContent) => {
-            if (!ownsSession(session)) return;
-            sessionDocuments.bind(content);
-            bridgeRef.current?.onContent(content);
-          },
-        );
+        const contentHook = (rendition as RenditionWithContentHook).hooks?.content;
+        const onContent = (content: EpubContent) => {
+          if (!ownsSession(session)) return;
+          if (sessionDocuments.bind(content)) bridgeRef.current?.onContent(content);
+        };
+        contentHook?.register?.(onContent);
+        releaseContentHook = () => contentHook?.deregister?.(onContent);
         bridgeRef.current?.onSessionCreated(interactions);
         bridgeRef.current?.onPublicationLayoutCapability(
           sessionIdentity,
           publicationLayoutCapability,
         );
         rendition.on("rendered", owner.onRendered);
+        rendition.on("removed", owner.onRemoved);
         rendition.on("relocated", owner.onRelocated);
         rendition.on("selected", owner.onSelected);
 
         await (rendition as RenditionWithManager).started;
         if (!ownsSession(session)) return;
+        if (publicationMode === "paged") activateRenditionStageSizing();
+        const manager = (rendition as RenditionWithManager).manager;
+        if (manager instanceof ReaderContinuousViewManager) {
+          const onViewRetiring = (view: unknown) => {
+            if (ownsSession(session)) sessionDocuments.removeRenderedView(view);
+          };
+          manager.on("reader-view-retiring", onViewRetiring);
+          releaseViewRetirement = () => manager.off("reader-view-retiring", onViewRetiring);
+        }
         if (continuousRendition) {
-          releaseContinuousRendition = stabilizeContinuousRendition(
+          continuousPosition = stabilizeContinuousRendition(
             continuousRendition,
             () => ownsSession(session),
             () => {
@@ -836,6 +933,7 @@ export function useEpubSession({
               bridgeRef.current?.onError(sessionIdentity, { kind: "open-failed" });
             },
           );
+          continuousPositionRef.current = continuousPosition;
         }
 
         await measurePerformanceAsync("archeion:reader-first-location-display", async () => {
@@ -947,23 +1045,89 @@ export function useEpubSession({
       container: HTMLElement | null,
     ) => {
       if (sessionRef.current?.publicationLayoutCapability !== "reflowable") return;
-      documentSessions.applyTheme(sessionRef.current?.rendition ?? null, theme, container);
-      documentSessions.applyLayout(
-        {
-          mode,
-          readingWidth,
-          stageSize: mode === "continuous" ? stageSizeRef.current : null,
-        },
-        container,
-      );
+      const session = sessionRef.current;
+      const apply = () => {
+        if (sessionRef.current !== session) return;
+        const active = activeRenditionStageRef.current;
+        const geometry = JSON.stringify([readerContentThemeGeometryKey(theme), readingWidth]);
+        let pagedRestore: ReaderResizeRelocationOwner | null = null;
+        if (session.appearanceGeometry !== undefined && session.appearanceGeometry !== geometry) {
+          if (mode === "continuous") continuousPositionRef.current?.beginReflow(false);
+          else if (
+            active?.session === session &&
+            (session.rendition as RenditionWithManager).manager?.rendered !== false
+          ) {
+            const location = readPagedRenditionLocation(session.rendition);
+            const preserveCfi = location?.start.cfi ?? relocationRef.current?.cfi;
+            if (preserveCfi) {
+              active.resizeRelocationOwner?.cancelRestore?.();
+              pagedRestore = {
+                preserveCfi,
+                restorePagedPosition: true,
+                restorationStarted: false,
+                waitingForLayout: true,
+              };
+              active.resizeRelocationOwner = pagedRestore;
+            }
+          }
+        }
+        session.appearanceGeometry = geometry;
+        documentSessions.applyTheme(session.rendition, theme, container);
+        documentSessions.applyLayout(
+          { mode, readingWidth, stageSize: mode === "continuous" ? stageSizeRef.current : null },
+          container,
+        );
+        if (pagedRestore && active) {
+          const owner = pagedRestore;
+          owner.cancelRestore = afterReaderStageLayout(documentSessions.access.list(), () => {
+            if (sessionRef.current !== session || active.resizeRelocationOwner !== owner) return;
+            owner.waitingForLayout = false;
+            owner.restorationStarted = true;
+            void Promise.resolve(session.rendition.display(owner.preserveCfi)).catch(() => {
+              if (active.resizeRelocationOwner === owner) active.resizeRelocationOwner = null;
+            });
+          });
+        }
+      };
+      const active = activeRenditionStageRef.current;
+      if (
+        active?.session === session &&
+        (turnOwnerRef.current?.session === session || displayOwnerRef.current?.session === session)
+      ) {
+        active.pendingAppearance = apply;
+      } else apply();
     },
     [documentSessions, mode],
   );
   const getInteractionSession = useCallback(() => sessionRef.current?.interactions ?? null, []);
   const getRelocation = useCallback(() => relocationRef.current, []);
   const teardown = useCallback(() => teardownRef.current(), []);
+  const cancelStageReflow = useCallback(() => {
+    const session = sessionRef.current;
+    if (session) invalidateResizeRelocationOwner(session);
+  }, [invalidateResizeRelocationOwner]);
+  useEffect(() => {
+    const onInput = (event: Event) => {
+      if (!event.isTrusted) return;
+      if (
+        event instanceof KeyboardEvent &&
+        !["PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", " ", "Escape"].includes(
+          event.key,
+        )
+      )
+        return;
+      cancelStageReflow();
+    };
+    for (const event of ["pointerdown", "wheel", "keydown"])
+      document.addEventListener(event, onInput, { capture: true, passive: true });
+    return () => {
+      for (const event of ["pointerdown", "wheel", "keydown"])
+        document.removeEventListener(event, onInput, true);
+    };
+  }, [cancelStageReflow]);
 
   return {
+    cancelStageReflow,
     applyContentTheme,
     documents: documentSessions.access,
     getInteractionSession,

@@ -106,6 +106,7 @@ export function useEpubContentActionController({
 }: UseEpubContentActionControllerOptions): EpubContentActionController {
   const mountedRef = useRef(true);
   const operationRef = useRef(0);
+  const resolutionDocumentRef = useRef<Document | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const footnoteRef = useRef<ReaderFootnoteState | null>(null);
   const externalRef = useRef<ReaderExternalLinkState | null>(null);
@@ -138,6 +139,7 @@ export function useEpubContentActionController({
 
   const cancelResolution = useCallback(() => {
     operationRef.current += 1;
+    resolutionDocumentRef.current = null;
     abortRef.current?.abort();
     abortRef.current = null;
   }, []);
@@ -205,6 +207,7 @@ export function useEpubContentActionController({
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      resolutionDocumentRef.current = null;
       operationRef.current += 1;
       abortRef.current?.abort();
       abortRef.current = null;
@@ -275,6 +278,7 @@ export function useEpubContentActionController({
       const controller = new AbortController();
       abortRef.current = controller;
       const operation = operationRef.current;
+      resolutionDocumentRef.current = anchor.document;
 
       void session
         .resolveFootnote({
@@ -289,6 +293,7 @@ export function useEpubContentActionController({
             return;
           }
           abortRef.current = null;
+          resolutionDocumentRef.current = null;
 
           if (resolution.kind === "cancelled") return;
           if (resolution.kind === "not-footnote") {
@@ -343,6 +348,7 @@ export function useEpubContentActionController({
       const controller = new AbortController();
       abortRef.current = controller;
       const operation = operationRef.current;
+      resolutionDocumentRef.current = anchor.document;
 
       void session.resolveIllustration(action.target, controller.signal).then((resolution) => {
         if (!isCurrentOperation(operation, session)) {
@@ -350,6 +356,7 @@ export function useEpubContentActionController({
           return;
         }
         abortRef.current = null;
+        resolutionDocumentRef.current = null;
         if (resolution.kind === "cancelled") return;
         if (resolution.kind === "unsupported") {
           setIllustration({
@@ -572,11 +579,15 @@ export function useEpubContentActionController({
 
   const handleDocumentRemoved = useCallback(
     (document: Document) => {
+      if (resolutionDocumentRef.current === document) cancelResolution();
       if (footnoteRef.current?.anchor.document === document) dismissFootnote(false);
-      if (externalRef.current?.anchor.document === document) dismissExternal(false);
+      if (externalRef.current?.anchor.document === document) {
+        cancelResolution();
+        setExternal(null);
+      }
       if (illustrationRef.current?.anchor.document === document) dismissIllustration(false);
     },
-    [dismissExternal, dismissFootnote, dismissIllustration],
+    [cancelResolution, dismissFootnote, dismissIllustration, setExternal],
   );
 
   const handleEscape = useCallback(() => {

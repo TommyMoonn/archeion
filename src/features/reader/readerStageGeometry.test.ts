@@ -4,11 +4,54 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { observeReaderStageSize, syncReaderRenditionStageSize } from "./readerStageGeometry";
+import {
+  afterReaderStageLayout,
+  observeReaderStageSize,
+  syncReaderRenditionStageSize,
+} from "./readerStageGeometry";
 
 const readerStyles = readFileSync(resolve(process.cwd(), "src/styles/features/reader.css"), "utf8");
 
 describe("Reader stage geometry", () => {
+  it("waits for font readiness and paint before restoring, and cancels retired work", async () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const requestFrame = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+      });
+    const cancelFrame = vi.spyOn(window, "cancelAnimationFrame");
+    let finishFont!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      finishFont = resolve;
+    });
+    const chapter = { fonts: { ready } } as unknown as Document;
+    const restore = vi.fn();
+    const cancel = afterReaderStageLayout([chapter], restore);
+    try {
+      expect(requestFrame).not.toHaveBeenCalled();
+      finishFont();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(callbacks).toHaveLength(1);
+      callbacks.shift()!(0);
+      expect(restore).not.toHaveBeenCalled();
+      cancel();
+      callbacks.shift()!(0);
+      expect(restore).not.toHaveBeenCalled();
+      const restoreCurrent = vi.fn();
+      afterReaderStageLayout([], restoreCurrent);
+      await Promise.resolve();
+      callbacks.shift()!(0);
+      callbacks.shift()!(0);
+      expect(restoreCurrent).toHaveBeenCalledOnce();
+    } finally {
+      cancel();
+      requestFrame.mockRestore();
+      cancelFrame.mockRestore();
+    }
+  });
   it("resizes an active rendition through epub.js instead of patching view DOM", () => {
     const resize = vi.fn();
     const rendition = { resize } as unknown as Parameters<typeof syncReaderRenditionStageSize>[0];
@@ -37,6 +80,14 @@ describe("Reader stage geometry", () => {
     const disconnect = vi.fn();
     const observe = vi.fn();
     const OriginalResizeObserver = globalThis.ResizeObserver;
+    let flush!: FrameRequestCallback;
+    const requestFrame = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        flush = callback;
+        return 1;
+      });
+    const cancelFrame = vi.spyOn(window, "cancelAnimationFrame");
 
     class ResizeObserverMock {
       constructor(callback: ResizeObserverCallback) {
@@ -54,13 +105,18 @@ describe("Reader stage geometry", () => {
       expect(observe).toHaveBeenCalledWith(stage);
 
       observerCallbacks[0]?.([], {} as ResizeObserver);
+      flush(0);
       expect(observed).toHaveLength(1);
 
       rect = new DOMRect(0, 0, 1180, 760);
       observerCallbacks[0]?.([], {} as ResizeObserver);
+      rect = new DOMRect(0, 0, 1200, 800);
+      observerCallbacks[0]?.([], {} as ResizeObserver);
+      expect(observed).toHaveLength(1);
+      flush(0);
       expect(observed).toEqual([
         { height: 720, width: 960 },
-        { height: 760, width: 1180 },
+        { height: 800, width: 1200 },
       ]);
 
       rect = new DOMRect(0, 0, 0, 0);
@@ -68,9 +124,12 @@ describe("Reader stage geometry", () => {
       expect(observed).toHaveLength(2);
 
       stop();
+      expect(cancelFrame).toHaveBeenCalledWith(1);
       expect(disconnect).toHaveBeenCalledOnce();
     } finally {
       globalThis.ResizeObserver = OriginalResizeObserver;
+      requestFrame.mockRestore();
+      cancelFrame.mockRestore();
     }
   });
 

@@ -305,7 +305,8 @@ export function useReaderDictionaryLookup({
 
   const handleSelectionCollapsed = useCallback(
     (document: Document) => {
-      if (stateRef.current.selectionOwner?.anchor.document === document) retire();
+      const owner = stateRef.current.selectionOwner;
+      if (owner?.source === "selection" && owner.anchor.document === document) retire();
     },
     [retire],
   );

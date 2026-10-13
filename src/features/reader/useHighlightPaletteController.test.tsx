@@ -111,6 +111,27 @@ function embeddedPaletteTarget(): {
 }
 
 describe("useHighlightPaletteController", () => {
+  it.each(["highlight", "selection"] as const)(
+    "keeps collapse dismissal specific to a %s action owner",
+    (source) => {
+      const dismiss = vi.fn();
+      const harness = renderController(dismiss);
+      const { document: chapter, target } = embeddedPaletteTarget();
+      act(() =>
+        harness.latest().open({
+          source,
+          anchor: paletteAnchor(target),
+          anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
+          selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
+        }),
+      );
+      act(() => harness.latest().handleSelectionCollapsed(chapter));
+      expect(harness.latest().menu !== null).toBe(source === "highlight");
+      if (source === "highlight") act(() => harness.latest().handleDocumentRemoved(chapter));
+      expect(harness.latest().menu).toBeNull();
+      expect(dismiss).toHaveBeenCalledOnce();
+    },
+  );
   it("uses only the shared parent-document dismissal owner", () => {
     const onDismiss = vi.fn();
     const harness = renderController(onDismiss);
@@ -119,6 +140,7 @@ describe("useHighlightPaletteController", () => {
 
     act(() => {
       harness.latest().open({
+        source: "selection",
         anchor: paletteAnchor(trigger),
         anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
         selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
@@ -144,6 +166,7 @@ describe("useHighlightPaletteController", () => {
 
     act(() => {
       harness.latest().open({
+        source: "selection",
         anchor: paletteAnchor(trigger),
         anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
         selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
@@ -162,6 +185,7 @@ describe("useHighlightPaletteController", () => {
 
     act(() => {
       harness.latest().open({
+        source: "selection",
         anchor: paletteAnchor(trigger),
         anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
         selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
@@ -194,6 +218,7 @@ describe("useHighlightPaletteController", () => {
 
     act(() => {
       harness.latest().open({
+        source: "selection",
         anchor: paletteAnchor(target),
         anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
         selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
@@ -225,6 +250,7 @@ describe("useHighlightPaletteController", () => {
 
     act(() => {
       harness.latest().open({
+        source: "selection",
         anchor: paletteAnchor(target),
         anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
         selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
@@ -250,6 +276,7 @@ describe("useHighlightPaletteController", () => {
 
     act(() => {
       harness.latest().open({
+        source: "selection",
         anchor: paletteAnchor(target),
         anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
         selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },

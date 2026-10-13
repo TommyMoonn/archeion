@@ -102,7 +102,7 @@ export const readerFixtures: readonly ReaderFixture[] = [
       const id = `section-${String(index + 1).padStart(2, "0")}`;
       return section(
         id,
-        `<h1>${id}</h1><p id="${id}-anchor">Bookmark anchor ${id}: the reservoir survey continues.</p>${passages(id, 9)}${index === 20 ? `<figure>${image("long-media")}<figcaption>Survey illustration at section 21.</figcaption></figure>` : ""}`,
+        `<h1>${id}</h1><p id="${id}-anchor">Bookmark anchor ${id}: the reservoir survey continues.</p>${passages(id, 9)}${index === 0 ? '<p><a id="long-note-link" href="#long-note" epub:type="noteref">Read the survey note</a></p><aside id="long-note" epub:type="footnote"><p>Original long-spine survey note.</p></aside>' : ""}${index === 20 ? `<figure>${image("long-media")}<figcaption>Survey illustration at section 21.</figcaption></figure>` : ""}`,
       );
     }),
     sizeChanges: [],
