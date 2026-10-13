@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
 
-import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
+import type { ReaderNavigationState, ReaderSettings, ReaderPresentation } from "../../types/reader";
 import { measurePerformance, measurePerformanceAsync } from "../../utils/measurePerformance";
 import { snapshotReaderRelocation, type ReaderRelocation } from "./readerLocation";
 import {
@@ -17,6 +17,7 @@ import {
   type ReaderContentDocumentAccess,
 } from "./readerContentDocumentRegistry";
 import { readerContentThemeGeometryKey, type ReaderContentTheme } from "./readerTheme";
+import { readerPresentationForPublication } from "./readerSettingsCapabilities";
 import {
   stabilizeContinuousRendition,
   type RenditionWithManager,
@@ -277,6 +278,7 @@ export type EpubSessionFacade = {
     theme: ReaderContentTheme,
     readingWidth: ReaderSettings["readingWidth"],
     container: HTMLElement | null,
+    presentation?: ReaderPresentation,
   ) => void;
   documents: ReaderContentDocumentAccess;
   getInteractionSession: () => EpubSessionInteractionAccess | null;
@@ -1043,13 +1045,22 @@ export function useEpubSession({
       theme: ReaderContentTheme,
       readingWidth: ReaderSettings["readingWidth"],
       container: HTMLElement | null,
+      presentation: ReaderPresentation = "archeion",
     ) => {
       if (sessionRef.current?.publicationLayoutCapability !== "reflowable") return;
       const session = sessionRef.current;
+      const effectivePresentation = readerPresentationForPublication(
+        presentation,
+        session.publicationLayoutCapability,
+      );
       const apply = () => {
         if (sessionRef.current !== session) return;
         const active = activeRenditionStageRef.current;
-        const geometry = JSON.stringify([readerContentThemeGeometryKey(theme), readingWidth]);
+        const geometry = JSON.stringify([
+          readerContentThemeGeometryKey(theme),
+          readingWidth,
+          effectivePresentation,
+        ]);
         let pagedRestore: ReaderResizeRelocationOwner | null = null;
         if (session.appearanceGeometry !== undefined && session.appearanceGeometry !== geometry) {
           if (mode === "continuous") continuousPositionRef.current?.beginReflow(false);
@@ -1074,7 +1085,12 @@ export function useEpubSession({
         session.appearanceGeometry = geometry;
         documentSessions.applyTheme(session.rendition, theme, container);
         documentSessions.applyLayout(
-          { mode, readingWidth, stageSize: mode === "continuous" ? stageSizeRef.current : null },
+          {
+            mode,
+            readingWidth,
+            presentation: effectivePresentation,
+            stageSize: mode === "continuous" ? stageSizeRef.current : null,
+          },
           container,
         );
         if (pagedRestore && active) {

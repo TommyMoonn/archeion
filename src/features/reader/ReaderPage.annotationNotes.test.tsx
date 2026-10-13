@@ -12,6 +12,7 @@ import type { Book } from "../../types/book";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import { archiveStore, type ArchiveTransitionGuard } from "../../stores/archiveStore";
 import { ReaderRoute } from "./ReaderPage";
+import { createReaderLibrarySnapshotFixture } from "./readerLibrarySnapshot.testUtils";
 import type { ReaderFileLease } from "./readerFileLease";
 import type { ReaderSessionIdentity } from "./readerSession";
 
@@ -239,6 +240,7 @@ function createStorageHarness(initial: Record<string, Annotation[]> = {}) {
     ...changes,
   }));
   const storage = {
+    ...createReaderLibrarySnapshotFixture(Object.values(books)),
     createAnnotation,
     deleteAnnotation,
     flushPendingWrites: vi.fn(async () => undefined),

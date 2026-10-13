@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "cases": [
+    { "name": "legacy absent", "entry": {}, "expected": "archeion" },
+    {
+      "name": "explicit archeion",
+      "entry": { "readerPresentation": "archeion" },
+      "expected": "archeion"
+    },
+    {
+      "name": "publisher",
+      "entry": { "readerPresentation": "publisher" },
+      "expected": "publisher"
+    },
+    {
+      "name": "unknown string",
+      "entry": { "readerPresentation": "future" },
+      "expected": "archeion"
+    },
+    { "name": "null", "entry": { "readerPresentation": null }, "expected": "archeion" },
+    { "name": "number", "entry": { "readerPresentation": 12 }, "expected": "archeion" },
+    {
+      "name": "object",
+      "entry": { "readerPresentation": { "mode": "publisher" } },
+      "expected": "archeion"
+    },
+    { "name": "array", "entry": { "readerPresentation": ["publisher"] }, "expected": "archeion" }
+  ]
+}

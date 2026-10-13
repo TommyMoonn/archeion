@@ -174,7 +174,12 @@ function cfi(id: string) {
     "archeion-highlight",
   ).toString();
 }
-async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a") {
+async function open(
+  id: ReaderFixtureId,
+  nextMode = mode,
+  archive = "archive-a",
+  presentation: "archeion" | "publisher" = "archeion",
+) {
   await progress?.teardown();
   closeOverlay?.();
   ready = false;
@@ -218,6 +223,7 @@ async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a")
   progress = ownedProgress;
   highlights = [];
   props = {
+    presentation,
     contentTheme: createReaderContentTheme(settings, theme.tokens),
     fileLease: lease,
     publicationLayoutCapability: null,
@@ -270,6 +276,7 @@ declare global {
       location: () => string | null;
       history: () => ReturnType<EpubViewerHandle["getNavigationHistorySnapshot"]>;
       settings: (patch: Partial<ReaderSettings>) => void;
+      presentation: (selection: "archeion" | "publisher") => void;
       showOverlay: (kind: Parameters<typeof mountWheelOverlay>[0]) => void;
       closeOverlay: () => void;
       holdDictionary: () => void;
@@ -300,6 +307,10 @@ window.readerInteractions = {
       settings,
       contentTheme: createReaderContentTheme(settings, props.readerTheme.tokens),
     };
+    render();
+  },
+  presentation: (selection) => {
+    props = { ...props, presentation: selection };
     render();
   },
   ready: () => ready && navigation?.status === "ready",

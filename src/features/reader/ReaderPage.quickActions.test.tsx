@@ -21,6 +21,7 @@ import type {
   HighlightAnnotation,
 } from "../../types/annotation";
 import { ReaderRoute } from "./ReaderPage";
+import { createReaderLibrarySnapshotFixture } from "./readerLibrarySnapshot.testUtils";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
@@ -276,6 +277,7 @@ let container: HTMLDivElement | null = null;
 
 function createStorage(): LibraryStorage {
   return {
+    ...createReaderLibrarySnapshotFixture([book]),
     flushPendingWrites: vi.fn().mockResolvedValue(undefined),
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
     listAnnotations: vi.fn().mockResolvedValue([]),
@@ -526,6 +528,34 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("reads book layout from the library snapshot and saves Appearance intent immediately", async () => {
+    const snapshots = createReaderLibrarySnapshotFixture([
+      { ...book, readerPresentation: "publisher" },
+    ]);
+    const storage = { ...createStorage(), ...snapshots };
+    storage.updateBook = vi.fn(async (id, changes) => {
+      const next = {
+        ...snapshots.getLibrarySnapshot().books.find((entry) => entry.id === id)!,
+        ...changes,
+      };
+      snapshots.publishBooks([next]);
+      return next;
+    });
+    const rendered = await renderReader(storage);
+    await act(async () =>
+      rendered.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Reader settings"]')!
+        .click(),
+    );
+    const group = rendered.container.querySelector('[aria-label="Book layout"]')!;
+    expect(group.querySelectorAll('[role="radio"]')[1].getAttribute("aria-checked")).toBe("true");
+    await act(async () => group.querySelector<HTMLButtonElement>('[role="radio"]')!.click());
+    expect(storage.updateBook).toHaveBeenCalledWith("book", { readerPresentation: "archeion" });
+    expect(group.querySelectorAll('[role="radio"]')[0].getAttribute("aria-checked")).toBe("true");
+    await act(async () => snapshots.publishBooks([{ ...book, readerPresentation: "publisher" }]));
+    expect(group.querySelectorAll('[role="radio"]')[1].getAttribute("aria-checked")).toBe("true");
+  });
+
   it("removes Library titlebar ownership on the real Reader route and restores a fresh composition on return", async () => {
     const media = installLibrarySidebarMedia(false);
     window.sessionStorage.clear();

@@ -1,8 +1,10 @@
 import type { EpubSourceMetadata } from "../types/book";
+import type { ReaderPresentation } from "../types/reader";
 
 export type LibraryBookMetadata = {
   relativePath: string;
   isFavorite: boolean;
+  readerPresentation?: ReaderPresentation;
   coverPath?: string;
   sourceMetadata?: EpubSourceMetadata;
   fileSize?: number;

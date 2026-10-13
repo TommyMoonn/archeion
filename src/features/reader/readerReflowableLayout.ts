@@ -1,4 +1,4 @@
-import type { ReaderMode, ReaderReadingWidth } from "../../types/reader";
+import type { ReaderMode, ReaderReadingWidth, ReaderPresentation } from "../../types/reader";
 import type { ReaderStageSize } from "./readerStageGeometry";
 import {
   applyReaderReflowableMedia,
@@ -16,6 +16,7 @@ const READER_READING_MEASURES: Record<Exclude<ReaderReadingWidth, "full">, strin
 
 export type ReaderReflowableLayout = Readonly<{
   mode: ReaderMode;
+  presentation?: ReaderPresentation;
   readingWidth: ReaderReadingWidth;
   stageSize?: ReaderStageSize | null;
 }>;
@@ -29,6 +30,10 @@ export function applyReaderReflowableLayout(
   applyReaderReflowableMedia(document, layout);
 
   const existingStyle = document.getElementById(READER_REFLOWABLE_LAYOUT_STYLE_ID);
+  if (layout.presentation === "publisher") {
+    existingStyle?.remove();
+    return;
+  }
   const style = existingStyle ?? document.createElement("style");
   style.id = READER_REFLOWABLE_LAYOUT_STYLE_ID;
   style.dataset.readerMode = layout.mode;

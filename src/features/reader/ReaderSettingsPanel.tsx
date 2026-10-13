@@ -10,6 +10,7 @@ import {
   readerReadingWidthOptions,
   type ReaderProgressPlacement,
   type ReaderSettings,
+  type ReaderPresentation,
 } from "../../types/reader";
 import type { ReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
@@ -30,6 +31,10 @@ type ReaderSettingsPanelProps = {
   readerThemeEntries: readonly ThemeCatalogEntry[];
   readerThemeSelection: ReaderThemeSelection;
   settings: ReaderSettings;
+  presentation: ReaderPresentation;
+  presentationStatus: "idle" | "saving" | "failed";
+  onPresentationCommit: (presentation: ReaderPresentation) => void;
+  onPresentationRetry: () => void;
 };
 
 const lineHeights = [
@@ -85,6 +90,10 @@ export function ReaderSettingsPanel({
   readerThemeEntries,
   readerThemeSelection,
   settings,
+  presentation,
+  presentationStatus,
+  onPresentationCommit,
+  onPresentationRetry,
 }: ReaderSettingsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -148,6 +157,38 @@ export function ReaderSettingsPanel({
 
         {capabilities.contentAppearance ? (
           <>
+            <ReaderSetting label="Book layout">
+              <SegmentedControl
+                className="reader-control"
+                label="Book layout"
+                onChange={onPresentationCommit}
+                options={[
+                  { label: "Archeion", value: "archeion" },
+                  { label: "Publisher", value: "publisher" },
+                ]}
+                size="standard"
+                value={presentation}
+              />
+              <span
+                aria-live="polite"
+                className={
+                  presentationStatus === "saving" ? "reader-setting__description" : "sr-only"
+                }
+                role={presentationStatus === "saving" ? "status" : undefined}
+              >
+                {presentationStatus === "saving" ? "Saving book layout…" : null}
+              </span>
+              {presentationStatus === "failed" ? (
+                <div>
+                  <p className="reader-settings__status" data-error role="alert">
+                    Book layout could not be saved. The saved layout has been restored.
+                  </p>
+                  <button className="text-link" onClick={onPresentationRetry} type="button">
+                    Retry saving book layout
+                  </button>
+                </div>
+              ) : null}
+            </ReaderSetting>
             <ReaderSetting label="Typeface">
               <ReaderFontPicker
                 ariaLabel="Reader typeface"

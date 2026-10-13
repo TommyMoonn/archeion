@@ -1,3 +1,5 @@
+import type { ReaderPresentation } from "./reader";
+
 export type EpubSourceMetadata = {
   title?: string;
   creator?: string;
@@ -107,6 +109,7 @@ export type Book = {
   isFileMissing?: boolean;
   folderId?: string | null;
   isFavorite: boolean;
+  readerPresentation?: ReaderPresentation;
   addedAt: string;
   updatedAt: string;
   lastOpenedAt?: string;
@@ -121,5 +124,8 @@ export type ReadonlyBook = Readonly<
 >;
 
 export type UpdateBookInput = Partial<
-  Pick<Book, "isFavorite" | "lastOpenedAt" | "progressCfi" | "progressPercent">
+  Pick<
+    Book,
+    "isFavorite" | "readerPresentation" | "lastOpenedAt" | "progressCfi" | "progressPercent"
+  >
 >;

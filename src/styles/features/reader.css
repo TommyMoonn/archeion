@@ -991,6 +991,13 @@ html[data-motion="on"] .reader-side-panel {
   letter-spacing: 0.04em;
 }
 
+.reader-setting__description {
+  margin: 0;
+  color: var(--reader-muted);
+  font-size: var(--type-caption);
+  line-height: 1.5;
+}
+
 .reader-stepper {
   display: grid;
   grid-template-columns: 32px 48px 32px;

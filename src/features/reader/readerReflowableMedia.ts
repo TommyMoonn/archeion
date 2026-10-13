@@ -1,4 +1,4 @@
-import type { ReaderMode } from "../../types/reader";
+import type { ReaderMode, ReaderPresentation } from "../../types/reader";
 import type { ReaderStageSize } from "./readerStageGeometry";
 
 const READER_REFLOWABLE_MEDIA_STYLE_ID = "archeion-reader-reflowable-media";
@@ -20,6 +20,7 @@ export const READER_REFLOWABLE_MEDIA_FLOW_SELECTOR = `[${READER_MEDIA_FLOW_ATTRI
 
 type ReaderReflowableMediaLayout = Readonly<{
   mode: ReaderMode;
+  presentation?: ReaderPresentation;
   stageSize?: ReaderStageSize | null;
 }>;
 
@@ -64,7 +65,8 @@ export function applyReaderReflowableMedia(
 
   const existingStyle = document.getElementById(READER_REFLOWABLE_MEDIA_STYLE_ID);
   if (layout.mode === "paged") {
-    applyPagedAlignment(standaloneMedia, document.defaultView);
+    if (layout.presentation !== "publisher")
+      applyPagedAlignment(standaloneMedia, document.defaultView);
     const style = existingStyle ?? document.createElement("style");
     style.id = READER_REFLOWABLE_MEDIA_STYLE_ID;
     style.textContent = readerPagedMediaCss();

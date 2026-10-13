@@ -1,4 +1,8 @@
-import { readerFontSelectionsEqual, type ReaderSettings } from "../../types/reader";
+import {
+  readerFontSelectionsEqual,
+  type ReaderSettings,
+  type ReaderPresentation,
+} from "../../types/reader";
 import type { ResolvedReaderThemeTokens } from "../../themes/themeTokenRegistry";
 import { readerFontFaceCssForSelection, readerFontFamilyForSelection } from "./readerFonts";
 
@@ -35,6 +39,16 @@ export type ReaderContentTheme = {
   name: typeof READER_CONTENT_THEME_NAME;
   rules: ReaderThemeRules;
 };
+
+export function readerContentThemeForPresentation(
+  theme: ReaderContentTheme,
+  presentation: ReaderPresentation,
+): ReaderContentTheme {
+  if (presentation === "archeion") return theme;
+  const rules = { ...theme.rules };
+  delete rules[READER_RUNNING_PROSE_SELECTOR];
+  return { ...theme, rules };
+}
 
 export function readerFontFaceCssForSettings(settings: ReaderContentSettings) {
   return readerFontFaceCssForSelection(settings.fontFamily);
@@ -118,6 +132,13 @@ export function applyReaderContentTheme(
   documents: Array<Document | null | undefined> = [],
   classifyProse = true,
 ): void {
+  // epub.js 0.3.93 appends rules on re-registration. Replace our sheet so
+  // removing optional presentation rules actually restores publisher styles.
+  if (target) {
+    for (const document of documents) {
+      document?.getElementById(`epubjs-inserted-css-${theme.name}`)?.remove();
+    }
+  }
   target?.themes.register(theme.name, theme.rules);
   target?.themes.select(theme.name);
 

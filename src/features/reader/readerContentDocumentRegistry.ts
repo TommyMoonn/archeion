@@ -266,6 +266,7 @@ export class ReaderContentDocumentRegistry {
   private keyForLayout(layout: ReaderReflowableLayout): string {
     return JSON.stringify([
       layout.mode,
+      layout.presentation,
       layout.readingWidth,
       layout.stageSize?.width,
       layout.stageSize?.height,
