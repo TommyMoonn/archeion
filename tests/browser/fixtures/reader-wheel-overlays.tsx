@@ -9,7 +9,14 @@ import "../../../src/styles/features/reader-content-actions.css";
 
 /** Real production surfaces over the real renderer; no archive or app-shell state. */
 export function mountWheelOverlay(
-  kind: "search" | "annotations" | "footnote" | "illustration" | "illustration-loading",
+  kind:
+    | "search"
+    | "annotations"
+    | "navigation"
+    | "settings"
+    | "footnote"
+    | "illustration"
+    | "illustration-loading",
 ) {
   const host = document.body.appendChild(document.createElement("div"));
   host.style.cssText =

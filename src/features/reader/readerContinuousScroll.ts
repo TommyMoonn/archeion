@@ -5,7 +5,28 @@ import { observeReaderMediaReadiness } from "./readerReflowableMedia";
 
 type ViewSize = { heightDelta: number; widthDelta: number };
 
+type ReflowMeasurement = {
+  scrollTop: number;
+  scrollHeight: number;
+  height: number;
+  width: number;
+  residual: number | null;
+  layoutRevision: number;
+};
+
+function sameReflowMeasurement(left: ReflowMeasurement | null, right: ReflowMeasurement): boolean {
+  return (
+    left?.scrollTop === right.scrollTop &&
+    left.scrollHeight === right.scrollHeight &&
+    left.height === right.height &&
+    left.width === right.width &&
+    left.residual === right.residual &&
+    left.layoutRevision === right.layoutRevision
+  );
+}
+
 type ContinuousRenditionManager = {
+  rendered?: boolean;
   setSessionOwner?: (ownsSession: () => boolean, onLoadError: (error: unknown) => void) => void;
   container?: HTMLElement;
   counter?: (bounds: ViewSize) => void;
@@ -26,7 +47,12 @@ type ContinuousRenditionView = {
   displayed: boolean;
   show: () => void;
   section?: { prev: () => unknown; next: () => unknown };
-  contents?: { document: Document; resizeCheck: () => void };
+  contents?: {
+    document: Document;
+    resizeCheck: () => void;
+    cfiFromRange?: (range: Range, ignoreClass?: string) => string;
+    cfiFromNode?: (node: Node, ignoreClass?: string) => string;
+  };
   onResize?: (view: ContinuousRenditionView, bounds: ViewSize) => void;
   on: (event: string, callback: (bounds: ViewSize) => void) => void;
   off: (event: string, callback: (bounds: ViewSize) => void) => void;
@@ -37,15 +63,29 @@ export type RenditionWithManager = Rendition & {
   started?: Promise<void>;
 };
 
+export type ContinuousPositionOwner = {
+  beginNavigation: () => () => void;
+  beginReflow: (rebuild: boolean) => string | undefined;
+  cancelReflow: () => void;
+  isReflowing: () => boolean;
+  dispose: () => void;
+};
+
 export function stabilizeContinuousRendition(
   rendition: RenditionWithManager,
   ownsSession: () => boolean,
   onLoadError: (error: unknown) => void = (error) => rendition.emit("displayError", error),
-): () => void {
+): ContinuousPositionOwner {
   const manager = rendition.manager;
 
   if (!manager) {
-    return () => undefined;
+    return {
+      beginNavigation: () => () => undefined,
+      beginReflow: () => undefined,
+      cancelReflow: () => undefined,
+      isReflowing: () => false,
+      dispose: () => undefined,
+    };
   }
 
   let disposed = false;
@@ -57,6 +97,15 @@ export function stabilizeContinuousRendition(
   let checking = false;
   let checkRequested = false;
   let scroller: HTMLElement | undefined;
+  let reflow: {
+    cfi: string;
+    y: number;
+    ready: boolean;
+    stableFrames: number;
+    lastMeasurement: ReflowMeasurement | null;
+  } | null = null;
+  let layoutRevision = 0;
+  let navigation: symbol | null = null;
   const subscriptions = new Map<ContinuousRenditionView, () => void>();
   const measuredResizes = new WeakSet<ViewSize>();
   const originalCounter = manager.counter;
@@ -65,6 +114,9 @@ export function stabilizeContinuousRendition(
     if (!current() || failed) return;
     failed = true;
     checkRequested = false;
+    reflow = null;
+    if (frame !== null) window.cancelAnimationFrame(frame);
+    frame = null;
     onLoadError(error);
   };
   manager.setSessionOwner?.(() => current() && !failed, fail);
@@ -101,18 +153,52 @@ export function stabilizeContinuousRendition(
   };
 
   const capture = () => {
-    if (!current() || !scroller) return;
+    if (!current() || !scroller || reflow || navigation) return;
     anchor = captureContinuousAnchor(scroller);
     anchorScrollTop = scroller.scrollTop;
   };
   const restore = () => {
-    if (!current() || !scroller || !anchor) return true;
+    if (!current() || !scroller || !anchor || navigation) return true;
+    if (reflow) {
+      if (!reflow.ready) return false;
+      // Rebind the CFI to the new iframe, never retain the destroyed DOM range.
+      try {
+        const range = rendition.getRange(reflow.cfi, "archeion-highlight");
+        const element =
+          range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? (range.startContainer as Element)
+            : range.startContainer.parentElement;
+        const frame = range.startContainer.ownerDocument?.defaultView?.frameElement;
+        if (!element || !(frame instanceof HTMLIFrameElement) || !frame.isConnected) {
+          cancelReflow();
+          return true;
+        }
+        anchor = { element, frame, range, y: reflow.y };
+      } catch {
+        // A ready layout with an unresolvable CFI keeps the vendor's nearest
+        // passage. Never spin a correction loop against a retired document.
+        cancelReflow();
+        return true;
+      }
+    }
     const delta = continuousAnchorDelta(scroller, anchor);
     if (delta === null) {
       anchor = null;
       return true;
     }
-    if (Math.abs(delta) > 0.5) manager.scrollBy?.(0, delta, true);
+    // A no-op silent scroll arms epub.js's ignore-next-scroll flag without a
+    // corresponding scroll event to consume it. Only request reachable motion
+    // during reflow, so the first ordinary scroll after settlement still reports.
+    const correction = reflow
+      ? Math.max(
+          -scroller.scrollTop,
+          Math.min(
+            delta,
+            Math.max(0, scroller.scrollHeight - scroller.clientHeight) - scroller.scrollTop,
+          ),
+        )
+      : delta;
+    if (Math.abs(correction) > 0.5) manager.scrollBy?.(0, correction, true);
     anchorScrollTop = scroller.scrollTop;
     manager.scrollTop = scroller.scrollTop;
     // A shrinking tail can temporarily clamp the requested offset until the
@@ -141,7 +227,7 @@ export function stabilizeContinuousRendition(
         checking = false;
         if (!current() || failed) return;
         if (restore()) capture();
-        if (checkRequested) schedule();
+        if (checkRequested || reflow?.ready) schedule();
       });
   };
   const schedule = () => {
@@ -149,12 +235,45 @@ export function stabilizeContinuousRendition(
     frame = window.requestAnimationFrame(() => {
       frame = null;
       if (!current()) return;
-      if (restore()) capture();
+      const restored = restore();
+      if (reflow?.ready && scroller) {
+        const fontsReady = [...(scroller?.querySelectorAll("iframe") ?? [])].every(
+          (frame) => frame.contentDocument?.fonts?.status !== "loading",
+        );
+        const measurement: ReflowMeasurement = {
+          scrollTop: scroller.scrollTop,
+          scrollHeight: scroller.scrollHeight,
+          height: scroller.clientHeight,
+          width: scroller.clientWidth,
+          residual: anchor ? continuousAnchorDelta(scroller, anchor) : null,
+          layoutRevision,
+        };
+        const unchanged = sameReflowMeasurement(reflow.lastMeasurement, measurement);
+        const layoutPending =
+          !fontsReady ||
+          checking ||
+          checkRequested ||
+          Boolean(manager.views?.all().some((view) => !view.displayed || !view.contents?.document));
+        // A valid CFI can have an unreachable Y at a scroll boundary. Two stable
+        // measurements with no pending layout adopt the nearest visible passage.
+        // Pending layout wakes through the existing view/media/check subscriptions.
+        const settled = (restored && fontsReady) || (!layoutPending && unchanged);
+        reflow.stableFrames = settled ? reflow.stableFrames + 1 : 0;
+        reflow.lastMeasurement = measurement;
+        if (reflow.stableFrames >= 2) {
+          reflow = null;
+          capture();
+        } else if ((restored && fontsReady) || !layoutPending || !unchanged) schedule();
+      } else if (restored) capture();
       reconcileBoundaries();
     });
   };
   const onScroll = () => {
     if (!current() || !scroller || scroller.scrollTop === anchorScrollTop) return;
+    if (reflow) {
+      if (!reflow.ready) return;
+      cancelReflow();
+    }
     // User navigation replaces the preserved passage. A compensation scroll with
     // the already recorded offset must not capture a second anchor mid-layout.
     capture();
@@ -182,6 +301,7 @@ export function stabilizeContinuousRendition(
     view.onResize = onResize;
     const resized = (bounds: ViewSize) => {
       if (!current() || (bounds.heightDelta === 0 && bounds.widthDelta === 0)) return;
+      layoutRevision += 1;
       restore();
       requestCheck();
     };
@@ -202,31 +322,46 @@ export function stabilizeContinuousRendition(
   };
   const rendered = (_section: unknown, view: ContinuousRenditionView) => {
     if (!current() || failed) return;
+    layoutRevision += 1;
     bindView(view);
     // Vendor check() waits for recursive neighbors before update() shows views.
     // This public event follows content hooks: expose each completed owned view
     // now, so reverse input cannot reach loaded content that is still hidden.
     if (view.displayed && manager.views?.all().includes(view)) view.show();
     if (!anchor || (frame === null && !checking)) capture();
+    if (reflow?.ready) schedule();
   };
   const displayed = () => {
+    layoutRevision += 1;
     for (const [view, release] of subscriptions) {
       if (!manager.views?.all().includes(view)) {
         release();
         subscriptions.delete(view);
       }
     }
+    if (reflow) {
+      reflow.ready = true;
+      anchorScrollTop = scroller?.scrollTop ?? 0;
+    }
     capture();
     requestCheck();
   };
   const removed = (_section: unknown, view: ContinuousRenditionView) => {
+    layoutRevision += 1;
     subscriptions.get(view)?.();
     subscriptions.delete(view);
+    if (reflow?.ready) schedule();
   };
   rendition.hooks.render.register(bindView);
   rendition.on("rendered", rendered);
   rendition.on("displayed", displayed);
   rendition.on("removed", removed);
+
+  const cancelReflow = () => {
+    reflow = null;
+    // Replace the old late-layout anchor too. User intent owns the current passage.
+    capture();
+  };
 
   // epub.js 0.3.93 owns initial prepend compensation through counter(). Chromium must
   // not independently anchor the same outer scroller. The attached event runs
@@ -244,11 +379,13 @@ export function stabilizeContinuousRendition(
   rendition.on("attached", configureScroller);
   configureScroller();
 
-  return () => {
+  const dispose = () => {
     if (disposed) return;
     disposed = true;
     if (originalRequest) manager.request = originalRequest;
     if (frame !== null) window.cancelAnimationFrame(frame);
+    reflow = null;
+    navigation = null;
     anchor = null;
     scroller?.removeEventListener("scroll", onScroll);
     rendition.off("attached", configureScroller);
@@ -258,5 +395,43 @@ export function stabilizeContinuousRendition(
     rendition.hooks.render.deregister(bindView);
     for (const release of subscriptions.values()) release();
     subscriptions.clear();
+  };
+  return {
+    beginNavigation: () => {
+      const owner = Symbol("continuous-navigation");
+      navigation = owner;
+      reflow = null;
+      anchor = null;
+      return () => {
+        if (navigation !== owner || !current()) return;
+        navigation = null;
+        capture();
+      };
+    },
+    beginReflow: (rebuild) => {
+      if (!current() || !scroller || navigation) return undefined;
+      if (reflow) {
+        if (rebuild) reflow.ready = false;
+        reflow.stableFrames = 0;
+        reflow.lastMeasurement = null;
+        schedule();
+        return reflow.cfi;
+      }
+      capture();
+      if (!anchor) return undefined;
+      const contents = manager.views
+        ?.all()
+        .find((view) => view.contents?.document === anchor?.element.ownerDocument)?.contents;
+      const cfi = anchor.range
+        ? contents?.cfiFromRange?.(anchor.range, "archeion-highlight")
+        : contents?.cfiFromNode?.(anchor.element, "archeion-highlight");
+      if (!cfi) return undefined;
+      reflow = { cfi, y: anchor.y, ready: !rebuild, stableFrames: 0, lastMeasurement: null };
+      schedule();
+      return cfi;
+    },
+    cancelReflow,
+    isReflowing: () => reflow !== null,
+    dispose,
   };
 }

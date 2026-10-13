@@ -9,6 +9,8 @@ import { createReaderSessionController } from "../../../src/features/reader/read
 import { createReaderContentTheme } from "../../../src/features/reader/readerTheme";
 import { resolveBuiltInReaderTheme } from "../../../src/themes/resolveTheme";
 import { defaultReaderSettings, type ReaderNavigationState } from "../../../src/types/reader";
+import { captureContinuousAnchor } from "../../../src/features/reader/readerContinuousAnchor";
+import type { ReaderSettings } from "../../../src/types/reader";
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../../src/types/annotation";
 import { dictionaryRegistryStore } from "../../../src/storage/dictionaryRegistryStore";
 import {
@@ -17,6 +19,7 @@ import {
   type ReaderFixtureId,
 } from "../../fixtures/reader/readerFixtures";
 import { probeReaderDocumentListeners } from "./reader-document-listener-probe";
+import { mountWheelOverlay } from "./reader-wheel-overlays";
 import "../../../src/styles/index.css";
 
 const probe = probeReaderDocumentListeners();
@@ -84,6 +87,62 @@ let note: string | null = null;
 let mode: "continuous" | "paged" = "continuous";
 let sequence = 0;
 let navigation: ReaderNavigationState | undefined;
+let relocations = 0;
+let locationCfi: string | null = null;
+let closeOverlay: (() => void) | undefined;
+
+function passage() {
+  const scroller = document.querySelector<HTMLElement>(".epub-container")!;
+  const anchor = captureContinuousAnchor(scroller);
+  if (!anchor?.range) throw new Error("Expected visible fixture text");
+  const fixture = readerFixtures.find((entry) => entry.id === fixtureId)!;
+  const index = fixture.sections.findIndex(
+    (section) => section.id === anchor.element.ownerDocument.title,
+  );
+  return {
+    cfi: new EpubCFI(
+      anchor.range,
+      `/6/${(index + 1) * 2}[${fixture.sections[index].id}]`,
+      "archeion-highlight",
+    ).toString(),
+    y: anchor.y,
+    text: anchor.range.toString(),
+  };
+}
+
+function passageAt(target: string) {
+  const parsed = new EpubCFI(target);
+  const fixture = readerFixtures.find((entry) => entry.id === fixtureId)!;
+  const doc = [...document.querySelectorAll<HTMLIFrameElement>(".epub-viewer iframe")]
+    .map((frame) => frame.contentDocument)
+    .find((candidate) => candidate?.title === fixture.sections[parsed.spinePos].id);
+  if (!doc) return null;
+  const range = parsed.toRange(doc, "archeion-highlight");
+  if (
+    range.collapsed &&
+    range.startContainer.nodeType === Node.TEXT_NODE &&
+    range.startOffset < (range.startContainer.textContent?.length ?? 0)
+  ) {
+    range.setEnd(range.startContainer, range.startOffset + 1);
+  }
+  const frame = doc.defaultView!.frameElement!;
+  const scroller = document.querySelector<HTMLElement>(".epub-container")!;
+  const box = range.getBoundingClientRect();
+  const frameBox = frame.getBoundingClientRect();
+  const viewport = scroller.getBoundingClientRect();
+  const y = frameBox.top + box.top - viewport.top;
+  const x = frameBox.left + box.left - viewport.left;
+  return {
+    y,
+    x,
+    visible:
+      y + box.height > 0 &&
+      y < scroller.clientHeight &&
+      x + box.width > 0 &&
+      x < scroller.clientWidth,
+    text: range.toString(),
+  };
+}
 
 function mountedElement(id: string) {
   for (const frame of document.querySelectorAll(".epub-viewer iframe")) {
@@ -106,7 +165,10 @@ function cfi(id: string) {
   ).toString();
 }
 async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a") {
+  closeOverlay?.();
   ready = false;
+  relocations = 0;
+  locationCfi = null;
   navigation = undefined;
   errors = [];
   note = null;
@@ -132,7 +194,10 @@ async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a")
     publicationLayoutCapability: null,
     onError: (_identity, error) => errors.push(error.kind),
     onKeyDown: () => keys++,
-    onLocationChange: () => undefined,
+    onLocationChange: (location) => {
+      relocations++;
+      locationCfi = location.cfi;
+    },
     onPublicationLayoutCapability: () => undefined,
     onReady: () => {
       ready = true;
@@ -167,6 +232,14 @@ declare global {
       metrics: () => ReturnType<typeof probe.snapshot>;
       keys: () => number;
       note: () => string | null;
+      passage: typeof passage;
+      passageAt: typeof passageAt;
+      relocations: () => number;
+      location: () => string | null;
+      history: () => ReturnType<EpubViewerHandle["getNavigationHistorySnapshot"]>;
+      settings: (patch: Partial<ReaderSettings>) => void;
+      showOverlay: (kind: Parameters<typeof mountWheelOverlay>[0]) => void;
+      closeOverlay: () => void;
       holdDictionary: () => void;
       finishDictionary: () => void;
       dispose: () => void;
@@ -175,6 +248,28 @@ declare global {
 }
 window.readerInteractions = {
   open,
+  passage,
+  passageAt,
+  relocations: () => relocations,
+  location: () => locationCfi,
+  showOverlay: (kind) => {
+    closeOverlay?.();
+    closeOverlay = mountWheelOverlay(kind);
+  },
+  closeOverlay: () => {
+    closeOverlay?.();
+    closeOverlay = undefined;
+  },
+  history: () => viewer.current!.getNavigationHistorySnapshot(),
+  settings: (patch) => {
+    const settings = { ...props.settings, ...patch };
+    props = {
+      ...props,
+      settings,
+      contentTheme: createReaderContentTheme(settings, props.readerTheme.tokens),
+    };
+    render();
+  },
   ready: () => ready && navigation?.status === "ready",
   errors: () => errors,
   navigate: (target) => {
@@ -229,6 +324,7 @@ window.readerInteractions = {
     finishLookup = undefined;
   },
   dispose: () => {
+    closeOverlay?.();
     flushSync(() => root.render(null));
     lease?.dispose();
     ready = false;

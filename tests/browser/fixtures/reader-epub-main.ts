@@ -110,7 +110,7 @@ async function open(options: RuntimeOptions) {
   const book = ePub(bytes.buffer);
   let observer: ReturnType<typeof observeReaderRuntime> | undefined;
   let removeContentHook: (() => void) | undefined;
-  let releaseContinuousRendition: (() => void) | undefined;
+  let continuousPosition: ReturnType<typeof stabilizeContinuousRendition> | undefined;
   let prependProbe: ReturnType<typeof probeReaderPrepend> | undefined;
   let releaseAnchoring: (() => void) | undefined;
   let released = false;
@@ -121,7 +121,7 @@ async function open(options: RuntimeOptions) {
     if (released) return;
     released = true;
     observer?.dispose();
-    releaseContinuousRendition?.();
+    continuousPosition?.dispose();
     releaseAnchoring?.();
     prependProbe?.dispose();
     removeContentHook?.();
@@ -199,7 +199,7 @@ async function open(options: RuntimeOptions) {
     await rendition.started;
     if (token !== generation) return;
     if (options.profile === "archeion" && mode === "continuous")
-      releaseContinuousRendition = stabilizeContinuousRendition(
+      continuousPosition = stabilizeContinuousRendition(
         rendition,
         () => token === generation && !released,
         () => {

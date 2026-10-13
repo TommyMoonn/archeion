@@ -94,6 +94,7 @@ function createMockRendition(): MockRendition {
       underline: vi.fn(),
     },
     display: vi.fn(async () => undefined),
+    currentLocation: vi.fn(() => undefined),
     next: vi.fn(async () => undefined),
     prev: vi.fn(async () => undefined),
     themes: {
