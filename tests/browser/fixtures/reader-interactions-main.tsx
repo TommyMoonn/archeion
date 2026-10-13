@@ -20,9 +20,19 @@ import {
 } from "../../fixtures/reader/readerFixtures";
 import { probeReaderDocumentListeners } from "./reader-document-listener-probe";
 import { mountWheelOverlay } from "./reader-wheel-overlays";
+import { probeReaderWork } from "./reader-work-probe";
+import {
+  createReaderProgressController,
+  type ReaderProgressController,
+} from "../../../src/features/reader/readerProgressController";
+import type { UpdateBookInput } from "../../../src/types/book";
 import "../../../src/styles/index.css";
 
+const workProbe = new URLSearchParams(location.search).has("work") ? probeReaderWork() : null;
 const probe = probeReaderDocumentListeners();
+let progress: ReaderProgressController | null = null;
+const progressWrites: Array<{ bookId: string; changes: UpdateBookInput }> = [];
+let progressFlushes = 0;
 dictionaryRegistryStore.publish({
   status: "ready",
   recovery: null,
@@ -165,6 +175,7 @@ function cfi(id: string) {
   ).toString();
 }
 async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a") {
+  await progress?.teardown();
   closeOverlay?.();
   ready = false;
   relocations = 0;
@@ -187,6 +198,24 @@ async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a")
     .lifecycle.identity!;
   const theme = resolveBuiltInReaderTheme("dark");
   const settings = { ...defaultReaderSettings, mode };
+  const ownedProgress = workProbe
+    ? createReaderProgressController({
+        book: { id: identity.bookId },
+        identity,
+        onPersistenceFailureChange: () => undefined,
+        persistence: {
+          updateBook: async (bookId, changes) => {
+            progressWrites.push({ bookId, changes });
+            return undefined;
+          },
+          flushPendingWrites: async () => {
+            progressFlushes++;
+          },
+        },
+        startFromBeginning: true,
+      })
+    : null;
+  progress = ownedProgress;
   highlights = [];
   props = {
     contentTheme: createReaderContentTheme(settings, theme.tokens),
@@ -197,6 +226,7 @@ async function open(id: ReaderFixtureId, nextMode = mode, archive = "archive-a")
     onLocationChange: (location) => {
       relocations++;
       locationCfi = location.cfi;
+      ownedProgress?.acceptRelocation(identity, location);
     },
     onPublicationLayoutCapability: () => undefined,
     onReady: () => {
@@ -230,6 +260,8 @@ declare global {
       searchState: () => ReturnType<EpubViewerHandle["getPublicationSearchState"]>;
       followSearch: (id: string) => Promise<boolean>;
       metrics: () => ReturnType<typeof probe.snapshot>;
+      work: () => ReturnType<ReturnType<typeof probeReaderWork>["snapshot"]> | null;
+      persistence: () => { writes: typeof progressWrites; flushes: number; cfi?: string };
       keys: () => number;
       note: () => string | null;
       passage: typeof passage;
@@ -242,7 +274,7 @@ declare global {
       closeOverlay: () => void;
       holdDictionary: () => void;
       finishDictionary: () => void;
-      dispose: () => void;
+      dispose: () => Promise<void>;
     };
   }
 }
@@ -313,6 +345,12 @@ window.readerInteractions = {
   searchState: () => viewer.current!.getPublicationSearchState(),
   followSearch: (id) => viewer.current!.navigateToPublicationSearchResult(id),
   metrics: probe.snapshot,
+  work: () => workProbe?.snapshot() ?? null,
+  persistence: () => ({
+    writes: [...progressWrites],
+    flushes: progressFlushes,
+    cfi: progress?.getLocation().cfi,
+  }),
   keys: () => keys,
   note: () => note,
   holdDictionary: () => {
@@ -323,11 +361,12 @@ window.readerInteractions = {
     finishLookup?.();
     finishLookup = undefined;
   },
-  dispose: () => {
+  dispose: async () => {
     closeOverlay?.();
     flushSync(() => root.render(null));
     lease?.dispose();
     ready = false;
+    await progress?.teardown();
   },
 };
 await open("long-spine");

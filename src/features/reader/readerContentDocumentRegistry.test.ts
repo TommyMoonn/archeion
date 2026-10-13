@@ -26,6 +26,115 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("does not repeat a new mount's current geometry or restyle a retired document", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const palette = resolveBuiltInReaderTheme("dark").tokens;
+    const layout = {
+      mode: "continuous",
+      readingWidth: "comfortable",
+      stageSize: { width: 1050, height: 750 },
+    } as const;
+    registry.applyTheme(null, createReaderContentTheme(defaultReaderSettings, palette), null);
+    registry.applyLayout(layout, null);
+    const first = mountedFrame();
+    first.contentDocument!.body.innerHTML = '<img src="plate.svg" alt="Plate">';
+    registry.bindRenderedView({ document: first.contentDocument! }, "first.xhtml");
+    const retiredQuery = vi.spyOn(first.contentDocument!, "querySelectorAll");
+    first.remove();
+    registry.applyTheme(
+      null,
+      createReaderContentTheme({ ...defaultReaderSettings, fontSize: 24 }, palette),
+      null,
+    );
+    const replacement = mountedFrame();
+    const doc = replacement.contentDocument!;
+    doc.body.innerHTML = '<img src="plate.svg" alt="Plate">';
+    const query = vi.spyOn(doc, "querySelectorAll");
+    registry.bindRenderedView({ document: doc }, "replacement.xhtml");
+    const mountCalls = query.mock.calls.length;
+    registry.applyLayout(layout, null);
+    expect(query.mock.calls.length).toBe(mountCalls);
+    expect(retiredQuery).not.toHaveBeenCalled();
+    expect(registry.list()).toEqual([doc]);
+    registry.retire();
+  });
+
+  it("leaves unthemed fixed-layout content unclassified and prepares a later reflowable theme once", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    chapter.body.innerHTML = "<p>Publisher page composition.</p>";
+    const queries = vi.spyOn(chapter, "querySelectorAll");
+    registry.bindRenderedView({ document: chapter }, "page.xhtml");
+    expect(chapter.querySelector("p")?.hasAttribute("data-archeion-running-prose")).toBe(false);
+    expect(queries).not.toHaveBeenCalled();
+    const theme = createReaderContentTheme(
+      defaultReaderSettings,
+      resolveBuiltInReaderTheme("dark").tokens,
+    );
+    registry.applyTheme(null, theme, null);
+    registry.applyTheme(null, { ...theme }, null);
+    expect(queries.mock.calls.filter(([selector]) => selector === "p")).toHaveLength(1);
+    expect(chapter.querySelector("p")?.hasAttribute("data-archeion-running-prose")).toBe(true);
+    registry.retire();
+  });
+
+  it("styles a mounted document once and invalidates only changed appearance or geometry", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    chapter.body.innerHTML = '<p>Running prose.</p><img src="plate.svg" alt="Plate">';
+    const queries = vi.spyOn(chapter, "querySelectorAll");
+    const computed = vi.spyOn(frame.contentWindow!, "getComputedStyle");
+    const theme = createReaderContentTheme(
+      defaultReaderSettings,
+      resolveBuiltInReaderTheme("dark").tokens,
+    );
+    const layout = {
+      mode: "continuous",
+      readingWidth: "comfortable",
+      stageSize: { width: 1050, height: 750 },
+    } as const;
+    registry.applyTheme(null, theme, null);
+    registry.applyLayout(layout, null);
+    registry.bindRenderedView({ document: chapter }, "chapter.xhtml");
+    const mountedQueries = queries.mock.calls.length;
+    const mountedComputed = computed.mock.calls.length;
+    expect(mountedComputed).toBeGreaterThan(0);
+    for (let index = 0; index < 20; index++) {
+      registry.bindRenderedView({ document: chapter }, "chapter.xhtml");
+      registry.applyTheme(null, { ...theme, rules: structuredClone(theme.rules) }, document.body);
+      registry.applyLayout({ ...layout, stageSize: { ...layout.stageSize } }, document.body);
+      registry.applyLayoutStageSize({ ...layout.stageSize }, document.body);
+    }
+    expect(queries.mock.calls.length).toBe(mountedQueries);
+    expect(computed.mock.calls.length).toBe(mountedComputed);
+
+    registry.applyTheme(
+      null,
+      createReaderContentTheme(defaultReaderSettings, resolveBuiltInReaderTheme("light").tokens),
+      null,
+    );
+    registry.applyLayout(layout, null);
+    expect(computed.mock.calls.length).toBe(mountedComputed);
+    const proseScans = () => queries.mock.calls.filter(([selector]) => selector === "p").length;
+    expect(proseScans()).toBe(1);
+    registry.applyTheme(
+      null,
+      createReaderContentTheme(
+        { ...defaultReaderSettings, fontSize: 24 },
+        resolveBuiltInReaderTheme("light").tokens,
+      ),
+      null,
+    );
+    registry.applyLayout(layout, null);
+    expect(computed.mock.calls.length).toBeGreaterThan(mountedComputed);
+    const changedComputed = computed.mock.calls.length;
+    registry.applyLayoutStageSize({ width: 900, height: 700 }, null);
+    expect(computed.mock.calls.length).toBeGreaterThan(changedComputed);
+    expect(proseScans()).toBe(1);
+    registry.retire();
+  });
   it("does not prepare a disconnected document through a late rendered notification before pruning", () => {
     const registry = new ReaderContentDocumentRegistry();
     const ready = vi.fn();

@@ -63,7 +63,7 @@ function createHarness(identity = sessionIdentity(), startFromBeginning = false)
   const flushPendingWrites = vi.fn(async () => undefined);
   const onPersistenceFailureChange = vi.fn();
   const controller = createReaderProgressController({
-    book,
+    book: { ...book, id: identity.bookId },
     identity,
     onPersistenceFailureChange,
     persistence: { flushPendingWrites, updateBook },
@@ -81,6 +81,53 @@ function createHarness(identity = sessionIdentity(), startFromBeginning = false)
 }
 
 describe("Reader progress controller", () => {
+  it("batches relocation events across tasks while keeping active CFI immediate and flushing before a book switch", async () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createHarness();
+      for (let index = 1; index <= 20; index++) {
+        const cfi = `epubcfi(/6/${index * 2})`;
+        harness.controller.acceptRelocation(
+          harness.identity,
+          relocation({ cfi, rawPercentage: index / 20 }),
+        );
+        expect(harness.controller.getLocation().cfi).toBe(cfi);
+        await vi.advanceTimersByTimeAsync(10);
+      }
+      expect(harness.updateBook).not.toHaveBeenCalled();
+      const ending = harness.controller.teardown();
+      const replacement = createHarness(sessionIdentity("book-2"));
+      expect(harness.controller.acceptRelocation(harness.identity, relocation())).toBeNull();
+      expect(replacement.controller.acceptRelocation(harness.identity, relocation())).toBeNull();
+      await ending;
+      expect(harness.writes).toEqual([{ progressCfi: "epubcfi(/6/40)", progressPercent: 100 }]);
+      expect(harness.flushPendingWrites).toHaveBeenCalledOnce();
+      expect(replacement.updateBook).not.toHaveBeenCalled();
+      await replacement.controller.teardown();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("persists the trailing position after an input burst settles without a controlled exit", async () => {
+    vi.useFakeTimers();
+    try {
+      const harness = createHarness();
+      harness.controller.acceptRelocation(harness.identity, relocation());
+      await vi.advanceTimersByTimeAsync(100);
+      harness.controller.acceptRelocation(
+        harness.identity,
+        relocation({ cfi: "final", rawPercentage: 0.8 }),
+      );
+      expect(harness.updateBook).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(200);
+      expect(harness.writes).toEqual([{ progressCfi: "final", progressPercent: 80 }]);
+      await harness.controller.teardown();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("exposes the restored location without publishing a restoration write", () => {
     const harness = createHarness();
 

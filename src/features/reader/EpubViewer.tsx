@@ -373,7 +373,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       },
       onRendered: () => {
         refreshAnchor();
-        annotations.reconcile();
+        // epub.js injects durable annotations for this view in its render hook.
+        // Reconcile data changes separately; a mount must not rescan all highlights.
       },
       onSelected: handleSelection,
       onSessionCreated: (session) => {

@@ -2,7 +2,12 @@ import type { Rendition } from "epubjs";
 
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
-import { applyReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
+import {
+  applyReaderContentTheme,
+  prepareReaderRunningProse,
+  readerContentThemeGeometryKey,
+  type ReaderContentTheme,
+} from "./readerTheme";
 import type { ReaderStageSize } from "./readerStageGeometry";
 import { applyReaderReflowableLayout, type ReaderReflowableLayout } from "./readerReflowableLayout";
 
@@ -53,6 +58,8 @@ type RegisteredDocument = {
   updateWheel: () => void;
   sectionHref?: string;
   frame: Element | null;
+  layoutKey: string | null;
+  prosePrepared: boolean;
 };
 
 function documentFromRenderedView(view: unknown): Document | null {
@@ -78,6 +85,9 @@ export class ReaderContentDocumentRegistry {
   private options: ReaderContentDocumentRegistryOptions = {};
   private theme: ReaderContentTheme | null = null;
   private layout: ReaderReflowableLayout | null = null;
+  private themeKey: string | null = null;
+  private themedRendition: Rendition | null = null;
+  private layoutKey: string | null = null;
   private retired = false;
   private retiredDocuments = new WeakSet<Document>();
 
@@ -190,6 +200,8 @@ export class ReaderContentDocumentRegistry {
       updateWheel,
       sectionHref: content?.section?.href,
       frame,
+      layoutKey: this.layout ? this.keyForLayout(this.layout) : null,
+      prosePrepared: Boolean(this.theme),
     });
     if (content?.section?.href) this.options.onDocumentReady?.(context());
     return true;
@@ -219,27 +231,53 @@ export class ReaderContentDocumentRegistry {
     container: HTMLElement | null,
   ): void {
     if (this.retired) return;
+    const themeKey = JSON.stringify(theme);
+    const changed = this.themeKey !== themeKey;
+    if (!changed && rendition === this.themedRendition) return;
     this.theme = theme;
-    const mountedDocuments = Array.from(
-      container?.querySelectorAll("iframe") ?? [],
-      (frame) => frame.contentDocument,
-    );
-    applyReaderContentTheme(rendition, theme, [...this.documents.keys(), ...mountedDocuments]);
+    this.themeKey = themeKey;
+    const documents = changed ? this.livingDocuments() : [];
+    for (const document of documents) {
+      const registered = this.documents.get(document)!;
+      if (registered.prosePrepared) continue;
+      prepareReaderRunningProse(document);
+      registered.prosePrepared = true;
+    }
+    applyReaderContentTheme(rendition, theme, documents, false);
+    this.themedRendition = rendition;
+    this.bindMounted(container);
   }
 
   applyLayout(layout: ReaderReflowableLayout, container: HTMLElement | null): void {
     if (this.retired) return;
+    const layoutKey = this.keyForLayout(layout);
+    if (this.layoutKey === layoutKey) return;
     this.layout = layout;
-    const mountedDocuments = Array.from(
-      container?.querySelectorAll("iframe") ?? [],
-      (frame) => frame.contentDocument,
-    );
-    const documents = new Set(
-      [...this.documents.keys(), ...mountedDocuments].filter((document): document is Document =>
-        Boolean(document),
-      ),
-    );
-    for (const document of documents) applyReaderReflowableLayout(document, layout);
+    this.layoutKey = layoutKey;
+    this.livingDocuments();
+    for (const [document, registered] of this.documents) {
+      if (registered.layoutKey === layoutKey) continue;
+      applyReaderReflowableLayout(document, layout);
+      registered.layoutKey = layoutKey;
+    }
+    this.bindMounted(container);
+  }
+
+  private keyForLayout(layout: ReaderReflowableLayout): string {
+    return JSON.stringify([
+      layout.mode,
+      layout.readingWidth,
+      layout.stageSize?.width,
+      layout.stageSize?.height,
+      this.theme ? readerContentThemeGeometryKey(this.theme) : null,
+    ]);
+  }
+
+  private livingDocuments(): Document[] {
+    for (const document of this.documents.keys()) {
+      if (!this.has(document)) this.remove(document);
+    }
+    return [...this.documents.keys()];
   }
 
   applyLayoutStageSize(stageSize: ReaderStageSize, container: HTMLElement | null): void {
@@ -283,6 +321,9 @@ export class ReaderContentDocumentRegistry {
     this.options = {};
     this.theme = null;
     this.layout = null;
+    this.themedRendition = null;
+    this.themeKey = null;
+    this.layoutKey = null;
   }
 
   list(): readonly Document[] {

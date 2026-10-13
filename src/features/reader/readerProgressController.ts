@@ -11,6 +11,8 @@ import type { ReaderSessionIdentity } from "./readerSession";
 
 type ReaderProgressPersistence = Pick<LibraryStorage, "flushPendingWrites" | "updateBook">;
 
+const READER_PROGRESS_WRITE_DELAY_MS = 200;
+
 type ReaderProgressControllerOptions = Readonly<{
   book: Pick<Book, "id" | "progressCfi" | "progressPercent">;
   identity: ReaderSessionIdentity;
@@ -51,9 +53,10 @@ export function createReaderProgressController({
   let persistenceRevision = 0;
   let teardownPromise: Promise<void> | null = null;
 
-  // Batch same-turn Reader events; storage remains the owner of durable write timing and retries.
+  // Active CFI stays synchronous. Batch persistence during input bursts; controlled
+  // leave/shutdown drains this queue before the storage-owned durable write queue.
   const writes = new CoalescedWriteQueue<UpdateBookInput>({
-    delayMs: 0,
+    delayMs: READER_PROGRESS_WRITE_DELAY_MS,
     write: (changes) => {
       const revision = ++persistenceRevision;
       void persistence.updateBook(book.id, changes).then(

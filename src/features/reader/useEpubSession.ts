@@ -16,7 +16,7 @@ import {
   ReaderContentDocumentSessionOwner,
   type ReaderContentDocumentAccess,
 } from "./readerContentDocumentRegistry";
-import type { ReaderContentTheme } from "./readerTheme";
+import { readerContentThemeGeometryKey, type ReaderContentTheme } from "./readerTheme";
 import {
   stabilizeContinuousRendition,
   type RenditionWithManager,
@@ -1049,14 +1049,7 @@ export function useEpubSession({
       const apply = () => {
         if (sessionRef.current !== session) return;
         const active = activeRenditionStageRef.current;
-        const body = theme.rules.body;
-        const geometry = JSON.stringify([
-          body?.["font-family"],
-          body?.["font-size"],
-          body?.["line-height"],
-          theme.fontFaceCss,
-          readingWidth,
-        ]);
+        const geometry = JSON.stringify([readerContentThemeGeometryKey(theme), readingWidth]);
         let pagedRestore: ReaderResizeRelocationOwner | null = null;
         if (session.appearanceGeometry !== undefined && session.appearanceGeometry !== geometry) {
           if (mode === "continuous") continuousPositionRef.current?.beginReflow(false);
