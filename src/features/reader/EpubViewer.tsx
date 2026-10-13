@@ -353,12 +353,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   useEffect(() => {
     bridgeRef.current = {
-      onContent: (content) => {
-        if (content.document) {
-          const context = contentDocuments.contextFor(content.document);
-          if (context) prepareDocument(context);
-        }
-      },
+      onContent: () => undefined,
       onDisplayed: () => {
         annotations.reconcile();
       },
@@ -376,10 +371,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         clearContentActionFeedback();
       },
       onRendered: () => {
-        for (const document of contentDocuments.list()) {
-          const context = contentDocuments.contextFor(document);
-          if (context) prepareDocument(context);
-        }
         refreshAnchor();
         annotations.reconcile();
       },
@@ -418,7 +409,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onNavigationChange,
     onPublicationLayoutCapability,
     onReady,
-    prepareDocument,
     handlePublicationSearchRuntimeEnding,
     handlePublicationSearchRuntimeReady,
     refreshAnchor,
@@ -491,6 +481,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onContentKeyDown: handleContentKeyDown,
       onContentPointerDown: handleContentPointerDown,
       onDocumentRemoved: handleRegisteredDocumentRemoved,
+      onDocumentReady: prepareDocument,
       onEscape: handleRegisteredEscape,
       onKeyDown,
       onPointerDown: handleRegisteredPointerDown,
@@ -508,6 +499,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     handleRegisteredSelectionCollapsed,
     handleWheel,
     onKeyDown,
+    prepareDocument,
     publicationMode,
   ]);
 

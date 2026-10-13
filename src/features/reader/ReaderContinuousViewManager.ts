@@ -58,6 +58,13 @@ export class ReaderContinuousViewManager extends ContinuousViewManager {
       : bounds.right <= viewport.left;
   }
 
+  override erase(view: ResidentView, above?: boolean): void {
+    // The vendor clears contents during erase. Release document-owned actions
+    // while the outgoing view still exposes its document and anchors.
+    this.emit("reader-view-retiring", view);
+    super.erase(view, above);
+  }
+
   override async display(section: Section, target?: string | number): Promise<void> {
     if (!this.isSessionCurrent()) throw new Error("Reader session retired");
     this.navigating += 1;

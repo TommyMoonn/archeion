@@ -10,7 +10,10 @@ import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { createReaderContentTheme } from "./readerTheme";
-import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
+import {
+  ReaderContentDocumentRegistry,
+  ReaderContentDocumentSessionOwner,
+} from "./readerContentDocumentRegistry";
 
 function mountedFrame(): HTMLIFrameElement {
   const frame = document.createElement("iframe");
@@ -23,6 +26,111 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("does not prepare a disconnected document through a late rendered notification before pruning", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const ready = vi.fn();
+    const removed = vi.fn();
+    registry.updateOptions({ onDocumentReady: ready, onDocumentRemoved: removed });
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    registry.bind({ document: chapter });
+    frame.remove();
+    registry.bindRenderedView({ document: chapter }, "chapter.xhtml");
+    expect(ready).not.toHaveBeenCalled();
+    expect(removed).toHaveBeenCalledExactlyOnceWith(chapter);
+    expect(registry.list()).toEqual([]);
+  });
+  it("prepares only a newly identified living document and applies current styles on remount", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const ready = vi.fn();
+    registry.updateOptions({ onDocumentReady: ready });
+    const theme = createReaderContentTheme(
+      defaultReaderSettings,
+      resolveBuiltInReaderTheme("dark").tokens,
+    );
+    registry.applyTheme(null, theme, null);
+    registry.applyLayout(
+      { mode: "continuous", readingWidth: "comfortable", stageSize: { width: 1000, height: 750 } },
+      null,
+    );
+    const first = mountedFrame();
+    const doc = first.contentDocument!;
+    registry.bind({ document: doc });
+    registry.bindRenderedView({ contents: { document: doc } }, "Text/chapter.xhtml");
+    registry.bindRenderedView({ contents: { document: doc } }, "Text/chapter.xhtml");
+    registry.bindMounted(document.body);
+    expect(ready).toHaveBeenCalledExactlyOnceWith({
+      document: doc,
+      sectionHref: "Text/chapter.xhtml",
+    });
+    first.remove();
+    registry.pruneDisconnected();
+    const remounted = mountedFrame();
+    registry.bindRenderedView({ document: remounted.contentDocument! }, "Text/chapter.xhtml");
+    expect(ready).toHaveBeenCalledTimes(2);
+    expect(remounted.contentDocument!.querySelectorAll("style").length).toBeGreaterThan(0);
+    expect(registry.list()).toEqual([remounted.contentDocument]);
+    registry.clear();
+  });
+  it("does not resurrect a retired generation through late content or rendered hooks", () => {
+    const owner = new ReaderContentDocumentSessionOwner();
+    const first = owner.activate();
+    const oldFrame = mountedFrame();
+    const oldDocument = oldFrame.contentDocument!;
+    const removed = vi.fn();
+    owner.access.updateOptions({ onDocumentRemoved: removed });
+    first.bind({ document: oldDocument });
+    const second = owner.activate();
+    const currentFrame = mountedFrame();
+    second.bind({ document: currentFrame.contentDocument! });
+
+    expect(first.bind({ document: oldDocument })).toBe(false);
+    expect(first.bindRenderedView({ document: mountedFrame().contentDocument! })).toBe(false);
+    first.bindMounted(document.body);
+    owner.retire(first);
+    expect(first.list()).toEqual([]);
+    expect(owner.access.list()).toEqual([currentFrame.contentDocument]);
+    expect(removed).toHaveBeenCalledOnce();
+    owner.retire(second);
+    expect(owner.access.list()).toEqual([]);
+  });
+
+  it("releases every listener once over 42 recreations and rejects captured retired callbacks", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const onContentClick = vi.fn(() => false);
+    const onKeyDown = vi.fn();
+    const onRemoved = vi.fn();
+    registry.updateOptions({ onContentClick, onKeyDown, onDocumentRemoved: onRemoved });
+    for (let index = 0; index < 42; index += 1) {
+      const frame = mountedFrame();
+      const chapter = frame.contentDocument!;
+      const add = vi.spyOn(chapter, "addEventListener");
+      const remove = vi.spyOn(chapter, "removeEventListener");
+      const addWindow = vi.spyOn(frame.contentWindow!, "addEventListener");
+      const removeWindow = vi.spyOn(frame.contentWindow!, "removeEventListener");
+      registry.bind({ document: chapter });
+      registry.bindRenderedView({ document: chapter }, "Text/same-chapter.xhtml");
+      chapter.dispatchEvent(new MouseEvent("click"));
+      chapter.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown" }));
+      const callbacks = [...add.mock.calls, ...addWindow.mock.calls];
+      frame.remove();
+      registry.pruneDisconnected();
+      registry.remove(chapter);
+      for (const call of add.mock.calls) expect(remove.mock.calls).toContainEqual(call);
+      expect(removeWindow.mock.calls).toEqual(addWindow.mock.calls);
+      // A queued callback can outlive removeEventListener. It must be inert too.
+      for (const [type, callback] of callbacks) {
+        const event = type === "keydown" ? new KeyboardEvent(type) : new Event(type);
+        if (typeof callback === "function") callback.call(chapter, event);
+      }
+      expect(registry.bind({ document: chapter })).toBe(false);
+      expect(registry.list()).toEqual([]);
+      expect(onContentClick).toHaveBeenCalledTimes(index + 1);
+      expect(onKeyDown).toHaveBeenCalledTimes(index + 1);
+      expect(onRemoved).toHaveBeenCalledTimes(index + 1);
+    }
+  });
+
   it("leaves native Continuous input unregistered while retaining content interactions", () => {
     const frame = mountedFrame();
     const chapter = frame.contentDocument!;

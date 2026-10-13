@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { HighlightAnnotation } from "../../types/annotation";
 import {
@@ -97,6 +97,34 @@ function selectText(): void {
 }
 
 describe("highlight activation gestures", () => {
+  it.each(["pending", "completed"])(
+    "releases %s host-mark listeners when their source iframe retires",
+    (state) => {
+      const activate = vi.fn();
+      const controller = createHighlightActivationGestureController(activate);
+      const view = document.body.appendChild(document.createElement("div"));
+      view.className = "epub-view";
+      const frame = view.appendChild(document.createElement("iframe"));
+      const chapter = frame.contentDocument!;
+      const mark = view.appendChild(document.createElement("button"));
+      mark.addEventListener("touchstart", (event) => controller.handle("saved-highlight", event));
+      const add = vi.spyOn(document, "addEventListener");
+      const remove = vi.spyOn(document, "removeEventListener");
+      mark.dispatchEvent(touchEvent("touchstart", 10, 10));
+      if (state === "completed") document.dispatchEvent(touchEvent("touchend", 10, 10));
+      frame.remove();
+      controller.cancelDocument(chapter);
+      try {
+        for (const call of add.mock.calls) expect(remove.mock.calls).toContainEqual(call);
+        document.dispatchEvent(touchEvent("touchend", 10, 10));
+        expect(activate).toHaveBeenCalledTimes(state === "completed" ? 1 : 0);
+      } finally {
+        controller.cancelAll();
+        add.mockRestore();
+        remove.mockRestore();
+      }
+    },
+  );
   it("activates a mouse click only with a collapsed selection", () => {
     const activations: string[] = [];
     const controller = createHighlightActivationGestureController(({ annotationId }) =>

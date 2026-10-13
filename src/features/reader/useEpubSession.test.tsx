@@ -140,6 +140,7 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
         register: vi.fn((callback: (content: EpubContent) => void) => {
           contentCallbacks.push(callback);
         }),
+        deregister: vi.fn(),
       },
     },
     next: vi.fn(async () => undefined),
@@ -345,6 +346,34 @@ afterEach(() => {
 });
 
 describe("useEpubSession lifecycle", () => {
+  it("ignores selection and late hooks from an evicted document within the current session", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const { root } = await renderHarness({
+      bridgeRef: createBridgeRef(bridge),
+      fileLease: leaseFor(new Blob(["book"])),
+      mode: "paged",
+    });
+    await waitForReady(session, bridge);
+    const frame = document.body.appendChild(document.createElement("iframe"));
+    Object.defineProperty(frame.contentWindow, "frameElement", { value: frame });
+    const content = { document: frame.contentDocument!, window: frame.contentWindow! };
+    session.rendition.contentCallbacks[0](content);
+    emitStaleEvent(session, "selected", "epubcfi(/selection)", content);
+    expect(bridge.onSelected).toHaveBeenCalledOnce();
+    frame.remove();
+    emitStaleEvent(session, "removed", {}, {});
+    session.rendition.contentCallbacks[0](content);
+    emitStaleEvent(session, "rendered", {}, { document: content.document });
+    emitStaleEvent(session, "selected", "epubcfi(/selection)", content);
+    expect(bridge.onContent).toHaveBeenCalledOnce();
+    expect(bridge.onSelected).toHaveBeenCalledOnce();
+    act(() => root.unmount());
+    expect(session.rendition.hooks.content.deregister).toHaveBeenCalledExactlyOnceWith(
+      session.rendition.contentCallbacks[0],
+    );
+  });
   it("releases source bytes after EPUB.js construction without ending the active session", async () => {
     const stages: string[] = [];
     const mark = performance.mark.bind(performance);
@@ -1972,7 +2001,9 @@ describe("useEpubSession lifecycle", () => {
 
     const currentBridge = createBridge();
     bridgeRef.current = currentBridge;
-    const content = { document: document.implementation.createHTMLDocument("current") };
+    const frame = document.body.appendChild(document.createElement("iframe"));
+    Object.defineProperty(frame.contentWindow, "frameElement", { value: frame });
+    const content = { document: frame.contentDocument! };
     session.rendition.contentCallbacks[0]?.(content);
     emitStaleEvent(session, "rendered", {}, { document: content.document });
     emitStaleEvent(session, "relocated", relocation());

@@ -31,6 +31,7 @@ export type ReaderContentDocumentRegistryOptions = {
   onContentKeyDown?: (event: KeyboardEvent, context: ReaderContentDocumentContext) => boolean;
   onContentPointerDown?: (event: PointerEvent, context: ReaderContentDocumentContext) => boolean;
   onDocumentRemoved?: (document: Document) => void;
+  onDocumentReady?: (context: ReaderContentDocumentContext) => void;
   onEscape?: () => boolean;
   onKeyDown?: (event: KeyboardEvent) => void;
   onPointerDown?: () => void;
@@ -51,7 +52,7 @@ type RegisteredDocument = {
   cleanup: () => void;
   updateWheel: () => void;
   sectionHref?: string;
-  window: Window | null;
+  frame: Element | null;
 };
 
 function documentFromRenderedView(view: unknown): Document | null {
@@ -68,33 +69,51 @@ function contentWindow(document: Document, candidate?: Window): Window | null {
   return candidate ?? document.defaultView ?? null;
 }
 
+function frameOwnsDocument(frame: Element | null, document: Document): boolean {
+  return Boolean(frame?.isConnected && (frame as HTMLIFrameElement).contentDocument === document);
+}
+
 export class ReaderContentDocumentRegistry {
   private documents = new Map<Document, RegisteredDocument>();
   private options: ReaderContentDocumentRegistryOptions = {};
   private theme: ReaderContentTheme | null = null;
   private layout: ReaderReflowableLayout | null = null;
+  private retired = false;
+  private retiredDocuments = new WeakSet<Document>();
 
   updateOptions(options: ReaderContentDocumentRegistryOptions): void {
+    if (this.retired) return;
     this.options = options;
     for (const registered of this.documents.values()) registered.updateWheel();
   }
 
   bind(content: EpubContent | null): boolean {
     const document = content?.document ?? null;
-    if (!document) return false;
+    if (!document || this.retired || this.retiredDocuments.has(document)) return false;
     const existing = this.documents.get(document);
     if (existing) {
-      if (content?.section?.href) existing.sectionHref = content.section.href;
+      if (!this.has(document)) {
+        this.remove(document);
+        return false;
+      }
+      if (content?.section?.href && existing.sectionHref !== content.section.href) {
+        existing.sectionHref = content.section.href;
+        this.options.onDocumentReady?.({ document, sectionHref: existing.sectionHref });
+      }
       return false;
     }
 
+    const window = contentWindow(document, content?.window);
+    const frame = window?.frameElement ?? document.defaultView?.frameElement ?? null;
+    if (frame && !frameOwnsDocument(frame, document)) return false;
     if (this.theme) applyReaderContentTheme(null, this.theme, [document]);
     if (this.layout) applyReaderReflowableLayout(document, this.layout);
-    const window = contentWindow(document, content?.window);
+    const ownsDocument = () => this.has(document);
     const wheelOptions: AddEventListenerOptions = { capture: true, passive: false };
     const keyOptions: AddEventListenerOptions = { capture: true };
 
     const onContentKeyDown = (event: KeyboardEvent) => {
+      if (!ownsDocument()) return;
       focusPresentationRuntime.reportKeyDown(event);
       if (event.key === "Escape") {
         if (claimTransientSurfaceEscape(event) || event.defaultPrevented) return;
@@ -113,9 +132,10 @@ export class ReaderContentDocumentRegistry {
     };
     const context = (): ReaderContentDocumentContext => ({
       document,
-      sectionHref: this.documents.get(document)?.sectionHref ?? content?.section?.href,
+      sectionHref: this.documents.get(document)?.sectionHref,
     });
     const onContentClick = (event: MouseEvent) => {
+      if (!ownsDocument()) return;
       if (this.options.onContentClick?.(event, context())) {
         event.preventDefault();
         event.stopPropagation();
@@ -123,17 +143,22 @@ export class ReaderContentDocumentRegistry {
       }
     };
     const onContentPointerDown = (event: PointerEvent) => {
+      if (!ownsDocument()) return;
       focusPresentationRuntime.markPointer();
       if (this.options.onContentPointerDown?.(event, context())) return;
       this.options.onPointerDown?.();
     };
-    const onContentTeardown = () => this.remove(document);
+    const onContentTeardown = () => {
+      if (this.documents.has(document)) this.remove(document);
+    };
     const onSelectionChange = () => {
-      if (document.getSelection()?.isCollapsed) {
+      if (ownsDocument() && document.getSelection()?.isCollapsed) {
         this.options.onSelectionCollapsed?.(document);
       }
     };
-    const onContentWheel: EventListener = (event) => this.options.onWheel?.(event as WheelEvent);
+    const onContentWheel: EventListener = (event) => {
+      if (ownsDocument()) this.options.onWheel?.(event as WheelEvent);
+    };
     let wheelRegistered = false;
     const updateWheel = () => {
       const required = Boolean(this.options.onWheel);
@@ -164,8 +189,9 @@ export class ReaderContentDocumentRegistry {
       cleanup,
       updateWheel,
       sectionHref: content?.section?.href,
-      window,
+      frame,
     });
+    if (content?.section?.href) this.options.onDocumentReady?.(context());
     return true;
   }
 
@@ -192,6 +218,7 @@ export class ReaderContentDocumentRegistry {
     theme: ReaderContentTheme,
     container: HTMLElement | null,
   ): void {
+    if (this.retired) return;
     this.theme = theme;
     const mountedDocuments = Array.from(
       container?.querySelectorAll("iframe") ?? [],
@@ -201,6 +228,7 @@ export class ReaderContentDocumentRegistry {
   }
 
   applyLayout(layout: ReaderReflowableLayout, container: HTMLElement | null): void {
+    if (this.retired) return;
     this.layout = layout;
     const mountedDocuments = Array.from(
       container?.querySelectorAll("iframe") ?? [],
@@ -223,15 +251,21 @@ export class ReaderContentDocumentRegistry {
     const registered = this.documents.get(document);
     if (!registered) return false;
     this.documents.delete(document);
+    this.retiredDocuments.add(document);
     registered.cleanup();
     this.options.onDocumentRemoved?.(document);
     return true;
   }
 
+  removeRenderedView(view: unknown): boolean {
+    const document = documentFromRenderedView(view);
+    return document ? this.remove(document) : false;
+  }
+
   pruneDisconnected(): void {
     for (const [document, registered] of this.documents) {
-      const frame = registered.window?.frameElement ?? document.defaultView?.frameElement;
-      if (frame?.isConnected) continue;
+      const frame = registered.frame;
+      if (frameOwnsDocument(frame, document)) continue;
       this.remove(document);
     }
   }
@@ -242,12 +276,24 @@ export class ReaderContentDocumentRegistry {
     }
   }
 
+  retire(): void {
+    if (this.retired) return;
+    this.retired = true;
+    this.clear();
+    this.options = {};
+    this.theme = null;
+    this.layout = null;
+  }
+
   list(): readonly Document[] {
     return [...this.documents.keys()];
   }
 
   has(document: Document): boolean {
-    return this.documents.has(document);
+    const registered = this.documents.get(document);
+    return Boolean(
+      registered && (!registered.frame || frameOwnsDocument(registered.frame, document)),
+    );
   }
 
   clearSelection(document?: Document): void {
@@ -330,6 +376,6 @@ export class ReaderContentDocumentSessionOwner {
     if (!this.activeRegistry || (registry && this.activeRegistry !== registry)) return;
     const retiring = this.activeRegistry;
     this.activeRegistry = null;
-    retiring.clear();
+    retiring.retire();
   }
 }

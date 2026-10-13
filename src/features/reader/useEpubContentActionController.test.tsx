@@ -165,6 +165,41 @@ describe("useEpubContentActionController", () => {
     return { latest: () => latest, navigateToTarget, registry };
   }
 
+  it.each(["not-footnote", "resolved"] as const)(
+    "retires pending %s resolution when its source is evicted before any popover exists",
+    async (kind) => {
+      let finish!: (resolution: EpubFootnoteResolution) => void;
+      resolveEpubFootnote.mockReturnValue(
+        new Promise<EpubFootnoteResolution>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const harness = renderController({ current: session() });
+      const { document: chapter, link } = linkedDocument("chapter-2.xhtml#part");
+      act(() =>
+        harness.latest().handleContentClick(clickFrom(link), {
+          document: chapter,
+          sectionHref: "Text/chapter.xhtml",
+        }),
+      );
+      const signal = resolveEpubFootnote.mock.calls[0][0].signal as AbortSignal;
+      expect(harness.latest().footnote).toBeNull();
+      act(() => harness.latest().handleDocumentRemoved(chapter));
+      expect(signal.aborted).toBe(true);
+      const release = vi.fn();
+      await act(async () =>
+        finish(
+          kind === "resolved"
+            ? { kind, value: { nodes: [{ text: "Late note", type: "text" }], release } }
+            : { kind },
+        ),
+      );
+      expect(harness.navigateToTarget).not.toHaveBeenCalled();
+      expect(harness.latest().footnote).toBeNull();
+      expect(release).toHaveBeenCalledTimes(kind === "resolved" ? 1 : 0);
+    },
+  );
+
   it("opens a footnote without navigating and restores focus after Escape", async () => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callback(0);
@@ -968,6 +1003,40 @@ describe("useEpubContentActionController", () => {
 
     expect(release).toHaveBeenCalledOnce();
     expect(harness.latest().illustration).toBeNull();
+  });
+
+  it("retires an opening external action with its document without overwriting a newer action", async () => {
+    let fail!: (error: Error) => void;
+    openExternalUrl.mockReturnValueOnce(
+      new Promise<undefined>((_resolve, reject) => {
+        fail = reject;
+      }),
+    );
+    const harness = renderController({ current: session() });
+    const first = linkedDocument("https://example.com/first");
+    act(() =>
+      harness.latest().handleContentClick(clickFrom(first.link), {
+        document: first.document,
+        sectionHref: "Text/first.xhtml",
+      }),
+    );
+    act(() => harness.latest().confirmExternal());
+    expect(harness.latest().external?.opening).toBe(true);
+    act(() => harness.latest().handleDocumentRemoved(first.document));
+    expect(harness.latest().external).toBeNull();
+    const second = linkedDocument("https://example.com/second");
+    act(() =>
+      harness.latest().handleContentClick(clickFrom(second.link), {
+        document: second.document,
+        sectionHref: "Text/second.xhtml",
+      }),
+    );
+    await act(async () => fail(new Error("Retired opener failed")));
+    expect(harness.latest().external).toMatchObject({
+      url: "https://example.com/second",
+      opening: false,
+    });
+    expect(harness.latest().external?.error).toBeUndefined();
   });
 
   it("requires confirmation before opening an external destination", async () => {

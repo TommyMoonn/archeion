@@ -45,6 +45,29 @@ function setup() {
 }
 
 describe("Continuous warm residency", () => {
+  it("notifies document retirement before the vendor clears its contents", () => {
+    const manager = new ReaderContinuousViewManager({ settings: {} });
+    manager.container = document.createElement("div");
+    const chapter = document.implementation.createHTMLDocument("outgoing");
+    const view = {
+      contents: { document: chapter },
+      element: document.createElement("div"),
+    } as unknown as ResidentView;
+    Object.assign(view, { bounds: () => view.element.getBoundingClientRect() });
+    const order: string[] = [];
+    manager.views = {
+      remove: () => {
+        order.push("destroy");
+        view.contents = undefined;
+      },
+    } as unknown as typeof manager.views;
+    manager.on("reader-view-retiring", (outgoing: ResidentView) => {
+      expect(outgoing.contents?.document).toBe(chapter);
+      order.push("release-hooks");
+    });
+    manager.erase(view, false);
+    expect(order).toEqual(["release-hooks", "destroy"]);
+  });
   it("bounds vertical-writing residency using the vendor's horizontal axis", async () => {
     const { manager, create } = setup();
     manager.settings.axis = "horizontal";

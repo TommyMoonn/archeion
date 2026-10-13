@@ -93,6 +93,7 @@ type RenditionWithContentHook = Rendition & {
   hooks?: {
     content?: {
       register?: (callback: (contents: EpubContent) => void) => void;
+      deregister?: (callback: (contents: EpubContent) => void) => void;
     };
   };
 };
@@ -476,6 +477,8 @@ export function useEpubSession({
     let lifecycle: EpubSessionLifecycle | null = null;
     let cancelPendingBookOpen: () => void = () => undefined;
     let releaseContinuousRendition: () => void = () => undefined;
+    let releaseContentHook: () => void = () => undefined;
+    let releaseViewRetirement: () => void = () => undefined;
     const generation = ++generationRef.current;
     const sessionDocuments = documentSessions.activate();
     activeSessionIdentityRef.current = sessionIdentity;
@@ -516,6 +519,8 @@ export function useEpubSession({
 
       measurePerformance("archeion:reader-session-teardown", () => {
         owner.tornDown = true;
+        releaseContentHook();
+        releaseViewRetirement();
         releaseContinuousRendition();
         const wasCurrent = sessionRef.current === session;
         if (wasCurrent) sessionRef.current = null;
@@ -793,7 +798,12 @@ export function useEpubSession({
             activateRenditionStageSizing();
           },
           onSelected: (cfiRange, contents) => {
-            if (!ownsSession(session)) return;
+            if (
+              !ownsSession(session) ||
+              !contents.document ||
+              !sessionDocuments.has(contents.document)
+            )
+              return;
             bridgeRef.current?.onSelected(cfiRange, contents);
           },
           snapshot: session,
@@ -812,13 +822,13 @@ export function useEpubSession({
           (target, options) => displayTargetForSession(session, target, options),
           displayCfi,
         );
-        (rendition as RenditionWithContentHook).hooks?.content?.register?.(
-          (content: EpubContent) => {
-            if (!ownsSession(session)) return;
-            sessionDocuments.bind(content);
-            bridgeRef.current?.onContent(content);
-          },
-        );
+        const contentHook = (rendition as RenditionWithContentHook).hooks?.content;
+        const onContent = (content: EpubContent) => {
+          if (!ownsSession(session)) return;
+          if (sessionDocuments.bind(content)) bridgeRef.current?.onContent(content);
+        };
+        contentHook?.register?.(onContent);
+        releaseContentHook = () => contentHook?.deregister?.(onContent);
         bridgeRef.current?.onSessionCreated(interactions);
         bridgeRef.current?.onPublicationLayoutCapability(
           sessionIdentity,
@@ -831,6 +841,14 @@ export function useEpubSession({
 
         await (rendition as RenditionWithManager).started;
         if (!ownsSession(session)) return;
+        const manager = (rendition as RenditionWithManager).manager;
+        if (manager instanceof ReaderContinuousViewManager) {
+          const onViewRetiring = (view: unknown) => {
+            if (ownsSession(session)) sessionDocuments.removeRenderedView(view);
+          };
+          manager.on("reader-view-retiring", onViewRetiring);
+          releaseViewRetirement = () => manager.off("reader-view-retiring", onViewRetiring);
+        }
         if (continuousRendition) {
           releaseContinuousRendition = stabilizeContinuousRendition(
             continuousRendition,
