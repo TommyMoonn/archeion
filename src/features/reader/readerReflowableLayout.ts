@@ -1,9 +1,7 @@
 import type { ReaderMode, ReaderReadingWidth, ReaderPresentation } from "../../types/reader";
 import type { ReaderStageSize } from "./readerStageGeometry";
-import {
-  applyReaderReflowableMedia,
-  READER_REFLOWABLE_MEDIA_FLOW_SELECTOR,
-} from "./readerReflowableMedia";
+import { applyReaderReflowableMedia } from "./readerReflowableMedia";
+import { applyReaderProseFlow } from "./readerProseClassification";
 
 const READER_REFLOWABLE_LAYOUT_STYLE_ID = "archeion-reader-reflowable-layout";
 const READER_CONTENT_BLOCK_INSET_PX = 64;
@@ -28,6 +26,7 @@ export function applyReaderReflowableLayout(
   if (!document?.head) return;
 
   applyReaderReflowableMedia(document, layout);
+  applyReaderProseFlow(document, layout.presentation !== "publisher");
 
   const existingStyle = document.getElementById(READER_REFLOWABLE_LAYOUT_STYLE_ID);
   if (layout.presentation === "publisher") {
@@ -78,7 +77,7 @@ html:root > body {
   padding-inline: ${READER_CONTENT_INLINE_GUTTER} !important;
 }
 
-body > :not(script):not(style):not(link):not(${READER_REFLOWABLE_MEDIA_FLOW_SELECTOR}) {
+[data-archeion-prose-flow="root"] {
   box-sizing: border-box;
   inline-size: 100% !important;
   max-inline-size: ${measure} !important;
@@ -87,24 +86,34 @@ body > :not(script):not(style):not(link):not(${READER_REFLOWABLE_MEDIA_FLOW_SELE
   margin-inline-end: auto !important;
 }
 
-body > p[data-archeion-running-prose=""] {
-  margin-inline-start: auto !important;
-  margin-inline-end: auto !important;
-}
+${nestedProseFlowCss()}
 `.trim();
   }
 
   return `
-body > :not(script):not(style):not(link):not(${READER_REFLOWABLE_MEDIA_FLOW_SELECTOR}) {
+[data-archeion-prose-flow="root"] {
   box-sizing: border-box;
   inline-size: calc(100% - (2 * ${READER_CONTENT_INLINE_GUTTER})) !important;
   max-inline-size: ${measure} !important;
   margin-inline: auto !important;
 }
 
-body > p[data-archeion-running-prose=""] {
+${nestedProseFlowCss()}
+`.trim();
+}
+
+function nestedProseFlowCss(): string {
+  return `
+:root body [data-archeion-prose-flow="root"] {
   margin-inline-start: auto !important;
   margin-inline-end: auto !important;
 }
-`.trim();
+[data-archeion-prose-flow="nested"] {
+  box-sizing: border-box;
+  inline-size: 100% !important;
+  max-inline-size: none !important;
+  min-inline-size: 0 !important;
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
+}`;
 }

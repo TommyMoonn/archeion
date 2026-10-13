@@ -148,9 +148,7 @@ describe("readerThemeForSettings", () => {
     expect(Object.keys(theme)).not.toEqual(
       expect.arrayContaining(["img, svg, video, canvas", "table, pre", "*, *::before, *::after"]),
     );
-    expect(JSON.stringify(theme)).not.toMatch(
-      /max-width|object-fit|white-space|overflow-wrap|box-sizing/,
-    );
+    expect(JSON.stringify(theme)).not.toMatch(/max-width|object-fit|white-space|box-sizing/);
   });
 
   it("normalizes ordinary paragraph starts without flattening structural prose", () => {
@@ -283,7 +281,7 @@ describe("readerThemeForSettings", () => {
           padding-inline: 64px !important;
         }
         body > main {
-          width: 280px !important;
+          width: 78% !important;
           margin-inline-start: 120px !important;
           margin-inline-end: 44px !important;
         }
@@ -341,9 +339,11 @@ describe("readerThemeForSettings", () => {
       const proseRule = theme['p[data-archeion-running-prose=""]'];
 
       expect(proseRule).toEqual({
+        "margin-block": "0 !important",
         "margin-inline-end": "0 !important",
         "margin-inline-start": "0 !important",
         "text-indent": "0 !important",
+        "overflow-wrap": "break-word !important",
       });
       expect(theme.body["max-inline-size"]).toBeUndefined();
       expect(theme.body["padding-inline"]).toBeUndefined();

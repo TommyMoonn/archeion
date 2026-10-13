@@ -1,7 +1,13 @@
 import JSZip from "jszip";
 
 export type ReaderFixtureId =
-  "short-cover" | "reverse-prepend" | "image-only" | "nested-prose" | "long-spine" | "fixed-layout";
+  | "short-cover"
+  | "reverse-prepend"
+  | "image-only"
+  | "nested-prose"
+  | "conditional-prose"
+  | "long-spine"
+  | "fixed-layout";
 type Section = Readonly<{ id: string; href: string; body: string }>;
 export type ReaderFixture = Readonly<{
   id: ReaderFixtureId;
@@ -28,6 +34,25 @@ const image = (id: string) =>
   `<img id="${id}" src="art.svg" width="420" height="560" alt="Original circles and triangle illustration"/>`;
 
 export const readerFixtures: readonly ReaderFixture[] = [
+  {
+    id: "conditional-prose",
+    layout: "reflowable",
+    css: `${baseCss}
+      .conditional-chapter { width: 78%; margin-left: 42px; }
+      .conditional-chapter p { text-indent: 2em; margin: 0; }
+      @media (max-width: 2px) { .unreachable-chapter { width: 24em; } }
+      @media print { .print-chapter { width: 24em; } }
+      @supports (display: archeion-unsupported-layout) { .unsupported-chapter { width: 24em; } }
+      @media (min-width: 800px) { @supports (display: block) { .responsive-chapter { width: 24em; } } }
+    `,
+    sections: [
+      section(
+        "conditional",
+        `<article class="conditional-chapter unreachable-chapter"><div><p id="unreachable-first">An unreachable media rule leaves ordinary prose fluid.</p><p id="unreachable-second">The next paragraph retains a known measurement anchor.</p></div></article><article class="conditional-chapter print-chapter"><div><p id="print-first">Print-only composition remains inactive on screen.</p><p id="print-second">Screen prose uses the selected measure.</p></div></article><article class="conditional-chapter unsupported-chapter"><div><p id="unsupported-first">An unsupported layout condition cannot change this prose.</p><p id="unsupported-second">This is another ordinary paragraph.</p></div></article><article class="conditional-chapter responsive-chapter"><div><p id="responsive-first">A responsive publisher composition is protected when active.</p><p id="responsive-second">Its paragraph indentation comes from the publisher.</p></div></article>`,
+      ),
+    ],
+    sizeChanges: [],
+  },
   {
     id: "short-cover",
     layout: "reflowable",
@@ -85,11 +110,14 @@ export const readerFixtures: readonly ReaderFixture[] = [
   {
     id: "nested-prose",
     layout: "reflowable",
-    css: `${baseCss} .publisher-root { width: 78%; margin-left: 42px; } .ordinary p { text-indent: 1.5em; margin-bottom: 0; } .poetry { white-space: pre-wrap; } .scene-break { text-align: center; } .epigraph { font-style: italic; margin-left: 15%; }`,
+    css: `${baseCss} .publisher-root { width: 78%; margin-left: 42px; } .ordinary p { text-indent: 1.5em; margin-bottom: 0; } .poetry { white-space: pre-wrap; } .scene-break { text-align: center; margin: 2em 0; } .epigraph { font-style: italic; margin-left: 15%; } .structured p { text-indent: 2em; margin: 1em 0; } .fixed-prose { width: 240px; margin-left: 25px; } .float-prose { float: left; width: 35%; } .columns-prose { column-count: 2; } .grid-prose { display: grid; grid-template-columns: 1fr 1fr; } .justified { text-align: justify; }`,
     sections: [
       section(
         "nested",
-        `<article id="nested-root"><div class="publisher-root"><section class="ordinary"><div><h1>Survey notebook</h1><p id="nested-anchor">The team placed a marker beside the reservoir.</p><p id="dialogue">“The trail is clear,” said the surveyor.</p><p>A second observation follows the dialogue.</p></div></section><ul><li>A list entry with <em>emphasis</em>.</li></ul><blockquote><p>A quotation has its own structure.</p></blockquote><figure>${image("nested-image")}<figcaption>Geometric field sketch.</figcaption></figure><p><a id="note-link" href="#note-1" epub:type="noteref">Read the field note</a>.</p><aside id="note-1" epub:type="footnote"><p>Original fixture footnote. <a href="#note-link">Return</a></p></aside><pre class="poetry" id="poem">Still water\n  a measured line\nquiet stones</pre><div class="epigraph"><p>Measure twice before recording.</p></div><p class="scene-break">* * *</p><p dir="rtl" lang="ar" id="rtl">ماء هادئ</p><p lang="ja"><ruby>水<rt>みず</rt></ruby></p><table><caption>Survey measurements</caption><thead><tr><th>Point</th><th>Distance</th></tr></thead><tbody><tr><td>A</td><td>12</td></tr></tbody></table><p><a href="art.svg">${image("linked-image")}View the original geometric sketch</a>.</p></div></article>`,
+        `<article id="nested-root"><div class="publisher-root"><section class="ordinary"><div><h1>Survey notebook</h1><p id="nested-anchor">The team placed a marker beside the reservoir.</p><p id="dialogue">“The trail is clear,” said the surveyor.</p><p id="justified" class="justified">A second observation follows the dialogue.</p></div></section><ul><li>A list entry with <em>emphasis</em>.</li></ul><blockquote><p>A quotation has its own structure.</p></blockquote><figure>${image("nested-image")}<figcaption>Geometric field sketch.</figcaption></figure><p><a id="note-link" href="#note-1" epub:type="noteref">Read the field note</a>.</p><aside id="note-1" epub:type="footnote"><p>Original fixture footnote. <a href="#note-link">Return</a></p></aside><pre class="poetry" id="poem">Still water\n  a measured line\nquiet stones</pre><div class="epigraph"><p>Measure twice before recording.</p></div><p class="scene-break" id="scene-break">* * *</p><p dir="rtl" lang="ar" id="rtl">ماء هادئ</p><p lang="ja" id="ruby"><ruby>水<rt>みず</rt></ruby></p><table><caption>Survey measurements</caption><thead><tr><th>Point</th><th>Distance</th></tr></thead><tbody><tr><td>A</td><td>12</td></tr></tbody></table><p><a href="art.svg">${image("linked-image")}View the original geometric sketch</a>.</p></div></article>
+<p id="body-prose-first">Body-only <a id="prose-focus-link" href="#note-1">prose</a> starts without a leading paragraph gap.</p><p id="body-prose-second">Body-only prose continues with the same reading measure.</p>
+<section class="ordinary" id="wrapped-flow"><div><p id="wrapped-first">An ordinary paragraph inside its own wrapper.</p></div><div><p id="wrapped-second">A following paragraph inside another wrapper.</p></div></section>
+<div class="structured"><div class="poetry"><p id="stanza">A line of verse<br/>  with meaningful whitespace</p></div><div epub:type="footnote"><p id="generic-footnote">A semantic footnote in a generic container.</p></div><div role="doc-subtitle"><p id="subtitle">A structured subtitle.</p></div><blockquote><p id="quote">A quoted observation.</p></blockquote><ul><li><p id="list-paragraph">A paragraph inside a list.</p></li></ul><table><tr><td><p id="table-paragraph">A table cell.</p></td></tr></table><figure><figcaption><p id="caption-paragraph">A figure caption.</p></figcaption></figure><div class="epigraph"><p id="epigraph">A separate epigraph.</p></div><div class="fixed-prose"><p id="fixed-prose">An intentionally fixed-width text composition.</p></div><div class="float-prose"><p id="float-prose">A deliberate float.</p></div><div class="columns-prose"><p id="columns-prose">Multi-column text.</p></div><div class="grid-prose"><p id="grid-prose">A grid cell.</p></div><p id="empty-prose"></p></div>`,
       ),
     ],
     sizeChanges: [],
