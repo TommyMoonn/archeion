@@ -15,7 +15,9 @@ describe("synthetic Reader EPUB archives", () => {
   it("authors legacy structural columns as EPUB 2 with NCX and rejects missing NCX targets", async () => {
     const bytes = await buildReaderFixture("structural-columns");
     const zip = await JSZip.loadAsync(bytes);
-    expect(await zip.file("EPUB/package.opf")!.async("string")).toContain('version="2.0"');
+    const packageXml = await zip.file("EPUB/package.opf")!.async("string");
+    expect(packageXml).toContain('version="2.0"');
+    expect(packageXml).not.toContain("rendition:layout");
     expect(zip.file("EPUB/nav.xhtml")).toBeNull();
     const contents = await zip.file("EPUB/legacy-toc.xhtml")!.async("string");
     expect(contents).not.toContain("<nav");

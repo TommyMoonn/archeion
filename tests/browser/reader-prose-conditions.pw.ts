@@ -10,6 +10,27 @@ async function open(page: Page, mode: "continuous" | "paged", width = 1050) {
   await expect.poll(() => page.evaluate(() => window.readerInteractions.ready())).toBe(true);
 }
 
+async function responsiveSample(page: Page) {
+  // Paged resize replaces the iframe. Resolve and read the current document in
+  // one parent-page task so a retiring frame cannot invalidate an evaluation.
+  return page.evaluate(() => {
+    const iframe = document.querySelector<HTMLIFrameElement>(".epub-container iframe");
+    const doc = iframe?.contentDocument;
+    const win = doc?.defaultView;
+    const p = doc?.querySelector("#responsive-first");
+    const next = p?.nextElementSibling;
+    const article = p?.closest("article");
+    if (!win || !p || !next || !article) return null;
+    return {
+      active: win.matchMedia("(min-width: 800px)").matches,
+      indent: win.getComputedStyle(p).textIndent,
+      gap: next.getBoundingClientRect().top - p.getBoundingClientRect().bottom,
+      width: article.getBoundingClientRect().width,
+      classified: p.hasAttribute("data-archeion-running-prose"),
+    };
+  });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/*", (route) =>
     new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.abort(),
@@ -62,32 +83,28 @@ for (const mode of ["continuous", "paged"] as const) {
     page,
   }, testInfo) => {
     await open(page, mode);
-    const first = page.frameLocator(".epub-container iframe").locator("#responsive-first");
     const samples = [];
     for (const width of [1050, 700, 1050, 700]) {
       await page.locator("#root").evaluate((root, width) => {
         root.style.width = `${width}px`;
       }, width);
       const active = width >= 800;
+      const measurement: { sample: Awaited<ReturnType<typeof responsiveSample>> } = {
+        sample: null,
+      };
       await expect
-        .poll(() =>
-          first.evaluate(
-            (p) => p.ownerDocument.defaultView!.matchMedia("(min-width: 800px)").matches,
-          ),
-        )
-        .toBe(active);
-      await expect
-        .poll(() => first.evaluate((p) => getComputedStyle(p).textIndent))
-        .toBe(active ? "36px" : "0px");
-      const sample = await first.evaluate((p) => ({
-        gap: p.nextElementSibling!.getBoundingClientRect().top - p.getBoundingClientRect().bottom,
-        width: p.closest("article")!.getBoundingClientRect().width,
-        classified: p.hasAttribute("data-archeion-running-prose"),
-      }));
-      expect(sample.classified).toBe(!active);
-      expect(sample.gap).toBeCloseTo(active ? 0 : 9, 1);
-      if (active) expect(sample.width).toBeCloseTo(432, 1);
-      samples.push({ stageWidth: width, active, ...sample });
+        .poll(async () => {
+          measurement.sample = await responsiveSample(page);
+          return measurement.sample;
+        })
+        .toMatchObject({
+          active,
+          indent: active ? "36px" : "0px",
+          classified: !active,
+          gap: expect.closeTo(active ? 0 : 9, 1),
+          ...(active ? { width: expect.closeTo(432, 1) } : {}),
+        });
+      samples.push({ stageWidth: width, ...measurement.sample });
     }
     await testInfo.attach("conditional-breakpoint-transitions", {
       body: JSON.stringify(samples),
