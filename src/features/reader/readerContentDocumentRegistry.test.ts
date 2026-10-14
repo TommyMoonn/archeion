@@ -26,6 +26,31 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("updates decoded media geometry once per living document and releases readiness on retirement", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      { mode: "continuous", readingWidth: "comfortable", stageSize: { width: 1050, height: 750 } },
+      null,
+    );
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    chapter.body.innerHTML =
+      '<img id="plate" src="plate.svg" style="width:1600px!important;height:2100px!important;" alt="Plate">';
+    const image = chapter.getElementById("plate") as HTMLImageElement;
+    registry.bindRenderedView({ document: chapter }, "plate.xhtml");
+    registry.bindRenderedView({ document: chapter }, "plate.xhtml");
+    expect(image.hasAttribute("data-archeion-media-natural-fit")).toBe(false);
+    Object.defineProperty(image, "naturalWidth", { value: 420 });
+    Object.defineProperty(image, "naturalHeight", { value: 560 });
+    image.dispatchEvent(new Event("load"));
+    expect(image.style.height).toBe("auto");
+    expect(chapter.querySelectorAll("#archeion-reader-reflowable-media")).toHaveLength(1);
+    registry.remove(chapter);
+    const queries = vi.spyOn(chapter, "querySelectorAll");
+    image.dispatchEvent(new Event("load"));
+    image.dispatchEvent(new Event("error"));
+    expect(queries).not.toHaveBeenCalled();
+  });
   it("does not repeat a new mount's current geometry or restyle a retired document", () => {
     const registry = new ReaderContentDocumentRegistry();
     const palette = resolveBuiltInReaderTheme("dark").tokens;

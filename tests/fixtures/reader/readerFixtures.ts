@@ -30,8 +30,8 @@ const paragraph = (id: string, index: number) =>
 const passages = (id: string, count: number) =>
   Array.from({ length: count }, (_, index) => paragraph(id, index + 1)).join("\n");
 const section = (id: string, body: string, href = `${id}.xhtml`): Section => ({ id, href, body });
-const image = (id: string) =>
-  `<img id="${id}" src="art.svg" width="420" height="560" alt="Original circles and triangle illustration"/>`;
+const image = (id: string, className = "") =>
+  `<img id="${id}"${className ? ` class="${className}"` : ""} src="art.svg" width="420" height="560" alt="Original circles and triangle illustration"/>`;
 
 export const readerFixtures: readonly ReaderFixture[] = [
   {
@@ -97,12 +97,68 @@ export const readerFixtures: readonly ReaderFixture[] = [
   {
     id: "image-only",
     layout: "reflowable",
-    css: `${baseCss} div { text-align: left; } #center { text-align: center; } .float-example img { float: left; width: 100px; } .grid-example { display: grid; grid-template-columns: 120px 1fr; } .flex-example { display: flex; gap: 16px; } .grid-example img, .flex-example img { width: 100px; } figure { margin: 16px 40px; }`,
+    css: `${baseCss} div { text-align: left; } #center { text-align: center; } .float-example img { float: left; width: 100px; } .grid-example { display: grid; grid-template-columns: 120px 1fr; } .flex-example { display: flex; gap: 16px; } .grid-example img, .flex-example img { width: 100px; } figure { margin: 16px 40px; }
+      .opening-art { display: block; width: 559pt; height: 744pt; }
+      .opening-auto { margin-left: auto; }
+      .opening-fixed-offset { margin-left: 24px; margin-right: 0; }
+      .opening-mixed-offset { margin-left: auto; margin-right: 24px; }
+      .opening-rtl { direction: rtl; }
+      .opening-rtl img { margin-inline-start: auto; }
+    `,
     sections: [
       section("isolated", `<div class="center">${image("isolated-image")}</div>`),
       section(
         "composition",
         `<div class="float-example">${image("float-image")}<p>Text intentionally wraps around this floated illustration.</p></div><div class="grid-example">${image("grid-image")}<p>A deliberate two-column composition.</p></div><div class="flex-example">${image("flex-image")}<p>Image and text share a flex row.</p></div><figure id="captioned">${image("caption-image")}<figcaption id="caption">Caption attached to its illustration.</figcaption></figure><img id="mapped-image" src="art.svg" width="420" height="560" usemap="#fixture-map" alt="Linked geometric diagram"/><map name="fixture-map" id="fixture-map"><area shape="rect" coords="0,0,420,560" href="#caption" alt="Read the caption"/></map>`,
+      ),
+      section(
+        "nested-media",
+        `<article><section><div><p><span>${image("nested-plate")}</span></p></div></section></article>`,
+      ),
+      section(
+        "linked-media",
+        `<div><a id="plate-link" href="composition.xhtml#caption"><picture><source srcset="data:image/svg+xml,${encodeURIComponent(art)}" type="image/svg+xml"/>${image("linked-plate")}</picture></a></div>`,
+      ),
+      section(
+        "vector-media",
+        `<section><svg id="vector-plate" xmlns="http://www.w3.org/2000/svg" width="420" height="560" viewBox="0 0 420 560" aria-label="Original vector illustration"><rect width="420" height="560" fill="#53778c"/></svg></section>`,
+      ),
+      section(
+        "oversize-media",
+        `<div><img id="oversize-plate" style="width: 1600px !important; height: 2100px !important; max-width: none !important; max-height: none !important;" src="art.svg" alt="Original oversized illustration"/></div>`,
+      ),
+      section(
+        "small-media",
+        `<img id="small-plate" src="art.svg" width="96" height="128" alt="Original small illustration"/>`,
+      ),
+      section(
+        "intentional-media",
+        `<div style="position: relative; left: 24px;">${image("offset-plate")}</div><h1><img id="heading-ornament" src="art.svg" width="30" height="40" alt=""/>Illustration heading</h1><p>Inline symbol <img id="inline-symbol" src="art.svg" width="15" height="20" alt=""/> stays in its sentence.</p><div style="display: grid; grid-template-columns: 120px 1fr;"><div>${image("deep-grid-plate")}</div><p>Grid caption.</p></div>`,
+      ),
+      section("media-passage", `<div>${image("late-plate")}</div>${passages("media-passage", 24)}`),
+      section(
+        "wide-media",
+        `<svg id="wide-plate" xmlns="http://www.w3.org/2000/svg" width="1600" height="300" viewBox="0 0 1600 300" aria-label="Original wide illustration"><rect width="1600" height="300" fill="#53778c"/></svg>`,
+      ),
+      section(
+        "heading-art",
+        `<h1 id="heading-art-owner">${image("heading-plate", "opening-art")}<!-- Original pagination marker --><br id="heading-page-break"/></h1>`,
+      ),
+      section(
+        "pagination-art",
+        `<p id="pagination-art-owner">${image("pagination-plate", "opening-art")} \n<!-- Original pagination marker --><br id="paragraph-page-break"/> \n</p>`,
+      ),
+      section(
+        "auto-margin-art",
+        `<p id="auto-art-owner">${image("auto-plate", "opening-art opening-auto")}</p>`,
+      ),
+      section(
+        "rtl-auto-art",
+        `<p class="opening-rtl">${image("rtl-auto-plate", "opening-art")}</p>`,
+      ),
+      section(
+        "opening-art-controls",
+        `<h2><img id="solitary-ornament" src="art.svg" width="30" height="40" alt="Original ornament"/></h2><h2>${image("mixed-heading-plate")}A meaningful heading</h2><p>${image("caption-sibling-plate")}A text caption remains attached.</p><p>${image("double-break-plate")}<br/><br/></p><p><br/>${image("leading-break-plate")}</p><p>${image("fixed-offset-plate", "opening-art opening-fixed-offset")}</p><p>${image("mixed-offset-plate", "opening-art opening-mixed-offset")}</p><nav epub:type="toc" role="doc-toc"><h2>Contents</h2><ol><li><a id="opening-toc-link" href="heading-art.xhtml#heading-plate">Original illustration</a></li></ol></nav>`,
       ),
     ],
     sizeChanges: [],

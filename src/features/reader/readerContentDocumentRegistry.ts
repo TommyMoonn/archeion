@@ -10,6 +10,7 @@ import {
 } from "./readerTheme";
 import type { ReaderStageSize } from "./readerStageGeometry";
 import { applyReaderReflowableLayout, type ReaderReflowableLayout } from "./readerReflowableLayout";
+import { applyReaderReflowableMedia, observeReaderMediaReadiness } from "./readerReflowableMedia";
 
 export type EpubContent = {
   document?: Document;
@@ -185,8 +186,14 @@ export class ReaderContentDocumentRegistry {
     document.addEventListener("pointerdown", onContentPointerDown, true);
     document.addEventListener("selectionchange", onSelectionChange);
     window?.addEventListener("pagehide", onContentTeardown);
+    const releaseMediaReadiness = this.layout
+      ? observeReaderMediaReadiness(document, () => {
+          if (ownsDocument() && this.layout) applyReaderReflowableMedia(document, this.layout);
+        })
+      : () => undefined;
 
     const cleanup = () => {
+      releaseMediaReadiness();
       if (wheelRegistered) document.removeEventListener("wheel", onContentWheel, wheelOptions);
       document.removeEventListener("keydown", onContentKeyDown, keyOptions);
       document.removeEventListener("click", onContentClick, true);

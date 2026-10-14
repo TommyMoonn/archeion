@@ -55,6 +55,8 @@ function readerReflowableLayoutCss(layout: ReaderReflowableLayout): string {
 
     return `
 :root {${stageMetrics}
+  --archeion-reader-measure: ${measure};
+  --archeion-reader-media-measure: ${layout.readingWidth === "full" ? "100%" : measure};
   box-sizing: border-box;
   inline-size: 100% !important;
   max-inline-size: none !important;
@@ -91,6 +93,10 @@ ${nestedProseFlowCss()}
   }
 
   return `
+:root {
+  --archeion-reader-measure: ${measure};
+  --archeion-reader-media-measure: ${layout.readingWidth === "full" ? "100%" : measure};
+}
 [data-archeion-prose-flow="root"] {
   box-sizing: border-box;
   inline-size: calc(100% - (2 * ${READER_CONTENT_INLINE_GUTTER})) !important;
