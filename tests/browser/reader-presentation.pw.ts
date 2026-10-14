@@ -44,6 +44,16 @@ for (const mode of ["continuous", "paged"] as const) {
     }));
     await page.evaluate(() => window.readerInteractions.presentation("publisher"));
     await expect
+      .poll(() =>
+        paragraph.evaluate(
+          (node) =>
+            node.ownerDocument.querySelectorAll(
+              "[data-archeion-running-prose], [data-archeion-prose-continuation], [data-archeion-prose-flow]",
+            ).length,
+        ),
+      )
+      .toBe(0);
+    await expect
       .poll(() => paragraph.evaluate((node) => getComputedStyle(node).textIndent))
       .toBe("27px");
     expect(

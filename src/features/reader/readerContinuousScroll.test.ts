@@ -90,8 +90,9 @@ describe("Continuous rendition integration", () => {
       (_scroller, anchor) => y - anchor.y,
     );
     const cfiFromRange = vi.fn(() => "epubcfi(/6/2!/4/2:8)");
+    const contents = { document: frame.contentDocument!, cfiFromRange, resizeCheck: vi.fn() };
     Object.assign(runtime.view, {
-      contents: { document: frame.contentDocument, cfiFromRange, resizeCheck: vi.fn() },
+      contents,
     });
     const getRange = vi.fn(() => range);
     Object.assign(runtime.rendition, { getRange });
@@ -113,6 +114,7 @@ describe("Continuous rendition integration", () => {
       owner,
       callbacks,
       cfiFromRange,
+      contents,
       getRange,
       scrollBy,
       frame,
@@ -165,7 +167,7 @@ describe("Continuous rendition integration", () => {
     return frames;
   }
 
-  it("rebinds the visible CFI after a rebuild and coalesces newer reflows", () => {
+  it("rebinds the visible CFI after a rebuild and coalesces newer reflows", async () => {
     const runtime = reflowSetup();
     try {
       expect(runtime.owner.beginReflow(true)).toBe("epubcfi(/6/2!/4/2:8)");
@@ -178,7 +180,149 @@ describe("Continuous rendition integration", () => {
       runtime.callbacks.shift()!(0);
       expect(runtime.scrollBy).toHaveBeenCalledWith(0, 400, true);
       runtime.callbacks.shift()!(0);
+      expect(runtime.owner.isReflowing()).toBe(true);
+      await flushReflowFrames(runtime);
       expect(runtime.owner.isReflowing()).toBe(false);
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("retains the reflow passage when layout changes the scroll offset before correction", () => {
+    const runtime = reflowSetup();
+    try {
+      runtime.owner.beginReflow(false);
+      runtime.move(440);
+      runtime.manager.container.scrollTop = 200;
+      runtime.manager.container.dispatchEvent(new Event("scroll"));
+      expect(runtime.owner.isReflowing()).toBe(true);
+      runtime.callbacks.shift()!(0);
+      expect(runtime.scrollBy).toHaveBeenCalledWith(0, 400, true);
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("resolves an offscreen preserved CFI through the matching resident contents", () => {
+    const runtime = reflowSetup();
+    try {
+      const range = runtime.getRange();
+      const residentRange = vi.fn(() => range);
+      Object.assign(runtime.view, { index: 0 });
+      Object.assign(runtime.contents, { range: residentRange });
+      runtime.getRange.mockImplementation(() => {
+        throw new Error("The preserved view is offscreen");
+      });
+      runtime.owner.beginReflow(false);
+      runtime.move(440);
+      runtime.callbacks.shift()!(0);
+      expect(residentRange).toHaveBeenCalledWith("epubcfi(/6/2!/4/2:8)", "archeion-highlight");
+      expect(runtime.scrollBy).toHaveBeenCalledWith(0, 400, true);
+      expect(runtime.owner.isReflowing()).toBe(true);
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("retains the restored text range across passive settlement and consecutive appearance changes", async () => {
+    const runtime = reflowSetup();
+    const original = runtime.getRange();
+    const replacement = original.cloneRange();
+    runtime.cfiFromRange.mockImplementation((range?: Range) =>
+      range === original ? "epubcfi(/6/2!/4/2:8)" : "epubcfi(/6/2!/4/2:0)",
+    );
+    try {
+      runtime.owner.beginReflow(false);
+      // Rewrap puts another character on the same visible line. Passive layout
+      // must not replace the original character with the first one on that line.
+      vi.mocked(anchors.captureContinuousAnchor).mockReturnValue({
+        element: runtime.frame.contentDocument!.querySelector("p")!,
+        frame: runtime.frame,
+        range: replacement,
+        y: 40,
+      });
+      await flushReflowFrames(runtime);
+      expect(runtime.owner.isReflowing()).toBe(false);
+      runtime.listeners.get("displayed")!();
+      await flushReflowFrames(runtime);
+      expect(runtime.owner.beginReflow(false)).toBe("epubcfi(/6/2!/4/2:8)");
+      expect(runtime.cfiFromRange).toHaveBeenLastCalledWith(original, "archeion-highlight");
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("keeps the restored range while queued iframe heights catch up after settlement", async () => {
+    const runtime = reflowSetup();
+    try {
+      runtime.render();
+      runtime.callbacks.shift()!(0);
+      runtime.owner.beginReflow(false);
+      await flushReflowFrames(runtime);
+      const captureCount = vi.mocked(anchors.captureContinuousAnchor).mock.calls.length;
+      runtime.move(282);
+      runtime.viewListeners.get("resized")!({ heightDelta: 242, widthDelta: 0 });
+      await flushReflowFrames(runtime);
+      expect(runtime.scrollBy).toHaveBeenCalledWith(0, 242, true);
+      expect(vi.mocked(anchors.captureContinuousAnchor)).toHaveBeenCalledTimes(captureCount);
+      expect(runtime.owner.isReflowing()).toBe(false);
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("replaces a retained range on an ordinary scroll before the next appearance change", async () => {
+    const runtime = reflowSetup();
+    const replacement = runtime.getRange().cloneRange();
+    try {
+      runtime.owner.beginReflow(false);
+      await flushReflowFrames(runtime);
+      vi.mocked(anchors.captureContinuousAnchor).mockReturnValue({
+        element: runtime.frame.contentDocument!.querySelector("p")!,
+        frame: runtime.frame,
+        range: replacement,
+        y: 40,
+      });
+      runtime.manager.container.scrollTop += 120;
+      runtime.manager.container.dispatchEvent(new Event("scroll"));
+      runtime.owner.beginReflow(false);
+      expect(runtime.cfiFromRange).toHaveBeenLastCalledWith(replacement, "archeion-highlight");
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("keeps the original CFI while neighbor layout is pending even when correction is currently zero", async () => {
+    const runtime = reflowSetup();
+    try {
+      runtime.owner.beginReflow(false);
+      runtime.view.displayed = false;
+      runtime.callbacks.shift()!(0);
+      runtime.callbacks.shift()!(0);
+      expect(runtime.owner.isReflowing()).toBe(true);
+      runtime.view.displayed = true;
+      runtime.listeners.get("rendered")!(null, runtime.view);
+      await flushReflowFrames(runtime);
+      expect(runtime.owner.isReflowing()).toBe(false);
+    } finally {
+      runtime.finish();
+    }
+  });
+
+  it("lets passive user input supersede reflow and releases document input on disposal", () => {
+    const runtime = reflowSetup();
+    try {
+      runtime.listeners.get("rendered")!(null, runtime.view);
+      for (const target of [runtime.manager.container, runtime.frame.contentDocument!]) {
+        runtime.owner.beginReflow(false);
+        const wheel = new WheelEvent("wheel", { deltaY: 120, cancelable: true });
+        target.dispatchEvent(wheel);
+        expect(runtime.owner.isReflowing()).toBe(false);
+        expect(wheel.defaultPrevented).toBe(false);
+      }
+      const remove = vi.spyOn(runtime.frame.contentDocument!, "removeEventListener");
+      runtime.owner.dispose();
+      expect(remove).toHaveBeenCalledWith("wheel", expect.any(Function), true);
     } finally {
       runtime.finish();
     }

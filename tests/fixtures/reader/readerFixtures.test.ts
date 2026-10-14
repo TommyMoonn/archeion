@@ -12,6 +12,24 @@ const parseXml = (text: string) =>
   }).parseFromString(text, "application/xml");
 
 describe("synthetic Reader EPUB archives", () => {
+  it("authors legacy structural columns as EPUB 2 with NCX and rejects missing NCX targets", async () => {
+    const bytes = await buildReaderFixture("structural-columns");
+    const zip = await JSZip.loadAsync(bytes);
+    expect(await zip.file("EPUB/package.opf")!.async("string")).toContain('version="2.0"');
+    expect(zip.file("EPUB/nav.xhtml")).toBeNull();
+    const contents = await zip.file("EPUB/legacy-toc.xhtml")!.async("string");
+    expect(contents).not.toContain("<nav");
+    zip.file(
+      "EPUB/toc.ncx",
+      (await zip.file("EPUB/toc.ncx")!.async("string")).replace(
+        "legacy-toc.xhtml",
+        "missing.xhtml",
+      ),
+    );
+    await expect(
+      validateReaderFixture(await zip.generateAsync({ type: "uint8array" }), 45, parseXml),
+    ).rejects.toThrow(/Unmanifested asset/);
+  });
   for (const fixture of readerFixtures) {
     it(`${fixture.id} has deterministic, lightweight, linked EPUB resources`, async () => {
       const first = await buildReaderFixture(fixture.id);

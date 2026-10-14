@@ -14,6 +14,34 @@ function chapter(html: string, css = "") {
 }
 
 describe("Reader prose classification", () => {
+  it("protects authored narrow paragraph blocks without excluding generic percentage wrappers", () => {
+    const doc = chapter(
+      '<section style="width:80%;margin-inline:auto"><p id="narrow" style="width:75%;margin-inline:auto">Authored narrow block.</p><p id="full">Ordinary running prose.</p></section>',
+      "#full { width:100%; }",
+    );
+    prepareReaderRunningProse(doc);
+    expect(doc.getElementById("narrow")?.hasAttribute("data-archeion-running-prose")).toBe(false);
+    expect(doc.getElementById("full")?.hasAttribute("data-archeion-running-prose")).toBe(true);
+    expect((doc.getElementById("narrow") as HTMLElement).style.marginInline).toBe("auto");
+  });
+  it("removes optional policy attributes and rebuilds classification when re-enabled", () => {
+    const doc = chapter(
+      "<article><div><p>First passage.</p><p>Second passage.</p></div></article>",
+    );
+    applyReaderProseFlow(doc, true);
+    expect(doc.querySelectorAll("[data-archeion-running-prose]")).toHaveLength(2);
+    expect(doc.querySelectorAll("[data-archeion-prose-continuation]")).toHaveLength(1);
+    applyReaderProseFlow(doc, false);
+    expect(
+      doc.querySelectorAll(
+        "[data-archeion-running-prose], [data-archeion-prose-continuation], [data-archeion-prose-flow]",
+      ),
+    ).toHaveLength(0);
+    applyReaderProseFlow(doc, true);
+    expect(doc.querySelectorAll("[data-archeion-running-prose]")).toHaveLength(2);
+    expect(doc.querySelectorAll("[data-archeion-prose-continuation]")).toHaveLength(1);
+    expect(doc.querySelectorAll("[data-archeion-prose-flow]")).toHaveLength(2);
+  });
   it("ignores inactive media dimensions and retains active dimensions", () => {
     const doc = chapter(
       '<article class="chapter"><p id="prose">Ordinary</p></article>',
@@ -144,7 +172,7 @@ describe("Reader prose classification", () => {
     ]);
   });
 
-  it("reuses mount classification and reversibly applies only flow attributes", () => {
+  it("rebuilds cleared classification without changing publisher structure", () => {
     const doc = chapter(
       '<main><div style="width: 80%; margin-left: 24px"><p>Text <em>with emphasis</em></p></div></main>',
     );
@@ -156,7 +184,7 @@ describe("Reader prose classification", () => {
     expect(doc.querySelectorAll("[data-archeion-prose-flow]")).toHaveLength(0);
     applyReaderProseFlow(doc, true);
     expect(doc.querySelectorAll("[data-archeion-prose-flow]")).toHaveLength(2);
-    expect(computed.mock.calls.length).toBe(firstCalls);
+    expect(computed.mock.calls.length).toBeGreaterThan(firstCalls);
     expect(doc.querySelector("div")?.getAttribute("style")).toBe(sourceStyle);
     expect(doc.querySelector("em")?.textContent).toBe("with emphasis");
   });

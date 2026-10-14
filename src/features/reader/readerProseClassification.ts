@@ -1,3 +1,9 @@
+import {
+  hasPublisherComposition,
+  readPublisherLayout,
+  type PublisherLayoutCondition,
+} from "./readerPublisherLayout";
+
 export const READER_RUNNING_PROSE_ATTRIBUTE = "data-archeion-running-prose";
 export const READER_RUNNING_PROSE_SELECTOR = `p[${READER_RUNNING_PROSE_ATTRIBUTE}=""]`;
 export const READER_PROSE_GAP_SELECTOR = `${READER_RUNNING_PROSE_SELECTOR}[data-archeion-prose-continuation=""]`;
@@ -9,122 +15,21 @@ const MEDIA = "img, picture, svg, video, audio, canvas, object, embed, iframe";
 const STRUCTURED_HINT =
   /(?:^|[\s_:-])(?:poem|poetry|verse|stanza|epigraph|lyrics?|footnotes?|endnotes?|rearnotes?|subtitle|titlepage|title-page|scene-break|ornament)(?:$|[\s_:-])/i;
 const FLOW_CONTAINERS = "article, main, section, div";
-type Applicability = Readonly<{ read: () => boolean; matched: boolean }>;
-type PublisherDimension = Readonly<{ selector: string; style: CSSStyleDeclaration }>;
 type ProseClassification = Readonly<{
   flows: ReadonlyMap<Element, "root" | "nested">;
-  conditions: readonly Applicability[];
+  conditions: readonly PublisherLayoutCondition[];
 }>;
 const classifications = new WeakMap<Document, ProseClassification>();
 
-// Examine publisher declarations at mount. Computed width alone cannot tell a
-// responsive percentage wrapper from an intentionally fixed-size composition.
-function publisherDimensions(document: Document): {
-  rules: PublisherDimension[] | null;
-  conditions: Applicability[];
-} {
-  const rules: PublisherDimension[] = [];
-  const conditions: Applicability[] = [];
-  function applicable(read: () => boolean): boolean {
-    const matched = read();
-    conditions.push({ read, matched });
-    return matched;
+export function clearReaderRunningProse(document: Document): void {
+  classifications.delete(document);
+  for (const element of document.querySelectorAll(
+    `[${READER_PROSE_FLOW_ATTRIBUTE}], [${READER_RUNNING_PROSE_ATTRIBUTE}], [data-archeion-prose-continuation]`,
+  )) {
+    element.removeAttribute(READER_PROSE_FLOW_ATTRIBUTE);
+    element.removeAttribute(READER_RUNNING_PROSE_ATTRIBUTE);
+    element.removeAttribute("data-archeion-prose-continuation");
   }
-  function mediaApplies(media: MediaList): boolean {
-    if (!media.mediaText || media.mediaText === "all") return true;
-    const query = document.defaultView?.matchMedia(media.mediaText);
-    // Without an evaluable environment, preserve potentially fixed composition.
-    return query ? applicable(() => query.matches) : true;
-  }
-  function visitSheet(sheet: CSSStyleSheet): void {
-    if (!applicable(() => !sheet.disabled) || !mediaApplies(sheet.media)) return;
-    visit(sheet.cssRules);
-  }
-  function visit(entries: CSSRuleList) {
-    for (const rule of Array.from(entries)) {
-      if ("selectorText" in rule && "style" in rule) {
-        const styleRule = rule as CSSStyleRule;
-        rules.push({ selector: styleRule.selectorText, style: styleRule.style });
-      } else if ("styleSheet" in rule) {
-        if (!mediaApplies((rule as CSSImportRule).media)) continue;
-        const imported = (rule as CSSImportRule).styleSheet;
-        if (!imported) throw new Error("Publisher stylesheet is not available");
-        visitSheet(imported);
-      } else if (rule.type === CSSRule.MEDIA_RULE) {
-        const conditional = rule as CSSMediaRule;
-        if (mediaApplies(conditional.media)) visit(conditional.cssRules);
-      } else if (rule.type === CSSRule.SUPPORTS_RULE) {
-        const conditional = rule as CSSSupportsRule;
-        if (
-          applicable(() => document.defaultView?.CSS?.supports(conditional.conditionText) ?? true)
-        ) {
-          visit(conditional.cssRules);
-        }
-      } else if ("cssRules" in rule) visit((rule as CSSGroupingRule).cssRules);
-    }
-  }
-  for (const sheet of Array.from(document.styleSheets)) {
-    const ownerId = (sheet.ownerNode as Element | null)?.id ?? "";
-    if (ownerId.includes("archeion-reader")) continue;
-    try {
-      visitSheet(sheet);
-    } catch {
-      // Unknown publisher dimensions are not permission to erase composition.
-      return { rules: null, conditions };
-    }
-  }
-  return { rules, conditions };
-}
-
-function hasFixedDimensions(style: CSSStyleDeclaration): boolean {
-  return [
-    "width",
-    "inline-size",
-    "height",
-    "block-size",
-    "min-width",
-    "min-inline-size",
-    "max-width",
-    "max-inline-size",
-  ].some((property) => {
-    const value = style.getPropertyValue(property).trim();
-    return Boolean(
-      value && !/^(?:auto|none|normal|inherit|initial|unset|0|0px|\d+(?:\.\d+)?%)$/.test(value),
-    );
-  });
-}
-
-function hasStructuredPlacement(
-  element: Element,
-  dimensions: readonly PublisherDimension[],
-): boolean {
-  if (hasFixedDimensions((element as HTMLElement).style)) return true;
-  if (
-    dimensions.some(({ selector, style }) => {
-      try {
-        return element.matches(selector) && hasFixedDimensions(style);
-      } catch {
-        return false;
-      }
-    })
-  )
-    return true;
-  const style = element.ownerDocument.defaultView?.getComputedStyle(element);
-  if (!style) return false;
-  return (
-    Boolean(style.float && style.float !== "none") ||
-    Boolean(style.display && !["block", "flow-root", "contents"].includes(style.display)) ||
-    Boolean(style.position && !["static", "relative"].includes(style.position)) ||
-    Boolean(style.transform && style.transform !== "none") ||
-    Boolean(style.columnCount && !["auto", "1"].includes(style.columnCount)) ||
-    Boolean(style.columnWidth && style.columnWidth !== "auto") ||
-    Boolean(style.whiteSpace && style.whiteSpace !== "normal") ||
-    Boolean(style.writingMode && style.writingMode !== "horizontal-tb") ||
-    (style.position === "relative" &&
-      [style.top, style.bottom, style.left, style.right].some(
-        (offset) => offset && !["auto", "0px"].includes(offset),
-      ))
-  );
 }
 
 export function prepareReaderRunningProse(document: Document): void {
@@ -140,7 +45,7 @@ export function prepareReaderRunningProse(document: Document): void {
     paragraph.removeAttribute(READER_RUNNING_PROSE_ATTRIBUTE);
     paragraph.removeAttribute("data-archeion-prose-continuation");
   }
-  const { rules: dimensions, conditions } = publisherDimensions(document);
+  const { rules: dimensions, conditions } = readPublisherLayout(document);
   if (!dimensions) {
     classifications.set(document, { flows: new Map(), conditions });
     return;
@@ -177,7 +82,7 @@ export function prepareReaderRunningProse(document: Document): void {
       }
       let structured = placement.get(element);
       if (structured === undefined) {
-        structured = hasStructuredPlacement(element, dimensions);
+        structured = hasPublisherComposition(element, dimensions);
         placement.set(element, structured);
       }
       if (structured) {
@@ -197,7 +102,7 @@ export function prepareReaderRunningProse(document: Document): void {
     for (const heading of document.body.querySelectorAll(
       ":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6",
     )) {
-      if (!hasStructuredPlacement(heading, dimensions)) flows.set(heading, "root");
+      if (!hasPublisherComposition(heading, dimensions)) flows.set(heading, "root");
     }
   }
   classifications.set(document, { flows, conditions });
@@ -227,10 +132,13 @@ export function prepareReaderRunningProse(document: Document): void {
 }
 
 export function applyReaderProseFlow(document: Document, enabled: boolean): void {
+  if (!enabled) {
+    clearReaderRunningProse(document);
+    return;
+  }
   for (const element of document.querySelectorAll(`[${READER_PROSE_FLOW_ATTRIBUTE}]`)) {
     element.removeAttribute(READER_PROSE_FLOW_ATTRIBUTE);
   }
-  if (!enabled) return;
   prepareReaderRunningProse(document);
   for (const [element, kind] of classifications.get(document)?.flows ?? []) {
     element.setAttribute(READER_PROSE_FLOW_ATTRIBUTE, kind);

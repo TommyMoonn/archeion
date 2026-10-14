@@ -359,7 +359,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     clearReaderWheelGesture();
   }, [clearReaderWheelGesture, illustration]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Publish the committed book policy before asynchronous session creation
+    // can prepare its first iframe, including replacement and mode remounts.
     bridgeRef.current = {
       onContent: () => undefined,
       onDisplayed: () => {

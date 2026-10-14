@@ -277,6 +277,7 @@ declare global {
       history: () => ReturnType<EpubViewerHandle["getNavigationHistorySnapshot"]>;
       settings: (patch: Partial<ReaderSettings>) => void;
       presentation: (selection: "archeion" | "publisher") => void;
+      palette: (selection: "light" | "dark" | "sepia") => void;
       showOverlay: (kind: Parameters<typeof mountWheelOverlay>[0]) => void;
       closeOverlay: () => void;
       holdDictionary: () => void;
@@ -311,6 +312,15 @@ window.readerInteractions = {
   },
   presentation: (selection) => {
     props = { ...props, presentation: selection };
+    render();
+  },
+  palette: (selection) => {
+    const theme = resolveBuiltInReaderTheme(selection);
+    props = {
+      ...props,
+      readerTheme: theme,
+      contentTheme: createReaderContentTheme(props.settings, theme.tokens),
+    };
     render();
   },
   ready: () => ready && navigation?.status === "ready",

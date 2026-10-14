@@ -1090,6 +1090,12 @@ export function useEpubSession({
             readingWidth,
             presentation: effectivePresentation,
             stageSize: mode === "continuous" ? stageSizeRef.current : null,
+            spineHrefs: session.book.packaging.manifest
+              ? session.book.packaging.spine.flatMap((item) => {
+                  const href = session.book.packaging.manifest[item.idref]?.href;
+                  return href ? [href] : [];
+                })
+              : undefined,
           },
           container,
         );

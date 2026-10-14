@@ -6,11 +6,11 @@ import {
 import type { ResolvedReaderThemeTokens } from "../../themes/themeTokenRegistry";
 import { readerFontFaceCssForSelection, readerFontFamilyForSelection } from "./readerFonts";
 import {
+  clearReaderRunningProse,
   prepareReaderRunningProse,
   READER_PROSE_GAP_SELECTOR,
   READER_RUNNING_PROSE_SELECTOR,
 } from "./readerProseClassification";
-export { prepareReaderRunningProse } from "./readerProseClassification";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
@@ -135,7 +135,6 @@ export function applyReaderContentTheme(
   target: ReaderThemeTarget | null | undefined,
   theme: ReaderContentTheme,
   documents: Array<Document | null | undefined> = [],
-  classifyProse = true,
 ): void {
   // epub.js 0.3.93 appends rules on re-registration. Replace our sheet so
   // removing optional presentation rules actually restores publisher styles.
@@ -152,7 +151,8 @@ export function applyReaderContentTheme(
   );
 
   for (const document of uniqueDocuments) {
-    if (classifyProse) prepareReaderRunningProse(document);
+    if (theme.rules[READER_RUNNING_PROSE_SELECTOR]) prepareReaderRunningProse(document);
+    else clearReaderRunningProse(document);
     applyReaderFontFaces(document, theme.fontFaceCss);
   }
 }

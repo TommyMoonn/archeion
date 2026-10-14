@@ -26,6 +26,44 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("passes section/spine context to legacy classification on first mount, late binding and remount", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      {
+        mode: "continuous",
+        readingWidth: "comfortable",
+        spineHrefs: ["Text/one.xhtml", "Text/two.xhtml"],
+      },
+      null,
+    );
+    const markup =
+      '<h1>Original route</h1><ol id="legacy"><li><a href="one.xhtml">One</a></li><li><a href="two.xhtml">Two</a></li></ol>';
+    const first = mountedFrame();
+    first.contentDocument!.body.innerHTML = markup;
+    registry.bindRenderedView({ document: first.contentDocument! }, "Text/contents.xhtml");
+    expect(
+      first.contentDocument!.getElementById("legacy")?.hasAttribute("data-archeion-toc-flow"),
+    ).toBe(true);
+    const styleNode = first.contentDocument!.getElementById(
+      "archeion-reader-reflowable-layout",
+    )!.firstChild;
+    registry.bindRenderedView({ document: first.contentDocument! }, "Elsewhere/contents.xhtml");
+    expect(
+      first.contentDocument!.getElementById("legacy")?.hasAttribute("data-archeion-toc-flow"),
+    ).toBe(false);
+    expect(
+      first.contentDocument!.getElementById("archeion-reader-reflowable-layout")!.firstChild,
+    ).toBe(styleNode);
+    registry.remove(first.contentDocument!);
+    first.remove();
+    const replacement = mountedFrame();
+    replacement.contentDocument!.body.innerHTML = markup;
+    registry.bindRenderedView({ document: replacement.contentDocument! }, "Text/contents.xhtml");
+    expect(
+      replacement.contentDocument!.getElementById("legacy")?.hasAttribute("data-archeion-toc-flow"),
+    ).toBe(true);
+    registry.retire();
+  });
   it("updates decoded media geometry once per living document and releases readiness on retirement", () => {
     const registry = new ReaderContentDocumentRegistry();
     registry.applyLayout(

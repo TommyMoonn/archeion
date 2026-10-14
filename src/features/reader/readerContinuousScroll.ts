@@ -1,4 +1,5 @@
 import type { Rendition } from "epubjs";
+import EpubCFI from "epubjs/src/epubcfi.js";
 
 import { captureContinuousAnchor, continuousAnchorDelta } from "./readerContinuousAnchor";
 import { observeReaderMediaReadiness } from "./readerReflowableMedia";
@@ -43,6 +44,7 @@ type ContinuousRenditionManager = {
 };
 
 type ContinuousRenditionView = {
+  index?: number;
   display: (request: unknown) => Promise<unknown>;
   displayed: boolean;
   show: () => void;
@@ -52,6 +54,7 @@ type ContinuousRenditionView = {
     resizeCheck: () => void;
     cfiFromRange?: (range: Range, ignoreClass?: string) => string;
     cfiFromNode?: (node: Node, ignoreClass?: string) => string;
+    range?: (cfi: string, ignoreClass?: string) => Range;
   };
   onResize?: (view: ContinuousRenditionView, bounds: ViewSize) => void;
   on: (event: string, callback: (bounds: ViewSize) => void) => void;
@@ -97,8 +100,10 @@ export function stabilizeContinuousRendition(
   let checking = false;
   let checkRequested = false;
   let scroller: HTMLElement | undefined;
+  let releaseScrollerInput: () => void = () => undefined;
   let reflow: {
     cfi: string;
+    spinePos: number;
     y: number;
     ready: boolean;
     stableFrames: number;
@@ -152,8 +157,12 @@ export function stabilizeContinuousRendition(
     );
   };
 
-  const capture = () => {
+  const capture = (replace = false) => {
     if (!current() || !scroller || reflow || navigation) return;
+    // Passive rewrap can put a different character on the same visible line,
+    // or leave iframe height updates queued after the first restored frame.
+    // Keep the restored range's identity until actual navigation replaces it.
+    if (!replace && anchor?.element.isConnected && anchor.frame.isConnected) return;
     anchor = captureContinuousAnchor(scroller);
     anchorScrollTop = scroller.scrollTop;
   };
@@ -163,7 +172,15 @@ export function stabilizeContinuousRendition(
       if (!reflow.ready) return false;
       // Rebind the CFI to the new iframe, never retain the destroyed DOM range.
       try {
-        const range = rendition.getRange(reflow.cfi, "archeion-highlight");
+        const preserved = reflow;
+        // Rendition.getRange searches visible views only. A style transaction
+        // can move the preserved passage offscreen while its view is still live.
+        const contents = manager.views
+          ?.all()
+          .find((view) => view.index === preserved.spinePos)?.contents;
+        const range =
+          contents?.range?.(reflow.cfi, "archeion-highlight") ??
+          rendition.getRange(reflow.cfi, "archeion-highlight");
         const element =
           range.startContainer.nodeType === Node.ELEMENT_NODE
             ? (range.startContainer as Element)
@@ -257,12 +274,12 @@ export function stabilizeContinuousRendition(
         // A valid CFI can have an unreachable Y at a scroll boundary. Two stable
         // measurements with no pending layout adopt the nearest visible passage.
         // Pending layout wakes through the existing view/media/check subscriptions.
-        const settled = (restored && fontsReady) || (!layoutPending && unchanged);
+        const settled = !layoutPending && (restored || unchanged);
         reflow.stableFrames = settled ? reflow.stableFrames + 1 : 0;
         reflow.lastMeasurement = measurement;
         if (reflow.stableFrames >= 2) {
           reflow = null;
-          capture();
+          capture(!restored);
         } else if ((restored && fontsReady) || !layoutPending || !unchanged) schedule();
       } else if (restored) capture();
       reconcileBoundaries();
@@ -271,12 +288,14 @@ export function stabilizeContinuousRendition(
   const onScroll = () => {
     if (!current() || !scroller || scroller.scrollTop === anchorScrollTop) return;
     if (reflow) {
-      if (!reflow.ready) return;
-      cancelReflow();
+      // Layout can clamp scrollTop while switching publisher padding/measure.
+      // Only explicit input or navigation supersedes the reflow transaction.
+      schedule();
+      return;
     }
     // User navigation replaces the preserved passage. A compensation scroll with
     // the already recorded offset must not capture a second anchor mid-layout.
-    capture();
+    capture(true);
     if (nearBoundary()) requestCheck();
   };
   const requestCheck = () => {
@@ -314,10 +333,12 @@ export function stabilizeContinuousRendition(
           }
         })
       : () => undefined;
+    const releaseInput = view.contents ? bindReflowInput(view.contents.document) : () => undefined;
     subscriptions.set(view, () => {
       view.off("resized", resized);
       if (view.onResize === onResize) view.onResize = originalResize;
       releaseMedia();
+      releaseInput();
     });
   };
   const rendered = (_section: unknown, view: ContinuousRenditionView) => {
@@ -360,8 +381,20 @@ export function stabilizeContinuousRendition(
   const cancelReflow = () => {
     reflow = null;
     // Replace the old late-layout anchor too. User intent owns the current passage.
-    capture();
+    capture(true);
   };
+
+  function bindReflowInput(target: EventTarget): () => void {
+    const events = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+    const onInput = () => {
+      if (current() && reflow) cancelReflow();
+    };
+    for (const event of events)
+      target.addEventListener(event, onInput, { capture: true, passive: true });
+    return () => {
+      for (const event of events) target.removeEventListener(event, onInput, true);
+    };
+  }
 
   // epub.js 0.3.93 owns initial prepend compensation through counter(). Chromium must
   // not independently anchor the same outer scroller. The attached event runs
@@ -371,8 +404,10 @@ export function stabilizeContinuousRendition(
       manager.container.style.overflowAnchor = "none";
       if (scroller !== manager.container) {
         scroller?.removeEventListener("scroll", onScroll);
+        releaseScrollerInput();
         scroller = manager.container;
         scroller.addEventListener("scroll", onScroll, { passive: true });
+        releaseScrollerInput = bindReflowInput(scroller);
       }
     }
   };
@@ -388,6 +423,7 @@ export function stabilizeContinuousRendition(
     navigation = null;
     anchor = null;
     scroller?.removeEventListener("scroll", onScroll);
+    releaseScrollerInput();
     rendition.off("attached", configureScroller);
     rendition.off("rendered", rendered);
     rendition.off("displayed", displayed);
@@ -426,7 +462,14 @@ export function stabilizeContinuousRendition(
         ? contents?.cfiFromRange?.(anchor.range, "archeion-highlight")
         : contents?.cfiFromNode?.(anchor.element, "archeion-highlight");
       if (!cfi) return undefined;
-      reflow = { cfi, y: anchor.y, ready: !rebuild, stableFrames: 0, lastMeasurement: null };
+      reflow = {
+        cfi,
+        spinePos: new EpubCFI(cfi).spinePos,
+        y: anchor.y,
+        ready: !rebuild,
+        stableFrames: 0,
+        lastMeasurement: null,
+      };
       schedule();
       return cfi;
     },
