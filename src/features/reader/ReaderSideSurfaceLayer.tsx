@@ -17,11 +17,16 @@ import {
 } from "./readerSideSurfaceDismissal";
 
 type ReaderSideSurfaceLayerProps = {
+  active?: boolean;
   children: ReactNode;
   onDismiss: () => void;
 };
 
-export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfaceLayerProps) {
+export function ReaderSideSurfaceLayer({
+  active = true,
+  children,
+  onDismiss,
+}: ReaderSideSurfaceLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const pointerDownIdRef = useRef<number | null>(null);
   const parentController = useContext(ReaderSideSurfaceDismissContext);
@@ -38,6 +43,7 @@ export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfac
   }, [localController, onDismiss, parentController]);
 
   useTransientSurfaceOwnership({
+    active,
     elementRef: layerRef,
     kind: "reader-panel",
     onDismiss: (reason) => {
@@ -45,9 +51,14 @@ export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfac
     },
   });
 
+  useLayoutEffect(() => {
+    if (!active) pointerDownIdRef.current = null;
+  }, [active]);
+
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     pointerDownIdRef.current = null;
     if (
+      !active ||
       event.button !== 0 ||
       event.target !== event.currentTarget ||
       transientSurfaceClaimedOutsidePointer(event.nativeEvent)
@@ -60,7 +71,8 @@ export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfac
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
     const startedOnBackdrop = pointerDownIdRef.current === event.pointerId;
     pointerDownIdRef.current = null;
-    if (startedOnBackdrop && event.target === event.currentTarget) controller.dismissTopmost();
+    if (active && startedOnBackdrop && event.target === event.currentTarget)
+      controller.dismissTopmost();
   }
 
   function handlePointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
@@ -71,6 +83,8 @@ export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfac
     <ReaderSideSurfaceDismissContext.Provider value={controller}>
       <div
         className="reader-side-surface-layer"
+        data-closing={!active || undefined}
+        inert={!active}
         onPointerCancel={handlePointerCancel}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}

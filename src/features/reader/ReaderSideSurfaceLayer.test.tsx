@@ -66,6 +66,33 @@ function NestedDismissal() {
   return <span>{active ? "Nested open" : "Nested closed"}</span>;
 }
 
+it("releases closing-layer ownership and discards an unfinished backdrop gesture", () => {
+  const onDismiss = vi.fn();
+  const rendered = renderLayer(<button>Panel content</button>, onDismiss);
+  pointer(rendered.layer, "pointerdown");
+  act(() =>
+    root?.render(
+      <ReaderSideSurfaceLayer active={false} onDismiss={onDismiss}>
+        <button>Panel content</button>
+      </ReaderSideSurfaceLayer>,
+    ),
+  );
+  expect(rendered.layer.hasAttribute("inert")).toBe(true);
+  expect(rendered.layer.hasAttribute("data-application-transient")).toBe(false);
+  pointer(rendered.layer, "pointerup");
+  pointer(rendered.layer, "pointerdown");
+  pointer(rendered.layer, "pointerup");
+  act(() =>
+    root?.render(
+      <ReaderSideSurfaceLayer onDismiss={onDismiss}>
+        <button>New panel content</button>
+      </ReaderSideSurfaceLayer>,
+    ),
+  );
+  pointer(rendered.layer, "pointerup");
+  expect(onDismiss).not.toHaveBeenCalled();
+});
+
 type PriorityHarnessProps = Readonly<{
   highest?: "external-link" | "illustration";
   onHigherDismiss: (restoreFocus?: boolean) => void;

@@ -580,6 +580,48 @@ html[data-motion="on"] .reader-panel-loading span {
   top: var(--reader-header-clearance);
   inset-inline: 0;
   bottom: 0;
+  pointer-events: auto;
+}
+
+.reader-side-surface-layer[data-closing] {
+  pointer-events: none;
+}
+
+.reader-side-drawer,
+.reader-side-panel {
+  width: min(var(--reader-panel-width, 380px), calc(100vw - 36px));
+}
+
+.reader-side-drawer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  transform: translateX(0);
+}
+
+.reader-side-drawer:has(.reader-search, .reader-annotations),
+.reader-search,
+.reader-annotations {
+  --reader-panel-width: 430px;
+}
+
+.reader-side-drawer > .reader-side-panel {
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] .reader-side-drawer {
+    transition: transform var(--motion-duration-view) var(--motion-ease-standard);
+  }
+
+  html[data-motion="on"] .reader-side-drawer:is([data-state="closed"], [data-state="closing"]) {
+    transform: translateX(100%);
+  }
+
+  html[data-motion="on"]
+    .reader-side-drawer:dir(rtl):is([data-state="closed"], [data-state="closing"]) {
+    transform: translateX(-100%);
+  }
 }
 
 .reader-side-panel {
@@ -591,7 +633,6 @@ html[data-motion="on"] .reader-panel-loading span {
   inset-inline-end: 0;
   bottom: 0;
   display: flex;
-  width: min(380px, calc(100vw - 36px));
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
@@ -601,10 +642,6 @@ html[data-motion="on"] .reader-panel-loading span {
   background: color-mix(in srgb, var(--reader-bg) 97%, transparent);
   box-shadow: var(--shadow-drawer);
   backdrop-filter: blur(10px);
-}
-
-html[data-motion="on"] .reader-side-panel {
-  animation: reader-side-panel-enter var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .reader-side-panel__header {
@@ -942,13 +979,6 @@ html[data-motion="on"] .reader-side-panel {
   text-align: center;
 }
 
-@keyframes reader-side-panel-enter {
-  from {
-    opacity: 0;
-    transform: translateX(16px);
-  }
-}
-
 .reader-settings {
   container-name: reader-settings;
   container-type: inline-size;
@@ -1150,10 +1180,6 @@ html[data-motion="on"] .reader-side-panel {
   font-size: var(--type-meta);
 }
 
-.reader-search {
-  width: min(430px, calc(100vw - 36px));
-}
-
 .reader-search__controls {
   display: grid;
   flex: none;
@@ -1326,10 +1352,6 @@ html[data-motion="on"] .reader-search__loading span {
   animation: loading-sheen 1.5s var(--motion-ease-standard) infinite;
 }
 
-.reader-annotations {
-  width: min(430px, calc(100vw - 36px));
-}
-
 @media (max-width: 760px) {
   .reader-toolbar {
     grid-template-columns: auto minmax(180px, 1fr) auto;
@@ -1396,7 +1418,8 @@ html[data-motion="on"] .reader-search__loading span {
     scrollbar-width: thin;
   }
 
-  .reader-side-panel {
+  .reader-side-panel,
+  .reader-side-drawer {
     width: calc(100vw - 18px);
   }
 }

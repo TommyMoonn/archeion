@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Synthetic Reader drawer motion</title>
+    <style>
+      #root {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+      }
+      #drawer-root {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 20;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="drawer-root"></div>
+    <script type="module" src="./reader-drawers-main.tsx"></script>
+  </body>
+</html>

@@ -77,7 +77,7 @@ import {
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 import { useReaderToolbarVisibility } from "./useReaderToolbarVisibility";
-import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
+import { ReaderSideDrawer } from "./ReaderSideDrawer";
 import { ReaderSideSurfaceDismissContext } from "./readerSideSurfaceDismissal";
 import {
   readerNoteTargetAnnotationId,
@@ -1190,84 +1190,92 @@ export function ReaderPage() {
           <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
         ) : null}
 
-        {sideSurface ? (
-          <ReaderSideSurfaceLayer onDismiss={closeTopmost}>
-            {annotationsOpen ? (
-              <>
-                <LazyReaderAnnotationsPanel
-                  active={!noteTarget}
-                  annotations={annotations.annotations}
-                  currentAnnotationId={currentAnnotationId}
-                  currentCfi={location.cfi}
-                  loadStatus={annotations.loadStatus}
-                  navigation={navigationState}
-                  onClose={closeAnnotations}
-                  onEditNote={openAnnotationNote}
-                  onExport={exportCurrentAnnotations}
-                  onNavigate={navigateToAnnotation}
-                  onRecover={recoverAnnotationAnchor}
-                  onRecolorHighlight={highlights.recolor}
-                  onReload={annotations.reload}
-                  onRemove={removeAnnotation}
-                  onUpdateBookmarkLabel={annotations.updateLabel}
-                  restoreFocusAnnotationId={annotationFocusTargetId}
-                  restoreFocusOnOpen={restoreAnnotationsFocus}
-                />
-                {noteTarget && noteEditorStateFor(noteTarget) ? (
-                  <ReaderNoteEditor
-                    keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
-                    key={noteTarget.editorKey}
-                    onBack={(restoreFocus) => void closeNote(noteTarget, restoreFocus)}
-                    onDelete={() => void discardNote(noteTarget)}
-                    onDraftChange={(note) => editNoteDraft(noteTarget, note)}
-                    onRetry={() => void saveNote(noteTarget)}
-                    onUnmount={() => handleNoteEditorUnmount(noteTarget)}
-                    state={noteEditorStateFor(noteTarget)!}
+        <ReaderSideDrawer
+          key={activeArchiveId}
+          open={sideSurface !== null}
+          onDismiss={closeTopmost}
+        >
+          {sideSurface ? (
+            <>
+              {annotationsOpen ? (
+                <>
+                  <LazyReaderAnnotationsPanel
+                    active={!noteTarget}
+                    annotations={annotations.annotations}
+                    currentAnnotationId={currentAnnotationId}
+                    currentCfi={location.cfi}
+                    loadStatus={annotations.loadStatus}
+                    navigation={navigationState}
+                    onClose={closeAnnotations}
+                    onEditNote={openAnnotationNote}
+                    onExport={exportCurrentAnnotations}
+                    onNavigate={navigateToAnnotation}
+                    onRecover={recoverAnnotationAnchor}
+                    onRecolorHighlight={highlights.recolor}
+                    onReload={annotations.reload}
+                    onRemove={removeAnnotation}
+                    onUpdateBookmarkLabel={annotations.updateLabel}
+                    restoreFocusAnnotationId={annotationFocusTargetId}
+                    restoreFocusOnOpen={restoreAnnotationsFocus}
                   />
-                ) : null}
-              </>
-            ) : null}
+                  {noteTarget && noteEditorStateFor(noteTarget) ? (
+                    <ReaderNoteEditor
+                      keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
+                      key={noteTarget.editorKey}
+                      onBack={(restoreFocus) => void closeNote(noteTarget, restoreFocus)}
+                      onDelete={() => void discardNote(noteTarget)}
+                      onDraftChange={(note) => editNoteDraft(noteTarget, note)}
+                      onRetry={() => void saveNote(noteTarget)}
+                      onUnmount={() => handleNoteEditorUnmount(noteTarget)}
+                      state={noteEditorStateFor(noteTarget)!}
+                    />
+                  ) : null}
+                </>
+              ) : null}
 
-            {searchOpen ? (
-              <LazyReaderSearchPanel
-                inputRef={readerSearchInputRef}
-                onActivateResult={navigateToSearchResult}
-                onClose={closeSearch}
-                onNextResult={navigateToNextSearchResult}
-                onPreviousResult={navigateToPreviousSearchResult}
-                onQueryChange={setReaderSearchQuery}
-                state={publicationSearchState}
-              />
-            ) : null}
+              {searchOpen ? (
+                <LazyReaderSearchPanel
+                  inputRef={readerSearchInputRef}
+                  onActivateResult={navigateToSearchResult}
+                  onClose={closeSearch}
+                  onNextResult={navigateToNextSearchResult}
+                  onPreviousResult={navigateToPreviousSearchResult}
+                  onQueryChange={setReaderSearchQuery}
+                  state={publicationSearchState}
+                />
+              ) : null}
 
-            {navigationOpen ? (
-              <LazyReaderNavigationPanel
-                navigation={navigationState}
-                onClose={closeNavigation}
-                onNavigate={navigateToNavigationItem}
-              />
-            ) : null}
+              {navigationOpen ? (
+                <LazyReaderNavigationPanel
+                  navigation={navigationState}
+                  onClose={closeNavigation}
+                  onNavigate={navigateToNavigationItem}
+                />
+              ) : null}
 
-            {settingsOpen ? (
-              <ReaderSettingsPanel
-                presentation={bookPresentation.presentation}
-                presentationStatus={bookPresentation.status}
-                onPresentationCommit={(selection) => void presentationController.commit(selection)}
-                onPresentationRetry={() => void presentationController.retry()}
-                layoutCapability={readerSessionSnapshot.publicationLayoutCapability}
-                onClose={closeSettings}
-                onReaderThemeCommit={changeReaderTheme}
-                onReaderThemeOpen={() => void themeCatalog.refresh()}
-                onSettingsCommit={changeSettings}
-                persistenceFailed={settingsPersistenceFailed}
-                readerThemeCatalogError={themeCatalog.error}
-                readerThemeEntries={themeCatalog.entries}
-                readerThemeSelection={readerThemeSelection}
-                settings={settings}
-              />
-            ) : null}
-          </ReaderSideSurfaceLayer>
-        ) : null}
+              {settingsOpen ? (
+                <ReaderSettingsPanel
+                  presentation={bookPresentation.presentation}
+                  presentationStatus={bookPresentation.status}
+                  onPresentationCommit={(selection) =>
+                    void presentationController.commit(selection)
+                  }
+                  onPresentationRetry={() => void presentationController.retry()}
+                  layoutCapability={readerSessionSnapshot.publicationLayoutCapability}
+                  onClose={closeSettings}
+                  onReaderThemeCommit={changeReaderTheme}
+                  onReaderThemeOpen={() => void themeCatalog.refresh()}
+                  onSettingsCommit={changeSettings}
+                  persistenceFailed={settingsPersistenceFailed}
+                  readerThemeCatalogError={themeCatalog.error}
+                  readerThemeEntries={themeCatalog.entries}
+                  readerThemeSelection={readerThemeSelection}
+                  settings={settings}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </ReaderSideDrawer>
       </ReaderSideSurfaceDismissContext.Provider>
     </main>
   );
