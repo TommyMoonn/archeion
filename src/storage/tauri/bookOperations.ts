@@ -1,4 +1,5 @@
 import type { Book, UpdateBookInput } from "../../types/book";
+import { resolveReaderPresentation } from "../../types/reader";
 import { measurePerformance, measurePerformanceAsync } from "../../utils/measurePerformance";
 import type { ArchivePathChange } from "../LibraryStorage";
 import type { ProgressMetadata } from "../metadataFiles";
@@ -140,10 +141,16 @@ export class BookOperations {
 
   async updateBook(id: string, changes: UpdateBookInput): Promise<Book | undefined> {
     const changesFavorite = Object.hasOwn(changes, "isFavorite");
+    const changesPresentation = Object.hasOwn(changes, "readerPresentation");
     const changesProgress =
       Object.hasOwn(changes, "progressCfi") ||
       Object.hasOwn(changes, "progressPercent") ||
       Object.hasOwn(changes, "lastOpenedAt");
+    if (changesPresentation && changesProgress) {
+      throw new Error(
+        "Book layout and reading progress changes must be saved as separate updates.",
+      );
+    }
     if (changesFavorite && changesProgress) {
       throw new Error("Favorite and reading progress changes must be saved as separate updates.");
     }
@@ -167,18 +174,23 @@ export class BookOperations {
         let libraryChanged = false;
         let progressChanged = false;
         let nextFavorite = currentBook.isFavorite;
+        let nextPresentation = resolveReaderPresentation(currentBook.readerPresentation);
         let nextProgressCfi = currentBook.progressCfi;
         let nextProgressPercent = currentBook.progressPercent;
         let nextLastOpenedAt = currentBook.lastOpenedAt;
 
-        if (changesFavorite) {
+        if (changesFavorite || changesPresentation) {
           const currentEntry = libraryMetadata.books[id];
           if (!currentEntry) {
             throw new Error(`Book metadata "${id}" was not found.`);
           }
 
-          nextFavorite = Boolean(changes.isFavorite);
-          libraryChanged = currentEntry.isFavorite !== nextFavorite;
+          if (changesFavorite) nextFavorite = Boolean(changes.isFavorite);
+          if (changesPresentation)
+            nextPresentation = resolveReaderPresentation(changes.readerPresentation);
+          libraryChanged =
+            currentEntry.isFavorite !== nextFavorite ||
+            resolveReaderPresentation(currentEntry.readerPresentation) !== nextPresentation;
           if (libraryChanged) {
             nextLibraryMetadata = {
               ...libraryMetadata,
@@ -187,6 +199,11 @@ export class BookOperations {
                 [id]: {
                   ...currentEntry,
                   isFavorite: nextFavorite,
+                  readerPresentation: changesPresentation
+                    ? nextPresentation === "publisher"
+                      ? nextPresentation
+                      : undefined
+                    : currentEntry.readerPresentation,
                   updatedAt: timestamp,
                 },
               },
@@ -249,6 +266,7 @@ export class BookOperations {
         const nextBook: Book = {
           ...baseBooks[index],
           isFavorite: nextFavorite,
+          readerPresentation: nextPresentation,
           lastOpenedAt: nextLastOpenedAt,
           progressCfi: nextProgressCfi,
           progressPercent: nextProgressPercent,

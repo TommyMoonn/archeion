@@ -26,6 +26,10 @@ let container: HTMLDivElement | null = null;
 const keyboardPreferences: KeyboardPreferences = { shortcuts: {} };
 
 const basePanelProps = {
+  presentation: "archeion" as const,
+  presentationStatus: "idle" as const,
+  onPresentationCommit: vi.fn(),
+  onPresentationRetry: vi.fn(),
   layoutCapability: "reflowable" as ReaderPublicationLayoutCapability,
   onReaderThemeCommit: vi.fn(),
   onReaderThemeOpen: vi.fn(),
@@ -182,6 +186,65 @@ function keyboardEvent(target: Element): KeyboardEvent {
 }
 
 describe("ReaderSettingsPanel", () => {
+  it("commits book layout with pointer and arrow keys independently of global settings", () => {
+    const host = createContainer();
+    const commit = vi.fn();
+    act(() =>
+      root?.render(
+        <ReaderSettingsPanel {...basePanelProps} onClose={vi.fn()} onPresentationCommit={commit} />,
+      ),
+    );
+    const group = host.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Book layout"]')!;
+    const options = group.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    expect(options[0].getAttribute("aria-checked")).toBe("true");
+    expect(options[0].tabIndex).toBe(0);
+    expect(options[1].tabIndex).toBe(-1);
+    act(() => options[1].click());
+    expect(commit).toHaveBeenLastCalledWith("publisher");
+    act(() =>
+      group.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(commit).toHaveBeenLastCalledWith("publisher");
+    expect(document.activeElement).toBe(options[1]);
+    expect(basePanelProps.onSettingsCommit).not.toHaveBeenCalled();
+  });
+
+  it("announces a failed book-layout save and exposes retry without showing it for fixed layout", () => {
+    const host = createContainer();
+    const retry = vi.fn();
+    act(() =>
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          onClose={vi.fn()}
+          presentationStatus="failed"
+          onPresentationRetry={retry}
+        />,
+      ),
+    );
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "The saved layout has been restored",
+    );
+    act(() =>
+      [...host.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent === "Retry saving book layout")!
+        .click(),
+    );
+    expect(retry).toHaveBeenCalledOnce();
+    act(() =>
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          onClose={vi.fn()}
+          layoutCapability="fixed-layout"
+        />,
+      ),
+    );
+    expect(host.querySelector('[aria-label="Book layout"]')).toBeNull();
+  });
+
   it("loads the shared catalog once and keeps font size and line spacing independent of typeface", async () => {
     const provider = vi.fn(async () => ["Arial"]);
     const fontCatalog = createInstalledFontCatalog(provider);
@@ -272,6 +335,7 @@ describe("ReaderSettingsPanel", () => {
     expect(settingLabels(rendered.container)).toEqual([
       "Reading mode",
       "Reader theme",
+      "Book layout",
       "Typeface",
       "Text size",
       "Line spacing",

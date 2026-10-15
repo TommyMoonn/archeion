@@ -4,6 +4,11 @@ export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderProgressPlacement = "top" | "side";
 export type ReaderMode = "paged" | "continuous";
+export type ReaderPresentation = "archeion" | "publisher";
+
+export function resolveReaderPresentation(value: unknown): ReaderPresentation {
+  return value === "publisher" ? "publisher" : "archeion";
+}
 export const readerReadingWidthOptions = [
   { label: "Narrow", value: "narrow" },
   { label: "Comfortable", value: "comfortable" },

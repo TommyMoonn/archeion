@@ -1,4 +1,8 @@
-import type { ReaderMode } from "../../types/reader";
+import {
+  resolveReaderPresentation,
+  type ReaderMode,
+  type ReaderPresentation,
+} from "../../types/reader";
 import type { ReaderPublicationLayoutCapability } from "./readerSession";
 
 export type ReaderControlCapabilities = Readonly<{
@@ -33,4 +37,11 @@ export function readerModeForPublication(
   layoutCapability: ReaderPublicationLayoutCapability | null,
 ): ReaderMode {
   return layoutCapability === "fixed-layout" ? "paged" : preferredMode;
+}
+
+export function readerPresentationForPublication(
+  selection: unknown,
+  layoutCapability: ReaderPublicationLayoutCapability | null,
+): ReaderPresentation {
+  return layoutCapability === "reflowable" ? resolveReaderPresentation(selection) : "publisher";
 }

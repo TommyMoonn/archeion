@@ -11,6 +11,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import { ReaderRoute } from "./ReaderPage";
+import { createReaderLibrarySnapshotFixture } from "./readerLibrarySnapshot.testUtils";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { EpubSessionError } from "./useEpubSession";
 
@@ -95,6 +96,7 @@ function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
 
 function createStorage(books: Book[], overrides: Partial<LibraryStorage> = {}): LibraryStorage {
   return {
+    ...createReaderLibrarySnapshotFixture(books),
     flushPendingWrites: vi.fn().mockResolvedValue(undefined),
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
     listAnnotations: vi.fn().mockResolvedValue([]),

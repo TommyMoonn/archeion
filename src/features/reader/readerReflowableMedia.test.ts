@@ -75,6 +75,122 @@ afterEach(() => {
 });
 
 describe("reader reflowable media fit", () => {
+  it.each(["continuous", "paged"] as const)(
+    "classifies an image-only paragraph with one trailing pagination break in %s",
+    (mode) => {
+      const { chapter } = mountedChapter(
+        '<p id="page"><img id="plate" src="art.svg" width="420" height="560" alt="Artwork">\n<!-- pagination --><br id="page-break">\n</p>',
+      );
+      applyReaderReflowableLayout(chapter, {
+        mode,
+        readingWidth: "comfortable",
+        stageSize: { width: 1050, height: 750 },
+      });
+      expect(chapter.getElementById("plate")?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
+      expect(chapter.getElementById("page")?.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(true);
+      expect(chapter.getElementById("page-break")).not.toBeNull();
+    },
+  );
+  it.each(["continuous", "paged"] as const)(
+    "classifies large image-only heading artwork and trailing pagination breaks in %s",
+    (mode) => {
+      const { chapter } = mountedChapter(
+        `<h1 id="heading"><img id="large" src="art.svg" width="420" height="560" alt="Artwork"><!-- pagination --><br id="page-break"></h1><p id="paragraph"><img id="paragraph-art" src="art.svg" width="420" height="560" alt="Artwork">\n<!-- pagination --><br>\n</p>`,
+      );
+      applyReaderReflowableLayout(chapter, {
+        mode,
+        readingWidth: "comfortable",
+        stageSize: { width: 1050, height: 750 },
+      });
+      for (const id of ["heading", "large", "paragraph", "paragraph-art"])
+        expect(chapter.getElementById(id)?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
+      expect(chapter.getElementById("page-break")).not.toBeNull();
+      expect(chapter.querySelectorAll("br")).toHaveLength(2);
+    },
+  );
+
+  it.each(["continuous", "paged"] as const)(
+    "preserves heading ornaments, text, captions and meaningful break siblings in %s",
+    (mode) => {
+      const { chapter } = mountedChapter(
+        `<h2><img id="small-heading" src="art.svg" width="30" height="40" alt="Ornament"></h2><h1><img id="text-heading" src="art.svg" width="420" height="560" alt="Artwork">A heading</h1><h1><figure><img id="heading-figure" src="art.svg" width="420" height="560" alt="Artwork"></figure>A heading</h1><p><img id="caption-sibling" src="art.svg" width="420" height="560" alt="Artwork">Caption</p><p><img id="two-breaks" src="art.svg" width="420" height="560" alt="Artwork"><br><br></p><p><br><img id="leading-break" src="art.svg" width="420" height="560" alt="Artwork"></p><p><img id="positioned-break" src="art.svg" width="420" height="560" alt="Artwork"><br style="position:relative;left:24px;"></p>`,
+      );
+      applyReaderReflowableLayout(chapter, {
+        mode,
+        readingWidth: "comfortable",
+        stageSize: { width: 1050, height: 750 },
+      });
+      for (const id of [
+        "small-heading",
+        "text-heading",
+        "caption-sibling",
+        "two-breaks",
+        "leading-break",
+        "heading-figure",
+        "positioned-break",
+      ])
+        expect(chapter.getElementById(id)?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
+    },
+  );
+  it.each(["continuous", "paged"] as const)(
+    "restores inline publisher dimensions and honors newer source styles in %s",
+    (mode) => {
+      const { chapter, view } = mountedChapter(
+        `<div><img id="plate" style="width: 1600px !important; height: 2100px !important;" src="plate.svg" alt="Plate"></div>`,
+      );
+      const plate = chapter.getElementById("plate") as HTMLImageElement;
+      Object.defineProperty(plate, "naturalWidth", { value: 420 });
+      Object.defineProperty(plate, "naturalHeight", { value: 560 });
+      const layout = {
+        mode,
+        readingWidth: "comfortable" as const,
+        stageSize: { width: 1050, height: 750 },
+      };
+      applyReaderReflowableLayout(chapter, layout);
+      expect(plate.hasAttribute("data-archeion-media-natural-fit")).toBe(true);
+      expect(view.getComputedStyle(plate).height).toBe("auto");
+      applyReaderReflowableLayout(chapter, layout);
+      expect(view.getComputedStyle(plate).height).toBe("auto");
+      expect(chapter.querySelectorAll(`#${MEDIA_STYLE_ID}`)).toHaveLength(1);
+      applyReaderReflowableLayout(chapter, { ...layout, presentation: "publisher" });
+      expect(plate.style.width).toBe("1600px");
+      expect(plate.style.height).toBe("2100px");
+      expect(plate.style.getPropertyPriority("width")).toBe("important");
+      expect(plate.style.aspectRatio).toBe("");
+      expect(plate.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
+      applyReaderReflowableLayout(chapter, layout);
+      plate.style.setProperty("width", "100px", "important");
+      applyReaderReflowableLayout(chapter, { ...layout, presentation: "publisher" });
+      expect(plate.style.width).toBe("100px");
+    },
+  );
+
+  it("retires fit attributes when a standalone image becomes mapped or inline", () => {
+    const { chapter } = mountedChapter(
+      `<img id="plate" src="plate.jpg" alt="Plate" style="max-width: none !important; max-height: none !important;">`,
+    );
+    const layout = {
+      mode: "continuous" as const,
+      readingWidth: "full" as const,
+      stageSize: { width: 900, height: 750 },
+    };
+    applyReaderReflowableLayout(chapter, layout);
+    const plate = chapter.getElementById("plate")!;
+    expect(plate.hasAttribute(FORCE_INLINE_ATTRIBUTE)).toBe(true);
+    plate.setAttribute("usemap", "#map");
+    chapter.body.insertAdjacentHTML(
+      "beforeend",
+      '<map name="map"><area href="#plate" shape="rect" coords="0,0,10,10"></map>',
+    );
+    applyReaderReflowableLayout(chapter, layout);
+    for (const attr of [
+      FORCE_INLINE_ATTRIBUTE,
+      FORCE_BLOCK_ATTRIBUTE,
+      MEDIA_CENTER_ATTRIBUTE,
+      STANDALONE_MEDIA_ATTRIBUTE,
+    ])
+      expect(plate.hasAttribute(attr)).toBe(false);
+  });
   it.each(["narrow", "comfortable", "wide", "full"] as const)(
     "bounds hostile standalone raster media to the visible continuous Reader stage at %s width",
     (readingWidth) => {
@@ -273,7 +389,7 @@ describe("reader reflowable media fit", () => {
 
     expect(small.hasAttribute(STANDALONE_MEDIA_ATTRIBUTE)).toBe(true);
     expect(smallStyle.width).not.toBe("100%");
-    expect(smallStyle.marginInlineStart).not.toBe("auto");
+    expect(smallStyle.marginInlineStart).toBe("auto");
     expect(small.getAttribute("width")).toBe("96");
     expect(small.getAttribute("height")).toBe("64");
     expect(icon.hasAttribute(STANDALONE_MEDIA_ATTRIBUTE)).toBe(false);
@@ -338,7 +454,9 @@ describe("reader reflowable media fit", () => {
       expect(plate.getAttribute("width")).toBe("420");
       expect(plate.getAttribute("height")).toBe("630");
       expect(plateStyle.maxInlineSize).not.toBe("58ch");
-      expect(chapter.getElementById(MEDIA_STYLE_ID)?.textContent).not.toContain("max-inline-size");
+      expect(flowStyle.maxInlineSize).toBe(
+        { narrow: "58ch", comfortable: "72ch", wide: "90ch", full: "none" }[readingWidth],
+      );
     },
   );
 
@@ -476,7 +594,7 @@ describe("reader reflowable media fit", () => {
     for (const id of ["flex-plate", "grid-plate"]) {
       const media = chapter.getElementById(id)!;
       expect(media.hasAttribute(STANDALONE_MEDIA_ATTRIBUTE)).toBe(true);
-      expect(media.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(true);
+      expect(media.parentElement?.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(true);
       expect(media.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
     }
 
@@ -485,9 +603,9 @@ describe("reader reflowable media fit", () => {
     expect(view.getComputedStyle(ordinary).marginInlineStart).toBe("auto");
     const ordinaryContextStyle = view.getComputedStyle(chapter.getElementById("ordinary-context")!);
     expect(ordinaryContextStyle.textAlign).toBe("right");
-    expect(ordinaryContextStyle.textIndent).toBe("32px");
-    expect(ordinaryContextStyle.marginInlineStart).toBe("40px");
-    expect(ordinaryContextStyle.marginInlineEnd).toBe("12px");
+    expect(ordinaryContextStyle.textIndent).toBe("0px");
+    expect(ordinaryContextStyle.marginInlineStart).toBe("auto");
+    expect(ordinaryContextStyle.marginInlineEnd).toBe("auto");
   });
 
   it("keeps publisher-centered media centered through the single Reader alignment state", () => {
@@ -533,10 +651,10 @@ describe("reader reflowable media fit", () => {
       stageSize: { height: 720, width: 960 },
     });
 
-    expect(flow.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(false);
-    expect(flow.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
-    expect(plate.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(true);
-    expect(plate.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
+    expect(flow.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(true);
+    expect(flow.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
+    expect(plate.hasAttribute(MEDIA_FLOW_ATTRIBUTE)).toBe(false);
+    expect(plate.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
   });
 
   it("preserves strong publisher positioning and excludes mixed-content and compact nested flows", () => {
@@ -572,7 +690,7 @@ describe("reader reflowable media fit", () => {
     }
   });
 
-  it("centers standalone figure media without changing caption alignment", () => {
+  it("preserves figure and caption placement together", () => {
     const { chapter, view } = mountedChapter(`<figure id="figure">
       <svg id="vector" viewBox="0 0 1600 1200" aria-label="Map"><rect width="1600" height="1200" /></svg>
       <figcaption id="caption" style="text-align: start;">A map caption</figcaption>
@@ -580,13 +698,13 @@ describe("reader reflowable media fit", () => {
 
     applyReaderReflowableLayout(chapter, { mode: "paged", readingWidth: "wide" });
 
-    expect(chapter.getElementById("figure")?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
-    expect(chapter.getElementById("vector")?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
+    expect(chapter.getElementById("figure")?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
+    expect(chapter.getElementById("vector")?.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
     expect(view.getComputedStyle(chapter.getElementById("caption")!).textAlign).toBe("start");
     expect(chapter.getElementById("caption")?.textContent).toBe("A map caption");
   });
 
-  it("removes stale paged alignment when publisher positioning or Reader mode changes", () => {
+  it("removes stale alignment for publisher placement and retains it across Reader modes", () => {
     const { chapter } = mountedChapter(`<img id="plate" src="plate.jpg" alt="Plate">`);
     const plate = chapter.getElementById("plate") as HTMLElement;
 
@@ -603,7 +721,7 @@ describe("reader reflowable media fit", () => {
       readingWidth: "comfortable",
       stageSize: { height: 720, width: 960 },
     });
-    expect(plate.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(false);
+    expect(plate.hasAttribute(MEDIA_CENTER_ATTRIBUTE)).toBe(true);
     expect(plate.hasAttribute(STANDALONE_MEDIA_ATTRIBUTE)).toBe(true);
   });
 

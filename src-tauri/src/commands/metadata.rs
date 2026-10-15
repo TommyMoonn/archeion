@@ -20,12 +20,39 @@ use super::{
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 pub(crate) const SCANNER_CACHE_FILE: &str = "scanner-cache.json";
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReaderPresentation {
+    Archeion,
+    Publisher,
+}
+
+fn deserialize_reader_presentation<'de, D>(
+    deserializer: D,
+) -> Result<Option<ReaderPresentation>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(match value.as_str() {
+        Some("publisher") => Some(ReaderPresentation::Publisher),
+        Some("archeion") => Some(ReaderPresentation::Archeion),
+        _ => None,
+    })
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBookMetadata {
     pub relative_path: String,
     #[serde(default)]
     pub is_favorite: bool,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_reader_presentation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub reader_presentation: Option<ReaderPresentation>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cover_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -723,6 +750,7 @@ mod tests {
             LibraryBookMetadata {
                 relative_path: "Recovered.epub".to_string(),
                 is_favorite: true,
+                reader_presentation: None,
                 cover_path: None,
                 source_metadata: None,
                 file_size: None,
@@ -785,6 +813,7 @@ mod tests {
             LibraryBookMetadata {
                 relative_path: "Stable.epub".to_string(),
                 is_favorite: false,
+                reader_presentation: None,
                 cover_path: None,
                 source_metadata: None,
                 file_size: None,
@@ -849,6 +878,7 @@ mod tests {
             LibraryBookMetadata {
                 relative_path: "Recovered.epub".to_string(),
                 is_favorite: false,
+                reader_presentation: None,
                 cover_path: None,
                 source_metadata: None,
                 file_size: None,
@@ -1182,6 +1212,7 @@ mod tests {
             LibraryBookMetadata {
                 relative_path: "new.epub".to_string(),
                 is_favorite: false,
+                reader_presentation: None,
                 cover_path: None,
                 source_metadata: None,
                 file_size: None,
@@ -1270,6 +1301,7 @@ mod tests {
             LibraryBookMetadata {
                 relative_path: "Books/Recovered.epub".to_string(),
                 is_favorite: true,
+                reader_presentation: Some(super::ReaderPresentation::Publisher),
                 cover_path: None,
                 source_metadata: None,
                 file_size: Some(100),
@@ -1292,6 +1324,10 @@ mod tests {
             .get("book-1")
             .expect("book should be restored from backup");
         assert_eq!(book.relative_path, "Books/Recovered.epub");
+        assert_eq!(
+            book.reader_presentation,
+            Some(super::ReaderPresentation::Publisher)
+        );
         assert!(book.is_favorite);
         assert!(metadata_path(&root)
             .join("backups/library/library.json.bak")
@@ -1602,6 +1638,7 @@ mod tests {
             LibraryBookMetadata {
                 relative_path: "Books/Backup.epub".to_string(),
                 is_favorite: true,
+                reader_presentation: Some(super::ReaderPresentation::Publisher),
                 cover_path: None,
                 source_metadata: None,
                 file_size: None,
@@ -1630,11 +1667,94 @@ mod tests {
         let backup: LibraryMetadata = serde_json::from_slice(&backup_contents)
             .expect("stable backup should remain valid JSON");
         assert!(backup.books.contains_key("book-1"));
+        assert_eq!(
+            backup.books["book-1"].reader_presentation,
+            Some(super::ReaderPresentation::Publisher)
+        );
         assert!(backup_directory
             .read_dir()
             .expect("directory should be readable")
             .filter_map(Result::ok)
             .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn reader_presentation_v1_cross_language_contract() {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/library-presentation/v1.json"
+        ))
+        .expect("shared presentation corpus should parse");
+        for case in corpus["cases"]
+            .as_array()
+            .expect("cases should be an array")
+        {
+            let mut entry = serde_json::json!({
+                "relativePath": "Book.epub", "isFavorite": true,
+                "addedAt": "added", "updatedAt": "updated"
+            });
+            for (key, value) in case["entry"]
+                .as_object()
+                .expect("entry should be an object")
+            {
+                entry[key] = value.clone();
+            }
+            let library: LibraryMetadata = serde_json::from_value(serde_json::json!({
+                "version": 1, "books": { "stable": entry }
+            }))
+            .expect("invalid presentation must not invalidate the library");
+            let book = &library.books["stable"];
+            let effective = match book.reader_presentation {
+                Some(super::ReaderPresentation::Publisher) => "publisher",
+                _ => "archeion",
+            };
+            assert_eq!(
+                effective,
+                case["expected"].as_str().unwrap(),
+                "{}",
+                case["name"]
+            );
+            let serialized = serde_json::to_value(&library).expect("library should serialize");
+            assert_eq!(serialized["version"], 1);
+            assert_eq!(serialized["books"]["stable"]["isFavorite"], true);
+            assert_eq!(serialized["books"]["stable"]["addedAt"], "added");
+            assert_eq!(serialized["books"]["stable"]["updatedAt"], "updated");
+        }
+    }
+
+    #[test]
+    fn reader_presentation_survives_failed_atomic_replace_and_restart() {
+        let root = test_root("presentation-atomic-failure");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        initialize_at(&root).expect("archive should initialize");
+        let library: LibraryMetadata = serde_json::from_value(serde_json::json!({
+            "version": 1, "books": { "stable": {
+                "relativePath": "Book.epub", "isFavorite": true,
+                "readerPresentation": "publisher", "addedAt": "added", "updatedAt": "updated"
+            }}
+        }))
+        .expect("metadata should parse");
+        write_json(&root, MetadataDocument::Library, &library, false)
+            .expect("initial write should work");
+        let before = fs::read(metadata_path(&root).join("library.json")).unwrap();
+        let result = write_json_with_fs(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            false,
+            &FailingMetadataRenameFileSystem,
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read(metadata_path(&root).join("library.json")).unwrap(),
+            before
+        );
+        let reopened: LibraryMetadata =
+            read_json(&root, MetadataDocument::Library).expect("metadata should reopen");
+        assert_eq!(
+            reopened.books["stable"].reader_presentation,
+            Some(super::ReaderPresentation::Publisher)
+        );
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

@@ -93,6 +93,7 @@ import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
 import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
 import { readerModeForPublication } from "./readerSettingsCapabilities";
+import { createReaderPresentationController } from "./readerPresentationController";
 
 const INITIAL_PUBLICATION_SEARCH_STATE: ReaderPublicationSearchControllerState = Object.freeze({
   error: null,
@@ -138,6 +139,15 @@ export function ReaderPage() {
     appearanceController.getSnapshot,
   );
   const settings = appearance.settings;
+  const presentationController = useMemo(
+    () => createReaderPresentationController(storage, bookId ?? null),
+    [storage, bookId],
+  );
+  const bookPresentation = useSyncExternalStore(
+    presentationController.subscribe,
+    presentationController.getSnapshot,
+    presentationController.getSnapshot,
+  );
   const readerTheme = appearance.readerTheme;
   const themeCatalog = useThemeCatalogEntries(true);
   const readerThemeStyle = useMemo(() => readerThemeCssProperties(readerTheme), [readerTheme]);
@@ -195,6 +205,11 @@ export function ReaderPage() {
       void progressController?.teardown();
     };
   }, [appearanceController, progressController]);
+
+  useLayoutEffect(() => {
+    presentationController.activate();
+    return () => presentationController.teardown();
+  }, [presentationController]);
 
   const activeArchiveId = archiveSession.archiveId;
   const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
@@ -1102,6 +1117,7 @@ export function ReaderPage() {
             readerSessionLifecycle.phase === "ready") ? (
           <EpubViewer
             contentTheme={appearance.contentTheme}
+            presentation={bookPresentation.presentation}
             ref={viewerRef}
             fileLease={fileLease}
             highlights={highlights.highlights}
@@ -1234,6 +1250,10 @@ export function ReaderPage() {
 
             {settingsOpen ? (
               <ReaderSettingsPanel
+                presentation={bookPresentation.presentation}
+                presentationStatus={bookPresentation.status}
+                onPresentationCommit={(selection) => void presentationController.commit(selection)}
+                onPresentationRetry={() => void presentationController.retry()}
                 layoutCapability={readerSessionSnapshot.publicationLayoutCapability}
                 onClose={closeSettings}
                 onReaderThemeCommit={changeReaderTheme}

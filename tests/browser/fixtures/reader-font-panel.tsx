@@ -15,6 +15,7 @@ export function mountReaderFontPanel(
   const trigger = document.getElementById("reader-chrome")!;
   function Panel() {
     const [open, setOpen] = useState(false);
+    const [presentation, setPresentation] = useState<"archeion" | "publisher">("archeion");
     const appearance = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
     useEffect(() => {
       const open = () => setOpen(true);
@@ -36,6 +37,10 @@ export function mountReaderFontPanel(
         {open ? (
           <ReaderSideSurfaceLayer onDismiss={() => setOpen(false)}>
             <ReaderSettingsPanel
+              presentation={presentation}
+              presentationStatus="idle"
+              onPresentationCommit={setPresentation}
+              onPresentationRetry={() => undefined}
               fontCatalog={fontCatalog}
               layoutCapability="reflowable"
               onClose={() => setOpen(false)}

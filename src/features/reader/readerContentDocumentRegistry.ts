@@ -4,12 +4,16 @@ import { focusPresentationRuntime } from "../../app/inputModality";
 import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
 import {
   applyReaderContentTheme,
-  prepareReaderRunningProse,
   readerContentThemeGeometryKey,
   type ReaderContentTheme,
 } from "./readerTheme";
 import type { ReaderStageSize } from "./readerStageGeometry";
-import { applyReaderReflowableLayout, type ReaderReflowableLayout } from "./readerReflowableLayout";
+import {
+  applyReaderReflowableLayout,
+  updateReaderNavigationSpineContext,
+  type ReaderReflowableLayout,
+} from "./readerReflowableLayout";
+import { applyReaderReflowableMedia, observeReaderMediaReadiness } from "./readerReflowableMedia";
 
 export type EpubContent = {
   document?: Document;
@@ -59,7 +63,6 @@ type RegisteredDocument = {
   sectionHref?: string;
   frame: Element | null;
   layoutKey: string | null;
-  prosePrepared: boolean;
 };
 
 function documentFromRenderedView(view: unknown): Document | null {
@@ -108,6 +111,12 @@ export class ReaderContentDocumentRegistry {
       }
       if (content?.section?.href && existing.sectionHref !== content.section.href) {
         existing.sectionHref = content.section.href;
+        if (this.layout?.spineHrefs) {
+          updateReaderNavigationSpineContext(document, {
+            ...this.layout,
+            sectionHref: existing.sectionHref,
+          });
+        }
         this.options.onDocumentReady?.({ document, sectionHref: existing.sectionHref });
       }
       return false;
@@ -117,7 +126,11 @@ export class ReaderContentDocumentRegistry {
     const frame = window?.frameElement ?? document.defaultView?.frameElement ?? null;
     if (frame && !frameOwnsDocument(frame, document)) return false;
     if (this.theme) applyReaderContentTheme(null, this.theme, [document]);
-    if (this.layout) applyReaderReflowableLayout(document, this.layout);
+    if (this.layout)
+      applyReaderReflowableLayout(document, {
+        ...this.layout,
+        sectionHref: content?.section?.href,
+      });
     const ownsDocument = () => this.has(document);
     const wheelOptions: AddEventListenerOptions = { capture: true, passive: false };
     const keyOptions: AddEventListenerOptions = { capture: true };
@@ -185,8 +198,14 @@ export class ReaderContentDocumentRegistry {
     document.addEventListener("pointerdown", onContentPointerDown, true);
     document.addEventListener("selectionchange", onSelectionChange);
     window?.addEventListener("pagehide", onContentTeardown);
+    const releaseMediaReadiness = this.layout
+      ? observeReaderMediaReadiness(document, () => {
+          if (ownsDocument() && this.layout) applyReaderReflowableMedia(document, this.layout);
+        })
+      : () => undefined;
 
     const cleanup = () => {
+      releaseMediaReadiness();
       if (wheelRegistered) document.removeEventListener("wheel", onContentWheel, wheelOptions);
       document.removeEventListener("keydown", onContentKeyDown, keyOptions);
       document.removeEventListener("click", onContentClick, true);
@@ -201,7 +220,6 @@ export class ReaderContentDocumentRegistry {
       sectionHref: content?.section?.href,
       frame,
       layoutKey: this.layout ? this.keyForLayout(this.layout) : null,
-      prosePrepared: Boolean(this.theme),
     });
     if (content?.section?.href) this.options.onDocumentReady?.(context());
     return true;
@@ -237,13 +255,9 @@ export class ReaderContentDocumentRegistry {
     this.theme = theme;
     this.themeKey = themeKey;
     const documents = changed ? this.livingDocuments() : [];
-    for (const document of documents) {
-      const registered = this.documents.get(document)!;
-      if (registered.prosePrepared) continue;
-      prepareReaderRunningProse(document);
-      registered.prosePrepared = true;
-    }
-    applyReaderContentTheme(rendition, theme, documents, false);
+    // The classifier owns its cache and policy cleanup. Theme registration comes
+    // after epub.js sizing; layout normalization then applies to classified roots.
+    applyReaderContentTheme(rendition, theme, documents);
     this.themedRendition = rendition;
     this.bindMounted(container);
   }
@@ -257,7 +271,7 @@ export class ReaderContentDocumentRegistry {
     this.livingDocuments();
     for (const [document, registered] of this.documents) {
       if (registered.layoutKey === layoutKey) continue;
-      applyReaderReflowableLayout(document, layout);
+      applyReaderReflowableLayout(document, { ...layout, sectionHref: registered.sectionHref });
       registered.layoutKey = layoutKey;
     }
     this.bindMounted(container);
@@ -266,9 +280,11 @@ export class ReaderContentDocumentRegistry {
   private keyForLayout(layout: ReaderReflowableLayout): string {
     return JSON.stringify([
       layout.mode,
+      layout.presentation,
       layout.readingWidth,
       layout.stageSize?.width,
       layout.stageSize?.height,
+      layout.spineHrefs,
       this.theme ? readerContentThemeGeometryKey(this.theme) : null,
     ]);
   }

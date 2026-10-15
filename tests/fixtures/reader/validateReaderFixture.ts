@@ -8,6 +8,7 @@ const supportedTypes: Record<string, string> = {
   xhtml: "application/xhtml+xml",
   css: "text/css",
   svg: "image/svg+xml",
+  ncx: "application/x-dtbncx+xml",
 };
 
 /** Fixture-level verification, not a general EPUBCheck replacement. */
@@ -55,19 +56,21 @@ export async function validateReaderFixture(
   const opfPath = roots[0].getAttribute("full-path");
   require(opfPath && !opfPath.includes(".."), "Invalid OPF path");
   const opf = await getDocument(opfPath);
+  const legacy = opf.documentElement?.getAttribute("version") === "2.0";
   require(opf.documentElement?.namespaceURI === "http://www.idpf.org/2007/opf" &&
-    opf.documentElement.getAttribute("version") === "3.0", "Invalid EPUB 3 package");
+    (legacy || opf.documentElement.getAttribute("version") === "3.0"), "Invalid EPUB package");
   const metadata = opf.getElementsByTagName("metadata")[0];
   require(metadata, "Missing metadata");
   for (const tag of ["dc:identifier", "dc:title", "dc:language"])
     require(metadata.getElementsByTagName(tag).length === 1, `Missing ${tag}`);
   require(metadata.getElementsByTagName("dc:identifier")[0].getAttribute("id") ===
     opf.documentElement.getAttribute("unique-identifier"), "Broken unique identifier");
-  require(Array.from(metadata.getElementsByTagName("meta")).some(
-    (element) =>
-      element.getAttribute("property") === "dcterms:modified" &&
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(element.textContent ?? ""),
-  ), "Missing modified timestamp");
+  if (!legacy)
+    require(Array.from(metadata.getElementsByTagName("meta")).some(
+      (element) =>
+        element.getAttribute("property") === "dcterms:modified" &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(element.textContent ?? ""),
+    ), "Missing modified timestamp");
   const items = Array.from(opf.getElementsByTagName("item"));
   const manifest = new Map<string, string>();
   const resources = new Set<string>();
@@ -87,6 +90,10 @@ export async function validateReaderFixture(
       require(!navPath, "Duplicate nav");
       navPath = path;
     }
+  }
+  if (legacy) {
+    navPath = manifest.get(opf.getElementsByTagName("spine")[0]?.getAttribute("toc") ?? "") ?? "";
+    require(navPath.endsWith(".ncx"), "Missing EPUB 2 NCX navigation");
   }
   require(navPath, "Missing EPUB navigation");
   const refs = Array.from(opf.getElementsByTagName("itemref"));
@@ -121,7 +128,9 @@ export async function validateReaderFixture(
     require(root?.namespaceURI ===
       (path.endsWith(".svg")
         ? "http://www.w3.org/2000/svg"
-        : "http://www.w3.org/1999/xhtml"), `Invalid XML namespace: ${path}`);
+        : path.endsWith(".ncx")
+          ? "http://www.daisy.org/z3986/2005/ncx/"
+          : "http://www.w3.org/1999/xhtml"), `Invalid XML namespace: ${path}`);
     const ids = new Set<string>();
     for (const element of Array.from(doc.getElementsByTagName("*"))) {
       const id = element.getAttribute("id");
@@ -137,11 +146,13 @@ export async function validateReaderFixture(
     }
   }
   const nav = await getDocument(navPath);
-  require(Array.from(nav.getElementsByTagName("nav")).some(
-    (element) => element.getAttribute("epub:type") === "toc",
-  ), "Missing TOC");
-  const navTargets = Array.from(nav.getElementsByTagName("a")).map(
-    (link) => resolve(navPath, link.getAttribute("href")!).path,
+  if (legacy) require(nav.getElementsByTagName("navMap").length === 1, "Missing NCX TOC");
+  else
+    require(Array.from(nav.getElementsByTagName("nav")).some(
+      (element) => element.getAttribute("epub:type") === "toc",
+    ), "Missing TOC");
+  const navTargets = Array.from(nav.getElementsByTagName(legacy ? "content" : "a")).map(
+    (link) => resolve(navPath, link.getAttribute(legacy ? "src" : "href")!).path,
   );
   require(spinePaths.every((path) => navTargets.includes(path)), "Navigation omits a spine item");
   for (const path of Object.keys(zip.files))

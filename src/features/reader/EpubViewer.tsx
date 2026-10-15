@@ -5,13 +5,14 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
-import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
+import type { ReaderNavigationState, ReaderSettings, ReaderPresentation } from "../../types/reader";
 import {
   canRunReaderWheelTurn,
   getReaderWheelDelta,
@@ -21,7 +22,7 @@ import {
   type ReaderNavigationIntent,
 } from "./readerNavigation";
 import { observeReaderStageSize, type ReaderStageSize } from "./readerStageGeometry";
-import type { ReaderContentTheme } from "./readerTheme";
+import { readerContentThemeForPresentation, type ReaderContentTheme } from "./readerTheme";
 import { IconButton } from "../../components/IconButton";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
@@ -88,6 +89,7 @@ export type EpubViewerHandle = {
 
 type EpubViewerProps = {
   contentTheme: ReaderContentTheme;
+  presentation?: ReaderPresentation;
   fileLease: ReaderFileLease;
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
@@ -122,7 +124,8 @@ type EpubViewerProps = {
 
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
-    contentTheme,
+    contentTheme: globalContentTheme,
+    presentation = "archeion",
     fileLease,
     highlights = [],
     initialCfi,
@@ -150,6 +153,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   },
   ref,
 ) {
+  const contentTheme = useMemo(
+    () => readerContentThemeForPresentation(globalContentTheme, presentation),
+    [globalContentTheme, presentation],
+  );
   const publicationMode = readerModeForPublication(settings.mode, publicationLayoutCapability);
   const viewerRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
@@ -352,7 +359,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     clearReaderWheelGesture();
   }, [clearReaderWheelGesture, illustration]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // Publish the committed book policy before asynchronous session creation
+    // can prepare its first iframe, including replacement and mode remounts.
     bridgeRef.current = {
       onContent: () => undefined,
       onDisplayed: () => {
@@ -381,7 +390,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         annotations.setSession(session.annotations);
         searchMatchEmphasis.setSession(session.annotations);
         handlePublicationSearchRuntimeReady();
-        applyContentTheme(contentTheme, settings.readingWidth, containerRef.current);
+        applyContentTheme(contentTheme, settings.readingWidth, containerRef.current, presentation);
       },
       onSessionEnding: (reason) => {
         if (reason === "replacement") handlePublicationSearchRuntimeEnding();
@@ -401,6 +410,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     clearFeedback,
     contentDocuments,
     contentTheme,
+    presentation,
     dismiss,
     dismissDictionaryLookup,
     dismissExternal,
@@ -516,8 +526,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   ]);
 
   useEffect(() => {
-    applyContentTheme(contentTheme, settings.readingWidth, containerRef.current);
-  }, [applyContentTheme, contentTheme, settings.readingWidth]);
+    applyContentTheme(contentTheme, settings.readingWidth, containerRef.current, presentation);
+  }, [applyContentTheme, contentTheme, settings.readingWidth, presentation]);
 
   useEffect(() => {
     onNavigationChange?.(getNavigationState());
@@ -821,6 +831,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onSeekMapChange === next.onSeekMapChange &&
     previous.onReady === next.onReady &&
     previous.contentTheme === next.contentTheme &&
+    previous.presentation === next.presentation &&
     previous.readerTheme === next.readerTheme &&
     previous.publicationLayoutCapability === next.publicationLayoutCapability &&
     previous.sessionIdentity === next.sessionIdentity &&

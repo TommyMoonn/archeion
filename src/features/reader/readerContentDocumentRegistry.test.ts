@@ -26,6 +26,69 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("passes section/spine context to legacy classification on first mount, late binding and remount", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      {
+        mode: "continuous",
+        readingWidth: "comfortable",
+        spineHrefs: ["Text/one.xhtml", "Text/two.xhtml"],
+      },
+      null,
+    );
+    const markup =
+      '<h1>Original route</h1><ol id="legacy"><li><a href="one.xhtml">One</a></li><li><a href="two.xhtml">Two</a></li></ol>';
+    const first = mountedFrame();
+    first.contentDocument!.body.innerHTML = markup;
+    registry.bindRenderedView({ document: first.contentDocument! }, "Text/contents.xhtml");
+    expect(
+      first.contentDocument!.getElementById("legacy")?.hasAttribute("data-archeion-toc-flow"),
+    ).toBe(true);
+    const styleNode = first.contentDocument!.getElementById(
+      "archeion-reader-reflowable-layout",
+    )!.firstChild;
+    registry.bindRenderedView({ document: first.contentDocument! }, "Elsewhere/contents.xhtml");
+    expect(
+      first.contentDocument!.getElementById("legacy")?.hasAttribute("data-archeion-toc-flow"),
+    ).toBe(false);
+    expect(
+      first.contentDocument!.getElementById("archeion-reader-reflowable-layout")!.firstChild,
+    ).toBe(styleNode);
+    registry.remove(first.contentDocument!);
+    first.remove();
+    const replacement = mountedFrame();
+    replacement.contentDocument!.body.innerHTML = markup;
+    registry.bindRenderedView({ document: replacement.contentDocument! }, "Text/contents.xhtml");
+    expect(
+      replacement.contentDocument!.getElementById("legacy")?.hasAttribute("data-archeion-toc-flow"),
+    ).toBe(true);
+    registry.retire();
+  });
+  it("updates decoded media geometry once per living document and releases readiness on retirement", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    registry.applyLayout(
+      { mode: "continuous", readingWidth: "comfortable", stageSize: { width: 1050, height: 750 } },
+      null,
+    );
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    chapter.body.innerHTML =
+      '<img id="plate" src="plate.svg" style="width:1600px!important;height:2100px!important;" alt="Plate">';
+    const image = chapter.getElementById("plate") as HTMLImageElement;
+    registry.bindRenderedView({ document: chapter }, "plate.xhtml");
+    registry.bindRenderedView({ document: chapter }, "plate.xhtml");
+    expect(image.hasAttribute("data-archeion-media-natural-fit")).toBe(false);
+    Object.defineProperty(image, "naturalWidth", { value: 420 });
+    Object.defineProperty(image, "naturalHeight", { value: 560 });
+    image.dispatchEvent(new Event("load"));
+    expect(image.style.height).toBe("auto");
+    expect(chapter.querySelectorAll("#archeion-reader-reflowable-media")).toHaveLength(1);
+    registry.remove(chapter);
+    const queries = vi.spyOn(chapter, "querySelectorAll");
+    image.dispatchEvent(new Event("load"));
+    image.dispatchEvent(new Event("error"));
+    expect(queries).not.toHaveBeenCalled();
+  });
   it("does not repeat a new mount's current geometry or restyle a retired document", () => {
     const registry = new ReaderContentDocumentRegistry();
     const palette = resolveBuiltInReaderTheme("dark").tokens;

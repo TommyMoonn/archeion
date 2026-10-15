@@ -305,22 +305,4 @@ test.describe("opt-in historical diagnostics", () => {
       await assertVisibleAnchorStable(driver, anchor);
     });
   }
-
-  test("Continuous isolated illustration matches the effective content center", async ({
-    page,
-  }, testInfo) => {
-    const driver = new ReaderRuntimeDriver(page);
-    await driver.open({ fixture: "image-only", mode: "continuous", profile: "archeion" });
-    const sample = await driver.snapshot();
-    const image = findAnchor(sample, "isolated-image");
-    console.log(
-      "RDR-02",
-      JSON.stringify({
-        centerError: image.left + image.width / 2 - sample.viewportLeft - sample.viewportWidth / 2,
-      }),
-    );
-    await driver.attach(testInfo, "RDR-02-image-geometry");
-    test.fail(true, "RDR-02: Continuous image centering belongs to phase 1.7.0.14");
-    await assertImageCentered(driver, "isolated-image");
-  });
 });

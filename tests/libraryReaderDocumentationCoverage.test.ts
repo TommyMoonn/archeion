@@ -141,13 +141,22 @@ describe("Library and Reader documentation coverage", () => {
     await verifyDocumentationLinks(documentationPages());
   });
 
-  it("does not present planned book-text search or later Reader compatibility work as released", () => {
+  it("does not present planned book-text search as released", () => {
     const phasePages = Object.values(focusedGuides)
       .filter((filePath) => fs.existsSync(filePath))
       .map(read)
       .join("\n");
 
     expect(phasePages).not.toMatch(/1\.6\.0|Book text search/i);
-    expect(phasePages).not.toMatch(/fixed-layout|pre-paginated|capability-aware/i);
+  });
+
+  it("documents per-book layout and the verified fixed-layout boundary", () => {
+    const reader = text(focusedGuides.reader);
+    const media = text(focusedGuides.readerMedia);
+    expect(reader).toContain("Book layout for reflowable EPUBs");
+    expect(reader).toContain("typography and colors remain shared Reader settings");
+    expect(reader).toContain("Fixed-layout EPUBs retain their designed pages");
+    expect(media).toContain("centered in both Paged and Continuous reading");
+    expect(media).toContain("media safety limits remain active");
   });
 });

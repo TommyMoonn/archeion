@@ -1,16 +1,19 @@
-import { readerFontSelectionsEqual, type ReaderSettings } from "../../types/reader";
+import {
+  readerFontSelectionsEqual,
+  type ReaderSettings,
+  type ReaderPresentation,
+} from "../../types/reader";
 import type { ResolvedReaderThemeTokens } from "../../themes/themeTokenRegistry";
 import { readerFontFaceCssForSelection, readerFontFamilyForSelection } from "./readerFonts";
+import {
+  clearReaderRunningProse,
+  prepareReaderRunningProse,
+  READER_PROSE_GAP_SELECTOR,
+  READER_RUNNING_PROSE_SELECTOR,
+} from "./readerProseClassification";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
-const READER_RUNNING_PROSE_ATTRIBUTE = "data-archeion-running-prose";
-const READER_RUNNING_PROSE_SELECTOR = `p[${READER_RUNNING_PROSE_ATTRIBUTE}=""]`;
-const READER_STRUCTURAL_PROSE_ANCESTOR_SELECTOR =
-  "aside, nav, header, footer, ol, ul, li, blockquote, table, caption, thead, tbody, tfoot, tr, td, th, figure, figcaption, dl, dt, dd, pre, address, details, summary";
-const READER_MEDIA_SELECTOR = "img, picture, svg, video, audio, canvas, object, embed, iframe";
-const READER_STRUCTURED_PROSE_HINT =
-  /(?:^|[\s_-])(?:poem|poetry|verse|stanza|epigraph|lyrics?)(?:$|[\s_-])/i;
 const READER_RUNNING_TEXT_SELECTOR =
   "article, aside, main, section, nav, header, footer, div, p, ol, ul, li, dl, dt, dd, blockquote, figcaption, address, td, th";
 const READER_INLINE_TEXT_SELECTOR = "span, em, strong, b, i, u, s, mark, q, cite, abbr, time, font";
@@ -35,6 +38,17 @@ export type ReaderContentTheme = {
   name: typeof READER_CONTENT_THEME_NAME;
   rules: ReaderThemeRules;
 };
+
+export function readerContentThemeForPresentation(
+  theme: ReaderContentTheme,
+  presentation: ReaderPresentation,
+): ReaderContentTheme {
+  if (presentation === "archeion") return theme;
+  const rules = { ...theme.rules };
+  delete rules[READER_RUNNING_PROSE_SELECTOR];
+  delete rules[READER_PROSE_GAP_SELECTOR];
+  return { ...theme, rules };
+}
 
 export function readerFontFaceCssForSettings(settings: ReaderContentSettings) {
   return readerFontFaceCssForSelection(settings.fontFamily);
@@ -69,9 +83,14 @@ export function readerThemeForSettings(
       "line-height": `${settings.lineHeight} !important`,
     },
     [READER_RUNNING_PROSE_SELECTOR]: {
+      "margin-block": "0 !important",
       "margin-inline-end": "0 !important",
       "margin-inline-start": "0 !important",
       "text-indent": "0 !important",
+      "overflow-wrap": "break-word !important",
+    },
+    [READER_PROSE_GAP_SELECTOR]: {
+      "margin-block-start": "0.5em !important",
     },
     [READER_INLINE_TEXT_SELECTOR]: {
       color: "inherit !important",
@@ -116,8 +135,14 @@ export function applyReaderContentTheme(
   target: ReaderThemeTarget | null | undefined,
   theme: ReaderContentTheme,
   documents: Array<Document | null | undefined> = [],
-  classifyProse = true,
 ): void {
+  // epub.js 0.3.93 appends rules on re-registration. Replace our sheet so
+  // removing optional presentation rules actually restores publisher styles.
+  if (target) {
+    for (const document of documents) {
+      document?.getElementById(`epubjs-inserted-css-${theme.name}`)?.remove();
+    }
+  }
   target?.themes.register(theme.name, theme.rules);
   target?.themes.select(theme.name);
 
@@ -126,15 +151,9 @@ export function applyReaderContentTheme(
   );
 
   for (const document of uniqueDocuments) {
-    if (classifyProse) prepareReaderRunningProse(document);
+    if (theme.rules[READER_RUNNING_PROSE_SELECTOR]) prepareReaderRunningProse(document);
+    else clearReaderRunningProse(document);
     applyReaderFontFaces(document, theme.fontFaceCss);
-  }
-}
-
-// Structural classification belongs to a document mount, not a palette update.
-export function prepareReaderRunningProse(document: Document): void {
-  for (const paragraph of document.querySelectorAll("p")) {
-    paragraph.toggleAttribute(READER_RUNNING_PROSE_ATTRIBUTE, isReaderRunningProse(paragraph));
   }
 }
 
@@ -146,27 +165,6 @@ export function readerContentThemeGeometryKey(theme: ReaderContentTheme): string
     body?.["line-height"],
     theme.fontFaceCss,
   ]);
-}
-
-function isReaderRunningProse(paragraph: Element): boolean {
-  if (paragraph.closest(READER_STRUCTURAL_PROSE_ANCESTOR_SELECTOR)) return false;
-  if (paragraph.querySelector(READER_MEDIA_SELECTOR)) return false;
-
-  for (
-    let element: Element | null = paragraph;
-    element && element !== paragraph.ownerDocument.documentElement;
-    element = element.parentElement
-  ) {
-    const semanticHint = [
-      element.id,
-      element.getAttribute("class") ?? "",
-      element.getAttribute("epub:type") ?? "",
-      element.getAttribute("role") ?? "",
-    ].join(" ");
-    if (READER_STRUCTURED_PROSE_HINT.test(semanticHint)) return false;
-  }
-
-  return true;
 }
 
 function applyReaderFontFaces(document: Document | null, fontFaceCss: string | undefined) {

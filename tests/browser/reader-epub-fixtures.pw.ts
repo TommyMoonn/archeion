@@ -35,7 +35,8 @@ for (const fixture of readerFixtures) {
       })),
     ).toEqual({
       layout: fixture.layout === "pre-paginated" ? "fixed-layout" : "reflowable",
-      metadataLayout: fixture.layout,
+      // EPUB 2 omits rendition metadata; the effective layout still defaults to reflowable.
+      metadataLayout: fixture.epubVersion === 2 ? "" : fixture.layout,
       spineCount: fixture.sections.length,
     });
     for (let index = 0; index < fixture.sections.length; index += 1) {

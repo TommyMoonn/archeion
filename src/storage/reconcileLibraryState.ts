@@ -1,4 +1,5 @@
 import type { Book, EpubSourceMetadata } from "../types/book";
+import { resolveReaderPresentation } from "../types/reader";
 import type { Folder } from "../types/folder";
 import { reconcileById, shallowEqualRecords } from "../utils/reconcileById";
 import {
@@ -89,6 +90,7 @@ function omitLegacyDisplayOverrides(metadata: LibraryMetadata): {
     books[id] = {
       relativePath: entry.relativePath,
       isFavorite: entry.isFavorite,
+      readerPresentation: entry.readerPresentation,
       coverPath: entry.coverPath,
       sourceMetadata: entry.sourceMetadata,
       fileSize: entry.fileSize,
@@ -169,6 +171,7 @@ function buildBook(
     coverRevision: coverRevisionFromFileStats(scanned.size, scanned.modifiedAt),
     isFileMissing: false,
     isFavorite: metadata.isFavorite,
+    readerPresentation: resolveReaderPresentation(metadata.readerPresentation),
     addedAt: metadata.addedAt,
     updatedAt: metadata.updatedAt,
     modifiedAt: new Date(scanned.modifiedAt).toISOString(),
@@ -204,6 +207,7 @@ function buildMissingBook(
     isFileMissing: true,
     folderId: null,
     isFavorite: metadata.isFavorite,
+    readerPresentation: resolveReaderPresentation(metadata.readerPresentation),
     addedAt: metadata.addedAt,
     updatedAt: metadata.updatedAt,
     progressCfi: readingProgress?.cfi,
