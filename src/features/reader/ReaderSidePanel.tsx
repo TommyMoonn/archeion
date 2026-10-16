@@ -1,7 +1,9 @@
 import { X } from "lucide-react";
-import { forwardRef, type ReactNode, type Ref } from "react";
+import { forwardRef, useContext, useImperativeHandle, type ReactNode, type Ref } from "react";
+import { createPortal } from "react-dom";
 
 import { IconButton } from "../../components/IconButton";
+import { ReaderPanelFrameContext } from "./readerPanelFrameContext";
 
 type ReaderSidePanelProps = {
   accessibleLabel: string;
@@ -44,6 +46,14 @@ export const ReaderSidePanel = forwardRef<HTMLElement, ReaderSidePanelProps>(
     },
     ref,
   ) {
+    const host = useContext(ReaderPanelFrameContext);
+    if (host) {
+      return (
+        <HostedReaderPanel host={host} panelRef={ref} headerActions={headerActions}>
+          {children}
+        </HostedReaderPanel>
+      );
+    }
     return (
       <aside
         aria-busy={ariaBusy || undefined}
@@ -86,3 +96,23 @@ export const ReaderSidePanel = forwardRef<HTMLElement, ReaderSidePanelProps>(
     );
   },
 );
+
+function HostedReaderPanel({
+  host,
+  panelRef,
+  headerActions,
+  children,
+}: {
+  host: NonNullable<React.ContextType<typeof ReaderPanelFrameContext>>;
+  panelRef: Ref<HTMLElement>;
+  headerActions?: ReactNode;
+  children: ReactNode;
+}) {
+  useImperativeHandle(panelRef, () => host.panelRef.current!, [host]);
+  return (
+    <>
+      {host.actionsHost && headerActions ? createPortal(headerActions, host.actionsHost) : null}
+      {children}
+    </>
+  );
+}

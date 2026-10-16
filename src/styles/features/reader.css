@@ -659,6 +659,23 @@ html[data-motion="on"] .reader-panel-loading span {
   flex: 1;
 }
 
+.reader-panel-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.reader-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reader-panel-header-actions:empty {
+  display: none;
+}
+
 .reader-side-panel__header-leading,
 .reader-side-panel__header-actions {
   display: flex;

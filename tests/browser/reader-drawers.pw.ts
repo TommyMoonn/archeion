@@ -71,6 +71,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/fixtures/reader-drawers.html");
   await expect.poll(() => page.evaluate(() => window.readerInteractions?.ready())).toBe(true);
   await expect.poll(() => page.evaluate(() => window.readerInteractions.location())).not.toBeNull();
+  // This matrix isolates motion as before. Cold module/data readiness has its own delayed-import tests.
+  await page.evaluate(() => window.readerDrawer.warmPanels());
   await page.evaluate(() => {
     document.documentElement.dataset.motion = "on";
   });

@@ -34,6 +34,7 @@ export function ReaderSearchPanel({
   const hasResults = state.status === "ready" && state.results.length > 0;
 
   useLayoutEffect(() => {
+    if (panelRef.current?.contains(document.activeElement)) return;
     (inputRef?.current ?? localInputRef.current ?? panelRef.current)?.focus({
       preventScroll: true,
     });
@@ -239,7 +240,7 @@ function SearchResultExcerpt({ result }: { result: ReaderPublicationSearchResult
 
 function SearchLoadingState() {
   return (
-    <div aria-label="Searching book" className="reader-search__loading" role="status">
+    <div aria-hidden="true" className="reader-search__loading">
       <span />
       <span />
       <span />

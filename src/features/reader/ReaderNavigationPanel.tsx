@@ -16,6 +16,7 @@ import {
   READER_PAGE_LIST_SEARCH_THRESHOLD,
 } from "./readerNavigation";
 import { ReaderSidePanel } from "./ReaderSidePanel";
+import { ReaderPanelSkeleton } from "./ReaderPanelLoadingShells";
 
 type ReaderNavigationCollection = "contents" | "landmarks" | "pages";
 
@@ -71,6 +72,7 @@ export function ReaderNavigationPanel({
   useEffect(() => {
     if (navigation.status === "loading" || didFocusRef.current) return;
     didFocusRef.current = true;
+    if (panelRef.current?.contains(document.activeElement)) return;
     const focusTarget = showSearch
       ? searchRef.current
       : activeCollection === "contents"
@@ -113,6 +115,7 @@ export function ReaderNavigationPanel({
   return (
     <ReaderSidePanel
       accessibleLabel="Book navigation"
+      ariaBusy={navigation.status === "loading"}
       className="reader-navigation"
       closeLabel="Close book navigation"
       eyebrow="Navigate"
@@ -175,7 +178,7 @@ export function ReaderNavigationPanel({
       ) : null}
 
       <div className="reader-panel-scroll reader-navigation__body" ref={bodyRef}>
-        {navigation.status === "loading" ? <NavigationLoadingState /> : null}
+        {navigation.status === "loading" ? <ReaderPanelSkeleton /> : null}
 
         {navigation.status === "ready" && availableCollections.length === 0 ? (
           <div className="reader-panel-empty reader-navigation__empty">
@@ -404,16 +407,6 @@ function revealWithinScrollContainer(container: HTMLElement, target: HTMLElement
   }
 
   container.scrollTop = Math.max(0, nextScrollTop);
-}
-
-function NavigationLoadingState() {
-  return (
-    <div aria-label="Loading book navigation" className="reader-panel-loading" role="status">
-      <span />
-      <span />
-      <span />
-    </div>
-  );
 }
 
 function filterChapters(chapters: readonly ReaderChapter[], query: string): ReaderChapter[] {

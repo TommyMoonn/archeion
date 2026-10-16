@@ -198,7 +198,10 @@ describe("ReaderSearchPanel", () => {
     const { callbacks } = renderPanel(
       state({ results: Object.freeze([]), selectedResult: null, status: "searching" }),
     );
-    expect(container?.querySelector('[aria-label="Searching book"]')).toBeInstanceOf(HTMLElement);
+    expect(container?.querySelector(".reader-search__loading")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(container?.querySelectorAll('[role="status"]')).toHaveLength(1);
     expect(container?.textContent).toContain("Searching…");
 
     renderPanel(state({ results: Object.freeze([]), selectedResult: null }));

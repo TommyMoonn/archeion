@@ -94,6 +94,7 @@ import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
 import { readerModeForPublication } from "./readerSettingsCapabilities";
 import { createReaderPresentationController } from "./readerPresentationController";
+import { useReaderPanelPrewarm } from "./useReaderPanelPrewarm";
 
 const INITIAL_PUBLICATION_SEARCH_STATE: ReaderPublicationSearchControllerState = Object.freeze({
   error: null,
@@ -177,6 +178,10 @@ export function ReaderPage() {
   const readerSessionLifecycle = readerSessionSnapshot.lifecycle;
   const readerSessionFailure = readerSessionSnapshot.failure;
   const readerSessionIdentity = readerSessionLifecycle.identity;
+  useReaderPanelPrewarm(
+    readerReady && readerSessionLifecycle.phase === "ready",
+    readerSessionIdentity,
+  );
   const publicationMode = readerModeForPublication(
     settings.mode,
     readerSessionSnapshot.publicationLayoutCapability,
@@ -417,6 +422,10 @@ export function ReaderPage() {
     updateNoteTarget,
   } = sideSurfaces;
   const leaveReader = controlledTransitions.leaveReader;
+  const reloadReader = useCallback(() => {
+    // A rejected chunk can remain cached for this document. Retire through the normal exit owner.
+    void leaveReader(() => window.location.reload());
+  }, [leaveReader]);
   const runControlledReaderTransition = controlledTransitions.runControlledTransition;
 
   const navigateHistoryBack = useCallback(
@@ -1200,6 +1209,7 @@ export function ReaderPage() {
               {annotationsOpen ? (
                 <>
                   <LazyReaderAnnotationsPanel
+                    onModuleReload={reloadReader}
                     active={!noteTarget}
                     annotations={annotations.annotations}
                     currentAnnotationId={currentAnnotationId}
@@ -1235,6 +1245,7 @@ export function ReaderPage() {
 
               {searchOpen ? (
                 <LazyReaderSearchPanel
+                  onModuleReload={reloadReader}
                   inputRef={readerSearchInputRef}
                   onActivateResult={navigateToSearchResult}
                   onClose={closeSearch}
@@ -1247,6 +1258,7 @@ export function ReaderPage() {
 
               {navigationOpen ? (
                 <LazyReaderNavigationPanel
+                  onModuleReload={reloadReader}
                   navigation={navigationState}
                   onClose={closeNavigation}
                   onNavigate={navigateToNavigationItem}

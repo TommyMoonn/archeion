@@ -137,6 +137,7 @@ export function ReaderAnnotationsPanel({
 
   useLayoutEffect(() => {
     if (!active || !restoreFocusOnOpen) return;
+    if (panelRef.current?.querySelector("header")?.contains(document.activeElement)) return;
     const focusedRow = restoreFocusAnnotationId
       ? listRef.current?.focusActionTrigger(restoreFocusAnnotationId)
       : false;
@@ -188,6 +189,7 @@ export function ReaderAnnotationsPanel({
   return (
     <ReaderSidePanel
       accessibleLabel="Annotations"
+      ariaBusy={loadStatus === "loading"}
       className="reader-annotations"
       closeLabel="Close annotations"
       eyebrow="Reading"

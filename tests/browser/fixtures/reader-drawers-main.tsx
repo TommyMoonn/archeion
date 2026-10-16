@@ -4,9 +4,15 @@ import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { Rendition } from "epubjs";
 import { ReaderSideDrawer } from "../../../src/features/reader/ReaderSideDrawer";
-import { ReaderNavigationPanel } from "../../../src/features/reader/ReaderNavigationPanel";
-import { ReaderSearchPanel } from "../../../src/features/reader/ReaderSearchPanel";
-import { ReaderAnnotationsPanel } from "../../../src/features/reader/ReaderAnnotationsPanel";
+import { LazyReaderNavigationPanel } from "../../../src/features/reader/LazyReaderNavigationPanel";
+import { LazyReaderSearchPanel } from "../../../src/features/reader/LazyReaderSearchPanel";
+import { LazyReaderAnnotationsPanel } from "../../../src/features/reader/LazyReaderAnnotationsPanel";
+import { useReaderPanelPrewarm } from "../../../src/features/reader/useReaderPanelPrewarm";
+import {
+  navigationPanelModule,
+  searchPanelModule,
+  annotationsPanelModule,
+} from "../../../src/features/reader/readerPanelModules";
 import { ReaderSettingsPanel } from "../../../src/features/reader/ReaderSettingsPanel";
 import { useReaderSideSurface } from "../../../src/features/reader/useReaderSideSurface";
 import { ReaderSideSurfaceDismissContext } from "../../../src/features/reader/readerSideSurfaceDismissal";
@@ -31,8 +37,23 @@ Rendition.prototype.resize = function (...args) {
   return originalResize.apply(this, args);
 };
 let drawerApi: ReturnType<typeof useReaderSideSurface<never>>;
+let resolveData: () => void;
+let switchBook: () => void;
+let prewarm: () => void;
 
 export function Drawers() {
+  const [loading, setLoading] = useState(new URLSearchParams(location.search).has("pending"));
+  const [book, setBook] = useState(1);
+  const [ready, setReady] = useState(false);
+  useReaderPanelPrewarm(ready, book);
+  useLayoutEffect(() => {
+    resolveData = () => setLoading(false);
+    switchBook = () => {
+      setBook((value) => value + 1);
+      setLoading(true);
+    };
+    prewarm = () => setReady(true);
+  }, []);
   const [transitions] = useState(() => {
     let id = 0;
     const owner = { archiveId: null, readerIdentity: null };
@@ -59,9 +80,11 @@ export function Drawers() {
   return (
     <ReaderSideSurfaceDismissContext.Provider value={api.dismissalController}>
       <div
+        className="reader-page"
         style={
           {
             position: "absolute",
+            background: "transparent",
             inset: 0,
             "--reader-header-clearance": "42px",
           } as React.CSSProperties
@@ -81,18 +104,20 @@ export function Drawers() {
             Appearance
           </button>
         </nav>
-        <ReaderSideDrawer open={api.surface !== null} onDismiss={close}>
+        <ReaderSideDrawer key={book} open={api.surface !== null} onDismiss={close}>
           {api.surface ? (
             <>
               {api.navigationOpen ? (
-                <ReaderNavigationPanel
-                  navigation={navigation}
+                <LazyReaderNavigationPanel
+                  onModuleReload={() => window.location.reload()}
+                  navigation={{ ...navigation, status: loading ? "loading" : "ready" }}
                   onClose={api.closeNavigation}
                   onNavigate={succeed}
                 />
               ) : null}
               {api.searchOpen ? (
-                <ReaderSearchPanel
+                <LazyReaderSearchPanel
+                  onModuleReload={() => window.location.reload()}
                   onClose={api.closeSearch}
                   onActivateResult={succeed}
                   onNextResult={succeed}
@@ -100,19 +125,20 @@ export function Drawers() {
                   onQueryChange={ignore}
                   state={{
                     error: null,
-                    query: "",
+                    query: loading ? "fixture" : "",
                     requestRevision: 0,
                     results: [],
                     selectedResult: null,
-                    status: "idle",
+                    status: loading ? "searching" : "idle",
                     truncated: false,
                   }}
                 />
               ) : null}
               {api.annotationsOpen ? (
-                <ReaderAnnotationsPanel
+                <LazyReaderAnnotationsPanel
+                  onModuleReload={() => window.location.reload()}
                   annotations={[]}
-                  loadStatus="ready"
+                  loadStatus={loading ? "loading" : "ready"}
                   navigation={navigation}
                   onClose={api.closeAnnotations}
                   onEditNote={succeed}
@@ -159,6 +185,10 @@ declare global {
       close: () => void;
       dispose: () => void;
       resizeCalls: () => number;
+      resolveData: () => void;
+      switchBook: () => void;
+      prewarm: () => void;
+      warmPanels: () => Promise<void>;
     };
   }
 }
@@ -173,5 +203,15 @@ window.readerDrawer = {
     Rendition.prototype.resize = originalResize;
   },
   resizeCalls: () => resizeCalls,
+  resolveData: () => flushSync(resolveData),
+  switchBook: () => flushSync(switchBook),
+  prewarm: () => flushSync(prewarm),
+  warmPanels: async () => {
+    await Promise.all([
+      navigationPanelModule.preload(),
+      searchPanelModule.preload(),
+      annotationsPanelModule.preload(),
+    ]);
+  },
 };
 flushSync(() => root.render(<Drawers />));
