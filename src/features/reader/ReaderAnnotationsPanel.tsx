@@ -1,6 +1,7 @@
 import { Download, Search, X } from "lucide-react";
 import {
   useCallback,
+  useContext,
   useDeferredValue,
   useId,
   useLayoutEffect,
@@ -35,6 +36,8 @@ import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 import { useReaderAnnotationActionMenu } from "./useReaderAnnotationActionMenu";
 import { useReaderAnnotationPanelActions } from "./useReaderAnnotationPanelActions";
 import { ReaderSidePanel } from "./ReaderSidePanel";
+import { useReaderPanelFocus } from "./useReaderPanelFocus";
+import { ReaderPanelFrameContext } from "./readerPanelFrameContext";
 
 const SORT_OPTIONS = [
   { label: "Book order", value: "book-order" },
@@ -84,7 +87,12 @@ export function ReaderAnnotationsPanel({
   const panelRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<ReaderAnnotationListHandle>(null);
-  const { closeDetails: closeExportDetails, detailsRef: exportMenuRef } = useDismissibleDetails();
+  const focusInitialTarget = useReaderPanelFocus();
+  const returningFromNoteRef = useRef(false);
+  const frame = useContext(ReaderPanelFrameContext);
+  const { closeDetails: closeExportDetails, detailsRef: exportMenuRef } = useDismissibleDetails(
+    frame?.actionsHost,
+  );
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [sort, setSort] = useState<ReaderAnnotationSort>("book-order");
@@ -136,7 +144,17 @@ export function ReaderAnnotationsPanel({
   });
 
   useLayoutEffect(() => {
-    if (!active || !restoreFocusOnOpen) return;
+    if (!active) {
+      returningFromNoteRef.current = true;
+      return;
+    }
+    if (!restoreFocusOnOpen) return;
+    if (panelRef.current?.querySelector("header")?.contains(document.activeElement)) return;
+    if (!returningFromNoteRef.current && !restoreFocusAnnotationId) {
+      focusInitialTarget(searchRef.current ?? panelRef.current);
+      return;
+    }
+    returningFromNoteRef.current = false;
     const focusedRow = restoreFocusAnnotationId
       ? listRef.current?.focusActionTrigger(restoreFocusAnnotationId)
       : false;
@@ -145,10 +163,14 @@ export function ReaderAnnotationsPanel({
         preventScroll: true,
       });
     }
-  }, [active, restoreFocusAnnotationId, restoreFocusOnOpen]);
+  }, [active, focusInitialTarget, restoreFocusAnnotationId, restoreFocusOnOpen]);
 
   function dismissNestedSurface(restoreFocus = true) {
-    if (actions.editing) {
+    // Native details toggle events are deferred. Honor an open menu even before registration settles.
+    if (exportMenuRef.current?.open) {
+      closeExportDetails({ restoreFocus });
+      return true;
+    } else if (actions.editing) {
       actions.cancelBookmarkRename(actions.editing.annotationId, { restoreFocus });
       return true;
     } else if (actions.pendingRemovalId) {
@@ -188,6 +210,7 @@ export function ReaderAnnotationsPanel({
   return (
     <ReaderSidePanel
       accessibleLabel="Annotations"
+      ariaBusy={loadStatus === "loading"}
       className="reader-annotations"
       closeLabel="Close annotations"
       eyebrow="Reading"

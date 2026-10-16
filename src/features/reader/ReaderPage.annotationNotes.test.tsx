@@ -53,6 +53,7 @@ const seriesControl = vi.hoisted(() => ({
 
 const navigationControl = vi.hoisted(() => ({
   onNavigate: undefined as ((chapterId: string) => Promise<boolean>) | undefined,
+  onModuleReload: undefined as (() => void) | undefined,
 }));
 
 vi.mock("./EpubViewer", async () => {
@@ -119,8 +120,11 @@ vi.mock("./LazyReaderNavigationPanel", async () => {
   const React = await import("react");
   const { ReaderNavigationPanel } = await import("./ReaderNavigationPanel");
   return {
-    LazyReaderNavigationPanel: (props: ComponentProps<typeof ReaderNavigationPanel>) => {
+    LazyReaderNavigationPanel: (
+      props: ComponentProps<typeof ReaderNavigationPanel> & { onModuleReload: () => void },
+    ) => {
       navigationControl.onNavigate = props.onNavigate;
+      navigationControl.onModuleReload = props.onModuleReload;
       return React.createElement(ReaderNavigationPanel, props);
     },
   };
@@ -488,6 +492,7 @@ async function waitForRoute(
 beforeEach(() => {
   seriesControl.nextVolume = undefined;
   navigationControl.onNavigate = undefined;
+  navigationControl.onModuleReload = undefined;
   viewerControl.paletteOpen = false;
   viewerControl.props = null;
   viewerControl.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
@@ -514,6 +519,46 @@ afterEach(() => {
 });
 
 describe("ReaderPage annotation notes", () => {
+  for (const succeeds of [true, false]) {
+    it(`module recovery ${succeeds ? "reloads after" : "stops at failed"} note settlement`, async () => {
+      const existing = highlight("module-reload");
+      const harness = createStorageHarness({ "book-1": [existing] });
+      const save = deferred<Annotation | undefined>();
+      harness.updateAnnotation.mockImplementationOnce(() => save.promise);
+      const reload = vi.spyOn(window.location, "reload").mockImplementation(() => undefined);
+      await renderReader(harness);
+      act(() => button("Book navigation").click());
+      await waitForElement('aside[aria-label="Book navigation"]');
+      const requestReload = navigationControl.onModuleReload!;
+      const editor = await openNote(
+        { cfiRange: existing.cfiRange, selectedText: existing.selectedText },
+        existing,
+      );
+      setTextareaValue(editor, "Save before module reload");
+      act(() => requestReload());
+      await flush();
+      expect(harness.updateAnnotation).toHaveBeenCalledOnce();
+      expect(reload).not.toHaveBeenCalled();
+      expect(viewerControl.teardown).not.toHaveBeenCalled();
+      await act(async () => {
+        if (succeeds) save.resolve({ ...existing, note: "Save before module reload" });
+        else save.reject(new Error("disk unavailable"));
+      });
+      for (let attempt = 0; attempt < 10; attempt++) await flush();
+      if (succeeds) {
+        expect(reload).toHaveBeenCalledOnce();
+        expect(viewerControl.teardown).toHaveBeenCalledOnce();
+        expect(viewerControl.teardown.mock.invocationCallOrder[0]).toBeLessThan(
+          reload.mock.invocationCallOrder[0],
+        );
+      } else {
+        expect(reload).not.toHaveBeenCalled();
+        expect(viewerControl.teardown).not.toHaveBeenCalled();
+        expect(textarea(editor).value).toBe("Save before module reload");
+      }
+    });
+  }
+
   it("recolors a detached panel highlight while keeping it detached and unrendered", async () => {
     const detached = highlight("detached-recolor", {
       anchorStatus: "detached",
@@ -989,11 +1034,15 @@ describe("ReaderPage annotation notes", () => {
     );
     setTextareaValue(editor, "Cannot settle yet");
 
-    act(() => button("Reader settings").click());
+    act(() => {
+      button("Reader settings").focus();
+      button("Reader settings").click();
+    });
     await flush();
 
     expect(container?.querySelector(".reader-note-editor")).toBe(editor);
     expect(editor.querySelector('[role="status"]')?.textContent).toContain("Not saved");
+    expect(document.activeElement).toBe(textarea(editor));
     expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
 
     act(() => button("Back to annotations").click());
@@ -1298,6 +1347,36 @@ describe("ReaderPage annotation notes", () => {
     await act(async () => pendingDelete.resolve({ ...existing, note: undefined }));
     await waitForRoute(router, "/");
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the newer panel open when an earlier chapter navigation finishes", async () => {
+    const harness = createStorageHarness();
+    const destination = deferred<boolean>();
+    viewerControl.navigateToNavigationItem.mockReturnValueOnce(destination.promise);
+    await renderReader(harness);
+    act(() =>
+      viewerControl.props?.onNavigationChange?.({
+        chapters: [
+          { depth: 0, href: "first.xhtml", id: "first", label: "First chapter" },
+          { depth: 0, href: "second.xhtml", id: "second", label: "Second chapter" },
+        ],
+        currentChapterId: "first",
+        landmarks: [],
+        pageReferences: [],
+        status: "ready",
+      }),
+    );
+    act(() => button("Book navigation").click());
+    await waitForElement('aside[aria-label="Book navigation"]');
+    await act(async () => button("Second chapter").click());
+    expect(viewerControl.navigateToNavigationItem).toHaveBeenCalledWith("second");
+    act(() => button("Reader settings").click());
+    await waitForElement('aside[aria-label="Reader settings"]');
+    await act(async () => destination.resolve(true));
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeInstanceOf(
+      HTMLElement,
+    );
+    expect(button("Reader settings").getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps navigation, settings, and annotation surfaces mutually exclusive", async () => {

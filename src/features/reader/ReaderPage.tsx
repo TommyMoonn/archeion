@@ -77,7 +77,7 @@ import {
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 import { useReaderToolbarVisibility } from "./useReaderToolbarVisibility";
-import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
+import { ReaderSideDrawer } from "./ReaderSideDrawer";
 import { ReaderSideSurfaceDismissContext } from "./readerSideSurfaceDismissal";
 import {
   readerNoteTargetAnnotationId,
@@ -94,6 +94,7 @@ import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
 import { readerModeForPublication } from "./readerSettingsCapabilities";
 import { createReaderPresentationController } from "./readerPresentationController";
+import { useReaderPanelPrewarm } from "./useReaderPanelPrewarm";
 
 const INITIAL_PUBLICATION_SEARCH_STATE: ReaderPublicationSearchControllerState = Object.freeze({
   error: null,
@@ -177,6 +178,10 @@ export function ReaderPage() {
   const readerSessionLifecycle = readerSessionSnapshot.lifecycle;
   const readerSessionFailure = readerSessionSnapshot.failure;
   const readerSessionIdentity = readerSessionLifecycle.identity;
+  useReaderPanelPrewarm(
+    readerReady && readerSessionLifecycle.phase === "ready",
+    readerSessionIdentity,
+  );
   const publicationMode = readerModeForPublication(
     settings.mode,
     readerSessionSnapshot.publicationLayoutCapability,
@@ -417,6 +422,10 @@ export function ReaderPage() {
     updateNoteTarget,
   } = sideSurfaces;
   const leaveReader = controlledTransitions.leaveReader;
+  const reloadReader = useCallback(() => {
+    // A rejected chunk can remain cached for this document. Retire through the normal exit owner.
+    void leaveReader(() => window.location.reload());
+  }, [leaveReader]);
   const runControlledReaderTransition = controlledTransitions.runControlledTransition;
 
   const navigateHistoryBack = useCallback(
@@ -519,11 +528,12 @@ export function ReaderPage() {
   }, [openSearch, searchOpen]);
 
   useLayoutEffect(() => {
-    if (searchSurfaceWasOpenRef.current && !searchOpen) {
+    if (searchOpen) searchSurfaceWasOpenRef.current = true;
+    if (searchSurfaceWasOpenRef.current && sideSurface === null) {
       viewerRef.current?.closePublicationSearch();
+      searchSurfaceWasOpenRef.current = false;
     }
-    searchSurfaceWasOpenRef.current = searchOpen;
-  }, [searchOpen]);
+  }, [searchOpen, sideSurface]);
 
   const setReaderSearchQuery = useCallback((query: string) => {
     viewerRef.current?.setPublicationSearchQuery(query);
@@ -1067,6 +1077,7 @@ export function ReaderPage() {
             searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
             searchButtonRef={searchButtonRef}
             searchOpen={searchOpen}
+            settingsOpen={settingsOpen}
             annotationsAriaKeyShortcuts={ariaKeyShortcut(
               getCommandBinding(commandDefinitions.readerAnnotations.id),
             )}
@@ -1122,6 +1133,7 @@ export function ReaderPage() {
             fileLease={fileLease}
             highlights={highlights.highlights}
             initialCfi={progressController?.getInitialCfi()}
+            interactionBlocked={sideSurface !== null}
             onError={handleViewerError}
             onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
             onHighlightInteractionClear={highlights.clearInteractionFeedback}
@@ -1190,84 +1202,95 @@ export function ReaderPage() {
           <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
         ) : null}
 
-        {sideSurface ? (
-          <ReaderSideSurfaceLayer onDismiss={closeTopmost}>
-            {annotationsOpen ? (
-              <>
-                <LazyReaderAnnotationsPanel
-                  active={!noteTarget}
-                  annotations={annotations.annotations}
-                  currentAnnotationId={currentAnnotationId}
-                  currentCfi={location.cfi}
-                  loadStatus={annotations.loadStatus}
-                  navigation={navigationState}
-                  onClose={closeAnnotations}
-                  onEditNote={openAnnotationNote}
-                  onExport={exportCurrentAnnotations}
-                  onNavigate={navigateToAnnotation}
-                  onRecover={recoverAnnotationAnchor}
-                  onRecolorHighlight={highlights.recolor}
-                  onReload={annotations.reload}
-                  onRemove={removeAnnotation}
-                  onUpdateBookmarkLabel={annotations.updateLabel}
-                  restoreFocusAnnotationId={annotationFocusTargetId}
-                  restoreFocusOnOpen={restoreAnnotationsFocus}
-                />
-                {noteTarget && noteEditorStateFor(noteTarget) ? (
-                  <ReaderNoteEditor
-                    keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
-                    key={noteTarget.editorKey}
-                    onBack={(restoreFocus) => void closeNote(noteTarget, restoreFocus)}
-                    onDelete={() => void discardNote(noteTarget)}
-                    onDraftChange={(note) => editNoteDraft(noteTarget, note)}
-                    onRetry={() => void saveNote(noteTarget)}
-                    onUnmount={() => handleNoteEditorUnmount(noteTarget)}
-                    state={noteEditorStateFor(noteTarget)!}
+        <ReaderSideDrawer
+          key={activeArchiveId}
+          open={sideSurface !== null}
+          onDismiss={closeTopmost}
+        >
+          {sideSurface ? (
+            <>
+              {annotationsOpen ? (
+                <>
+                  <LazyReaderAnnotationsPanel
+                    onModuleReload={reloadReader}
+                    active={!noteTarget}
+                    annotations={annotations.annotations}
+                    currentAnnotationId={currentAnnotationId}
+                    currentCfi={location.cfi}
+                    loadStatus={annotations.loadStatus}
+                    navigation={navigationState}
+                    onClose={closeAnnotations}
+                    onEditNote={openAnnotationNote}
+                    onExport={exportCurrentAnnotations}
+                    onNavigate={navigateToAnnotation}
+                    onRecover={recoverAnnotationAnchor}
+                    onRecolorHighlight={highlights.recolor}
+                    onReload={annotations.reload}
+                    onRemove={removeAnnotation}
+                    onUpdateBookmarkLabel={annotations.updateLabel}
+                    restoreFocusAnnotationId={annotationFocusTargetId}
+                    restoreFocusOnOpen={restoreAnnotationsFocus}
                   />
-                ) : null}
-              </>
-            ) : null}
+                  {noteTarget && noteEditorStateFor(noteTarget) ? (
+                    <ReaderNoteEditor
+                      keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
+                      key={noteTarget.editorKey}
+                      onBack={(restoreFocus) => void closeNote(noteTarget, restoreFocus)}
+                      onDelete={() => void discardNote(noteTarget)}
+                      onDraftChange={(note) => editNoteDraft(noteTarget, note)}
+                      onRetry={() => void saveNote(noteTarget)}
+                      onUnmount={() => handleNoteEditorUnmount(noteTarget)}
+                      state={noteEditorStateFor(noteTarget)!}
+                    />
+                  ) : null}
+                </>
+              ) : null}
 
-            {searchOpen ? (
-              <LazyReaderSearchPanel
-                inputRef={readerSearchInputRef}
-                onActivateResult={navigateToSearchResult}
-                onClose={closeSearch}
-                onNextResult={navigateToNextSearchResult}
-                onPreviousResult={navigateToPreviousSearchResult}
-                onQueryChange={setReaderSearchQuery}
-                state={publicationSearchState}
-              />
-            ) : null}
+              {searchOpen ? (
+                <LazyReaderSearchPanel
+                  onModuleReload={reloadReader}
+                  inputRef={readerSearchInputRef}
+                  onActivateResult={navigateToSearchResult}
+                  onClose={closeSearch}
+                  onNextResult={navigateToNextSearchResult}
+                  onPreviousResult={navigateToPreviousSearchResult}
+                  onQueryChange={setReaderSearchQuery}
+                  state={publicationSearchState}
+                />
+              ) : null}
 
-            {navigationOpen ? (
-              <LazyReaderNavigationPanel
-                navigation={navigationState}
-                onClose={closeNavigation}
-                onNavigate={navigateToNavigationItem}
-              />
-            ) : null}
+              {navigationOpen ? (
+                <LazyReaderNavigationPanel
+                  onModuleReload={reloadReader}
+                  navigation={navigationState}
+                  onClose={closeNavigation}
+                  onNavigate={navigateToNavigationItem}
+                />
+              ) : null}
 
-            {settingsOpen ? (
-              <ReaderSettingsPanel
-                presentation={bookPresentation.presentation}
-                presentationStatus={bookPresentation.status}
-                onPresentationCommit={(selection) => void presentationController.commit(selection)}
-                onPresentationRetry={() => void presentationController.retry()}
-                layoutCapability={readerSessionSnapshot.publicationLayoutCapability}
-                onClose={closeSettings}
-                onReaderThemeCommit={changeReaderTheme}
-                onReaderThemeOpen={() => void themeCatalog.refresh()}
-                onSettingsCommit={changeSettings}
-                persistenceFailed={settingsPersistenceFailed}
-                readerThemeCatalogError={themeCatalog.error}
-                readerThemeEntries={themeCatalog.entries}
-                readerThemeSelection={readerThemeSelection}
-                settings={settings}
-              />
-            ) : null}
-          </ReaderSideSurfaceLayer>
-        ) : null}
+              {settingsOpen ? (
+                <ReaderSettingsPanel
+                  presentation={bookPresentation.presentation}
+                  presentationStatus={bookPresentation.status}
+                  onPresentationCommit={(selection) =>
+                    void presentationController.commit(selection)
+                  }
+                  onPresentationRetry={() => void presentationController.retry()}
+                  layoutCapability={readerSessionSnapshot.publicationLayoutCapability}
+                  onClose={closeSettings}
+                  onReaderThemeCommit={changeReaderTheme}
+                  onReaderThemeOpen={() => void themeCatalog.refresh()}
+                  onSettingsCommit={changeSettings}
+                  persistenceFailed={settingsPersistenceFailed}
+                  readerThemeCatalogError={themeCatalog.error}
+                  readerThemeEntries={themeCatalog.entries}
+                  readerThemeSelection={readerThemeSelection}
+                  settings={settings}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </ReaderSideDrawer>
       </ReaderSideSurfaceDismissContext.Provider>
     </main>
   );

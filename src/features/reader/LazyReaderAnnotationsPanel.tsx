@@ -1,5 +1,3 @@
-import { lazy, Suspense } from "react";
-
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import type { ReaderHighlightColor } from "./readerHighlights";
@@ -7,13 +5,8 @@ import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
 import type { ReaderAnnotationExportResult } from "./readerAnnotationExportFile";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderAnnotationLoadStatus } from "./useReaderAnnotations";
-import { ReaderAnnotationsLoadingShell } from "./ReaderPanelLoadingShells";
-
-const ReaderAnnotationsPanel = lazy(() =>
-  import("./ReaderAnnotationsPanel").then((module) => ({
-    default: module.ReaderAnnotationsPanel,
-  })),
-);
+import { ReaderPanelFrame } from "./ReaderPanelLoadingShells";
+import { annotationsPanelModule } from "./readerPanelModules";
 
 type LazyReaderAnnotationsPanelProps = {
   active?: boolean;
@@ -23,6 +16,7 @@ type LazyReaderAnnotationsPanelProps = {
   loadStatus: ReaderAnnotationLoadStatus;
   navigation: ReaderNavigationState;
   onClose: () => void;
+  onModuleReload: () => void;
   onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
   onExport: (format: ReaderAnnotationExportFormat) => Promise<ReaderAnnotationExportResult>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
@@ -36,11 +30,22 @@ type LazyReaderAnnotationsPanelProps = {
 };
 
 export function LazyReaderAnnotationsPanel(props: LazyReaderAnnotationsPanelProps) {
+  const { Component, status } = annotationsPanelModule.useModule();
+  const readiness =
+    status !== "ready"
+      ? status
+      : props.loadStatus === "ready" && props.annotations.length === 0
+        ? "empty"
+        : props.loadStatus;
   return (
-    <Suspense
-      fallback={<ReaderAnnotationsLoadingShell active={props.active} onClose={props.onClose} />}
+    <ReaderPanelFrame
+      kind="annotations"
+      active={props.active}
+      onClose={props.onClose}
+      readiness={readiness}
+      onModuleReload={status === "error" ? props.onModuleReload : undefined}
     >
-      <ReaderAnnotationsPanel {...props} />
-    </Suspense>
+      {Component ? <Component {...props} /> : null}
+    </ReaderPanelFrame>
   );
 }

@@ -1266,6 +1266,31 @@ describe("ReaderPage Quick Actions", () => {
     expect(viewerMock.closePublicationSearch).toHaveBeenCalledTimes(1);
   });
 
+  it("retains publication search across panel switches and retires it when the drawer closes", async () => {
+    const rendered = await renderReader();
+    const search = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Find in book"]',
+    )!;
+    const appearance = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reader settings"]',
+    )!;
+    await act(async () => search.click());
+    publishPublicationSearch({ ...viewerMock.publicationSearchState, query: "Retained query" });
+    await act(async () => appearance.click());
+    expect(viewerMock.closePublicationSearch).not.toHaveBeenCalled();
+    await act(async () => search.click());
+    expect(rendered.container.querySelector<HTMLInputElement>(".reader-search input")?.value).toBe(
+      "Retained query",
+    );
+    await act(async () => appearance.click());
+    await act(async () =>
+      rendered.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Close reader settings"]')!
+        .click(),
+    );
+    expect(viewerMock.closePublicationSearch).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps Reader controls visible after Find in Book closes and idle time passes", async () => {
     const rendered = await renderReader();
     const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;

@@ -97,6 +97,13 @@ export function useReaderSideSurface<NoteTarget>({
       const request = beginTransition();
       const activeState = stateRef.current;
       const activeNote = activeState.kind === "annotations" ? activeState.noteTarget : undefined;
+      const intentFocus =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const noteFocus = activeNote
+        ? activeTransientSurfaceElement()?.querySelector<HTMLElement>(
+            ".reader-note-editor textarea",
+          )
+        : null;
 
       const applyTransition = () => {
         if (!ownsTransition(request)) return;
@@ -155,7 +162,13 @@ export function useReaderSideSurface<NoteTarget>({
       };
 
       if (activeNote) {
-        void runAfterSettlement(applyTransition, () => ownsTransition(request));
+        void runAfterSettlement(applyTransition, () => ownsTransition(request)).then((settled) => {
+          if (settled || !noteFocus) return;
+          focusElementIfRestorationOwned(noteFocus, {
+            invalidatedOrigin: intentFocus,
+            requestIsCurrent: () => ownsTransition(request) && stateRef.current === activeState,
+          });
+        });
       } else {
         applyTransition();
       }

@@ -269,6 +269,7 @@ declare global {
       work: () => ReturnType<ReturnType<typeof probeReaderWork>["snapshot"]> | null;
       persistence: () => { writes: typeof progressWrites; flushes: number; cfi?: string };
       keys: () => number;
+      setInteractionBlocked: (blocked: boolean) => void;
       note: () => string | null;
       passage: typeof passage;
       passageAt: typeof passageAt;
@@ -373,6 +374,10 @@ window.readerInteractions = {
     cfi: progress?.getLocation().cfi,
   }),
   keys: () => keys,
+  setInteractionBlocked: (blocked) => {
+    props = { ...props, interactionBlocked: blocked };
+    render();
+  },
   note: () => note,
   holdDictionary: () => {
     holdLookup = true;

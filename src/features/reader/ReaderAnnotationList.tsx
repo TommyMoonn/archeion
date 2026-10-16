@@ -10,6 +10,7 @@ import {
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { ReaderPanelSkeleton } from "./ReaderPanelLoadingShells";
 import type { Annotation, BookmarkAnnotation } from "../../types/annotation";
 import { formatMediumDate } from "../../utils/formatters";
 import type { ReaderAnnotationListModel } from "./readerAnnotationListModel";
@@ -132,7 +133,7 @@ export const ReaderAnnotationList = forwardRef<
       onKeyDown={handleRowKeyboardNavigation}
       ref={bodyRef}
     >
-      {loadStatus === "loading" ? <AnnotationLoadingState /> : null}
+      {loadStatus === "loading" ? <ReaderPanelSkeleton /> : null}
 
       {loadStatus === "error" ? (
         <div className="reader-annotations__load-error" data-tone="error" role="alert">
@@ -422,17 +423,6 @@ function AnnotationEmptyState({ children, label }: { children: string; label: st
       <NotebookPen aria-hidden="true" size={28} strokeWidth={1.5} />
       <p>{label}</p>
       <span>{children}</span>
-    </div>
-  );
-}
-
-function AnnotationLoadingState() {
-  return (
-    <div aria-label="Loading annotations" className="reader-panel-loading" role="status">
-      <span />
-      <span />
-      <span />
-      <span />
     </div>
   );
 }

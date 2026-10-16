@@ -7,6 +7,7 @@ import { Input } from "../../components/Input";
 import type { ReaderPublicationSearchResult } from "./readerPublicationSearch";
 import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
 import { ReaderSidePanel } from "./ReaderSidePanel";
+import { useReaderPanelFocus } from "./useReaderPanelFocus";
 
 type ReaderSearchPanelProps = {
   inputRef?: RefObject<HTMLInputElement | null>;
@@ -32,12 +33,11 @@ export function ReaderSearchPanel({
   const resultsViewportRef = useRef<HTMLDivElement>(null);
   const queryInputRef = inputRef ?? localInputRef;
   const hasResults = state.status === "ready" && state.results.length > 0;
+  const focusInitialTarget = useReaderPanelFocus();
 
   useLayoutEffect(() => {
-    (inputRef?.current ?? localInputRef.current ?? panelRef.current)?.focus({
-      preventScroll: true,
-    });
-  }, [inputRef]);
+    focusInitialTarget(queryInputRef.current ?? panelRef.current);
+  }, [focusInitialTarget, queryInputRef]);
 
   useLayoutEffect(() => {
     const activeResultId = state.selectedResult?.id;
@@ -239,7 +239,7 @@ function SearchResultExcerpt({ result }: { result: ReaderPublicationSearchResult
 
 function SearchLoadingState() {
   return (
-    <div aria-label="Searching book" className="reader-search__loading" role="status">
+    <div aria-hidden="true" className="reader-search__loading">
       <span />
       <span />
       <span />

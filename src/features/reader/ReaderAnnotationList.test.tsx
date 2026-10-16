@@ -130,7 +130,7 @@ describe("ReaderAnnotationList", () => {
         {...defaultProps({ annotationCount: 0, loadStatus: "loading", model: model([]) })}
       />,
     );
-    expect(target.querySelector('[aria-label="Loading annotations"]')).not.toBeNull();
+    expect(target.querySelector(".reader-panel-loading")?.getAttribute("aria-hidden")).toBe("true");
 
     act(() =>
       root?.render(

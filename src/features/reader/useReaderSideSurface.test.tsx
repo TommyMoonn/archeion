@@ -141,6 +141,20 @@ afterEach(() => {
 });
 
 describe("useReaderSideSurface", () => {
+  it("does not restore focus to a collapsed toolbar trigger", async () => {
+    const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
+    await renderHarness(
+      createTransitions(async () => true),
+      apiRef,
+    );
+    act(() => apiRef.current?.openSearch());
+    const trigger = apiRef.current!.searchButtonRef.current!;
+    trigger.setAttribute("inert", "");
+    act(() => apiRef.current?.closeSearch());
+    flushAnimationFrames();
+    expect(text("surface")).toBe("closed");
+    expect(document.activeElement).not.toBe(trigger);
+  });
   it("keeps search, book navigation, settings, and annotations mutually exclusive", async () => {
     const transitions = createTransitions(async () => true);
     const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
