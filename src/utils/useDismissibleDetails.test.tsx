@@ -2,6 +2,7 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { createPortal } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { useDismissibleDetails } from "./useDismissibleDetails";
@@ -23,6 +24,41 @@ function DetailsHarness({ label = "Actions", open = true }: { label?: string; op
 }
 
 describe("useDismissibleDetails", () => {
+  it("attaches dismissal when a disclosure's portal host arrives after mount", () => {
+    const container = document.body.appendChild(document.createElement("div"));
+    const portal = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    function PortalledDetails({ host }: { host: HTMLElement | null }) {
+      const { detailsRef } = useDismissibleDetails(host);
+      return host
+        ? createPortal(
+            <details ref={detailsRef}>
+              <summary>Export</summary>
+              <button>Export JSON</button>
+            </details>,
+            host,
+          )
+        : null;
+    }
+    try {
+      act(() => root.render(<PortalledDetails host={null} />));
+      act(() => root.render(<PortalledDetails host={portal} />));
+      const details = portal.querySelector("details")!;
+      act(() => {
+        details.open = true;
+        details.dispatchEvent(new Event("toggle"));
+      });
+      act(() =>
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true })),
+      );
+      expect(details.open).toBe(false);
+      expect(document.activeElement).toBe(details.querySelector("summary"));
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+      portal.remove();
+    }
+  });
   it("leaves disclosure activation and button traversal to native semantics", () => {
     const container = document.createElement("div");
     document.body.append(container);

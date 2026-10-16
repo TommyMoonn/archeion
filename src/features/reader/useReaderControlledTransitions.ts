@@ -255,7 +255,7 @@ export function useReaderControlledTransitions({
         },
         () => ownsTransition(request),
       );
-      return settled && result;
+      return settled && ownsTransition(request) && result;
     },
     [beginTransition, ownsTransition, runAfterSettlement],
   );

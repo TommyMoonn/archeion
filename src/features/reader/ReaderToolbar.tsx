@@ -58,6 +58,7 @@ type ReaderToolbarProps = {
   navigationButtonRef?: Ref<HTMLButtonElement>;
   navigationOpen: boolean;
   searchOpen: boolean;
+  settingsOpen: boolean;
   annotationButtonRef?: Ref<HTMLButtonElement>;
 };
 
@@ -101,6 +102,7 @@ export function ReaderToolbar({
   navigationButtonRef,
   navigationOpen,
   searchOpen,
+  settingsOpen,
   annotationButtonRef,
 }: ReaderToolbarProps) {
   const positionLabel =
@@ -248,6 +250,8 @@ export function ReaderToolbar({
         <span className="reader-toolbar__divider" />
         <IconButton
           aria-keyshortcuts={settingsAriaKeyShortcuts}
+          aria-controls="reader-settings"
+          aria-expanded={settingsOpen}
           label="Reader settings"
           onClick={onSettings}
           ref={settingsButtonRef}

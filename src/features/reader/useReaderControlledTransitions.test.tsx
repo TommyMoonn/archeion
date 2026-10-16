@@ -135,6 +135,22 @@ afterEach(() => {
 });
 
 describe("useReaderControlledTransitions", () => {
+  it("does not publish navigation success after a newer panel intent supersedes the awaited action", async () => {
+    const navigation = deferred<boolean>();
+    const action = vi.fn(() => navigation.promise);
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
+    let result!: Promise<boolean>;
+    await act(async () => {
+      result = apiRef.current!.runControlledTransition(action);
+    });
+    expect(action).toHaveBeenCalledOnce();
+    act(() => {
+      apiRef.current!.beginTransition();
+    });
+    await act(async () => navigation.resolve(true));
+    await expect(result).resolves.toBe(false);
+  });
   it("treats opaque Reader identities for the same route as distinct transition owners", async () => {
     const identityA = createTestReaderIdentity("book-a");
     const identityB = createTestReaderIdentity("book-a");

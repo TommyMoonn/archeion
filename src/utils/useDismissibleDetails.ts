@@ -7,7 +7,8 @@ type CloseDetailsOptions = {
   restoreFocus?: boolean;
 };
 
-export function useDismissibleDetails() {
+/** Reattach when a deferred portal supplies the disclosure's DOM host. */
+export function useDismissibleDetails(portalHost?: HTMLElement | null) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -43,7 +44,7 @@ export function useDismissibleDetails() {
     return () => {
       details.removeEventListener("toggle", handleToggle);
     };
-  }, []);
+  }, [portalHost]);
 
   return { closeDetails, detailsRef };
 }

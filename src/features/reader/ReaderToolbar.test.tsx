@@ -57,6 +57,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
             progressSaveFailed={false}
             title="Book Title"
             searchOpen={false}
+            settingsOpen={false}
             navigationOpen={false}
             onAnnotations={vi.fn()}
             onToggleBookmark={vi.fn()}
@@ -82,6 +83,15 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe("ReaderToolbar", () => {
+  it.each([false, true])(
+    "exposes the Appearance drawer state when expanded is %s",
+    (settingsOpen) => {
+      const { container } = renderToolbar({ settingsOpen });
+      const trigger = button(container, "Reader settings");
+      expect(trigger.getAttribute("aria-expanded")).toBe(String(settingsOpen));
+      expect(trigger.getAttribute("aria-controls")).toBe("reader-settings");
+    },
+  );
   it.each([false, true])("keeps the bookmark name stable when pressed is %s", (bookmarkActive) => {
     const onToggleBookmark = vi.fn();
     const { container } = renderToolbar({ bookmarkActive, onToggleBookmark });

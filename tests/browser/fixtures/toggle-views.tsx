@@ -178,6 +178,7 @@ export function ReaderToggleFixture() {
     <TooltipProvider>
       <main className="reader-page" style={{ height: 700 }}>
         <ReaderToolbar
+          settingsOpen={false}
           hasChapterNavigation={false}
           historyBackDisabled
           historyForwardDisabled

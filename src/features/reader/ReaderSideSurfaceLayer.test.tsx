@@ -14,6 +14,8 @@ import {
   useReaderSideSurfaceDismiss,
 } from "./readerSideSurfaceDismissal";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
+import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
+import { ReaderDictionaryPopover } from "./ReaderDictionaryPopover";
 import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
 import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
@@ -94,7 +96,7 @@ it("releases closing-layer ownership and discards an unfinished backdrop gesture
 });
 
 type PriorityHarnessProps = Readonly<{
-  highest?: "external-link" | "illustration";
+  highest?: "external-link" | "illustration" | "footnote" | "dictionary-definition";
   onHigherDismiss: (restoreFocus?: boolean) => void;
   onLowerDismiss: (restoreFocus?: boolean) => void;
 }>;
@@ -131,6 +133,50 @@ function PriorityHarness({ highest, onHigherDismiss, onLowerDismiss }: PriorityH
       {highest === "illustration" ? (
         <ReaderIllustrationViewer loading onClose={onHigherDismiss} />
       ) : null}
+      {highest === "footnote" ? (
+        <ReaderFootnotePopover
+          anchorRect={{ bottom: 120, height: 20, left: 100, right: 140, top: 100, width: 40 }}
+          message="Original fixture note"
+          onAction={vi.fn()}
+          onDismiss={onHigherDismiss}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />
+      ) : null}
+      {highest === "dictionary-definition" ? (
+        <ReaderDictionaryPopover
+          anchor={{
+            document,
+            resolveRect: () => ({
+              bottom: 120,
+              height: 20,
+              left: 100,
+              right: 140,
+              top: 100,
+              width: 40,
+            }),
+          }}
+          initialAnchorRect={{
+            bottom: 120,
+            height: 20,
+            left: 100,
+            right: 140,
+            top: 100,
+            width: 40,
+          }}
+          onDismiss={() => onHigherDismiss(true)}
+          onRetry={vi.fn()}
+          state={{
+            error: null,
+            requestRevision: 1,
+            results: [],
+            selectedTerm: "fixture",
+            selectionOwner: null,
+            status: "no-results",
+            truncated: false,
+          }}
+          viewerRef={lowerTriggerRef}
+        />
+      ) : null}
     </>
   );
 }
@@ -142,6 +188,26 @@ function escape(): void {
 }
 
 describe("ReaderSideSurfaceLayer", () => {
+  it.each(["external-link", "illustration", "footnote", "dictionary-definition"] as const)(
+    "gives an outside gesture to %s without also closing the base panel",
+    (highest) => {
+      const onHigherDismiss = vi.fn();
+      const onLowerDismiss = vi.fn();
+      const { layer, onDismiss } = renderLayer(
+        <PriorityHarness
+          highest={highest}
+          onHigherDismiss={onHigherDismiss}
+          onLowerDismiss={onLowerDismiss}
+        />,
+      );
+      onLowerDismiss.mockClear();
+      pointer(layer, "pointerdown");
+      pointer(layer, "pointerup");
+      expect(onHigherDismiss).toHaveBeenCalledOnce();
+      expect(onLowerDismiss).not.toHaveBeenCalled();
+      expect(onDismiss).not.toHaveBeenCalled();
+    },
+  );
   it("dismisses only the highest-priority owned surface", () => {
     const controller = createReaderSideSurfaceDismissController();
     const dismissPalette = vi.fn(() => false);
@@ -188,7 +254,7 @@ describe("ReaderSideSurfaceLayer", () => {
     expect(dismissDictionary).toHaveBeenCalledWith(true);
   });
 
-  it.each(["external-link", "illustration"] as const)(
+  it.each(["external-link", "illustration", "footnote", "dictionary-definition"] as const)(
     "routes global Escape through Reader priority for %s",
     (highest) => {
       const onHigherDismiss = vi.fn();

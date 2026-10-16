@@ -593,13 +593,14 @@ html[data-motion="on"] .reader-panel-loading span {
 }
 
 .reader-side-drawer {
+  --reader-panel-width: 430px;
+
   position: absolute;
   inset-block: 0;
   inset-inline-end: 0;
   transform: translateX(0);
 }
 
-.reader-side-drawer:has(.reader-search, .reader-annotations),
 .reader-search,
 .reader-annotations {
   --reader-panel-width: 430px;
@@ -1441,7 +1442,7 @@ html[data-motion="on"] .reader-search__loading span {
   }
 }
 
-.reader-toolbar .icon-button[aria-pressed="true"] {
+.reader-toolbar .icon-button:is([aria-pressed="true"], [aria-expanded="true"]) {
   color: var(--reader-strong);
   background: color-mix(in srgb, var(--reader-focus) 14%, transparent);
 }

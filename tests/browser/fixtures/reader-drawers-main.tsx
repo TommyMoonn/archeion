@@ -29,6 +29,8 @@ const navigation: ReaderNavigationState = {
 const fontCatalog = createInstalledFontCatalog(async () => []);
 const ignore = () => undefined;
 const succeed = async () => true;
+const ownReaderInteraction = (owned: boolean) =>
+  window.readerInteractions.setInteractionBlocked(owned);
 const root = createRoot(document.getElementById("drawer-root")!);
 const originalResize = Rendition.prototype.resize;
 let resizeCalls = 0;
@@ -68,7 +70,7 @@ export function Drawers() {
   });
   const surfaces = useReaderSideSurface<never>({
     annotationId: () => "",
-    onVisibilityOwnershipChange: ignore,
+    onVisibilityOwnershipChange: ownReaderInteraction,
     transitions,
   });
   useLayoutEffect(() => {
@@ -91,16 +93,28 @@ export function Drawers() {
         }
       >
         <nav style={{ position: "absolute", top: 0, pointerEvents: "auto" }}>
-          <button ref={navigationButtonRef} onClick={api.toggleNavigation}>
+          <button
+            ref={navigationButtonRef}
+            onClick={api.toggleNavigation}
+            aria-expanded={api.navigationOpen}
+          >
             Navigation
           </button>
-          <button ref={searchButtonRef} onClick={api.toggleSearch}>
+          <button ref={searchButtonRef} onClick={api.toggleSearch} aria-expanded={api.searchOpen}>
             Search
           </button>
-          <button ref={annotationButtonRef} onClick={api.toggleAnnotations}>
+          <button
+            ref={annotationButtonRef}
+            onClick={api.toggleAnnotations}
+            aria-expanded={api.annotationsOpen}
+          >
             Annotations
           </button>
-          <button ref={settingsButtonRef} onClick={api.toggleSettings}>
+          <button
+            ref={settingsButtonRef}
+            onClick={api.toggleSettings}
+            aria-expanded={api.settingsOpen}
+          >
             Appearance
           </button>
         </nav>
@@ -200,6 +214,7 @@ window.readerDrawer = {
     }),
   dispose: () => {
     root.unmount();
+    ownReaderInteraction(false);
     Rendition.prototype.resize = originalResize;
   },
   resizeCalls: () => resizeCalls,

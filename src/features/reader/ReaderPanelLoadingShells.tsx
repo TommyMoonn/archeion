@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "../../components/Button";
 import { ReaderPanelFrameContext } from "./readerPanelFrameContext";
 import { ReaderSidePanel } from "./ReaderSidePanel";
+import { useReaderPanelFocus } from "./useReaderPanelFocus";
 
 type PanelKind = "navigation" | "search" | "annotations";
 export type ReaderPanelReadiness =
@@ -53,8 +54,16 @@ export function ReaderPanelFrame({
 }) {
   const panel = panels[kind];
   const panelRef = useRef<HTMLElement>(null);
+  const focusInitialTarget = useReaderPanelFocus();
   const [actionsHost, setActionsHost] = useState<HTMLSpanElement | null>(null);
-  const host = useMemo(() => ({ actionsHost, panelRef }), [actionsHost]);
+  const host = useMemo(
+    () => ({ actionsHost, panelRef, focusInitialTarget }),
+    [actionsHost, focusInitialTarget],
+  );
+  useLayoutEffect(() => {
+    if (active && !panelRef.current?.contains(document.activeElement))
+      focusInitialTarget(panelRef.current);
+  }, [active, focusInitialTarget]);
   const loading = readiness === "module-loading" || readiness === "loading";
   const loadingAnnouncement =
     loading && (kind !== "search" || readiness === "module-loading") ? panel.loading : "";

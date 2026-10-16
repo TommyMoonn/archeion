@@ -93,6 +93,7 @@ type EpubViewerProps = {
   fileLease: ReaderFileLease;
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
+  interactionBlocked?: boolean;
   publicationLayoutCapability: ReaderPublicationLayoutCapability | null;
   onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
   onHighlightInteractionClear?: () => void;
@@ -129,6 +130,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     fileLease,
     highlights = [],
     initialCfi,
+    interactionBlocked = false,
     publicationLayoutCapability,
     onError,
     onHighlightAnchorInvalid,
@@ -688,10 +690,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       data-reader-mode={publicationMode}
       data-reader-theme={readerTheme.base}
     >
-      <div ref={containerRef} className="epub-viewer__stage" />
+      <div ref={containerRef} className="epub-viewer__stage" inert={interactionBlocked} />
       {publicationMode === "paged" ? (
         <button
           aria-label="Previous page"
+          inert={interactionBlocked}
           className="epub-viewer__click-zone epub-viewer__click-zone--previous"
           onClick={() => handleClickZone("backward")}
           tabIndex={-1}
@@ -708,6 +711,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       {publicationMode === "paged" ? (
         <button
           aria-label="Next page"
+          inert={interactionBlocked}
           className="epub-viewer__click-zone epub-viewer__click-zone--next"
           onClick={() => handleClickZone("forward")}
           tabIndex={-1}
@@ -814,6 +818,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.fileLease === next.fileLease &&
     previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
+    previous.interactionBlocked === next.interactionBlocked &&
     previous.onError === next.onError &&
     previous.onHighlightAnchorInvalid === next.onHighlightAnchorInvalid &&
     previous.onHighlightInteractionClear === next.onHighlightInteractionClear &&

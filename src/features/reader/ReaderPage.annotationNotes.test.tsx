@@ -1034,11 +1034,15 @@ describe("ReaderPage annotation notes", () => {
     );
     setTextareaValue(editor, "Cannot settle yet");
 
-    act(() => button("Reader settings").click());
+    act(() => {
+      button("Reader settings").focus();
+      button("Reader settings").click();
+    });
     await flush();
 
     expect(container?.querySelector(".reader-note-editor")).toBe(editor);
     expect(editor.querySelector('[role="status"]')?.textContent).toContain("Not saved");
+    expect(document.activeElement).toBe(textarea(editor));
     expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
 
     act(() => button("Back to annotations").click());
@@ -1343,6 +1347,36 @@ describe("ReaderPage annotation notes", () => {
     await act(async () => pendingDelete.resolve({ ...existing, note: undefined }));
     await waitForRoute(router, "/");
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the newer panel open when an earlier chapter navigation finishes", async () => {
+    const harness = createStorageHarness();
+    const destination = deferred<boolean>();
+    viewerControl.navigateToNavigationItem.mockReturnValueOnce(destination.promise);
+    await renderReader(harness);
+    act(() =>
+      viewerControl.props?.onNavigationChange?.({
+        chapters: [
+          { depth: 0, href: "first.xhtml", id: "first", label: "First chapter" },
+          { depth: 0, href: "second.xhtml", id: "second", label: "Second chapter" },
+        ],
+        currentChapterId: "first",
+        landmarks: [],
+        pageReferences: [],
+        status: "ready",
+      }),
+    );
+    act(() => button("Book navigation").click());
+    await waitForElement('aside[aria-label="Book navigation"]');
+    await act(async () => button("Second chapter").click());
+    expect(viewerControl.navigateToNavigationItem).toHaveBeenCalledWith("second");
+    act(() => button("Reader settings").click());
+    await waitForElement('aside[aria-label="Reader settings"]');
+    await act(async () => destination.resolve(true));
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeInstanceOf(
+      HTMLElement,
+    );
+    expect(button("Reader settings").getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps navigation, settings, and annotation surfaces mutually exclusive", async () => {

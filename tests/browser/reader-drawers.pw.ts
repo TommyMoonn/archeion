@@ -134,9 +134,7 @@ for (const mode of ["continuous", "paged"] as const) {
             ),
           ).toBe(true);
           expect(entered.samples.every((sample) => sample.opacity === "1")).toBe(true);
-          expect(last.width).toBe(
-            width < 760 ? width - 18 : kind === "search" || kind === "annotations" ? 430 : 380,
-          );
+          expect(last.width).toBe(width < 760 ? width - 18 : 430);
           expect(entered.samples.at(-1)!.state).toBe("open");
           stableStage(entered);
           const exited = await motion(page, "close");

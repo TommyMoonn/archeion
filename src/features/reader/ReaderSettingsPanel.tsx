@@ -18,6 +18,7 @@ import { ReaderThemeSelect } from "../themes/ReaderThemeSelect";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 import type { ReaderPublicationLayoutCapability } from "./readerSession";
 import { readerControlCapabilities } from "./readerSettingsCapabilities";
+import { useReaderPanelFocus } from "./useReaderPanelFocus";
 
 type ReaderSettingsPanelProps = {
   fontCatalog?: InstalledFontCatalog;
@@ -99,10 +100,11 @@ export function ReaderSettingsPanel({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const capabilities = readerControlCapabilities(layoutCapability);
   const installedFonts = useInstalledFontFamilies(capabilities.contentAppearance, fontCatalog);
+  const focusInitialTarget = useReaderPanelFocus();
 
   useEffect(() => {
-    closeButtonRef.current?.focus({ preventScroll: true });
-  }, []);
+    focusInitialTarget(closeButtonRef.current);
+  }, [focusInitialTarget]);
 
   function update(changes: Partial<ReaderSettings>) {
     onSettingsCommit({ ...settings, ...changes });
@@ -115,6 +117,7 @@ export function ReaderSettingsPanel({
       closeButtonRef={closeButtonRef}
       closeLabel="Close reader settings"
       eyebrow="Reading"
+      id="reader-settings"
       onClose={onClose}
       ref={panelRef}
       title="Appearance"

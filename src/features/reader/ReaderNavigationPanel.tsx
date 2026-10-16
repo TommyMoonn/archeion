@@ -17,6 +17,7 @@ import {
 } from "./readerNavigation";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 import { ReaderPanelSkeleton } from "./ReaderPanelLoadingShells";
+import { useReaderPanelFocus } from "./useReaderPanelFocus";
 
 type ReaderNavigationCollection = "contents" | "landmarks" | "pages";
 
@@ -42,6 +43,7 @@ export function ReaderNavigationPanel({
   const bodyRef = useRef<HTMLDivElement>(null);
   const currentChapterRef = useRef<HTMLButtonElement>(null);
   const didFocusRef = useRef(false);
+  const focusInitialTarget = useReaderPanelFocus();
   const [contentsQuery, setContentsQuery] = useState("");
   const [pageQuery, setPageQuery] = useState("");
   const [navigatingId, setNavigatingId] = useState<string>();
@@ -72,14 +74,13 @@ export function ReaderNavigationPanel({
   useEffect(() => {
     if (navigation.status === "loading" || didFocusRef.current) return;
     didFocusRef.current = true;
-    if (panelRef.current?.contains(document.activeElement)) return;
     const focusTarget = showSearch
       ? searchRef.current
       : activeCollection === "contents"
         ? (currentChapterRef.current ?? panelRef.current)
         : panelRef.current;
-    focusTarget?.focus({ preventScroll: true });
-  }, [activeCollection, navigation.status, showSearch]);
+    focusInitialTarget(focusTarget);
+  }, [activeCollection, focusInitialTarget, navigation.status, showSearch]);
 
   useEffect(() => {
     if (activeCollection !== "contents" || !bodyRef.current || !currentChapterRef.current) {

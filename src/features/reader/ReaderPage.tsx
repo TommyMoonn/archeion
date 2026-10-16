@@ -528,11 +528,12 @@ export function ReaderPage() {
   }, [openSearch, searchOpen]);
 
   useLayoutEffect(() => {
-    if (searchSurfaceWasOpenRef.current && !searchOpen) {
+    if (searchOpen) searchSurfaceWasOpenRef.current = true;
+    if (searchSurfaceWasOpenRef.current && sideSurface === null) {
       viewerRef.current?.closePublicationSearch();
+      searchSurfaceWasOpenRef.current = false;
     }
-    searchSurfaceWasOpenRef.current = searchOpen;
-  }, [searchOpen]);
+  }, [searchOpen, sideSurface]);
 
   const setReaderSearchQuery = useCallback((query: string) => {
     viewerRef.current?.setPublicationSearchQuery(query);
@@ -1076,6 +1077,7 @@ export function ReaderPage() {
             searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
             searchButtonRef={searchButtonRef}
             searchOpen={searchOpen}
+            settingsOpen={settingsOpen}
             annotationsAriaKeyShortcuts={ariaKeyShortcut(
               getCommandBinding(commandDefinitions.readerAnnotations.id),
             )}
@@ -1131,6 +1133,7 @@ export function ReaderPage() {
             fileLease={fileLease}
             highlights={highlights.highlights}
             initialCfi={progressController?.getInitialCfi()}
+            interactionBlocked={sideSurface !== null}
             onError={handleViewerError}
             onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
             onHighlightInteractionClear={highlights.clearInteractionFeedback}
