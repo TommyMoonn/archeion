@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "version": "1.7.0",
+      "date": "2026-10-18",
+      "sourcePath": "release-notes/v1.7.0.md",
+      "changes": "- Continuous reading now scrolls through chapter boundaries in both directions, including books with a short opening section or a large cover.\n- Loading an earlier chapter or an image above your position no longer shifts the passage you are reading. Changing text size or resizing the window also keeps your place.\n- Archeion's default book layout uses unindented paragraphs with space between them, balanced text margins, and centered standalone illustrations that fit the reading area.\n- Choose Publisher under Book layout in Reader appearance controls to use a reflowable book's own paragraph spacing and layout. The choice is saved for that book, and your Reader font and theme still apply. Fixed-layout books keep their designed pages.\n- Reader side panels slide over the book without changing its size. Panels open immediately while content loads, and switching panels keeps keyboard focus predictable. Reduced-motion preferences are respected.\n- Chapters far from your position are unloaded during Continuous reading and restored when you return, along with their annotations."
+    },
+    {
       "version": "1.6.0",
       "date": "2026-10-09",
       "sourcePath": "release-notes/v1.6.0.md",
