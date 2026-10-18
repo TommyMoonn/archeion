@@ -114,4 +114,31 @@ describe("Reader seek map", () => {
     expect(readyState.resolvePercentage("epubcfi(/6/4!/4/2:0)")).toBeUndefined();
     expect(readyState.resolveChapterLabel("epubcfi(/6/4!/4/2:0)")).toBeUndefined();
   });
+
+  it.each(["resolve", "reject"] as const)(
+    "clears queued sections and drains an active generation on retirement: %s",
+    async (outcome) => {
+      let resolve!: (values: string[]) => void;
+      let reject!: (error: Error) => void;
+      const pending = new Promise<string[]>((accept, fail) => {
+        resolve = accept;
+        reject = fail;
+      });
+      const epubLocations = { ...locations(), q: { clear: vi.fn() } };
+      vi.mocked(epubLocations.generate).mockReturnValue(pending);
+      const seekMap = createReaderSeekMap(epubLocations, () => emptyReaderNavigationModel);
+      const changed = vi.fn();
+      seekMap.subscribe(changed);
+      const generation = seekMap.generate();
+      expect(seekMap.retire()).toBe(generation);
+      expect(seekMap.retire()).toBe(generation);
+      expect(epubLocations.q.clear).toHaveBeenCalledOnce();
+      if (outcome === "resolve") resolve(["epubcfi(/6/2!/4/2:0)"]);
+      else reject(new Error("retired source failed"));
+      await expect(generation).resolves.toBeUndefined();
+      expect(seekMap.retire()).toBeUndefined();
+      expect(changed).not.toHaveBeenCalled();
+      expect(seekMap.getState()).toEqual({ status: "pending" });
+    },
+  );
 });

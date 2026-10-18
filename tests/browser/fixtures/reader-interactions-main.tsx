@@ -21,6 +21,7 @@ import {
 import { probeReaderDocumentListeners } from "./reader-document-listener-probe";
 import { mountWheelOverlay } from "./reader-wheel-overlays";
 import { probeReaderWork } from "./reader-work-probe";
+import { probeReaderSectionLoads } from "./reader-section-load-probe";
 import {
   createReaderProgressController,
   type ReaderProgressController,
@@ -29,9 +30,13 @@ import type { UpdateBookInput } from "../../../src/types/book";
 import "../../../src/styles/index.css";
 
 const workProbe = new URLSearchParams(location.search).has("work") ? probeReaderWork() : null;
+const sectionLoadProbe = new URLSearchParams(location.search).has("sectionLoads")
+  ? probeReaderSectionLoads()
+  : null;
 const probe = probeReaderDocumentListeners();
 let progress: ReaderProgressController | null = null;
 const progressWrites: Array<{ bookId: string; changes: UpdateBookInput }> = [];
+const savedProgress = new Map<string, UpdateBookInput>();
 let progressFlushes = 0;
 dictionaryRegistryStore.publish({
   status: "ready",
@@ -179,6 +184,7 @@ async function open(
   nextMode = mode,
   archive = "archive-a",
   presentation: "archeion" | "publisher" = "archeion",
+  initialCfi?: string,
 ) {
   await progress?.teardown();
   closeOverlay?.();
@@ -199,30 +205,37 @@ async function open(
     load: async () => blob,
     requestKey: `${archive}:${id}:${sequence++}`,
   });
-  const identity = createReaderSessionController(`${archive}:${id}:${sequence}`).getSnapshot()
-    .lifecycle.identity!;
+  const identity = createReaderSessionController(`${archive}:${id}`).getSnapshot().lifecycle
+    .identity!;
   const theme = resolveBuiltInReaderTheme("dark");
   const settings = { ...defaultReaderSettings, mode };
+  const saved = savedProgress.get(identity.bookId);
   const ownedProgress = workProbe
     ? createReaderProgressController({
-        book: { id: identity.bookId },
+        book: {
+          id: identity.bookId,
+          progressCfi: initialCfi ?? saved?.progressCfi,
+          progressPercent: saved?.progressPercent,
+        },
         identity,
         onPersistenceFailureChange: () => undefined,
         persistence: {
           updateBook: async (bookId, changes) => {
             progressWrites.push({ bookId, changes });
+            savedProgress.set(bookId, { ...savedProgress.get(bookId), ...changes });
             return undefined;
           },
           flushPendingWrites: async () => {
             progressFlushes++;
           },
         },
-        startFromBeginning: true,
+        startFromBeginning: false,
       })
     : null;
   progress = ownedProgress;
   highlights = [];
   props = {
+    initialCfi: ownedProgress?.getInitialCfi() ?? initialCfi,
     presentation,
     contentTheme: createReaderContentTheme(settings, theme.tokens),
     fileLease: lease,
@@ -255,6 +268,7 @@ declare global {
   interface Window {
     readerInteractions: {
       open: typeof open;
+      sectionLoads: typeof sectionLoadProbe;
       ready: () => boolean;
       errors: () => string[];
       navigate: (target: string) => Promise<boolean>;
@@ -267,7 +281,13 @@ declare global {
       followSearch: (id: string) => Promise<boolean>;
       metrics: () => ReturnType<typeof probe.snapshot>;
       work: () => ReturnType<ReturnType<typeof probeReaderWork>["snapshot"]> | null;
-      persistence: () => { writes: typeof progressWrites; flushes: number; cfi?: string };
+      persistence: () => {
+        writes: typeof progressWrites;
+        flushes: number;
+        cfi?: string;
+        bookId: string;
+        saved: Record<string, UpdateBookInput>;
+      };
       keys: () => number;
       setInteractionBlocked: (blocked: boolean) => void;
       note: () => string | null;
@@ -276,6 +296,10 @@ declare global {
       relocations: () => number;
       location: () => string | null;
       history: () => ReturnType<EpubViewerHandle["getNavigationHistorySnapshot"]>;
+      back: () => Promise<boolean>;
+      forward: () => Promise<boolean>;
+      nextSearch: () => Promise<boolean>;
+      previousSearch: () => Promise<boolean>;
       settings: (patch: Partial<ReaderSettings>) => void;
       presentation: (selection: "archeion" | "publisher") => void;
       palette: (selection: "light" | "dark" | "sepia") => void;
@@ -289,6 +313,7 @@ declare global {
 }
 window.readerInteractions = {
   open,
+  sectionLoads: sectionLoadProbe,
   passage,
   passageAt,
   relocations: () => relocations,
@@ -302,6 +327,10 @@ window.readerInteractions = {
     closeOverlay = undefined;
   },
   history: () => viewer.current!.getNavigationHistorySnapshot(),
+  back: () => viewer.current!.navigateBack(),
+  forward: () => viewer.current!.navigateForward(),
+  nextSearch: () => viewer.current!.nextPublicationSearchResult(),
+  previousSearch: () => viewer.current!.previousPublicationSearchResult(),
   settings: (patch) => {
     const settings = { ...props.settings, ...patch };
     props = {
@@ -372,6 +401,8 @@ window.readerInteractions = {
     writes: [...progressWrites],
     flushes: progressFlushes,
     cfi: progress?.getLocation().cfi,
+    bookId: props.sessionIdentity.bookId,
+    saved: Object.fromEntries([...savedProgress].map(([id, saved]) => [id, { ...saved }])),
   }),
   keys: () => keys,
   setInteractionBlocked: (blocked) => {

@@ -7,17 +7,23 @@ async function settle(page: Page) {
   await expect
     .poll(
       async () => {
-        const value = await page.evaluate(() =>
-          JSON.stringify([
-            window.readerInteractions.location(),
-            ...[...document.querySelectorAll<HTMLIFrameElement>(".epub-container iframe")].map(
-              (frame) => [
-                frame.getBoundingClientRect().toJSON(),
-                frame.contentDocument?.body.getBoundingClientRect().toJSON(),
-              ],
-            ),
-          ]),
-        );
+        const value = await page.evaluate(() => {
+          const geometry = [
+            ...document.querySelectorAll<HTMLIFrameElement>(".epub-container iframe"),
+          ].map((frame) => {
+            const body = frame.contentDocument?.body;
+            return body
+              ? [frame.getBoundingClientRect().toJSON(), body.getBoundingClientRect().toJSON()]
+              : null;
+          });
+          if (!geometry.length || geometry.includes(null)) return null;
+          return JSON.stringify([window.readerInteractions.location(), ...geometry]);
+        });
+        if (value === null) {
+          previous = "";
+          stable = 0;
+          return stable;
+        }
         stable = value === previous ? stable + 1 : 0;
         previous = value;
         return stable;
@@ -112,6 +118,56 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/*", (route) =>
     new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.abort(),
   );
+});
+
+test("geometry settlement waits for an iframe body before counting stable samples", async ({
+  page,
+}) => {
+  await page.setContent('<div class="epub-container"><iframe></iframe></div>');
+  const heldBody = await page.evaluateHandle(() => {
+    Object.defineProperty(window, "readerInteractions", { value: { location: () => null } });
+    const frame = document.querySelector("iframe")!;
+    const doc = frame.contentDocument!;
+    const body = doc.body;
+    const readBody = Object.getOwnPropertyDescriptor(Document.prototype, "body")!.get!;
+    let reads = 0;
+    doc.documentElement.removeChild(body);
+    Object.defineProperty(doc, "body", {
+      configurable: true,
+      get() {
+        frame.dataset.bodyReads = String(++reads);
+        return readBody.call(doc);
+      },
+    });
+    return body;
+  });
+  let completed = false;
+  const settlement = settle(page).then(
+    () => {
+      completed = true;
+      return { error: null };
+    },
+    (error: unknown) => {
+      completed = true;
+      return { error };
+    },
+  );
+  await expect
+    .poll(async () => {
+      const reads = Number(await page.locator("iframe").getAttribute("data-body-reads"));
+      return completed || reads >= 5;
+    })
+    .toBe(true);
+  if (completed) {
+    const result = await settlement;
+    if (result.error) throw result.error;
+  }
+  expect(completed).toBe(false);
+  await heldBody.evaluate((body) => {
+    body.ownerDocument.documentElement.append(body);
+    Reflect.deleteProperty(body.ownerDocument, "body");
+  });
+  expect((await settlement).error).toBeNull();
 });
 
 for (const mode of ["continuous", "paged"] as const) {

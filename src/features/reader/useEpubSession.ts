@@ -580,7 +580,7 @@ export function useEpubSession({
         }
         deliberateNavigation.unbindDisplay(session);
         session.publicationSearch.retire();
-        session.seekMap.retire();
+        const pendingSeekGeneration = session.seekMap.retire();
         owner.unsubscribeSeekMap();
         owner.unsubscribeSeekMap = () => undefined;
         if (wasCurrent) notifySeekMap();
@@ -597,7 +597,17 @@ export function useEpubSession({
         }
         documentSessions.retire(sessionDocuments);
         bridgeRef.current?.onSessionEnding(endingReason);
-        destroyBookOnce();
+        if (pendingSeekGeneration) {
+          // Retire visible views now, but keep section hooks/source alive until
+          // the seek map's active load drains. Book.destroy owns the remaining
+          // resources; release its rendition reference to avoid a second destroy.
+          const renditionOwner: { rendition?: Rendition } = session.book;
+          if (renditionOwner.rendition === session.rendition) delete renditionOwner.rendition;
+          session.rendition.destroy();
+          void pendingSeekGeneration.then(destroyBookOnce);
+        } else {
+          destroyBookOnce();
+        }
       });
     };
 
