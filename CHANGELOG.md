@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-18
+
+### Added
+
+- Added a per-book Book layout choice between Archeion and Publisher for reflowable EPUBs. The archive stores the preference by book identity; Publisher retains global Reader typography, themes, and content safety restrictions.
+
+### Changed
+
+- Archeion layout now uses unindented running prose with font-scaled paragraph spacing, symmetric reading measures through nested flow containers, and centered standalone illustrations bounded by the reading stage. Semantic publisher composition and fixed-layout pages retain their layout.
+- Reader panels now slide fully over the book without resizing its stage, retain the drawer shell while content loads, and preserve focus and nested-interaction priority during switching and dismissal. Panel preparation begins opportunistically after Reader stability, and motion follows accessibility preferences.
+- Continuous rendering now retires offscreen sections while retaining nearby content, restores annotations and listeners on remount, and bounds document preparation and relocation work to the resident views.
+
+### Fixed
+
+- Fixed Continuous scrolling stopping at short opening sections and chapter boundaries, overshooting when previous chapters load, and shifting the visible passage when images or fonts change size above it.
+- Restored browser-native Continuous wheel input while preserving separate Paged navigation and interactive publication controls.
+- Preserved the visible passage through stage and typography reflow, and prevented overlay-only changes from rebuilding the rendition.
+- Fixed a section-load teardown race when changing reading mode, switching books, or leaving Reader during location generation.
+
 ## [1.6.0] - 2026-10-09
 
 Archeion 1.6.0 is the Windows updater bootstrap release and includes installed-font preferences for the application and Reader. Existing 1.5.x users install this release manually once to enable future in-app updates.
@@ -655,7 +674,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/TommyMoonn/archeion/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/TommyMoonn/archeion/compare/v1.5.6...v1.6.0
 [1.5.6]: https://github.com/TommyMoonn/archeion/compare/v1.5.5...v1.5.6
 [1.5.5]: https://github.com/TommyMoonn/archeion/compare/v1.5.4...v1.5.5

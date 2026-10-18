@@ -50,6 +50,7 @@ type Deferred<T> = {
 type MockRendition = Rendition & {
   contentCallbacks: Array<(content: EpubContent) => void>;
   currentLocation: ReturnType<typeof vi.fn>;
+  destroy: ReturnType<typeof vi.fn>;
   display: ReturnType<typeof vi.fn>;
   epubcfi: {
     compare: ReturnType<typeof vi.fn>;
@@ -130,6 +131,7 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
   const rendition = {
     contentCallbacks,
     currentLocation: vi.fn(() => undefined),
+    destroy: vi.fn(),
     display: vi.fn(async () => undefined),
     epubcfi: {
       compare: vi.fn((left: string, right: string) => left.localeCompare(right)),
@@ -194,6 +196,7 @@ function createBookSession(
       ),
       generate: generateLocations,
       percentageFromCfi: vi.fn((cfi: string) => (cfi === generatedLocations[1] ? 1 : 0)),
+      q: { clear: vi.fn() },
     },
     off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
       bookListeners.get(event)?.delete(callback);
@@ -212,6 +215,7 @@ function createBookSession(
       spine: [{}],
     },
     renderTo: vi.fn(() => rendition),
+    rendition,
   } as unknown as EpubBook;
 
   return {
@@ -903,6 +907,41 @@ describe("useEpubSession lifecycle", () => {
     }
     expect(facadeRef.current).toBeNull();
   });
+
+  it.each(["resolve", "reject"] as const)(
+    "retires views immediately and destroys the Book once after its active seek load drains: %s",
+    async (outcome) => {
+      const generation = deferred<string[]>();
+      const session = createBookSession({ locationsGenerate: generation.promise });
+      session.destroy.mockImplementation(() => session.book.rendition?.destroy());
+      const bridge = createBridge();
+      const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const { root } = await renderHarness(
+        {
+          bridgeRef: createBridgeRef(bridge),
+          fileLease: leaseFor(new Blob(["book-a"])),
+          mode: "paged",
+        },
+        facadeRef,
+      );
+      await waitForReady(session, bridge);
+      const teardown = facadeRef.current!.teardown;
+      act(() => root.unmount());
+      teardown();
+      expect(session.rendition.destroy).toHaveBeenCalledOnce();
+      expect(session.book.rendition).toBeUndefined();
+      expect(session.destroy).not.toHaveBeenCalled();
+      await act(async () => {
+        if (outcome === "resolve") generation.resolve(["epubcfi(/6/2!/4/2:0)"]);
+        else generation.reject(new Error("retired source rejected"));
+        await generation.promise.catch(() => undefined);
+      });
+      await vi.waitFor(() => expect(session.destroy).toHaveBeenCalledOnce());
+      expect(session.rendition.destroy).toHaveBeenCalledOnce();
+      expect(bridge.onError).not.toHaveBeenCalled();
+    },
+  );
 
   it("destroys a retired book session before its identity replacement publishes ready", async () => {
     const stages: string[] = [];

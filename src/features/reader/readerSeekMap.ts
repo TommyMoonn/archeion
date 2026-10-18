@@ -8,7 +8,7 @@ export const READER_SEEK_LOCATION_BREAK = 1600;
 type ReaderSeekLocations = Pick<
   EpubBook["locations"],
   "cfiFromPercentage" | "generate" | "percentageFromCfi"
->;
+> & { q?: { clear: () => void } };
 
 export type ReaderSeekMapPendingState = Readonly<{
   status: "pending";
@@ -31,7 +31,7 @@ export type ReaderSeekMapState =
 export type ReaderSeekMap = Readonly<{
   generate: () => Promise<void>;
   getState: () => ReaderSeekMapState;
-  retire: () => void;
+  retire: () => Promise<void> | undefined;
   subscribe: (listener: () => void) => () => void;
 }>;
 
@@ -122,7 +122,9 @@ export function createReaderSeekMap(
         if (retired || locations !== generationLocations) return;
         setState(UNAVAILABLE_READER_SEEK_MAP_STATE);
       }
-    })();
+    })().finally(() => {
+      generationPromise = null;
+    });
 
     return generationPromise;
   };
@@ -131,11 +133,15 @@ export function createReaderSeekMap(
     generate,
     getState: () => state,
     retire() {
-      if (retired) return;
+      if (retired) return generationPromise ?? undefined;
       retired = true;
+      // epub.js 0.3.93: clear drops queued sections but lets the running
+      // process and generate() settle. stop/destroy would orphan that work.
+      if (generationPromise) locations?.q?.clear();
       locations = null;
       setState(PENDING_READER_SEEK_MAP_STATE);
       listeners.clear();
+      return generationPromise ?? undefined;
     },
     subscribe(listener) {
       if (retired) return () => undefined;

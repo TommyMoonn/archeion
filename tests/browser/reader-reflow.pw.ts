@@ -249,6 +249,8 @@ test("book replacement cancels a pending reflow and protects fixed layout", asyn
   await page.locator("#root").evaluate((root) => {
     root.style.width = "900px";
   });
+  // A real stage resize rebuilds the fixed-layout view on the next layout frames.
+  await settle(page, "paged");
   await expect(label).toBeVisible();
   await expect
     .poll(() =>
