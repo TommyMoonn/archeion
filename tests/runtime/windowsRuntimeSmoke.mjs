@@ -253,4 +253,17 @@ export async function runRuntimeFlows({
     assert.deepEqual(await readFile(path.join(archiveRoot, "smoke.epub")), replacementBytes);
     assert.deepEqual(await readFile(sourcePath), sourceBytes);
   });
+
+  if (process.env.ARCHEION_UI_STABILITY_NATIVE === "1") {
+    await logStep("opt-in UI stability baseline in the disposable archive", async () => {
+      const { runWindowsUIStability } = await import("./windowsUIStability.mjs");
+      await runWindowsUIStability({
+        driver,
+        archiveRoot,
+        fixtureRoot,
+        sourcePath,
+        evidenceRoot,
+      });
+    });
+  }
 }
