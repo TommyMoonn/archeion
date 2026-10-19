@@ -1,0 +1,33 @@
+/* Prepaint values are a read-only presentation; AppearanceRuntime owns theme tokens. */
+html[data-appearance-pending],
+html[data-appearance-pending] body {
+  color-scheme: var(--appearance-startup-scheme, dark);
+  background: var(--appearance-startup-background, var(--surface-main, #1b1b1d));
+  color: var(--appearance-startup-foreground, var(--text, #d6d3d9));
+  margin: 0;
+  min-height: 100%;
+}
+
+html[data-appearance-pending] #root {
+  visibility: hidden;
+}
+
+#appearance-startup {
+  display: none;
+}
+
+.archive-setup.appearance-startup-shell {
+  background: var(--surface-main);
+}
+
+html[data-appearance-pending] #appearance-startup {
+  display: grid;
+  position: fixed;
+  inset: 0;
+  place-items: center;
+  padding: 1rem;
+  font:
+    1rem/1.5 "Segoe UI",
+    system-ui,
+    sans-serif;
+}

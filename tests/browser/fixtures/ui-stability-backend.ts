@@ -11,8 +11,23 @@ import {
 
 export const catalogSizes = [0, 2, 48, 49, 50, 500, 3000] as const;
 
+function fixtureDelay(value: string | null, fallback: number): number {
+  const delay = value === null ? fallback : Number(value);
+  if (!Number.isInteger(delay) || delay < 0 || delay > 10_000)
+    throw new Error("Fixture delay must be between 0 and 10000ms");
+  return delay;
+}
+
 /** Generated identities only. No file system, network archive or personal data access. */
 export async function installUIStabilityBackend(params: URLSearchParams) {
+  const settingsDelay = fixtureDelay(params.get("settingsDelay"), 80);
+  const settingsFailure = params.get("settingsFailure");
+  if (settingsFailure && settingsFailure !== "unavailable")
+    throw new Error("Unsupported settings failure");
+  const themeDelay = fixtureDelay(params.get("themeDelay"), 0);
+  const themeFailure = params.get("themeFailure");
+  if (themeFailure && !["missing", "corrupt"].includes(themeFailure))
+    throw new Error("Unsupported theme failure");
   let count = Number(params.get("count") ?? 50);
   if (!catalogSizes.includes(count as (typeof catalogSizes)[number]))
     throw new Error("Unsupported catalog size");
@@ -25,6 +40,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   }));
   let active = "a";
   let revision = 0;
+  let themeReads = 0;
   const windowMode = params.get("window") ?? "main";
   if (!["main", "about", "settings", "archive-manager", "theme-manager"].includes(windowMode))
     throw new Error("Unsupported window mode");
@@ -54,12 +70,12 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   preferences.appearance.animationsEnabled = params.get("motion") !== "off";
   preferences.filesAndMetadata.liveWatcherEnabled = false;
   const theme = params.get("theme") ?? "dark";
-  if (!["dark", "light", "system-light", "custom"].includes(theme))
+  if (!["dark", "light", "system-light", "system-dark", "custom"].includes(theme))
     throw new Error("Unsupported theme");
   preferences.appTheme =
     theme === "custom"
       ? { kind: "custom", id: "shell-distinct" }
-      : theme === "system-light"
+      : theme.startsWith("system-")
         ? { kind: "system" }
         : { kind: "builtin", id: theme as "dark" | "light" };
   const readerTheme = params.get("reader") ?? "light";
@@ -105,7 +121,8 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
       const input = args as Record<string, unknown>;
       switch (command) {
         case "load_app_settings_snapshot":
-          await delay(80);
+          await delay(settingsDelay);
+          if (settingsFailure) throw new Error("Synthetic settings unavailable");
           return { revision, preferences };
         case "update_app_settings": {
           // Exercise the real normalization/mutation owner, preserving snapshot revisions.
@@ -155,7 +172,13 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         case "list_theme_packages":
           return ["shell-distinct"];
         case "read_theme_manifest":
+          themeReads += 1;
+          await delay(themeDelay);
+          if (themeFailure === "missing") throw new Error("Synthetic missing theme");
+          if (themeFailure === "corrupt") return "invalid json";
           return JSON.stringify(shellStressThemes.distinct);
+        case "prepare_app_appearance":
+          return;
         case "load_theme_catalog_revision":
           return { revision: 0 };
         case "refresh_theme_catalog":
@@ -193,6 +216,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     { shouldMockEvents: true },
   );
   return {
+    themeReadStarted: () => themeReads > 0,
     unexpected,
     windowMode,
     preferences,

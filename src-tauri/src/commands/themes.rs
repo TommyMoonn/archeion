@@ -24,7 +24,7 @@ const THEME_CATALOG_CHANGED_EVENT: &str = "theme-catalog-changed";
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ThemeCatalogRevision {
-    revision: u64,
+    pub(super) revision: u64,
 }
 
 #[derive(Default)]
@@ -39,7 +39,7 @@ impl ThemeCatalogService {
             .map_err(|_| "Theme catalog state is unavailable.".to_string())
     }
 
-    fn snapshot(&self) -> Result<ThemeCatalogRevision, String> {
+    pub(super) fn snapshot(&self) -> Result<ThemeCatalogRevision, String> {
         Ok(ThemeCatalogRevision {
             revision: *self.lock_revision()?,
         })
@@ -320,7 +320,7 @@ fn list_theme_packages_at(root: &Path) -> Result<Vec<String>, String> {
     Ok(packages)
 }
 
-fn read_theme_manifest_at(root: &Path, id: &str) -> Result<String, String> {
+pub(super) fn read_theme_manifest_at(root: &Path, id: &str) -> Result<String, String> {
     let package = resolve_existing_package_at(root, id)?;
     let manifest = package.join(THEME_MANIFEST_FILE);
     let metadata = fs::symlink_metadata(&manifest)

@@ -30,7 +30,7 @@
     "security": {
       "csp": {
         "default-src": "'self'",
-        "connect-src": "ipc: http://ipc.localhost blob: data:",
+        "connect-src": "ipc: http://ipc.localhost http://archeion-appearance.localhost blob: data:",
         "font-src": "'self' blob: data:",
         "frame-src": "'self' blob: data:",
         "img-src": "'self' asset: http://asset.localhost blob: data:",
@@ -42,7 +42,7 @@
       },
       "devCsp": {
         "default-src": "'self'",
-        "connect-src": "ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420 blob: data:",
+        "connect-src": "ipc: http://ipc.localhost http://archeion-appearance.localhost http://localhost:1420 ws://localhost:1420 blob: data:",
         "font-src": "'self' blob: data:",
         "frame-src": "'self' blob: data:",
         "img-src": "'self' asset: http://asset.localhost blob: data:",

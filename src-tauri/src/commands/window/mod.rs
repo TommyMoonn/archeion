@@ -236,6 +236,7 @@ fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Resul
     .maximizable(spec.maximizable)
     .decorations(false)
     .closable(true)
+    .background_color(super::app_appearance::native_background(app))
     .visible(false);
 
     let builder = if spec.resizable {

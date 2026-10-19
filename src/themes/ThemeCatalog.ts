@@ -71,6 +71,7 @@ export class ThemeCatalog {
   private readonly listeners = new Set<() => void>();
   private requestedCatalogRevision = 0;
   private readonly source: ThemeCatalogSource;
+  private readonly manifestSources = new WeakMap<ThemeManifestV1, string>();
   private snapshot: ThemeCatalogSnapshot;
   private synchronizationActive = false;
   private synchronizationGeneration = 0;
@@ -89,6 +90,8 @@ export class ThemeCatalog {
   };
 
   getSnapshot = (): ThemeCatalogSnapshot => this.snapshot;
+  getManifestSource = (manifest: ThemeManifestV1): string | undefined =>
+    this.manifestSources.get(manifest);
 
   startSynchronization(): () => void {
     if (this.synchronizationActive || !isCatalogChangeSource(this.source)) {
@@ -385,6 +388,7 @@ export class ThemeCatalog {
         validated.manifest,
       );
     }
+    this.manifestSources.set(validated.manifest, source);
     return validEntry(packageId, validated.manifest);
   }
 }

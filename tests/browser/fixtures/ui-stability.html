@@ -1,12 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-appearance-pending>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Synthetic UI stability workload</title>
+    <script src="/appearance-prepaint.js"></script>
+    <link rel="stylesheet" href="/appearance-startup.css" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="appearance-startup" role="status">Opening Archeion</div>
+    <div id="root" inert></div>
     <script type="module" src="./ui-stability-main.tsx"></script>
   </body>
 </html>

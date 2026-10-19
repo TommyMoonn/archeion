@@ -1,4 +1,8 @@
-import type { AppearanceSettings, AppPreferences } from "../types/appSettings";
+import type {
+  AppearanceSettings,
+  AppPreferences,
+  AppPreferencesPublication,
+} from "../types/appSettings";
 import { installedFontCatalog, type InstalledFontCatalog } from "../storage/installedFontCatalog";
 import { applyApplicationFontStacks } from "./applicationFonts";
 import type { AppThemeSelection, ReaderThemeSelection } from "../types/settings";
@@ -18,12 +22,17 @@ import type {
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme, resolveTheme } from "./resolveTheme";
 import { applyResolvedAppTheme } from "./themeCssVariables";
 import type { AppThemeBase, ReaderThemeBase } from "./themeTokenRegistry";
+import { applicationPresentation, type AppearancePresentation } from "./appearancePresentation";
 
 type Listener = () => void;
 
 export type GlobalAppearancePreferences = Pick<AppPreferences, "appTheme" | "readerTheme">;
 
 export type GlobalAppearanceSource = Readonly<{
+  initialize?: () => Promise<void>;
+  getInitializationGeneration?: () => number;
+  getAppearancePublication?: () => AppPreferencesPublication;
+  getRevisionSnapshot?: () => number;
   getSnapshot: () => GlobalAppearancePreferences & Pick<AppPreferences, "appearance">;
   subscribe: (listener: Listener) => () => void;
   update: (changes: Partial<GlobalAppearancePreferences>) => Promise<AppPreferences>;
@@ -45,9 +54,15 @@ export type AppearanceRuntimeOptions = Readonly<{
   globalPreferences: GlobalAppearanceSource;
   matchMedia?: (query: string) => MediaQueryList;
   onError?: (error: unknown) => void;
+  preparePresentation?: (presentation: AppearancePresentation) => Promise<void>;
 }>;
 
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
+const APPEARANCE_LOAD_TIMEOUT_MS = 5_000;
+const CUSTOM_THEME_ERROR =
+  "The selected theme could not be loaded. The default theme is active. Choose a theme in Settings or retry in Theme Manager.";
+
+export type AppearanceStartupSnapshot = Readonly<{ ready: boolean; error: string | null }>;
 
 export class AppearanceRuntime {
   private readonly appThemes = new Map<AppThemeBase, ResolvedAppTheme>();
@@ -67,6 +82,7 @@ export class AppearanceRuntime {
   private readonly matchMedia: ((query: string) => MediaQueryList) | undefined;
   private mediaQuery: MediaQueryList | null = null;
   private readonly onError: (error: unknown) => void;
+  private readonly preparePresentation: AppearanceRuntimeOptions["preparePresentation"];
   private preferences: Readonly<GlobalAppearancePreferences>;
   private preview: ResolvedAppTheme | null = null;
   private readerPreview: ResolvedReaderTheme | null = null;
@@ -76,6 +92,17 @@ export class AppearanceRuntime {
   private stopCatalog: (() => void) | null = null;
   private stopCatalogSynchronization: (() => void) | null = null;
   private stopPreferences: (() => void) | null = null;
+  private initialized = false;
+  private lifecycleRevision = 0;
+  private initializationAbort: AbortController | null = null;
+  private retiredInitializationGeneration = -1;
+  private unversionedHydrationRetired = false;
+  private awaitingPreferenceRecovery = false;
+  private lastPreferencePublication: AppPreferencesPublication | undefined;
+  private resolutionAbort: AbortController | null = null;
+  private failedSelection: Readonly<GlobalAppearancePreferences> | null = null;
+  private failedCatalogRevision = -1;
+  private startup: AppearanceStartupSnapshot = Object.freeze({ ready: false, error: null });
 
   constructor(options: AppearanceRuntimeOptions) {
     this.catalog = options.catalog ?? new ThemeCatalog();
@@ -85,6 +112,7 @@ export class AppearanceRuntime {
       options.getDocumentRoot ??
       (() => (typeof document === "undefined" ? null : document.documentElement));
     this.globalPreferences = options.globalPreferences;
+    this.preparePresentation = options.preparePresentation;
     this.matchMedia =
       options.matchMedia ??
       (typeof window === "undefined" || typeof window.matchMedia !== "function"
@@ -100,6 +128,12 @@ export class AppearanceRuntime {
   getSnapshot = (): AppearanceRuntimeSnapshot => this.snapshot;
   getReaderSnapshot = (): ResolvedReaderTheme => this.snapshot.reader;
   getPreviewContext = (): AppearancePreviewContext => this.committedContext;
+  getStartupSnapshot = (): AppearanceStartupSnapshot => this.startup;
+
+  dismissStartupError = (): void => {
+    this.setStartup(this.startup.ready, null);
+    this.listeners.forEach((listener) => listener());
+  };
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -108,12 +142,22 @@ export class AppearanceRuntime {
 
   start(): () => void {
     if (this.stopPreferences) return () => this.stop();
+    this.lifecycleRevision += 1;
     this.mediaQuery = this.matchMedia?.(SYSTEM_SCHEME_QUERY) ?? null;
     this.addSystemSchemeListener();
     this.stopCatalog = this.catalog.subscribe(this.handleCatalogChange);
     this.stopCatalogSynchronization = this.catalog.startSynchronization();
     this.stopPreferences = this.globalPreferences.subscribe(this.handlePreferencesChange);
-    this.adoptPreferences(this.globalPreferences.getSnapshot());
+    if (this.globalPreferences.initialize) {
+      const controller = new AbortController();
+      this.initializationAbort = controller;
+      const initialization = this.globalPreferences.initialize();
+      const generation = this.globalPreferences.getInitializationGeneration?.();
+      void this.initializePreferences(controller, initialization, generation);
+    } else {
+      this.initialized = true;
+      this.adoptPreferences(this.globalPreferences.getSnapshot());
+    }
     const revision = ++this.fontCatalogRevision;
     void this.fontCatalog
       .load()
@@ -130,6 +174,11 @@ export class AppearanceRuntime {
   }
 
   stop(): void {
+    this.lifecycleRevision += 1;
+    this.initializationAbort?.abort();
+    this.resolutionAbort?.abort();
+    this.resolutionRevision += 1;
+    this.initialized = false;
     this.fontCatalogRevision += 1;
     this.stopPreferences?.();
     this.stopPreferences = null;
@@ -137,11 +186,11 @@ export class AppearanceRuntime {
     this.stopCatalog = null;
     this.stopCatalogSynchronization?.();
     this.stopCatalogSynchronization = null;
-    this.removeSystemSchemeListener();
-    this.mediaQuery = null;
     this.preview = null;
     this.readerPreview = null;
-    this.commitCurrentAppearance();
+    if (this.startup.ready) this.commitCurrentAppearance();
+    this.removeSystemSchemeListener();
+    this.mediaQuery = null;
   }
 
   applyPreview(appTheme: ResolvedAppTheme): boolean {
@@ -213,68 +262,245 @@ export class AppearanceRuntime {
       throw new Error("End the active theme preview before changing the application theme.");
     }
     await this.globalPreferences.update(changes);
-    this.adoptPreferences(this.globalPreferences.getSnapshot());
+    if (changes.appTheme !== undefined) {
+      this.unversionedHydrationRetired = false;
+      this.awaitingPreferenceRecovery = false;
+      this.setStartup(this.startup.ready, null);
+    }
+    this.adoptCurrentPreferences();
+    this.commitCurrentAppearance();
     return this.preferences;
   }
 
   async refreshAppearance(): Promise<void> {
-    await this.catalog.reload();
+    const lifecycle = this.lifecycleRevision;
+    if (this.globalPreferences.initialize) {
+      await appearanceDeadline(this.globalPreferences.initialize(), new AbortController().signal);
+      if (lifecycle !== this.lifecycleRevision || !this.stopPreferences) return;
+      // Explicit recovery authorizes the current canonical snapshot, not the
+      // observation belonging to a retired initialization generation.
+      this.unversionedHydrationRetired = false;
+      this.awaitingPreferenceRecovery = false;
+      this.setStartup(this.startup.ready, null);
+      this.adoptPreferences(this.globalPreferences.getSnapshot());
+    }
+    this.failedSelection = null;
+    await appearanceDeadline(this.catalog.reload(), new AbortController().signal);
+    if (lifecycle !== this.lifecycleRevision || !this.stopPreferences) return;
     await this.resolveCommittedAppearance();
   }
 
-  private readonly handlePreferencesChange = () => {
+  private async initializePreferences(
+    controller: AbortController,
+    initialization: Promise<void>,
+    generation: number | undefined,
+  ): Promise<void> {
+    try {
+      await appearanceDeadline(initialization, controller.signal);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (error instanceof AppearanceLoadTimeoutError) {
+        this.awaitingPreferenceRecovery = true;
+        if (generation !== undefined)
+          this.retiredInitializationGeneration = Math.max(
+            this.retiredInitializationGeneration,
+            generation,
+          );
+        else this.unversionedHydrationRetired = true;
+      }
+      this.onError(error);
+      this.setStartup(
+        false,
+        "Appearance settings could not be loaded. The available settings are active. Restart Archeion to try again.",
+      );
+    }
+    if (controller.signal.aborted) return;
+    this.initialized = true;
+    if (this.isRetiredHydration()) {
+      this.setStartup(true, this.startup.error);
+      this.commitCurrentAppearance();
+      return;
+    }
+    this.lastPreferencePublication = this.globalPreferences.getAppearancePublication?.();
     this.adoptPreferences(this.globalPreferences.getSnapshot());
+  }
+
+  private isRetiredHydration(): boolean {
+    const publication = this.globalPreferences.getAppearancePublication?.();
+    return publication
+      ? publication.kind === "initialization" &&
+          publication.generation <= this.retiredInitializationGeneration
+      : this.unversionedHydrationRetired;
+  }
+
+  private readonly handlePreferencesChange = () => {
+    if (!this.initialized || this.isRetiredHydration()) return;
+    const publication = this.globalPreferences.getAppearancePublication?.();
+    const newAuthority =
+      publication !== undefined &&
+      publication !== this.lastPreferencePublication &&
+      (publication.kind === "initialization"
+        ? publication.generation > this.retiredInitializationGeneration
+        : publication.appThemeChanged);
+    this.lastPreferencePublication = publication;
+    if (newAuthority) {
+      this.awaitingPreferenceRecovery = false;
+      this.setStartup(this.startup.ready, null);
+    }
+    this.adoptCurrentPreferences();
+    if (newAuthority) this.commitCurrentAppearance();
   };
 
+  private adoptCurrentPreferences(): void {
+    const current = this.globalPreferences.getSnapshot();
+    // Reader/font changes remain usable, but cannot authorize replacement of an
+    // application fallback by the value belonging to a retired native read.
+    this.adoptPreferences(
+      this.awaitingPreferenceRecovery
+        ? { ...current, appTheme: this.preferences.appTheme }
+        : current,
+      this.awaitingPreferenceRecovery,
+    );
+  }
+
   private readonly handleCatalogChange = () => {
+    if (!this.initialized) return;
+    // Completing the same timed-out read is not a new catalog selection. An actual
+    // catalog revision (for example replacement in another window) may recover it.
+    if (this.failedSelection && this.catalog.getSnapshot().revision <= this.failedCatalogRevision)
+      return;
+    this.failedSelection = null;
     void this.resolveCommittedAppearance();
   };
 
   private adoptPreferences(
     preferences: GlobalAppearancePreferences & Pick<AppPreferences, "appearance">,
+    preserveStartupError = false,
   ): void {
     this.appearance = preferences.appearance;
     this.applyFonts();
     const next = freezePreferences(preferences);
-    if (samePreferences(this.preferences, next) && this.committedResolution) return;
+    if (
+      samePreferences(this.preferences, next) &&
+      (this.committedResolution || this.failedSelection)
+    )
+      return;
     const appChanged = !sameAppSelection(this.preferences.appTheme, next.appTheme);
     const readerChanged = !sameReaderSelection(this.preferences.readerTheme, next.readerTheme);
+    if (appChanged || readerChanged) {
+      this.failedSelection = null;
+      if (this.startup.ready && !preserveStartupError) this.setStartup(true, null);
+    }
     this.preferences = next;
     this.committedContext = freezeContext(next);
     if (appChanged) this.preview = null;
     if (readerChanged) this.readerPreview = null;
     this.committedResolution = null;
-    this.commitCurrentAppearance();
+    if (next.appTheme.kind !== "custom" && !this.preparePresentation)
+      this.setStartup(true, this.startup.error);
+    if (this.startup.ready) this.commitCurrentAppearance();
     void this.resolveCommittedAppearance();
   }
 
   private async resolveCommittedAppearance(): Promise<void> {
     const revision = this.resolutionRevision + 1;
     this.resolutionRevision = revision;
+    this.resolutionAbort?.abort();
+    const controller = new AbortController();
+    this.resolutionAbort = controller;
     const expected = this.preferences;
     try {
-      const resolution = await this.catalog.loadSelected(expected);
+      if (expected.appTheme.kind !== "custom" && this.preparePresentation) {
+        await this.prepareCommittedPresentation(
+          this.safeSnapshot(expected).app,
+          null,
+          controller.signal,
+        );
+        if (revision !== this.resolutionRevision) return;
+        this.setStartup(true, this.startup.error);
+        this.commitCurrentAppearance();
+      }
+      const resolution = await appearanceDeadline(
+        this.catalog.loadSelected(expected),
+        controller.signal,
+      );
       if (revision !== this.resolutionRevision || !samePreferences(this.preferences, expected)) {
         return;
       }
+      await this.prepareCommittedPresentation(
+        this.resolveAppSelection(resolution.app),
+        resolution,
+        controller.signal,
+      );
+      if (revision !== this.resolutionRevision || !samePreferences(this.preferences, expected))
+        return;
       this.committedResolution = resolution;
+      this.setStartup(
+        true,
+        resolution.app.fellBack
+          ? CUSTOM_THEME_ERROR
+          : this.startup.error === CUSTOM_THEME_ERROR
+            ? null
+            : this.startup.error,
+      );
       this.commitCurrentAppearance();
     } catch (error) {
       if (revision !== this.resolutionRevision || error instanceof ThemeCatalogChangedError) return;
       this.onError(error);
+      this.failedSelection = expected;
+      this.failedCatalogRevision = this.catalog.getSnapshot().revision;
+      // Fence a timed-out catalog read, including its eventual catalog notification.
+      this.resolutionRevision += 1;
+      this.setStartup(true, CUSTOM_THEME_ERROR);
+      this.commitCurrentAppearance(true);
     }
   }
 
   private readonly handleSystemSchemeChange = () => {
-    if (this.preferences.appTheme.kind === "system") this.commitCurrentAppearance();
+    if (this.preferences.appTheme.kind === "system") {
+      this.commitCurrentAppearance();
+      void this.resolveCommittedAppearance();
+    }
   };
 
-  private commitCurrentAppearance(): void {
+  private async prepareCommittedPresentation(
+    app: ResolvedAppTheme,
+    resolution: ThemeSelectionResolution | null,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (!this.preparePresentation || this.awaitingPreferenceRecovery) return;
+    const effective = resolution?.app.effective;
+    const manifestSource =
+      effective?.kind === "theme" && effective.entry.origin === "custom"
+        ? (this.catalog.getManifestSource(effective.entry.manifest) ?? null)
+        : null;
+    await appearanceDeadline(
+      this.preparePresentation(
+        applicationPresentation(
+          this.preferences.appTheme,
+          this.globalPreferences.getRevisionSnapshot?.() ?? 0,
+          app,
+          manifestSource,
+        ),
+      ),
+      signal,
+    );
+  }
+
+  private commitCurrentAppearance(useFallback = false): void {
+    if (!this.startup.ready) return;
     const committed = this.committedResolution
       ? this.resolvedSnapshot(this.committedResolution)
       : this.safeSnapshot(this.preferences);
     const snapshot = Object.freeze({
-      app: this.preview ?? committed.app,
+      app:
+        this.preview ??
+        (!this.committedResolution &&
+        this.preferences.appTheme.kind === "custom" &&
+        this.appliedAppTheme &&
+        !useFallback
+          ? this.snapshot.app
+          : committed.app),
       reader: this.readerPreview ?? committed.reader,
     });
     const root = this.getDocumentRoot();
@@ -286,8 +512,18 @@ export class AppearanceRuntime {
       this.appliedDocumentRoot = root;
       this.appliedAppTheme = snapshot.app;
     }
+    if (root) {
+      // Token writes and reveal happen in the same task, before the browser can paint.
+      delete root.dataset.appearancePending;
+      root.ownerDocument.getElementById("root")?.removeAttribute("inert");
+    }
     this.snapshot = snapshot;
     this.listeners.forEach((listener) => listener());
+  }
+
+  private setStartup(ready: boolean, error: string | null): void {
+    if (this.startup.ready === ready && this.startup.error === error) return;
+    this.startup = Object.freeze({ ready, error });
   }
 
   private applyFonts(): void {
@@ -415,4 +651,31 @@ function sameAppSelection(left: AppThemeSelection, right: AppThemeSelection): bo
 
 function sameReaderSelection(left: ReaderThemeSelection, right: ReaderThemeSelection): boolean {
   return left.kind === right.kind && left.id === right.id;
+}
+
+class AppearanceLoadTimeoutError extends Error {
+  constructor() {
+    super("Appearance load timed out.");
+  }
+}
+
+function appearanceDeadline<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => finish(() => reject(new Error("Appearance load cancelled.")));
+    const timer = setTimeout(
+      () => finish(() => reject(new AppearanceLoadTimeoutError())),
+      APPEARANCE_LOAD_TIMEOUT_MS,
+    );
+    const finish = (settle: () => void) => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+      settle();
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    void operation.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    );
+  });
 }

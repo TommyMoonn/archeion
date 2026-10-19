@@ -1019,6 +1019,7 @@ pub async fn open_archive_manager_window(app: tauri::AppHandle) -> Result<(), St
         .maximizable(false)
         .decorations(false)
         .closable(true)
+        .background_color(super::app_appearance::native_background(&app))
         .visible(false)
         .build()
         .map_err(|error| error.to_string())?;

@@ -31,6 +31,13 @@ window.uiStabilityState = () => ({
   ),
 });
 window.uiStabilityFixture = {
+  recoverAppearance: async () =>
+    (
+      await import("../../../src/themes/appearanceRuntimeInstance")
+    ).appearanceRuntime.refreshAppearance(),
+  getStoredAppTheme: () => appPreferencesStore.getSnapshot().appTheme,
+  themeReadStarted: backend.themeReadStarted,
+  setAppTheme: (appTheme) => appPreferencesStore.update({ appTheme }).then(() => undefined),
   unexpected: backend.unexpected,
   setUpdate: backend.setUpdate,
   setView: (view: "grid" | "list") =>
@@ -61,6 +68,12 @@ createRoot(document.getElementById("root")!).render(<App />);
 declare global {
   interface Window {
     uiStabilityFixture: {
+      recoverAppearance: () => Promise<void>;
+      getStoredAppTheme: () => import("../../../src/types/settings").AppThemeSelection;
+      themeReadStarted: () => boolean;
+      setAppTheme: (
+        selection: import("../../../src/types/settings").AppThemeSelection,
+      ) => Promise<void>;
       unexpected: string[];
       resizeCatalog: (count: number) => Promise<void>;
       switchArchive: (id: string) => Promise<boolean>;

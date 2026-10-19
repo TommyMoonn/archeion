@@ -20,6 +20,12 @@ export type InterfaceDensity = "comfortable" | "compact";
 export type StartupBehavior = "open-last-archive" | "show-archive-manager";
 export type AppThemePreset = "system" | "dark" | "light";
 
+/** In-memory publication provenance. This is not persisted in settings.json. */
+export type AppPreferencesPublication = Readonly<
+  | { kind: "initialization"; generation: number }
+  | { kind: "commit" | "synchronization"; appThemeChanged: boolean }
+>;
+
 export type RememberedNavigationState = {
   archiveId: string;
   bookId: string;

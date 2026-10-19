@@ -1792,7 +1792,7 @@ impl AppSettingsService {
             .ok_or_else(|| "App settings state is unavailable.".to_string())
     }
 
-    fn snapshot(&self) -> Result<AppSettingsSnapshot, String> {
+    pub(crate) fn snapshot(&self) -> Result<AppSettingsSnapshot, String> {
         let mut state = self.lock_state()?;
         let preferences = self.load_preferences(&mut state)?.clone();
         Ok(AppSettingsSnapshot {

@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
@@ -38,6 +47,7 @@ import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 import { startupTrace } from "./startupTrace";
 import { focusPresentationRuntime } from "./inputModality";
 import { AppUpdateRuntime } from "../features/updates/AppUpdateRuntime";
+import { AppearanceStatus } from "./AppearanceStatus";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -65,13 +75,27 @@ function subscribeToRouteChanges(listener: () => void): () => void {
 }
 
 export function App() {
-  const windowMode = resolveWindowMode();
-
+  const { ready } = useSyncExternalStore(
+    appearanceRuntime.subscribe,
+    appearanceRuntime.getStartupSnapshot,
+    appearanceRuntime.getStartupSnapshot,
+  );
   useEffect(() => {
     const stop = appearanceRuntime.start();
     startupTrace.mark("appearance-runtime");
     return stop;
   }, []);
+
+  return (
+    <>
+      <AppearanceStatus />
+      {ready && <AppWindow />}
+    </>
+  );
+}
+
+function AppWindow() {
+  const windowMode = resolveWindowMode();
 
   useEffect(() => focusPresentationRuntime.start(document), []);
 
@@ -162,7 +186,12 @@ function StartupLoading() {
     <div className="window-app">
       <SkipLink targetId={MAIN_CONTENT_ID} />
       <div className="window-app__content">
-        <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
+        <main
+          className="archive-setup appearance-startup-shell"
+          aria-busy="true"
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+        >
           <p className="archive-loading">Opening Archeion</p>
         </main>
       </div>
