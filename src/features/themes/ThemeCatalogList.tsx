@@ -19,7 +19,7 @@ export function ThemeCatalogList({
   selectedKey,
 }: ThemeCatalogListProps) {
   return (
-    <nav aria-label="Themes" className="theme-catalog-list">
+    <nav aria-busy={busy || undefined} aria-label="Themes" className="theme-catalog-list">
       <div className="theme-catalog-list__items">
         {entries.map((entry) => {
           const key = entryKey(entry);

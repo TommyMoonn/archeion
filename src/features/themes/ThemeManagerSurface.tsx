@@ -1,5 +1,8 @@
 import { FilePlus, FolderOpen, RefreshCw } from "lucide-react";
-import { useId, useMemo, useRef, type ChangeEvent } from "react";
+import { useContext, useMemo, useRef, type ChangeEvent } from "react";
+import { createPortal } from "react-dom";
+import { ThemeManagerLayout } from "./ThemeManagerLayout";
+import { ThemeManagerLayoutContext } from "./themeManagerLayoutContext";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -30,7 +33,19 @@ type ThemeManagerSurfaceProps = Readonly<{
   services?: ThemeManagerServices;
 }>;
 
-export function ThemeManagerSurface({ services }: ThemeManagerSurfaceProps) {
+export function ThemeManagerSurface(props: ThemeManagerSurfaceProps) {
+  const layout = useContext(ThemeManagerLayoutContext);
+  return layout ? (
+    <ThemeManagerContent {...props} />
+  ) : (
+    <ThemeManagerLayout>
+      <ThemeManagerContent {...props} />
+    </ThemeManagerLayout>
+  );
+}
+
+function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
+  const layout = useContext(ThemeManagerLayoutContext)!;
   const repository = useMemo(
     () => services?.repository ?? new ThemeRepository(),
     [services?.repository],
@@ -46,7 +61,6 @@ export function ThemeManagerSurface({ services }: ThemeManagerSurfaceProps) {
     runtime: services?.runtime ?? appearanceRuntime,
   });
   const importInputRef = useRef<HTMLInputElement>(null);
-  const titleId = useId();
   const busy = controller.busyAction !== null;
 
   async function readChosenFile(
@@ -59,47 +73,48 @@ export function ThemeManagerSurface({ services }: ThemeManagerSurfaceProps) {
   }
 
   return (
-    <section aria-labelledby={titleId} className="theme-manager-surface">
-      <div className="theme-manager__header">
-        <h1 id={titleId}>Theme Manager</h1>
-        <div className="theme-manager__toolbar">
-          <div className="theme-manager__toolbar-actions">
-            <Button
-              className="theme-manager__import"
-              disabled={busy || controller.previewActive}
-              icon={<FilePlus aria-hidden="true" />}
-              onClick={() => importInputRef.current?.click()}
-              size="standard"
-            >
-              Import
-            </Button>
-            <IconButton
-              disabled={busy || controller.previewActive}
-              label="Reload themes"
-              onClick={() => void controller.reload()}
-              size="standard"
-            >
-              <RefreshCw aria-hidden="true" />
-            </IconButton>
-            <IconButton
-              disabled={busy || controller.previewActive}
-              label="Open themes folder"
-              onClick={() => void controller.openThemesFolder()}
-              size="standard"
-            >
-              <FolderOpen aria-hidden="true" />
-            </IconButton>
-          </div>
-          <nav aria-label="Theme resources" className="theme-manager__toolbar-links">
-            <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
-              Theme guide
-            </a>
-            <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
-              Public schema
-            </a>
-          </nav>
-        </div>
-      </div>
+    <>
+      {layout.toolbarHost &&
+        createPortal(
+          <div className="theme-manager__toolbar">
+            <div className="theme-manager__toolbar-actions">
+              <Button
+                className="theme-manager__import"
+                disabled={busy || controller.previewActive}
+                icon={<FilePlus aria-hidden="true" />}
+                onClick={() => importInputRef.current?.click()}
+                size="standard"
+              >
+                Import
+              </Button>
+              <IconButton
+                disabled={busy || controller.previewActive}
+                label="Reload themes"
+                onClick={() => void controller.reload()}
+                size="standard"
+              >
+                <RefreshCw aria-hidden="true" />
+              </IconButton>
+              <IconButton
+                disabled={busy || controller.previewActive}
+                label="Open themes folder"
+                onClick={() => void controller.openThemesFolder()}
+                size="standard"
+              >
+                <FolderOpen aria-hidden="true" />
+              </IconButton>
+            </div>
+            <nav aria-label="Theme resources" className="theme-manager__toolbar-links">
+              <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
+                Theme guide
+              </a>
+              <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
+                Public schema
+              </a>
+            </nav>
+          </div>,
+          layout.toolbarHost,
+        )}
       <input
         accept=".json,application/json"
         aria-label="Import theme file"
@@ -110,17 +125,21 @@ export function ThemeManagerSurface({ services }: ThemeManagerSurfaceProps) {
         type="file"
       />
 
-      <div className="theme-manager__notice-region">
-        {controller.error ? (
-          <p className="theme-manager__status" data-tone="error" role="alert">
-            {controller.error}
-          </p>
-        ) : controller.message ? (
-          <p className="theme-manager__status" aria-live="polite">
-            {controller.message}
-          </p>
-        ) : null}
-      </div>
+      {layout.noticeHost &&
+        createPortal(
+          <>
+            {controller.error ? (
+              <p className="theme-manager__status" data-tone="error" role="alert">
+                {controller.error}
+              </p>
+            ) : controller.message ? (
+              <p className="theme-manager__status" aria-live="polite">
+                {controller.message}
+              </p>
+            ) : null}
+          </>,
+          layout.noticeHost,
+        )}
 
       {controller.pendingReplacement ? (
         <Dialog
@@ -153,18 +172,21 @@ export function ThemeManagerSurface({ services }: ThemeManagerSurfaceProps) {
         </Dialog>
       ) : null}
 
-      <div className="theme-manager__workspace" aria-busy={busy || undefined}>
-        <ThemeCatalogList
-          activeThemeKey={controller.activeAppThemeKey}
-          busy={busy}
-          entries={controller.entries}
-          onSelect={controller.select}
-          selectedKey={controller.selectedKey}
-        />
-        <ThemeDetails controller={controller} />
-      </div>
+      {layout.catalogHost &&
+        createPortal(
+          <ThemeCatalogList
+            activeThemeKey={controller.activeAppThemeKey}
+            busy={busy}
+            entries={controller.entries}
+            onSelect={controller.select}
+            selectedKey={controller.selectedKey}
+          />,
+          layout.catalogHost,
+        )}
+      <ThemeDetails controller={controller} />
 
-      <ThemePreviewControls session={previewSession} />
-    </section>
+      {layout.previewHost &&
+        createPortal(<ThemePreviewControls session={previewSession} />, layout.previewHost)}
+    </>
   );
 }

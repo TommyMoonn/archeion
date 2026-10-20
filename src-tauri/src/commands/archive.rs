@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Emitter, Manager};
 
 use crate::atomic_file::{
     recover_atomic_replace, transaction_path, AtomicReplaceError, BackupCleanup,
@@ -19,17 +19,12 @@ use super::{archive_root, epub_analysis, metadata};
 const ARCHIVE_REGISTRY_FILE: &str = "archives.json";
 const ARCHIVE_REGISTRY_LAST_GOOD_FILE: &str = "archives.last-good.json";
 const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
-const ARCHIVE_MANAGER_WINDOW_LABEL: &str = "archive-manager";
 const ARCHIVE_REGISTRY_CHANGED_EVENT: &str = "archive-registry-changed";
 const ARCHIVE_MANAGER_CLOSED_EVENT: &str = "archive-manager-closed";
 const ARCHIVE_RECONCILIATION_REQUESTED_EVENT: &str = "archive-reconciliation-requested";
 const ARCHIVE_RECONCILIATION_COMPLETED_EVENT: &str = "archive-reconciliation-completed";
 const ARCHIVE_MAINTENANCE_RECONCILED_EVENT: &str = "archive-maintenance-reconciled";
 const MAIN_WINDOW_LABEL: &str = "main";
-const ARCHIVE_MANAGER_QUERY: &str = "window=archive-manager";
-const ARCHIVE_MANAGER_APP_URL: &str = "index.html?window=archive-manager";
-const ARCHIVE_MANAGER_WIDTH: f64 = 860.0;
-const ARCHIVE_MANAGER_HEIGHT: f64 = 620.0;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -648,69 +643,6 @@ fn emit_archive_registry_changed(
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ArchiveManagerUrlKind {
-    External,
-    App,
-}
-
-fn archive_manager_url_parts(
-    dev_url: Option<&tauri::Url>,
-    debug_build: bool,
-) -> Result<(ArchiveManagerUrlKind, String), String> {
-    if debug_build {
-        let mut url = dev_url
-            .cloned()
-            .ok_or_else(|| "The Tauri development URL is unavailable.".to_string())?;
-        url.set_query(Some(ARCHIVE_MANAGER_QUERY));
-        return Ok((ArchiveManagerUrlKind::External, url.to_string()));
-    }
-
-    Ok((
-        ArchiveManagerUrlKind::App,
-        ARCHIVE_MANAGER_APP_URL.to_string(),
-    ))
-}
-
-fn archive_manager_webview_url(
-    app: &tauri::AppHandle,
-) -> Result<(WebviewUrl, ArchiveManagerUrlKind, String), String> {
-    let (kind, url) =
-        archive_manager_url_parts(app.config().build.dev_url.as_ref(), cfg!(debug_assertions))?;
-
-    let webview_url = match kind {
-        ArchiveManagerUrlKind::External => WebviewUrl::External(
-            url.parse()
-                .map_err(|error| format!("The archive manager URL is invalid: {error}"))?,
-        ),
-        ArchiveManagerUrlKind::App => WebviewUrl::App(url.clone().into()),
-    };
-
-    Ok((webview_url, kind, url))
-}
-
-fn archive_manager_window_size() -> tauri::Size {
-    tauri::Size::Logical(tauri::LogicalSize::new(
-        ARCHIVE_MANAGER_WIDTH,
-        ARCHIVE_MANAGER_HEIGHT,
-    ))
-}
-
-fn apply_archive_manager_window_constraints(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let size = archive_manager_window_size();
-
-    window.set_size(size).map_err(|error| error.to_string())?;
-    window
-        .set_min_size(Some(size))
-        .map_err(|error| error.to_string())?;
-    window
-        .set_max_size(Some(size))
-        .map_err(|error| error.to_string())?;
-    window
-        .set_resizable(false)
-        .map_err(|error| error.to_string())
-}
-
 fn show_and_focus_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     window.show().map_err(|error| error.to_string())?;
     window.set_focus().map_err(|error| error.to_string())?;
@@ -765,17 +697,6 @@ pub(crate) fn handle_archive_manager_window_destroyed(app: &tauri::AppHandle) {
         }
         ArchiveManagerCloseAction::Exit => app.exit(0),
     }
-}
-
-fn existing_archive_manager_is_unhealthy(window: &tauri::WebviewWindow) -> bool {
-    if !cfg!(debug_assertions) {
-        return false;
-    }
-
-    window
-        .url()
-        .map(|url| url.as_str() == "about:blank")
-        .unwrap_or(true)
 }
 
 fn upsert_archive_at_path(
@@ -996,36 +917,7 @@ pub fn forget_archive(
 
 #[tauri::command]
 pub async fn open_archive_manager_window(app: tauri::AppHandle) -> Result<(), String> {
-    if let Some(existing_window) = app.get_webview_window(ARCHIVE_MANAGER_WINDOW_LABEL) {
-        if existing_archive_manager_is_unhealthy(&existing_window) {
-            let _ = existing_window.close();
-        } else {
-            apply_archive_manager_window_constraints(&existing_window)?;
-            show_and_focus_window(&existing_window)?;
-            return Ok(());
-        }
-    }
-
-    let (webview_url, _, _) = archive_manager_webview_url(&app)?;
-
-    let window = WebviewWindowBuilder::new(&app, ARCHIVE_MANAGER_WINDOW_LABEL, webview_url)
-        .title("Archive Manager")
-        .inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)
-        .min_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)
-        .max_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)
-        .center()
-        .resizable(false)
-        .minimizable(true)
-        .maximizable(false)
-        .decorations(false)
-        .closable(true)
-        .background_color(super::app_appearance::native_background(&app))
-        .visible(false)
-        .build()
-        .map_err(|error| error.to_string())?;
-
-    apply_archive_manager_window_constraints(&window)?;
-    show_and_focus_window(&window)
+    super::window::open_archive_manager(&app).await
 }
 
 #[tauri::command]
@@ -1073,12 +965,11 @@ mod tests {
     use crate::atomic_file::transaction_path;
 
     use super::{
-        archive_id_for_path, archive_manager_close_action, archive_manager_url_parts,
-        archive_paths_match, archive_root, create_empty_archive_at,
-        create_empty_archive_at_with_initializer, metadata, normalize_registry_paths,
-        upsert_archive_at_path, validate_archive_invalidation_scope, validate_archive_name,
-        validated_display_root_path, validated_parent_path, validated_root_path,
-        ArchiveManagerCloseAction, ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
+        archive_id_for_path, archive_manager_close_action, archive_paths_match, archive_root,
+        create_empty_archive_at, create_empty_archive_at_with_initializer, metadata,
+        normalize_registry_paths, upsert_archive_at_path, validate_archive_invalidation_scope,
+        validate_archive_name, validated_display_root_path, validated_parent_path,
+        validated_root_path, ArchiveManagerCloseAction, ArchiveRecord, ArchiveRegistry,
         ArchiveRegistryChangedEvent, ArchiveRegistryPaths, ArchiveRegistryService,
     };
 
@@ -1287,34 +1178,6 @@ mod tests {
 
         assert!(error.contains("archive folder"));
         fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn archive_manager_dev_url_uses_external_dev_server_with_marker() {
-        let dev_url = tauri::Url::parse("http://localhost:1420").expect("dev URL should parse");
-
-        let (kind, url) = archive_manager_url_parts(Some(&dev_url), true)
-            .expect("debug manager URL should resolve");
-
-        assert_eq!(kind, ArchiveManagerUrlKind::External);
-        assert_eq!(url, "http://localhost:1420/?window=archive-manager");
-    }
-
-    #[test]
-    fn archive_manager_production_url_uses_bundled_entry_with_marker() {
-        let (kind, url) =
-            archive_manager_url_parts(None, false).expect("production manager URL should resolve");
-
-        assert_eq!(kind, ArchiveManagerUrlKind::App);
-        assert_eq!(url, "index.html?window=archive-manager");
-    }
-
-    #[test]
-    fn archive_manager_debug_url_fails_without_dev_url() {
-        let error =
-            archive_manager_url_parts(None, true).expect_err("debug manager URL requires dev URL");
-
-        assert!(error.contains("development URL"));
     }
 
     #[test]

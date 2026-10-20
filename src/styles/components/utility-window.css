@@ -1,0 +1,146 @@
+/* Lightweight destination frames stay mounted while their optional content loads. */
+.utility-window-ready {
+  display: contents;
+}
+
+.utility-load-status {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  max-width: 65ch;
+  color: var(--muted);
+  font-size: var(--type-body);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.utility-load-status p {
+  margin: 0;
+}
+
+.utility-load-status[data-utility-stage="error"] {
+  color: var(--error-strong);
+}
+
+.utility-placeholder,
+.utility-slot-placeholder span {
+  display: block;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+.utility-slot-placeholder:not(:only-child) {
+  display: none;
+}
+
+.settings-sidebar__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+
+.settings-navigation-placeholder {
+  display: grid;
+  gap: 20px;
+}
+
+.settings-navigation-placeholder > span {
+  height: var(--control-height-standard);
+}
+
+.settings-navigation-placeholder > div {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-navigation-placeholder > div > span {
+  height: 36px;
+}
+
+.theme-manager__toolbar-placeholder {
+  display: flex;
+  gap: 8px;
+  height: var(--control-height-standard);
+}
+
+.theme-manager__toolbar-placeholder span {
+  width: 34px;
+}
+
+.theme-manager__toolbar-placeholder span:first-child {
+  width: 90px;
+}
+
+.theme-manager__catalog-slot,
+.theme-manager__details-slot {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.theme-manager__preview-slot {
+  grid-row: 4;
+  min-width: 0;
+}
+
+.theme-manager__preview-slot:empty {
+  display: none;
+}
+
+/* Reserve the existing single-line notice row before catalog initialization. */
+.theme-manager-surface .theme-manager__notice-region,
+.theme-manager-surface .theme-manager__notice-region:empty {
+  display: block;
+  min-height: calc(var(--type-meta) * 1.45 + 16px);
+}
+
+.theme-manager__catalog-slot > .theme-catalog-list,
+.theme-manager__details-slot .theme-details {
+  height: 100%;
+}
+
+.theme-manager__catalog-placeholder > div {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.theme-manager__catalog-placeholder {
+  height: 100%;
+  border-inline-end: 1px solid var(--line-subtle);
+  background: var(--canvas);
+}
+
+.theme-manager__catalog-placeholder span {
+  height: 110px;
+}
+
+.theme-manager__details-slot .utility-load-status {
+  margin: 22px 24px;
+}
+
+.about-window__body {
+  display: grid;
+  justify-items: center;
+  gap: 24px;
+  width: 100%;
+  min-width: 0;
+}
+
+.about-window__link.utility-placeholder {
+  background: var(--surface-raised);
+}
+
+.about-window__body > .utility-load-status,
+.about-window__body .about-update {
+  justify-items: center;
+  min-height: 58px;
+}
+
+.archive-manager-window__fallback .utility-load-status p {
+  color: inherit;
+}

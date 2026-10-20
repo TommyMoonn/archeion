@@ -9,7 +9,16 @@ import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { defaultAppPreferences } from "../../types/appSettings";
-import { ThemeManagerWindow } from "./ThemeManagerWindow";
+import { ThemeManagerWindow as ThemeManagerWindowContent } from "./ThemeManagerWindow";
+import { UtilityWindowFrame } from "../../app/UtilityWindowFrame";
+
+function ThemeManagerWindow(props: React.ComponentProps<typeof ThemeManagerWindowContent>) {
+  return (
+    <UtilityWindowFrame mode="theme-manager">
+      <ThemeManagerWindowContent {...props} />
+    </UtilityWindowFrame>
+  );
+}
 import type { ThemeManagerControllerOptions } from "./useThemeManagerController";
 
 const mocks = vi.hoisted(() => ({
@@ -47,14 +56,13 @@ function deferred() {
   return { promise, reject, resolve };
 }
 
-async function createRetryablePreferencesStore() {
+async function createFailingPreferencesStore() {
   const { AppPreferencesStore } = await vi.importActual<
     typeof import("../../stores/appPreferencesStore")
   >("../../stores/appPreferencesStore");
   const loadDesktop = vi
     .fn<() => Promise<unknown>>()
-    .mockRejectedValueOnce(new Error("settings unavailable"))
-    .mockResolvedValueOnce({ preferences: defaultAppPreferences, revision: 1 });
+    .mockRejectedValue(new Error("settings unavailable"));
   const store = new AppPreferencesStore({
     isDesktop: () => true,
     loadDesktop,
@@ -149,6 +157,24 @@ afterEach(() => {
 });
 
 describe("ThemeManagerWindow", () => {
+  it("bounds stalled preferences and ignores their late completion", async () => {
+    vi.useFakeTimers();
+    try {
+      const initialization = deferred();
+      mocks.initialize.mockReturnValue(initialization.promise);
+      await act(async () => root.render(<ThemeManagerWindow services={createServices()} />));
+      await act(async () => vi.advanceTimersByTime(10_000));
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        "Theme Manager could not be loaded",
+      );
+      await act(async () => initialization.resolve());
+      expect(container.querySelector("[data-utility-ready]")).toBeNull();
+      expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+      expect(container.querySelector('[data-testid="theme-manager-titlebar"]')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("initializes preferences before mounting the real non-modal manager surface", async () => {
     const initialization = deferred();
     const showModal = vi.spyOn(HTMLDialogElement.prototype, "showModal").mockImplementation(() => {
@@ -158,9 +184,10 @@ describe("ThemeManagerWindow", () => {
     await act(async () => root.render(<ThemeManagerWindow services={createServices()} />));
 
     expect(container.querySelector('[data-testid="theme-manager-titlebar"]')).not.toBeNull();
-    expect(container.querySelector(".theme-manager-surface")).toBeNull();
+    expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+    expect(container.querySelector("[data-utility-ready]")).toBeNull();
     expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBeNull();
-    expect(container.querySelector("main")?.getAttribute("aria-busy")).toBe("true");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Opening Theme Manager");
 
     await act(async () => initialization.resolve());
     await settle();
@@ -223,29 +250,30 @@ describe("ThemeManagerWindow", () => {
     expect(mocks.close).toHaveBeenCalledOnce();
   });
 
-  it("keeps initialization failure and retry inside the standalone root", async () => {
-    const { loadDesktop, store } = await createRetryablePreferencesStore();
+  it("keeps failure inside the workspace and reloads rather than reawaiting initialization", async () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => {});
+    const { loadDesktop, store } = await createFailingPreferencesStore();
     mocks.initialize.mockImplementation(() => store.initialize());
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     await act(async () => root.render(<ThemeManagerWindow services={createServices()} />));
 
     expect(container.textContent).toContain("Theme Manager could not be loaded");
-    expect(container.querySelector(".theme-manager-surface")).toBeNull();
+    expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+    expect(container.querySelector("[data-utility-ready]")).toBeNull();
 
     await act(async () => {
       [...container.querySelectorAll("button")]
-        .find((button) => button.textContent?.includes("Retry"))
+        .find((button) => button.textContent?.includes("Reload window"))
         ?.click();
       await Promise.resolve();
     });
     await settle();
 
-    expect(mocks.initialize).toHaveBeenCalledTimes(2);
-    expect(loadDesktop).toHaveBeenCalledTimes(2);
+    expect(reload).toHaveBeenCalledOnce();
+    expect(mocks.initialize).toHaveBeenCalledOnce();
+    expect(loadDesktop).toHaveBeenCalledOnce();
     expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
-    expect(consoleError).toHaveBeenCalledWith(
-      "Theme Manager initialization failed",
-      expect.any(Error),
-    );
+    expect(container.querySelector("[data-utility-ready]")).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });

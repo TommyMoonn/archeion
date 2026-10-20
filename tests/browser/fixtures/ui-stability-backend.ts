@@ -22,7 +22,9 @@ function fixtureDelay(value: string | null, fallback: number): number {
 export async function installUIStabilityBackend(params: URLSearchParams) {
   const settingsDelay = fixtureDelay(params.get("settingsDelay"), 80);
   const settingsFailure = params.get("settingsFailure");
-  if (settingsFailure && settingsFailure !== "unavailable")
+  const firstSettingsDocument = sessionStorage.getItem("utility-settings-document") === null;
+  sessionStorage.setItem("utility-settings-document", "opened");
+  if (settingsFailure && !["unavailable", "hang-once", "reject-once"].includes(settingsFailure))
     throw new Error("Unsupported settings failure");
   const themeDelay = fixtureDelay(params.get("themeDelay"), 0);
   const themeFailure = params.get("themeFailure");
@@ -44,7 +46,9 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   const windowMode = params.get("window") ?? "main";
   if (!["main", "about", "settings", "archive-manager", "theme-manager"].includes(windowMode))
     throw new Error("Unsupported window mode");
-  let nativeVisible = windowMode !== "main";
+  const revealKey = `utility-revealed:${windowMode}:${params.get("windowInstance")}`;
+  let nativeVisible = windowMode !== "main" && sessionStorage.getItem(revealKey) === "true";
+  const utilityEvents: Array<{ kind: string; time: number; shell: boolean }> = [];
   const unexpected: string[] = [];
   let update: AppUpdateSnapshot = {
     revision: 1,
@@ -120,10 +124,38 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     async (command, args) => {
       const input = args as Record<string, unknown>;
       switch (command) {
-        case "load_app_settings_snapshot":
+        case "managed_window_shell_ready":
+          utilityEvents.push({
+            kind: "shell-ready",
+            time: performance.now(),
+            shell: Boolean(document.querySelector(".window-app main")),
+          });
+          if (String(input.instance) !== params.get("windowInstance"))
+            throw new Error("Wrong window instance");
+          if (!nativeVisible)
+            utilityEvents.push({
+              kind: "native-show",
+              time: performance.now(),
+              shell: Boolean(document.querySelector(".window-app main")),
+            });
+          nativeVisible = true;
+          sessionStorage.setItem(revealKey, "true");
+          return;
+        case "load_app_settings_snapshot": {
+          const attempts = Number(sessionStorage.getItem("utility-settings-reads") ?? 0) + 1;
+          sessionStorage.setItem("utility-settings-reads", String(attempts));
+          if (settingsFailure === "hang-once" && attempts === 1) {
+            // The original read remains unresolved. Only a new document can recover.
+            return await new Promise(() => undefined);
+          }
           await delay(settingsDelay);
-          if (settingsFailure) throw new Error("Synthetic settings unavailable");
+          if (
+            settingsFailure === "unavailable" ||
+            (settingsFailure === "reject-once" && firstSettingsDocument)
+          )
+            throw new Error("Synthetic settings unavailable");
           return { revision, preferences };
+        }
         case "update_app_settings": {
           // Exercise the real normalization/mutation owner, preserving snapshot revisions.
           const { applyAppSettingsMutation } =
@@ -199,6 +231,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           nativeVisible = true;
           return;
         case "plugin:window|hide":
+        case "plugin:window|close":
           nativeVisible = false;
           return;
         case "plugin:window|set_focus":
@@ -216,6 +249,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     { shouldMockEvents: true },
   );
   return {
+    utilityEvents,
     themeReadStarted: () => themeReads > 0,
     unexpected,
     windowMode,

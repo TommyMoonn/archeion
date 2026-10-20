@@ -1,10 +1,14 @@
 import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
+import { UtilityWindowLoadStatus } from "../../components/UtilityWindowLoadStatus";
+import { useUtilityWindowLoadState } from "../../components/useUtilityWindowLoadState";
 import { ArchiveManagerTitlebarComposition } from "./ArchiveManagerTitlebarComposition";
 
-export function ArchiveManagerWindowLoading() {
+export function ArchiveManagerWindowLoading({ failed = false }: { failed?: boolean }) {
+  const loadState = useUtilityWindowLoadState();
+  const state = failed ? "error" : loadState;
   return (
     <main
-      aria-busy="true"
+      aria-busy={state === "loading" || undefined}
       className="archive-manager-shell"
       id={ARCHIVE_MANAGER_MAIN_CONTENT_ID}
       tabIndex={-1}
@@ -17,9 +21,9 @@ export function ArchiveManagerWindowLoading() {
             className="archive-manager-window__sidebar archive-manager-window__sidebar--fallback"
           />
           <section className="archive-manager-window__main">
-            <div className="archive-manager-window__fallback" role="status">
+            <div className="archive-manager-window__fallback">
               <h1>Archive Manager</h1>
-              <span className="archive-loading">Opening Archive Manager</span>
+              <UtilityWindowLoadStatus title="Archive Manager" state={state} />
             </div>
           </section>
         </div>

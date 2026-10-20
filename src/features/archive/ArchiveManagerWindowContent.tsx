@@ -334,7 +334,12 @@ export function ArchiveManagerWindowContent({
   }
 
   return (
-    <main className="archive-manager-shell" id={ARCHIVE_MANAGER_MAIN_CONTENT_ID} tabIndex={-1}>
+    <main
+      className="archive-manager-shell"
+      id={ARCHIVE_MANAGER_MAIN_CONTENT_ID}
+      tabIndex={-1}
+      data-utility-ready={!isLoading || undefined}
+    >
       <ArchiveManagerTitlebarComposition />
       <section
         className="archive-manager-window archive-manager-window--manager"

@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 
 import { Input } from "../../components/Input";
-import type { Ref } from "react";
+import { useContext, type Ref } from "react";
+import { createPortal } from "react-dom";
+import { SettingsSidebarFrame } from "./SettingsWindowLayout";
+import { SettingsWindowLayoutContext } from "./settingsWindowLayoutContext";
 import type { SettingsSection } from "./settingsSections";
 
 type SettingsSidebarSection = {
@@ -59,12 +62,9 @@ export function SettingsSidebar({
   sections,
   selectedSection,
 }: SettingsSidebarProps) {
-  return (
-    <aside aria-label="Settings navigation" className="settings-sidebar">
-      <div className="settings-sidebar__header">
-        <p>Archeion</p>
-        <h1 id="settings-title">Settings</h1>
-      </div>
+  const layout = useContext(SettingsWindowLayoutContext);
+  const content = (
+    <>
       <div aria-label="Settings search" className="settings-search-landmark" role="search">
         <Input
           className="settings-search"
@@ -96,6 +96,8 @@ export function SettingsSidebar({
           </button>
         ))}
       </nav>
-    </aside>
+    </>
   );
+  if (layout) return layout.navigationHost ? createPortal(content, layout.navigationHost) : null;
+  return <SettingsSidebarFrame>{content}</SettingsSidebarFrame>;
 }

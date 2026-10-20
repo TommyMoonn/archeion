@@ -1,9 +1,16 @@
 import { BookOpenText, ExternalLink, GitFork, Globe, History } from "lucide-react";
-import { useEffect, useRef, useState, type MouseEvent, type ComponentProps } from "react";
+import {
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ComponentProps,
+} from "react";
 
-import { APPLICATION_VERSION_FALLBACK, resolveApplicationVersion } from "../../app/appVersion";
 import { openExternalUrl } from "../../app/openExternalUrl";
-import archeionIcon from "../../assets/brand/archeion-icon-128.png";
+import { AboutLayout } from "./AboutLayout";
+import { AboutLayoutContext } from "./aboutLayoutContext";
 import { AboutUpdateStatus } from "../updates/AboutUpdateStatus";
 import { CHANGELOG_URL } from "../updates/updateReleaseUrl";
 
@@ -34,23 +41,25 @@ const ABOUT_DESTINATIONS = [
   },
 ] as const;
 
-export function AboutSurface({
-  updateClient,
-}: {
-  updateClient?: ComponentProps<typeof AboutUpdateStatus>["client"];
-}) {
-  const [version, setVersion] = useState(APPLICATION_VERSION_FALLBACK);
+type AboutSurfaceProps = { updateClient?: ComponentProps<typeof AboutUpdateStatus>["client"] };
+
+export function AboutSurface(props: AboutSurfaceProps) {
+  const layout = useContext(AboutLayoutContext);
+  return layout ? (
+    <AboutSurfaceContent {...props} />
+  ) : (
+    <AboutLayout>
+      <AboutSurfaceContent {...props} />
+    </AboutLayout>
+  );
+}
+
+function AboutSurfaceContent({ updateClient }: AboutSurfaceProps) {
   const [externalLinkError, setExternalLinkError] = useState<string | null>(null);
   const linkOperationRef = useRef(0);
 
   useEffect(() => {
-    let active = true;
-    void resolveApplicationVersion().then((resolvedVersion) => {
-      if (active) setVersion(resolvedVersion);
-    });
-
     return () => {
-      active = false;
       linkOperationRef.current += 1;
     };
   }, []);
@@ -67,17 +76,7 @@ export function AboutSurface({
   }
 
   return (
-    <div className="about-window__content">
-      <header className="about-window__identity">
-        <div className="about-window__brand" aria-hidden="true">
-          <img alt="" src={archeionIcon} />
-        </div>
-        <div className="about-window__copy">
-          <h1 id="about-title">Archeion</h1>
-          <p className="about-window__version">Version {version}</p>
-        </div>
-      </header>
-
+    <>
       <AboutUpdateStatus client={updateClient} />
 
       <nav aria-label="Archeion links" className="about-window__links">
@@ -105,6 +104,6 @@ export function AboutSurface({
           {externalLinkError}
         </p>
       ) : null}
-    </div>
+    </>
   );
 }

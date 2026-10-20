@@ -39,7 +39,7 @@ const archiveCommands = read("src-tauri/src/commands/archive.rs");
 const managedWindowCommands = read("src-tauri/src/commands/window/mod.rs");
 const windowLabels = {
   about: rustStringConstant(managedWindowCommands, "ABOUT_WINDOW_LABEL"),
-  archiveManager: rustStringConstant(archiveCommands, "ARCHIVE_MANAGER_WINDOW_LABEL"),
+  archiveManager: rustStringConstant(managedWindowCommands, "ARCHIVE_MANAGER_WINDOW_LABEL"),
   main: rustStringConstant(archiveCommands, "MAIN_WINDOW_LABEL"),
   settings: rustStringConstant(managedWindowCommands, "SETTINGS_WINDOW_LABEL"),
   themeManager: rustStringConstant(managedWindowCommands, "THEME_MANAGER_WINDOW_LABEL"),
@@ -79,18 +79,22 @@ describe("Native window runtime contracts", () => {
     });
   });
 
-  it("keeps Archive Manager fixed, frameless, and non-maximizable", () => {
+  it("keeps Archive Manager on the shared hidden, frameless window builder", () => {
+    expect(archiveCommands).toContain("super::window::open_archive_manager(&app).await");
+    expect(archiveCommands).not.toContain("WebviewWindowBuilder");
     for (const requirement of [
-      ".inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)",
-      ".min_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)",
-      ".max_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)",
-      ".resizable(false)",
+      ".inner_size(spec.width, spec.height)",
+      ".min_inner_size(spec.width, spec.height)",
+      ".max_inner_size(spec.width, spec.height)",
+      ".resizable(spec.resizable)",
       ".minimizable(true)",
-      ".maximizable(false)",
+      ".maximizable(spec.maximizable)",
       ".decorations(false)",
       ".closable(true)",
+      ".visible(false)",
+      ".focused(false)",
     ]) {
-      expect(archiveCommands).toContain(requirement);
+      expect(managedWindowCommands).toContain(requirement);
     }
   });
 

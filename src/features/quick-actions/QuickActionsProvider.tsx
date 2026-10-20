@@ -14,6 +14,7 @@ import { flushSync } from "react-dom";
 import { router } from "../../app/router";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { DeferredTransientFallback } from "../../components/DeferredTransientFallback";
+import { Button } from "../../components/Button";
 import { captureFocusReturn, type FocusReturnRecord } from "../../utils/focusRestoration";
 import {
   appPreferencesStore,
@@ -63,6 +64,8 @@ export function QuickActionsProvider({
     focusReturn: FocusReturnRecord;
   } | null>(null);
   const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
+  const [settingsOpenFailed, setSettingsOpenFailed] = useState(false);
+  const settingsOpenRevision = useRef(0);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const mountedRef = useRef(true);
   const preferences = useAppPreferences();
@@ -95,8 +98,12 @@ export function QuickActionsProvider({
   }, [archive]);
 
   const openSettings = useCallback(() => {
+    const revision = ++settingsOpenRevision.current;
+    setSettingsOpenFailed(false);
     void openSettingsWindow().catch((error) => {
       console.error("open_settings_window failed", error);
+      if (mountedRef.current && revision === settingsOpenRevision.current)
+        setSettingsOpenFailed(true);
     });
   }, [openSettingsWindow]);
 
@@ -316,6 +323,13 @@ export function QuickActionsProvider({
   return (
     <QuickActionsContext.Provider value={contextValue}>
       {children}
+      {settingsOpenFailed && (
+        <div className="appearance-status--visible">
+          <p role="alert">Settings could not open. Try again.</p>
+          <Button onClick={openSettings}>Open Settings</Button>
+          <Button onClick={() => setSettingsOpenFailed(false)}>Dismiss</Button>
+        </div>
+      )}
       {palette ? (
         <Suspense fallback={<QuickActionsLoadingFallback />}>
           <QuickActionsPalette

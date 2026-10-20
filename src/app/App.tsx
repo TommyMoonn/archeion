@@ -12,14 +12,7 @@ import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
-import {
-  ABOUT_MAIN_CONTENT_ID,
-  ARCHIVE_MANAGER_MAIN_CONTENT_ID,
-  MAIN_CONTENT_ID,
-  SETTINGS_MAIN_CONTENT_ID,
-  THEME_MANAGER_MAIN_CONTENT_ID,
-  SkipLink,
-} from "../components/SkipLink";
+import { ARCHIVE_MANAGER_MAIN_CONTENT_ID, MAIN_CONTENT_ID, SkipLink } from "../components/SkipLink";
 import { TooltipProvider } from "../components/Tooltip";
 import { WindowTitlebar } from "../components/WindowTitlebar";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
@@ -48,6 +41,8 @@ import { startupTrace } from "./startupTrace";
 import { focusPresentationRuntime } from "./inputModality";
 import { AppUpdateRuntime } from "../features/updates/AppUpdateRuntime";
 import { AppearanceStatus } from "./AppearanceStatus";
+import { UtilityWindowContentBoundary, UtilityWindowFrame } from "./UtilityWindowFrame";
+import { useManagedWindowShellReady } from "./useManagedWindowShellReady";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -96,6 +91,7 @@ export function App() {
 
 function AppWindow() {
   const windowMode = resolveWindowMode();
+  useManagedWindowShellReady(windowMode);
 
   useEffect(() => focusPresentationRuntime.start(document), []);
 
@@ -106,11 +102,11 @@ function AppWindow() {
           <SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />
           <WindowTitlebar canMaximize={false} />
           <div className="window-app__content">
-            <AppErrorBoundary mainContentId={ARCHIVE_MANAGER_MAIN_CONTENT_ID}>
+            <UtilityWindowContentBoundary fallback={<ArchiveManagerWindowLoading failed />}>
               <Suspense fallback={<ArchiveManagerWindowLoading />}>
                 <ArchiveManagerWindow />
               </Suspense>
-            </AppErrorBoundary>
+            </UtilityWindowContentBoundary>
           </div>
         </div>
       </TooltipProvider>
@@ -120,11 +116,9 @@ function AppWindow() {
   if (windowMode === "about") {
     return (
       <TooltipProvider>
-        <AppErrorBoundary mainContentId={ABOUT_MAIN_CONTENT_ID}>
-          <Suspense fallback={null}>
-            <AboutWindow />
-          </Suspense>
-        </AppErrorBoundary>
+        <UtilityWindowFrame mode="about">
+          <AboutWindow />
+        </UtilityWindowFrame>
       </TooltipProvider>
     );
   }
@@ -132,11 +126,9 @@ function AppWindow() {
   if (windowMode === "settings") {
     return (
       <TooltipProvider>
-        <AppErrorBoundary mainContentId={SETTINGS_MAIN_CONTENT_ID}>
-          <Suspense fallback={null}>
-            <SettingsWindow />
-          </Suspense>
-        </AppErrorBoundary>
+        <UtilityWindowFrame mode="settings">
+          <SettingsWindow />
+        </UtilityWindowFrame>
       </TooltipProvider>
     );
   }
@@ -144,11 +136,9 @@ function AppWindow() {
   if (windowMode === "theme-manager") {
     return (
       <TooltipProvider>
-        <AppErrorBoundary mainContentId={THEME_MANAGER_MAIN_CONTENT_ID}>
-          <Suspense fallback={null}>
-            <ThemeManagerWindow />
-          </Suspense>
-        </AppErrorBoundary>
+        <UtilityWindowFrame mode="theme-manager">
+          <ThemeManagerWindow />
+        </UtilityWindowFrame>
       </TooltipProvider>
     );
   }

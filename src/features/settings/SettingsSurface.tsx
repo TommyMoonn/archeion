@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { SettingsWindowLayout } from "./SettingsWindowLayout";
+import { SettingsWindowLayoutContext } from "./settingsWindowLayoutContext";
 
 import type { InstalledFontCatalog } from "../../storage/installedFontCatalog";
 import { useInstalledFontFamilies } from "../../storage/useInstalledFontFamilies";
@@ -63,11 +65,22 @@ function renderSettingsSection(
   }
 }
 
-export function SettingsSurface({
+export function SettingsSurface(props: SettingsSurfaceProps) {
+  const layout = useContext(SettingsWindowLayoutContext);
+  return layout ? (
+    <SettingsSurfaceContent {...props} />
+  ) : (
+    <SettingsWindowLayout>
+      <SettingsSurfaceContent {...props} />
+    </SettingsWindowLayout>
+  );
+}
+
+function SettingsSurfaceContent({
   archiveBoundary,
   fontCatalog: installedFonts,
 }: SettingsSurfaceProps) {
-  const contentRef = useRef<HTMLElement>(null);
+  const { contentRef } = useContext(SettingsWindowLayoutContext)!;
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [animateSectionChange, setAnimateSectionChange] = useState(false);
@@ -105,9 +118,7 @@ export function SettingsSurface({
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
     onOpenThemeManager: () => {
       themeCatalog.retireRefreshFailure();
-      void openThemeManagerWindow().catch((error) => {
-        console.error("open_theme_manager_window failed", error);
-      });
+      return openThemeManagerWindow();
     },
     refreshThemeCatalog: themeCatalog.refresh,
     themeCatalogEntries: themeCatalog.entries,
@@ -140,10 +151,10 @@ export function SettingsSurface({
     scrollSettingsContent(contentRef.current);
   }
 
-  useEffect(() => scrollSettingsContent(contentRef.current), [trimmedQuery]);
+  useEffect(() => scrollSettingsContent(contentRef.current), [contentRef, trimmedQuery]);
 
   return (
-    <div className="settings-window">
+    <>
       <SettingsSidebar
         onQueryChange={(nextQuery) => {
           setAnimateSectionChange(false);
@@ -157,7 +168,7 @@ export function SettingsSurface({
         selectedSection={selectedSection}
       />
 
-      <section aria-label="Settings content" className="settings-content" ref={contentRef}>
+      <div className="settings-content__body">
         {searchActive ? (
           <SettingsSearchResults
             key={trimmedQuery}
@@ -186,7 +197,7 @@ export function SettingsSurface({
             (themeCatalog.error ? { message: themeCatalog.error, tone: "error" } : null)
           }
         />
-      </section>
+      </div>
 
       <SettingsConfirmations
         archiveScanActive={controller.archiveScanActive}
@@ -200,6 +211,6 @@ export function SettingsSurface({
         onRepairMetadata={controller.confirmRepairMetadata}
         onRescanArchive={controller.confirmRescanArchive}
       />
-    </div>
+    </>
   );
 }

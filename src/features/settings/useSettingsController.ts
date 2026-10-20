@@ -50,7 +50,7 @@ export type SettingsControllerOptions = {
   installedFontsLoading?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
-  onOpenThemeManager?: () => void;
+  onOpenThemeManager?: () => void | Promise<void>;
   refreshThemeCatalog?: () => Promise<boolean>;
   themeCatalogEntries?: readonly ThemeCatalogEntry[];
   themeCatalogLoading?: boolean;
@@ -161,6 +161,7 @@ export function useSettingsController({
   useEffect(() => {
     return () => {
       dataLoadGenerationRef.current += 1;
+      statusOperationRevisionRef.current += 1;
     };
   }, []);
 
@@ -399,7 +400,7 @@ export function useSettingsController({
     return updateAppPreferences(changes, { successMessage: "Appearance saved." });
   }
 
-  function openThemeManager() {
+  async function openThemeManager() {
     const statusOperation = beginStatusOperation();
     if (!onOpenThemeManager) {
       publishStatusOperation(
@@ -409,7 +410,11 @@ export function useSettingsController({
       );
       return;
     }
-    onOpenThemeManager();
+    try {
+      await onOpenThemeManager();
+    } catch {
+      publishStatusOperation(statusOperation, "Theme Manager could not open. Try again.", "error");
+    }
   }
 
   async function rescan() {
