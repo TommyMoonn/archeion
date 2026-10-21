@@ -2,6 +2,7 @@
 
 import { act } from "react";
 import { describe, expect, it } from "vitest";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 
 import {
   createBooksLoadController,
@@ -45,6 +46,7 @@ describe("LibraryPage shell state integration", () => {
     expect(session.container.querySelector(".sidebar")).toBe(sidebar);
     expect(session.container.querySelector(".library-titlebar-composition")).toBe(titlebarActions);
     const emptyContent = session.container.querySelector(".collection-content");
+    expect(emptyContent).toBe(loadingContent);
     expect(emptyContent?.className).toBe(loadingContent?.className);
     expect(emptyContent?.getAttribute("data-surface-state")).toBe("empty");
     expect(emptyContent?.querySelector(".empty-state")).not.toBeNull();
@@ -106,10 +108,61 @@ describe("LibraryPage shell state integration", () => {
 
     expect(session.container.querySelector(".page-shell")).toBe(shell);
     const searchEmptyContent = session.container.querySelector(".collection-content");
+    expect(searchEmptyContent).toBe(content);
     expect(searchEmptyContent?.className).toBe(content?.className);
     expect(searchEmptyContent?.getAttribute("data-surface-state")).toBe("search-empty");
     expect(searchEmptyContent?.textContent).toContain("No search results");
     expect(searchEmptyContent?.textContent).toContain("Clear search");
+  });
+
+  it("retains the collection instance through search, filters, loading and selection", async () => {
+    const books = [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")];
+    const loadController = createBooksLoadController([], books);
+    const session = await renderLibraryPage(
+      createStorage({
+        getLibrarySnapshot: loadController.getLibrarySnapshot,
+        observeLibrarySnapshot: loadController.observeLibrarySnapshot,
+      }),
+    );
+    suite.trackRoot(session.root);
+    act(() => loadController.publishModel(books, []));
+    const content = session.container.querySelector(".collection-content");
+    const grid = session.container.querySelector(".book-grid");
+    const alpha = session.container.querySelector('[data-reader-book-id="alpha"]');
+    const search = session.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    )!;
+    for (const query of ["Alpha", "missing", "", "missing", ""]) {
+      await act(async () => {
+        setInputValue(search, query);
+        await new Promise((resolve) => window.setTimeout(resolve, 180));
+      });
+      expect(session.container.querySelector(".collection-content")).toBe(content);
+      expect(session.container.querySelector(".book-grid")).toBe(grid);
+      if (query === "Alpha")
+        expect(session.container.querySelector('[data-reader-book-id="alpha"]')).toBe(alpha);
+    }
+    const retained = session.container.querySelector('[data-reader-book-id="alpha"]');
+    act(() => loadController.startLoading());
+    act(() => loadController.publishModel(books, []));
+    expect(session.container.querySelector('[data-reader-book-id="alpha"]')).toBe(retained);
+    expect(session.container.querySelector(".collection-content")).toBe(content);
+    const preferences = appPreferencesStore.getSnapshot();
+    for (const favoritesOnly of [true, false]) {
+      await act(async () => {
+        await appPreferencesStore.update({
+          library: {
+            ...preferences.library,
+            filters: { ...preferences.library.filters, favoritesOnly },
+          },
+        });
+      });
+      expect(session.container.querySelector(".collection-content")).toBe(content);
+      expect(session.container.querySelector(".book-grid")).toBe(grid);
+      expect(content?.getAttribute("data-surface-state")).toBe(
+        favoritesOnly ? "filter-empty" : "results",
+      );
+    }
   });
 
   it("keeps the Folder shell mounted while initial loading becomes ready empty", async () => {
