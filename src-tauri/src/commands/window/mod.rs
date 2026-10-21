@@ -1,5 +1,6 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod placement;
 mod readiness;
 pub use readiness::ManagedWindowState;
 
@@ -232,8 +233,6 @@ async fn open_managed_window(
 
     match action {
         WindowOpenAction::FocusExisting => {
-            let window = existing_window.expect("focus action requires an existing window");
-            apply_window_constraints(&window, &spec)?;
             let current = owner.readiness.lock().unwrap().current(spec.label);
             if let Some((generation, receiver)) = current {
                 if receiver.borrow().is_some() {
@@ -270,7 +269,6 @@ async fn open_managed_window(
         )
         .title(spec.title)
         .inner_size(spec.width, spec.height)
-        .center()
         .resizable(spec.resizable)
         .minimizable(true)
         .maximizable(spec.maximizable)
@@ -396,6 +394,11 @@ async fn project_ready_window(
             }
             let focus = state.owns_focus(&label);
             drop(state);
+            if focus && !first && window.is_minimized().map_err(|error| error.to_string())? {
+                window.unminimize().map_err(|error| error.to_string())?;
+            }
+            let spec = managed_window_spec(&label).ok_or("Unknown managed window.")?;
+            placement::prepare_reveal(&current_app, &window, &spec, first)?;
             window.show().map_err(|error| error.to_string())?;
             if focus {
                 window.set_focus().map_err(|error| error.to_string())?;
@@ -459,42 +462,52 @@ pub async fn open_about_window(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
-    open_managed_window(
-        &app,
-        ManagedWindowSpec {
-            app_url: SETTINGS_WINDOW_APP_URL,
-            height: SETTINGS_WINDOW_HEIGHT,
-            label: SETTINGS_WINDOW_LABEL,
-            maximizable: true,
-            min_height: SETTINGS_WINDOW_MIN_HEIGHT,
-            min_width: SETTINGS_WINDOW_MIN_WIDTH,
-            query: SETTINGS_WINDOW_QUERY,
-            resizable: true,
-            title: "Settings",
-            width: SETTINGS_WINDOW_WIDTH,
-        },
-    )
-    .await
+    open_managed_window(&app, settings_window_spec()).await
+}
+
+fn settings_window_spec() -> ManagedWindowSpec {
+    ManagedWindowSpec {
+        app_url: SETTINGS_WINDOW_APP_URL,
+        height: SETTINGS_WINDOW_HEIGHT,
+        label: SETTINGS_WINDOW_LABEL,
+        maximizable: true,
+        min_height: SETTINGS_WINDOW_MIN_HEIGHT,
+        min_width: SETTINGS_WINDOW_MIN_WIDTH,
+        query: SETTINGS_WINDOW_QUERY,
+        resizable: true,
+        title: "Settings",
+        width: SETTINGS_WINDOW_WIDTH,
+    }
 }
 
 #[tauri::command]
 pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), String> {
-    open_managed_window(
-        &app,
-        ManagedWindowSpec {
-            app_url: THEME_MANAGER_WINDOW_APP_URL,
-            height: THEME_MANAGER_WINDOW_HEIGHT,
-            label: THEME_MANAGER_WINDOW_LABEL,
-            maximizable: true,
-            min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
-            min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
-            query: THEME_MANAGER_WINDOW_QUERY,
-            resizable: true,
-            title: "Theme Manager",
-            width: THEME_MANAGER_WINDOW_WIDTH,
-        },
-    )
-    .await
+    open_managed_window(&app, theme_manager_window_spec()).await
+}
+
+fn theme_manager_window_spec() -> ManagedWindowSpec {
+    ManagedWindowSpec {
+        app_url: THEME_MANAGER_WINDOW_APP_URL,
+        height: THEME_MANAGER_WINDOW_HEIGHT,
+        label: THEME_MANAGER_WINDOW_LABEL,
+        maximizable: true,
+        min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
+        min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
+        query: THEME_MANAGER_WINDOW_QUERY,
+        resizable: true,
+        title: "Theme Manager",
+        width: THEME_MANAGER_WINDOW_WIDTH,
+    }
+}
+
+fn managed_window_spec(label: &str) -> Option<ManagedWindowSpec> {
+    match label {
+        ABOUT_WINDOW_LABEL => Some(about_window_spec()),
+        SETTINGS_WINDOW_LABEL => Some(settings_window_spec()),
+        THEME_MANAGER_WINDOW_LABEL => Some(theme_manager_window_spec()),
+        ARCHIVE_MANAGER_WINDOW_LABEL => Some(archive_manager_window_spec()),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

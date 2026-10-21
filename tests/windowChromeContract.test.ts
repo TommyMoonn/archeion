@@ -108,6 +108,28 @@ describe("Native window runtime contracts", () => {
     });
   });
 
+  it("places managed windows inside the instance-checked reveal transaction", () => {
+    expect(managedWindowCommands).not.toContain(".center()");
+    const reveal = managedWindowCommands.slice(
+      managedWindowCommands.indexOf("async fn project_ready_window("),
+    );
+    expect(reveal.indexOf("window_instance_matches(&url, generation)")).toBeLessThan(
+      reveal.indexOf("placement::prepare_reveal("),
+    );
+    expect(reveal.indexOf("placement::prepare_reveal(")).toBeLessThan(
+      reveal.indexOf("window.show()"),
+    );
+  });
+
+  it("preserves native geometry when focusing a healthy existing utility window", () => {
+    const focus = managedWindowCommands.slice(
+      managedWindowCommands.indexOf("WindowOpenAction::FocusExisting => {"),
+      managedWindowCommands.indexOf("WindowOpenAction::ReplaceUnhealthy => {"),
+    );
+    expect(focus.includes("apply_window_constraints")).toBe(false);
+    expect(focus).toContain("project_ready_window");
+  });
+
   it("scopes About to its required window and event controls", () => {
     const about = readJson<Capability>("src-tauri/capabilities/about-window.json");
 
