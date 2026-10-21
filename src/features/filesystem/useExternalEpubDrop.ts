@@ -11,11 +11,16 @@ import {
 } from "./externalEpubDrop";
 
 type ExternalEpubDropInput = {
+  disabled?: boolean;
   onDrop: (sourcePaths: string[], destinationValue: string) => void;
   onInvalidDrop: (message: string) => void;
 };
 
-export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropInput) {
+export function useExternalEpubDrop({
+  disabled = false,
+  onDrop,
+  onInvalidDrop,
+}: ExternalEpubDropInput) {
   const [activeTarget, setActiveTarget] = useState<ImportDropTarget | null>(null);
   const activeTargetRef = useRef<ImportDropTarget | null>(null);
   const validDragRef = useRef(false);
@@ -28,7 +33,7 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
   }, [onDrop, onInvalidDrop]);
 
   useEffect(() => {
-    if (!isTauri()) return;
+    if (!isTauri() || disabled) return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
 
@@ -75,6 +80,7 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
     void Promise.all([getCurrentWindow().scaleFactor(), Promise.resolve(getCurrentWebview())])
       .then(([scaleFactor, webview]) =>
         webview.onDragDropEvent(({ payload }) => {
+          if (disposed) return;
           if (payload.type === "leave") {
             clearDrag();
             return;
@@ -120,7 +126,7 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
       clearDrag();
       unlisten?.();
     };
-  }, []);
+  }, [disabled]);
 
   return { activeTarget };
 }

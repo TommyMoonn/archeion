@@ -28,6 +28,7 @@ import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 import { archiveStore } from "../stores/archiveStore";
 import { startNavigationStateTracking } from "./navigationState";
 import { router } from "./router";
+import { ReaderExitFrameContext, type ReaderExitFrame } from "./readerExitFrame";
 import {
   initializeMainStartup,
   resumeInitialStartupAfterArchiveManagerClose,
@@ -190,6 +191,7 @@ function StartupLoading() {
 }
 
 function MainWindowApp() {
+  const [readerExitFrame, setReaderExitFrame] = useState<ReaderExitFrame | null>(null);
   const [startupState, setStartupState] = useState<MainWindowStartupState>({ status: "loading" });
   const startupAttemptRef = useRef<InitialStartupAttempt | null>(null);
   const startupAttemptSequenceRef = useRef(0);
@@ -439,16 +441,20 @@ function MainWindowApp() {
         <AppErrorBoundary>
           <AppUpdateRuntime />
           <LibraryStorageProvider storage={startupState.preparedArchive.storage}>
-            <QuickActionsProvider>
-              <ArchiveGate
-                preparedArchiveAtMount={{
-                  id: startupState.preparedArchive.archiveId,
-                  rootPath: startupState.preparedArchive.rootPath,
-                }}
-              >
-                <RouterProvider router={router} />
-              </ArchiveGate>
-            </QuickActionsProvider>
+            <ArchiveGate
+              preparedArchiveAtMount={{
+                id: startupState.preparedArchive.archiveId,
+                rootPath: startupState.preparedArchive.rootPath,
+              }}
+            >
+              <QuickActionsProvider>
+                <ReaderExitFrameContext
+                  value={{ frame: readerExitFrame, setFrame: setReaderExitFrame }}
+                >
+                  <RouterProvider router={router} />
+                </ReaderExitFrameContext>
+              </QuickActionsProvider>
+            </ArchiveGate>
           </LibraryStorageProvider>
         </AppErrorBoundary>
       </div>

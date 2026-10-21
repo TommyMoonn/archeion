@@ -477,3 +477,22 @@ html[data-density="compact"] .nav-item {
 .sidebar__smart-views-list[hidden] {
   display: none;
 }
+.archive-handoff,
+.archive-handoff__workspace {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.archive-handoff__status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--muted);
+  background: var(--surface-main);
+}

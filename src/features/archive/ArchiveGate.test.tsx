@@ -5,15 +5,20 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ArchiveState } from "../../stores/archiveStore";
+import type { LibrarySnapshot } from "../../storage/LibraryStorage";
 import { ArchiveGate } from "./ArchiveGate";
+import { useArchive } from "./useArchive";
 
 const routerMock = vi.hoisted(() => ({
   navigate: vi.fn(),
+  subscribe: vi.fn(() => () => undefined),
   state: { location: { pathname: "/reader/shared-book" } },
 }));
 const storageMock = vi.hoisted(() => ({
   rescan: vi.fn(async () => undefined),
   reset: vi.fn(),
+  getLibrarySnapshot: vi.fn(),
+  observeLibrarySnapshot: vi.fn(() => () => undefined),
 }));
 
 let archiveState: ArchiveState;
@@ -24,7 +29,16 @@ vi.mock("../../storage/useLibraryStorage", () => ({ useLibraryStorage: () => sto
 vi.mock("../../stores/appPreferencesStore", () => ({
   useFilesAndMetadataPreferences: () => ({ liveWatcherEnabled: false, scanOnStartup }),
 }));
-vi.mock("./useArchive", () => ({ useArchive: () => archiveState }));
+vi.mock("../../stores/archiveStore", () => ({
+  archiveStore: {
+    getSnapshot: () => archiveState,
+    subscribe: () => () => undefined,
+    registerTransitionGuard: () => () => undefined,
+    setWatcherError: vi.fn(),
+    refreshActiveArchive: vi.fn(),
+    openArchiveManagerWindow: vi.fn(),
+  },
+}));
 
 function readyArchive(id: string): ArchiveState {
   return {
@@ -57,7 +71,13 @@ let container: HTMLDivElement | null = null;
 async function render(
   children: ReactNode = <div data-testid="reader">Reader</div>,
   preparedArchiveAtMount?: { id: string; rootPath: string },
+  snapshot?: Partial<LibrarySnapshot>,
 ) {
+  storageMock.getLibrarySnapshot.mockReturnValue({
+    archiveRootPath: archiveState.path,
+    loadState: "ready",
+    ...snapshot,
+  } as LibrarySnapshot);
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
   await act(async () =>
@@ -81,6 +101,75 @@ afterEach(() => {
 });
 
 describe("ArchiveGate ready archive replacement", () => {
+  it("does not publish a destination when navigate resolves before the guarded route commits", async () => {
+    let routeChanged = () => {};
+    routerMock.subscribe.mockImplementationOnce((listener?: () => void) => {
+      routeChanged = listener ?? (() => {});
+      return () => undefined;
+    });
+    function Workspace() {
+      const archive = useArchive();
+      return <aside>{archive.status === "ready" ? archive.archive.id : "no archive"}</aside>;
+    }
+    archiveState = readyArchive("archive-a");
+    const rendered = await render(<Workspace />);
+    routerMock.navigate.mockResolvedValueOnce(undefined);
+    archiveState = readyArchive("archive-b");
+    await render(<Workspace />);
+    expect(rendered.querySelector("aside")?.textContent).toBe("archive-a");
+    expect(rendered.querySelector("[data-archive-blocked]")).not.toBeNull();
+    await act(async () => {
+      routerMock.state.location.pathname = "/";
+      routeChanged();
+    });
+    expect(rendered.querySelector("aside")?.textContent).toBe("archive-b");
+    expect(rendered.querySelector("[data-archive-blocked]")).toBeNull();
+  });
+  it("publishes the new identity only with a consistent ready snapshot", async () => {
+    function Workspace() {
+      const archive = useArchive();
+      return <aside>{archive.status === "ready" ? archive.archive.id : "no archive"}</aside>;
+    }
+    routerMock.state.location.pathname = "/";
+    archiveState = readyArchive("archive-a");
+    const rendered = await render(<Workspace />);
+    const chrome = rendered.querySelector("aside");
+    archiveState = readyArchive("archive-b");
+    await render(<Workspace />, undefined, { loadState: "loading" });
+    expect(chrome?.textContent).toBe("archive-a");
+    expect(rendered.querySelector("[data-archive-blocked]")).not.toBeNull();
+    await render(<Workspace />, undefined, { loadState: "error" });
+    expect(chrome?.textContent).toBe("archive-a");
+    expect(rendered.querySelector('[role="alert"]')?.textContent).toContain("Try again");
+    await render(<Workspace />);
+    expect(chrome?.textContent).toBe("archive-b");
+    expect(rendered.querySelector("[data-archive-blocked]")).toBeNull();
+  });
+
+  it("ignores an older route completion after another archive supersedes it", async () => {
+    function Workspace() {
+      const archive = useArchive();
+      return <aside>{archive.status === "ready" ? archive.archive.id : "no archive"}</aside>;
+    }
+    archiveState = readyArchive("archive-a");
+    const rendered = await render(<Workspace />);
+    const b = deferred();
+    const c = deferred();
+    routerMock.navigate.mockReturnValueOnce(b.promise).mockReturnValueOnce(c.promise);
+    archiveState = readyArchive("archive-b");
+    await render(<Workspace />);
+    archiveState = readyArchive("archive-c");
+    await render(<Workspace />);
+    await act(async () => b.resolve());
+    expect(rendered.querySelector("aside")?.textContent).toBe("archive-a");
+    await act(async () => {
+      routerMock.state.location.pathname = "/";
+      c.resolve();
+    });
+    expect(rendered.querySelector("aside")?.textContent).toBe("archive-c");
+    expect(routerMock.navigate).toHaveBeenCalledTimes(2);
+  });
+
   it("does not reset storage that main startup already prepared", async () => {
     archiveState = readyArchive("archive-a");
     await render(undefined, { id: "archive-a", rootPath: "D:\\archive-a" });
@@ -159,7 +248,7 @@ describe("ArchiveGate ready archive replacement", () => {
     expect(storageMock.reset).toHaveBeenLastCalledWith("D:\\archive-b");
   });
 
-  it("unmounts the reader and replaces it with the new archive Library route", async () => {
+  it("keeps the outgoing frame inert until the new archive Library route commits", async () => {
     archiveState = readyArchive("archive-a");
     const rendered = await render();
     expect(rendered.querySelector('[data-testid="reader"]')).toBeInstanceOf(HTMLElement);
@@ -169,7 +258,8 @@ describe("ArchiveGate ready archive replacement", () => {
     archiveState = readyArchive("archive-b");
     await render();
 
-    expect(rendered.querySelector('[data-testid="reader"]')).toBeNull();
+    expect(rendered.querySelector('[data-testid="reader"]')).toBeInstanceOf(HTMLElement);
+    expect(rendered.querySelector(".archive-handoff__workspace")?.hasAttribute("inert")).toBe(true);
     expect(rendered.textContent).toContain("Opening archive");
     expect(routerMock.navigate).toHaveBeenCalledWith(
       {
@@ -185,6 +275,25 @@ describe("ArchiveGate ready archive replacement", () => {
       await navigation.promise;
     });
     expect(rendered.querySelector('[data-testid="reader"]')).toBeInstanceOf(HTMLElement);
+  });
+
+  it("retains the presented identity and chrome during loading and recoverable failure", async () => {
+    function Workspace() {
+      const archive = useArchive();
+      return <aside>{archive.status === "ready" ? archive.archive.id : "no archive"}</aside>;
+    }
+    archiveState = readyArchive("archive-a");
+    const rendered = await render(<Workspace />);
+    const chrome = rendered.querySelector("aside");
+    archiveState = { status: "loading", path: null, error: null, archives: [] };
+    await render(<Workspace />);
+    expect(rendered.querySelector("aside")).toBe(chrome);
+    expect(chrome?.textContent).toBe("archive-a");
+    expect(storageMock.reset).toHaveBeenCalledTimes(1);
+    archiveState = { status: "error", path: "D:\\archive-b", error: "unavailable", archives: [] };
+    await render(<Workspace />);
+    expect(rendered.querySelector("aside")).toBe(chrome);
+    expect(rendered.querySelector('[role="alert"]')?.textContent).toContain("Try again");
   });
 
   it("does not issue another navigation when the archive switch already reached Library", async () => {

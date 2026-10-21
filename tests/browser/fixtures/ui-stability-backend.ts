@@ -21,6 +21,13 @@ function fixtureDelay(value: string | null, fallback: number): number {
 /** Generated identities only. No file system, network archive or personal data access. */
 export async function installUIStabilityBackend(params: URLSearchParams) {
   const settingsDelay = fixtureDelay(params.get("settingsDelay"), 80);
+  const sourceDelay = fixtureDelay(params.get("sourceDelay"), 100);
+  const archiveDelay = fixtureDelay(params.get("archiveDelay"), 100);
+  const scanDelay = fixtureDelay(params.get("scanDelay"), 80);
+  const progressDelay = fixtureDelay(params.get("progressDelay"), 0);
+  let sourceFailure = params.get("sourceFailure") === "once";
+  let archiveFailure = params.get("archiveFailure") === "once";
+  let scanFailure = params.get("scanFailure") === "once";
   const settingsFailure = params.get("settingsFailure");
   const firstSettingsDocument = sessionStorage.getItem("utility-settings-document") === null;
   sessionStorage.setItem("utility-settings-document", "opened");
@@ -172,17 +179,29 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         case "validate_archive_path":
           return true;
         case "activate_archive":
-          await delay(100);
+          await delay(archiveDelay);
+          if (archiveFailure) {
+            archiveFailure = false;
+            throw new Error("Synthetic unavailable archive");
+          }
           active = String(input.archiveId);
           metadata = { library: { version: 1, books: {} }, progress: { version: 1, progress: {} } };
           return registry();
         case "load_archive_metadata":
           return metadata;
         case "scan_archive":
-          await delay(80);
+          await delay(scanDelay);
+          if (active === "b" && scanFailure) {
+            scanFailure = false;
+            throw new Error("Synthetic archive scan failure");
+          }
           return scan();
         case "read_epub_file":
-          await delay(100);
+          await delay(sourceDelay);
+          if (sourceFailure) {
+            sourceFailure = false;
+            throw new Error("Synthetic missing EPUB");
+          }
           return epub.buffer;
         case "load_epub_cover":
           return coverBytes;
@@ -192,6 +211,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           metadata.library = input.metadata as typeof metadata.library;
           return;
         case "save_progress_metadata":
+          await delay(progressDelay);
           metadata.progress = input.metadata as typeof metadata.progress;
           return;
         case "save_annotations_metadata":

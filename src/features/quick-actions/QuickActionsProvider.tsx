@@ -41,6 +41,7 @@ import {
 } from "./quickActionThemeMode";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 import { openSettingsWindow as openNativeSettingsWindow } from "../settings/settingsWindow";
+import { useArchivePresentation } from "../../app/archivePresentation";
 
 const loadQuickActionsPalette = () =>
   import("./QuickActionsPalette").then((module) => ({ default: module.QuickActionsPalette }));
@@ -59,6 +60,7 @@ export function QuickActionsProvider({
   themeModeServices,
 }: QuickActionsProviderProps) {
   const registry = quickActionsRegistry;
+  const archiveInteractionBlocked = useArchivePresentation()?.blocked ?? false;
   const [palette, setPalette] = useState<{
     archiveId: string | null;
     focusReturn: FocusReturnRecord;
@@ -109,6 +111,7 @@ export function QuickActionsProvider({
 
   const executeCommand = useCallback(
     (command: AppCommand, focusReturn?: FocusReturnRecord) => {
+      if (archiveInteractionBlocked) return;
       registry.recordRecent(command.id);
       commandFocusReturnRef.current = focusReturn ?? null;
       let result: void | Promise<void>;
@@ -121,11 +124,12 @@ export function QuickActionsProvider({
         console.error(`Command failed: ${command.id}`, error);
       });
     },
-    [registry],
+    [archiveInteractionBlocked, registry],
   );
 
   const handleKeyboardEvent = useCallback(
     (event: KeyboardEvent, context?: KeyboardInteractionContext): boolean => {
+      if (archiveInteractionBlocked) return false;
       const resolved = resolveKeyboardCommand(
         event,
         registry.getSnapshot().commands,
@@ -140,7 +144,7 @@ export function QuickActionsProvider({
       if (resolved.availability.available) executeCommand(resolved.command);
       return true;
     },
-    [executeCommand, keyboard, registry],
+    [archiveInteractionBlocked, executeCommand, keyboard, registry],
   );
 
   useEffect(() => {
@@ -330,7 +334,7 @@ export function QuickActionsProvider({
           <Button onClick={() => setSettingsOpenFailed(false)}>Dismiss</Button>
         </div>
       )}
-      {palette ? (
+      {palette && !archiveInteractionBlocked ? (
         <Suspense fallback={<QuickActionsLoadingFallback />}>
           <QuickActionsPalette
             focusReturn={palette.focusReturn}

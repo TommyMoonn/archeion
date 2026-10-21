@@ -1,6 +1,7 @@
 import { BookOpenText, X } from "lucide-react";
 import {
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -95,6 +96,9 @@ import { createReaderAppearanceController } from "./readerAppearanceController";
 import { readerModeForPublication } from "./readerSettingsCapabilities";
 import { createReaderPresentationController } from "./readerPresentationController";
 import { useReaderPanelPrewarm } from "./useReaderPanelPrewarm";
+import { ReaderOpeningStatus } from "./ReaderOpeningStatus";
+import { ReaderExitPresentation } from "./ReaderExitPresentation";
+import { ReaderExitFrameContext } from "../../app/readerExitFrame";
 
 const INITIAL_PUBLICATION_SEARCH_STATE: ReaderPublicationSearchControllerState = Object.freeze({
   error: null,
@@ -118,6 +122,7 @@ export function ReaderPage() {
   const book = useLoaderData() as Book | undefined;
   const bookId = book?.id;
   const navigate = useNavigate();
+  const setExitFrame = useContext(ReaderExitFrameContext)?.setFrame;
   const routerLocation = useLocation();
   const archiveSession = useReaderArchiveSession();
   const [searchParams] = useSearchParams();
@@ -176,6 +181,8 @@ export function ReaderPage() {
     readerSessionController.getSnapshot,
   );
   const readerSessionLifecycle = readerSessionSnapshot.lifecycle;
+  const retiring =
+    readerSessionLifecycle.phase === "closing" || readerSessionLifecycle.phase === "closed";
   const readerSessionFailure = readerSessionSnapshot.failure;
   const readerSessionIdentity = readerSessionLifecycle.identity;
   useReaderPanelPrewarm(
@@ -356,10 +363,14 @@ export function ReaderPage() {
     archiveId: activeArchiveId ?? null,
     onTransitionIntent: invalidateOpenRequests,
     readerIdentity: readerSessionIdentity,
+    retired: retiring,
     retire: retireReaderSession,
     settle: settleReaderLeave,
   });
   const toolbarVisibility = useReaderToolbarVisibility();
+  useLayoutEffect(() => {
+    setExitFrame?.({ theme: readerTheme, toolbarExpanded: toolbarVisibility.expanded });
+  }, [setExitFrame, readerTheme, toolbarVisibility.expanded]);
 
   useLayoutEffect(() => {
     const readerPage = readerMainRef.current;
@@ -794,7 +805,7 @@ export function ReaderPage() {
     toggleSettings,
     toggleNavigation,
   ]);
-  useRegisterQuickActions("reader", quickActionCommands);
+  useRegisterQuickActions("reader", retiring ? [] : quickActionCommands);
 
   const navigateToNavigationItem = useCallback(
     (itemId: string) =>
@@ -933,9 +944,10 @@ export function ReaderPage() {
     [handleKeyboardEvent],
   );
 
+  let sourceError;
   if (!book || book.isFileMissing) {
-    return (
-      <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
+    sourceError = (
+      <section className="reader-error" role="alert">
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
@@ -958,36 +970,26 @@ export function ReaderPage() {
             The archive could not be scanned. Try again or return to the Library.
           </p>
         ) : null}
-      </main>
+      </section>
     );
   }
 
-  const title = bookTitle(book);
+  const title = book ? bookTitle(book) : "Book file missing";
   const fileLease = readerSource.status === "ready" ? readerSource.lease : undefined;
   const isFileLoading = readerSource.status === "loading";
   const isSessionAwaitingSourcePublication =
     Boolean(fileLease) &&
     (readerSessionLifecycle.phase === "acquiring" || readerSessionLifecycle.phase === "recovering");
 
-  if (!readerSessionFailure && (isFileLoading || isSessionAwaitingSourcePublication)) {
-    return (
-      <main
-        className="reader-status-page"
-        aria-busy="true"
-        id={MAIN_CONTENT_ID}
-        ref={readerMainRef}
-        tabIndex={-1}
-      >
-        <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
-        <h1>Loading EPUB</h1>
-        <p>{title}</p>
-      </main>
-    );
-  }
-
-  if (!readerSessionFailure && (readerSource.status === "error" || !fileLease)) {
-    return (
-      <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
+  if (
+    !sourceError &&
+    !readerSessionFailure &&
+    !isFileLoading &&
+    !isSessionAwaitingSourcePublication &&
+    (readerSource.status === "error" || !fileLease)
+  ) {
+    sourceError = (
+      <section className="reader-error" role="alert">
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>EPUB could not be opened</h1>
         <p>
@@ -1019,6 +1021,30 @@ export function ReaderPage() {
             The archive could not be scanned. Try again or return to the Library.
           </p>
         ) : null}
+      </section>
+    );
+  }
+
+  const opening = !sourceError && !readerSessionFailure && !readerReady && !retiring;
+
+  if (retiring) {
+    return (
+      <main
+        className="reader-page"
+        data-reader-theme={readerTheme.base}
+        data-reader-phase={readerSessionLifecycle.phase}
+        data-reader-retiring
+        data-toolbar-expanded={toolbarVisibility.expanded || undefined}
+        id={MAIN_CONTENT_ID}
+        ref={readerMainRef}
+        style={readerThemeStyle}
+        tabIndex={-1}
+      >
+        <ReaderExitPresentation
+          toolbarExpanded={toolbarVisibility.expanded}
+          failure={controlledTransitions.exitFailure}
+          onReturn={returnToOrigin}
+        />
       </main>
     );
   }
@@ -1028,6 +1054,7 @@ export function ReaderPage() {
       className="reader-page"
       data-reader-theme={readerTheme.base}
       data-toolbar-expanded={toolbarVisibility.expanded || undefined}
+      data-reader-phase={readerSessionLifecycle.phase}
       id={MAIN_CONTENT_ID}
       ref={readerMainRef}
       style={readerThemeStyle}
@@ -1108,55 +1135,62 @@ export function ReaderPage() {
           seekable={seekMapStatus === "ready"}
         />
 
-        {readerSessionFailure ? (
-          <section className="reader-error" role="alert">
-            <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
-            <h1>EPUB could not be opened</h1>
-            <p>{readerSessionFailure.message}</p>
-            <div className="reader-status-page__actions">
-              <Button onClick={handleSessionRetry} size="standard" variant="secondary">
-                Try again
-              </Button>
-              <button className="text-link" onClick={returnToOrigin} type="button">
-                Back
-              </button>
-            </div>
-          </section>
-        ) : fileLease &&
-          readerSessionIdentity &&
-          (readerSessionLifecycle.phase === "starting" ||
-            readerSessionLifecycle.phase === "ready") ? (
-          <EpubViewer
-            contentTheme={appearance.contentTheme}
-            presentation={bookPresentation.presentation}
-            ref={viewerRef}
-            fileLease={fileLease}
-            highlights={highlights.highlights}
-            initialCfi={progressController?.getInitialCfi()}
-            interactionBlocked={sideSurface !== null}
-            onError={handleViewerError}
-            onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
-            onHighlightInteractionClear={highlights.clearInteractionFeedback}
-            onHighlightInteractionError={highlights.reportInteractionFeedback}
-            onKeyDown={handleContentKeyDown}
-            onLocationChange={handleLocationChange}
-            onManageDictionaries={openDictionarySettings}
-            onOpenNote={openSelectionNote}
-            onCreateHighlight={highlights.create}
-            onRecolorHighlight={highlights.recolor}
-            onRemoveHighlight={removeHighlight}
-            onNavigationChange={setNavigationState}
-            onNavigationHistoryChange={setNavigationHistory}
-            onPublicationSearchChange={setPublicationSearchState}
-            onPublicationLayoutCapability={readerSessionController.setPublicationLayoutCapability}
-            onSeekMapChange={handleSeekMapChange}
-            onReady={handleReady}
-            publicationLayoutCapability={readerSessionSnapshot.publicationLayoutCapability}
-            readerTheme={readerTheme}
-            sessionIdentity={readerSessionIdentity}
-            settings={settings}
-          />
-        ) : null}
+        <div className="reader-content-stage" aria-busy={opening || undefined}>
+          {sourceError ??
+            (readerSessionFailure ? (
+              <section className="reader-error" role="alert">
+                <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
+                <h1>EPUB could not be opened</h1>
+                <p>{readerSessionFailure.message}</p>
+                <div className="reader-status-page__actions">
+                  <Button onClick={handleSessionRetry} size="standard" variant="secondary">
+                    Try again
+                  </Button>
+                  <button className="text-link" onClick={returnToOrigin} type="button">
+                    Back
+                  </button>
+                </div>
+              </section>
+            ) : fileLease &&
+              readerSessionIdentity &&
+              (readerSessionLifecycle.phase === "starting" ||
+                readerSessionLifecycle.phase === "ready") ? (
+              <EpubViewer
+                externalOpeningStatus
+                contentTheme={appearance.contentTheme}
+                presentation={bookPresentation.presentation}
+                ref={viewerRef}
+                fileLease={fileLease}
+                highlights={highlights.highlights}
+                initialCfi={progressController?.getInitialCfi()}
+                interactionBlocked={sideSurface !== null}
+                onError={handleViewerError}
+                onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
+                onHighlightInteractionClear={highlights.clearInteractionFeedback}
+                onHighlightInteractionError={highlights.reportInteractionFeedback}
+                onKeyDown={handleContentKeyDown}
+                onLocationChange={handleLocationChange}
+                onManageDictionaries={openDictionarySettings}
+                onOpenNote={openSelectionNote}
+                onCreateHighlight={highlights.create}
+                onRecolorHighlight={highlights.recolor}
+                onRemoveHighlight={removeHighlight}
+                onNavigationChange={setNavigationState}
+                onNavigationHistoryChange={setNavigationHistory}
+                onPublicationSearchChange={setPublicationSearchState}
+                onPublicationLayoutCapability={
+                  readerSessionController.setPublicationLayoutCapability
+                }
+                onSeekMapChange={handleSeekMapChange}
+                onReady={handleReady}
+                publicationLayoutCapability={readerSessionSnapshot.publicationLayoutCapability}
+                readerTheme={readerTheme}
+                sessionIdentity={readerSessionIdentity}
+                settings={settings}
+              />
+            ) : null)}
+          {opening ? <ReaderOpeningStatus /> : null}
+        </div>
 
         {annotations.feedback ? (
           <div

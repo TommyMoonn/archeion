@@ -87,6 +87,9 @@ const layers = [
 ];
 
 const publicCrossLayerModules = new Map([
+  // Presentation-only archive identity and input gate shared by routed features.
+  ["src/app/archivePresentation.ts", new Set(["features"])],
+  ["src/app/readerExitFrame.ts", new Set(["features"])],
   ["src/app/appVersion.ts", new Set(["features"])],
   ["src/app/inputModality.ts", new Set(["components", "features", "utils"])],
   ["src/app/navigationState.ts", new Set(["features"])],
