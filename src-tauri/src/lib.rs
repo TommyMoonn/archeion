@@ -39,6 +39,7 @@ pub fn run() {
             let app_settings = commands::app_settings::AppSettingsService::from_app(app.handle())
                 .map_err(std::io::Error::other)?;
             app.manage(app_settings);
+            commands::app_appearance::synchronize_native_backgrounds(app.handle());
             app.manage(commands::app_update_service::AppUpdateService::from_app(
                 app.handle(),
             ));
@@ -53,14 +54,20 @@ pub fn run() {
         .manage(import_transaction_state)
         .manage(import_command_state)
         .manage(theme_catalog_service)
+        .manage(commands::app_appearance::AppAppearanceService::default())
+        .manage(commands::window::ManagedWindowState::default())
+        .plugin(commands::app_appearance::plugin())
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
-            if window.label() == "archive-manager" && matches!(event, tauri::WindowEvent::Destroyed)
-            {
-                commands::archive::handle_archive_manager_window_destroyed(window.app_handle());
+            if let tauri::WindowEvent::ThemeChanged(theme) = event {
+                commands::app_appearance::system_scheme_changed(window.app_handle(), *theme);
+            }
+            if matches!(event, tauri::WindowEvent::Focused(true)) {
+                commands::window::handle_window_focus(window.app_handle());
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::app_appearance::prepare_app_appearance,
             commands::app_settings::load_app_settings_snapshot,
             commands::app_settings::update_app_settings,
             commands::app_updates::get_app_update_snapshot,
@@ -142,6 +149,7 @@ pub fn run() {
             commands::window::open_about_window,
             commands::window::open_settings_window,
             commands::window::open_theme_manager_window,
+            commands::window::managed_window_shell_ready,
             commands::archive_root::clear_cover_cache,
             commands::archive_root::invalidate_cover_cache_entries,
             commands::archive_root::maintain_cover_cache,

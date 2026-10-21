@@ -9,6 +9,7 @@ import {
   APP_SETTINGS_CHANGED_EVENT,
   type AppearanceSettings,
   type AppPreferences,
+  type AppPreferencesPublication,
   type AppPreferencesChanges,
   type AppSettingsMutation,
   type AppSettingsSnapshot,
@@ -901,6 +902,11 @@ export class AppPreferencesStore {
   private preferences = { ...defaultAppPreferences };
   private persistenceStatus: AppPreferencesPersistenceStatus = { status: "idle" };
   private loadPromise: Promise<void> | null = null;
+  private initializationGeneration = 0;
+  private appearancePublication: AppPreferencesPublication = {
+    kind: "initialization",
+    generation: 0,
+  };
   private mutationRevision = 0;
   private desktopRevision = 0;
   private desktopIntentSequence = 0;
@@ -936,6 +942,8 @@ export class AppPreferencesStore {
   }
 
   getSnapshot = () => this.preferences;
+  getInitializationGeneration = () => this.initializationGeneration;
+  getAppearancePublication = () => this.appearancePublication;
 
   getPersistenceSnapshot = () => this.persistenceStatus;
 
@@ -971,7 +979,7 @@ export class AppPreferencesStore {
       return this.loadPromise;
     }
 
-    const initialization = this.loadPreferences();
+    const initialization = this.loadPreferences(++this.initializationGeneration);
     this.loadPromise = initialization;
     void initialization.catch(() => {
       if (this.loadPromise === initialization) this.loadPromise = null;
@@ -985,7 +993,10 @@ export class AppPreferencesStore {
     const next = mergeAppPreferences(this.preferences, changes);
     const mutations = createAppSettingsMutations(this.preferences, next);
     this.mutationRevision += 1;
-    this.setPreferences(next);
+    this.setPreferences(next, {
+      kind: "commit",
+      appThemeChanged: changes.appTheme !== undefined,
+    });
     return this.persist(next, mutations, this.mutationRevision);
   }
 
@@ -1033,7 +1044,8 @@ export class AppPreferencesStore {
     return this.update(mergeAppPreferences(defaultAppPreferences, changes));
   }
 
-  private async loadPreferences() {
+  private async loadPreferences(generation: number) {
+    const publication: AppPreferencesPublication = { kind: "initialization", generation };
     const loadRevision = this.mutationRevision;
     this.setPersistenceStatus({ status: "loading" });
     const legacy = this.persistence.readLegacy();
@@ -1041,7 +1053,7 @@ export class AppPreferencesStore {
 
     if (!this.persistence.isDesktop()) {
       if (this.mutationRevision === loadRevision && legacyPreferences) {
-        this.setPreferences(legacyPreferences);
+        this.setPreferences(legacyPreferences, publication);
       }
       this.setPersistenceStatus({ status: "idle" });
       return;
@@ -1057,14 +1069,14 @@ export class AppPreferencesStore {
         return;
       }
 
-      this.applyDesktopSnapshot(loaded);
+      this.applyDesktopSnapshot(loaded, publication);
 
       if (legacyPreferences) {
         const base = this.desktopPersistedPreferences;
         if (!base) {
           throw new Error("Native app settings were not initialized.");
         }
-        this.setPreferences(legacyPreferences);
+        this.setPreferences(legacyPreferences, publication);
         const intents = this.recordDesktopMutationIntents(
           createAppSettingsMutations(base, legacyPreferences),
         );
@@ -1073,6 +1085,7 @@ export class AppPreferencesStore {
         });
         this.setPreferences(
           preserveEquivalentPreferenceAreas(this.preferences, migrated.preferences),
+          publication,
         );
         this.persistence.removeLegacy();
         this.setPersistenceStatus({ status: "saved" });
@@ -1082,7 +1095,7 @@ export class AppPreferencesStore {
     } catch (error) {
       const message = APP_SETTINGS_LOAD_ERROR;
       if (this.mutationRevision === loadRevision && legacyPreferences) {
-        this.setPreferences(legacyPreferences);
+        this.setPreferences(legacyPreferences, publication);
       }
       this.setPersistenceStatus({ status: "error", error: message });
       throw new Error(message, { cause: error });
@@ -1195,7 +1208,10 @@ export class AppPreferencesStore {
     return this.desktopSubscriptionPromise;
   }
 
-  private applyDesktopSnapshot(snapshot: AppSettingsSnapshot): void {
+  private applyDesktopSnapshot(
+    snapshot: AppSettingsSnapshot,
+    publication?: AppPreferencesPublication,
+  ): void {
     if (this.hasDesktopSnapshot && snapshot.revision <= this.desktopRevision) {
       return;
     }
@@ -1203,15 +1219,16 @@ export class AppPreferencesStore {
     const localMutations = [...this.desktopMutationIntents.values()].map(
       ({ mutation }) => mutation,
     );
+    const next = preserveEquivalentPreferenceAreas(
+      this.preferences,
+      applyAppSettingsMutations(snapshot.preferences, localMutations),
+    );
+    const appThemeChanged =
+      !this.hasDesktopSnapshot || !preferenceAreaEqual(this.preferences.appTheme, next.appTheme);
     this.desktopRevision = snapshot.revision;
     this.desktopPersistedPreferences = snapshot.preferences;
     this.hasDesktopSnapshot = true;
-    this.setPreferences(
-      preserveEquivalentPreferenceAreas(
-        this.preferences,
-        applyAppSettingsMutations(snapshot.preferences, localMutations),
-      ),
-    );
+    this.setPreferences(next, publication ?? { kind: "synchronization", appThemeChanged });
   }
 
   private recordDesktopMutationIntents(mutations: AppSettingsMutation[]): DesktopMutationIntent[] {
@@ -1237,7 +1254,11 @@ export class AppPreferencesStore {
     }
   }
 
-  private setPreferences(preferences: AppPreferences) {
+  private setPreferences(
+    preferences: AppPreferences,
+    publication: AppPreferencesPublication = { kind: "commit", appThemeChanged: false },
+  ) {
+    this.appearancePublication = publication;
     this.preferences = preferences;
     this.apply();
     this.emit();

@@ -38,7 +38,10 @@ vi.mock("../../stores/archiveStore", () => ({
   },
 }));
 
-import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
+import {
+  READER_EXIT_DEADLINE_MS,
+  useReaderControlledTransitions,
+} from "./useReaderControlledTransitions";
 import {
   createReaderSessionLifecycle,
   transitionReaderSession,
@@ -84,6 +87,7 @@ function Harness({
   archiveId = "archive-a",
   intents,
   readerIdentity,
+  retired = false,
   retire = () => undefined,
   sessionKey,
   settle,
@@ -92,6 +96,7 @@ function Harness({
   archiveId?: string | null;
   intents: string[];
   readerIdentity?: ReaderSessionIdentity;
+  retired?: boolean;
   retire?: () => void | Promise<void>;
   sessionKey: string;
   settle: () => Promise<boolean>;
@@ -101,6 +106,7 @@ function Harness({
     archiveId,
     onTransitionIntent: () => intents.push(sessionKey),
     readerIdentity: readerIdentity ?? fallbackIdentity,
+    retired,
     retire,
     settle,
   });
@@ -132,9 +138,83 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  vi.useRealTimers();
 });
 
 describe("useReaderControlledTransitions", () => {
+  it("does not infer failed presentation from a settled navigation or blocker acknowledgement", async () => {
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    const props = { apiRef, intents: [], sessionKey: "book-a", settle: async () => true };
+    await renderHarness(props);
+    await act(async () => {
+      await apiRef.current!.leaveReader(async () => undefined);
+    });
+    await renderHarness({ ...props, retired: true });
+    expect(apiRef.current!.leavePending).toBe(false);
+    expect(apiRef.current!.exitFailure).toBeNull();
+    let blocked!: ReturnType<typeof beginBlockedRoute>;
+    await act(async () => {
+      void apiRef.current!.leaveReader(() => {
+        blocked = beginBlockedRoute();
+      });
+    });
+    await act(async () => {
+      mocks.routeGuardOptions.at(-1)!.onBlockedNavigationSettled!(blocked.attempt, true);
+    });
+    expect(apiRef.current!.leavePending).toBe(false);
+    expect(apiRef.current!.exitFailure).toBeNull();
+  });
+
+  it("bounds an unresolved retired exit and retries without duplicate settlement or teardown", async () => {
+    vi.useFakeTimers();
+    const pending = deferred<void>();
+    const settle = vi.fn(async () => true),
+      retire = vi.fn();
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    const props = { apiRef, intents: [], sessionKey: "book-a", settle, retire };
+    await renderHarness(props);
+    let oldExit!: Promise<boolean>;
+    await act(async () => {
+      oldExit = apiRef.current!.leaveReader(() => pending.promise);
+    });
+    await renderHarness({ ...props, retired: true });
+    await act(async () => {
+      vi.advanceTimersByTime(READER_EXIT_DEADLINE_MS - 1);
+    });
+    expect(apiRef.current!.exitFailure).toBeNull();
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+    });
+    await expect(oldExit).resolves.toBe(false);
+    expect(apiRef.current!.exitFailure).toBe("timeout");
+    await act(async () => {
+      await apiRef.current!.leaveReader(async () => undefined);
+    });
+    expect(apiRef.current!.exitFailure).toBeNull();
+    await act(async () => pending.resolve());
+    expect(apiRef.current!.exitFailure).toBeNull();
+    expect(settle).toHaveBeenCalledOnce();
+    expect(retire).toHaveBeenCalledOnce();
+  });
+
+  it("clears a retired deadline on owner replacement and ignores stale failures", async () => {
+    vi.useFakeTimers();
+    const navigation = deferred<void>();
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    const props = { apiRef, intents: [], sessionKey: "book-a", settle: async () => true };
+    await renderHarness(props);
+    await act(async () => {
+      void apiRef.current!.leaveReader(() => navigation.promise);
+    });
+    await renderHarness({ ...props, retired: true });
+    await renderHarness({ ...props, sessionKey: "book-b" });
+    await act(async () => {
+      vi.advanceTimersByTime(READER_EXIT_DEADLINE_MS);
+      navigation.resolve();
+    });
+    expect(apiRef.current!.exitFailure).toBeNull();
+  });
+
   it("does not publish navigation success after a newer panel intent supersedes the awaited action", async () => {
     const navigation = deferred<boolean>();
     const action = vi.fn(() => navigation.promise);
@@ -442,10 +522,12 @@ describe("useReaderControlledTransitions", () => {
     const settlement = deferred<boolean>();
     const exitAction = vi.fn();
     const chapterAction = vi.fn(async () => true);
+    const retire = vi.fn();
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({
       apiRef,
       intents: [],
+      retire,
       sessionKey: "book-a",
       settle: () => settlement.promise,
     });
@@ -460,6 +542,7 @@ describe("useReaderControlledTransitions", () => {
     await expect(chapter).resolves.toBe(true);
     expect(exitAction).not.toHaveBeenCalled();
     expect(chapterAction).toHaveBeenCalledOnce();
+    expect(retire).not.toHaveBeenCalled();
   });
 
   it("does not let a later blocked route resolve the original controlled exit", async () => {
@@ -525,14 +608,69 @@ describe("useReaderControlledTransitions", () => {
 
     const failed = apiRef.current!.leaveReader(blockedAction);
     await act(async () => Promise.resolve());
+    expect(apiRef.current!.leavePending).toBe(true);
     act(() =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(blockedRoute.attempt, false),
     );
     await expect(failed).resolves.toBe(false);
+    await act(async () => Promise.resolve());
+    expect(apiRef.current!.leavePending).toBe(false);
 
     await expect(apiRef.current!.leaveReader(retryAction)).resolves.toBe(true);
     expect(retryAction).toHaveBeenCalledOnce();
   });
+
+  it("publishes only the current exit's pending state across rejection and retry without retiring twice", async () => {
+    const navigation = deferred<void>();
+    const retire = vi.fn();
+    const settle = vi.fn(async () => true);
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, intents: [], sessionKey: "book-a", retire, settle });
+    let failed!: Promise<boolean>;
+    await act(async () => {
+      failed = apiRef.current!.leaveReader(() => Promise.reject(new Error("Rejected")));
+    });
+    await expect(failed).resolves.toBe(false);
+    expect(apiRef.current!.leavePending).toBe(false);
+    let retry!: Promise<boolean>;
+    await act(async () => {
+      retry = apiRef.current!.leaveReader(() => navigation.promise);
+    });
+    expect(apiRef.current!.leavePending).toBe(true);
+    await act(async () => navigation.resolve());
+    await expect(retry).resolves.toBe(true);
+    expect(apiRef.current!.leavePending).toBe(false);
+    expect(retire).toHaveBeenCalledOnce();
+    expect(settle).toHaveBeenCalledOnce();
+  });
+
+  it.each(["route", "archive"])(
+    "keeps %s retirement noninteractive until teardown settlement completes",
+    async (source) => {
+      const retirement = deferred<void>();
+      const retire = vi.fn(() => retirement.promise);
+      const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+      await renderHarness({
+        apiRef,
+        intents: [],
+        sessionKey: "book-a",
+        retire,
+        settle: async () => true,
+      });
+      let result!: Promise<boolean>;
+      await act(async () => {
+        if (source === "route") {
+          beginBlockedRoute();
+          result = mocks.routeGuardOptions.at(-1)!.settle();
+        } else result = mocks.archiveGuards.at(-1)!();
+      });
+      expect(retire).toHaveBeenCalledOnce();
+      expect(apiRef.current!.leavePending).toBe(true);
+      await act(async () => retirement.resolve());
+      await expect(result).resolves.toBe(true);
+      expect(apiRef.current!.leavePending).toBe(false);
+    },
+  );
 
   it("releases an owned exit when its reader session ends", async () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };

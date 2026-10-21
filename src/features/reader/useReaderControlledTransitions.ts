@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import {
   useAsyncRouteLeaveGuard,
@@ -23,9 +23,14 @@ type ReaderControlledTransitionOptions = {
   archiveId: string | null;
   onTransitionIntent: () => void;
   readerIdentity: ReaderSessionIdentity | null;
+  retired?: boolean;
   retire: () => void | Promise<void>;
   settle: () => Promise<boolean>;
 };
+
+export const READER_EXIT_DEADLINE_MS = 15_000;
+export type ReaderExitFailure = "rejected" | "timeout";
+type ReaderExitAttempt = { request: ReaderTransitionRequest; failure: ReaderExitFailure | null };
 
 type ControlledExitOwnership = {
   actionInProgress: boolean;
@@ -46,6 +51,7 @@ export function useReaderControlledTransitions({
   archiveId,
   onTransitionIntent,
   readerIdentity,
+  retired = false,
   retire,
   settle,
 }: ReaderControlledTransitionOptions) {
@@ -59,8 +65,16 @@ export function useReaderControlledTransitions({
   const settleRef = useRef(settle);
   const retireRef = useRef(retire);
   const requestSequenceRef = useRef(0);
+  const leaveRequestSequenceRef = useRef(0);
   const controlledExitRef = useRef<ControlledExitOwnership | null>(null);
+  const [exitAttempt, setExitAttempt] = useState<ReaderExitAttempt | null>(null);
+  const exitRequestRef = useRef<ReaderTransitionRequest | null>(null);
+  const blockedExitRef = useRef<{ id: symbol; request: ReaderTransitionRequest } | null>(null);
+  const [pendingExit, setPendingExit] = useState<ReaderTransitionRequest | null>(null);
   const leaveSettlementRef = useRef<ReaderLeaveSettlementOwnership | null>(null);
+  const [pendingSettlement, setPendingSettlement] = useState<ReaderLeaveSettlementOwnership | null>(
+    null,
+  );
 
   useLayoutEffect(() => {
     if (transitionOwnerRef.current !== transitionOwner) {
@@ -88,6 +102,8 @@ export function useReaderControlledTransitions({
 
   const beginTransition = useCallback((): ReaderTransitionRequest => {
     intentRef.current();
+    setExitAttempt(null);
+    exitRequestRef.current = null;
     return {
       id: ++requestSequenceRef.current,
       owner: transitionOwnerRef.current,
@@ -101,6 +117,45 @@ export function useReaderControlledTransitions({
       transitionOwnerRef.current === request.owner,
     [],
   );
+
+  const beginLeave = useCallback(() => {
+    const request = beginTransition();
+    exitRequestRef.current = request;
+    setExitAttempt({ request, failure: null });
+    return request;
+  }, [beginTransition]);
+
+  const failExit = useCallback(
+    (request: ReaderTransitionRequest, failure: ReaderExitFailure) => {
+      if (!ownsTransition(request)) return;
+      setExitAttempt((current) => (current?.request === request ? { request, failure } : current));
+    },
+    [ownsTransition],
+  );
+
+  // A navigation/blocker acknowledgement is not a destination presentation commit.
+  // Keep the retired frame quietly pending until unmount, explicit rejection or this owned deadline.
+  useEffect(() => {
+    if (
+      !retired ||
+      !exitAttempt ||
+      exitAttempt.failure ||
+      exitAttempt.request.owner !== transitionOwner
+    )
+      return;
+    const { request } = exitAttempt;
+    const timer = window.setTimeout(() => {
+      if (!ownsTransition(request)) return;
+      const ownedExit = controlledExitRef.current;
+      if (ownedExit?.request === request) {
+        controlledExitRef.current = null;
+        setPendingExit(null);
+        ownedExit.resolve(false);
+      }
+      failExit(request, "timeout");
+    }, READER_EXIT_DEADLINE_MS);
+    return () => window.clearTimeout(timer);
+  }, [exitAttempt, failExit, ownsTransition, retired, transitionOwner]);
 
   const runAfterSettlement = useCallback(
     async (
@@ -121,6 +176,8 @@ export function useReaderControlledTransitions({
   );
 
   const acquireReaderLeaveSettlement = useCallback((): Promise<boolean> => {
+    // Route/exit attempts may share a save, but a newer in-reader intent cancels retirement.
+    leaveRequestSequenceRef.current = requestSequenceRef.current;
     const owner = transitionOwnerRef.current;
     const activeSettlement = leaveSettlementRef.current;
     if (activeSettlement && activeSettlement.owner === owner) {
@@ -132,16 +189,21 @@ export function useReaderControlledTransitions({
       promise: Promise.resolve(false),
     };
     ownership.promise = settleAndRetireReaderSession({
-      owns: () => mountedRef.current && transitionOwnerRef.current === owner,
+      owns: () =>
+        mountedRef.current &&
+        transitionOwnerRef.current === owner &&
+        leaveRequestSequenceRef.current === requestSequenceRef.current,
       retire: () => retireRef.current(),
       settle: () => settleRef.current(),
     }).then((settled) => {
-      if (!settled && leaveSettlementRef.current === ownership) {
-        leaveSettlementRef.current = null;
+      if (leaveSettlementRef.current === ownership) {
+        if (!settled) leaveSettlementRef.current = null;
+        setPendingSettlement((current) => (current === ownership ? null : current));
       }
       return settled;
     });
     leaveSettlementRef.current = ownership;
+    setPendingSettlement(ownership);
     return ownership.promise;
   }, []);
 
@@ -149,7 +211,7 @@ export function useReaderControlledTransitions({
     (action: () => void | Promise<void>) => {
       if (controlledExitRef.current) return controlledExitRef.current.promise;
 
-      const request = beginTransition();
+      const request = beginLeave();
       let resolve!: (result: boolean) => void;
       const promise = new Promise<boolean>((settlePromise) => {
         resolve = settlePromise;
@@ -163,10 +225,12 @@ export function useReaderControlledTransitions({
         settlementComplete: false,
       };
       controlledExitRef.current = ownership;
+      setPendingExit(request);
 
       const finish = (result: boolean) => {
         if (controlledExitRef.current !== ownership) return;
         controlledExitRef.current = null;
+        setPendingExit((current) => (current === request ? null : current));
         ownership.resolve(result);
       };
 
@@ -178,6 +242,7 @@ export function useReaderControlledTransitions({
           }
           const settled = await acquireReaderLeaveSettlement();
           if (!settled || controlledExitRef.current !== ownership || !ownsTransition(request)) {
+            if (!settled) failExit(request, "rejected");
             finish(false);
             return;
           }
@@ -190,10 +255,13 @@ export function useReaderControlledTransitions({
           }
           if (!ownership.blockedAttemptId) finish(true);
         })
-        .catch(() => finish(false));
+        .catch(() => {
+          failExit(request, "rejected");
+          finish(false);
+        });
       return promise;
     },
-    [acquireReaderLeaveSettlement, beginTransition, ownsTransition],
+    [acquireReaderLeaveSettlement, beginLeave, failExit, ownsTransition],
   );
 
   const createRouteNavigationIntent = useCallback((): AsyncRouteIntentOwnership => {
@@ -204,15 +272,18 @@ export function useReaderControlledTransitions({
       !ownership.blockedAttemptId &&
       ownsTransition(ownership.request)
         ? ownership.request
-        : beginTransition();
+        : beginLeave();
+    leaveRequestSequenceRef.current = request.id;
     return {
       owns: () => ownsTransition(request),
       settled: Boolean(ownership?.settlementComplete && ownership.request === request),
     };
-  }, [beginTransition, ownsTransition]);
+  }, [beginLeave, ownsTransition]);
 
   const handleBlockedNavigationIntent = useCallback(
     (attempt: AsyncBlockedRouteAttempt) => {
+      const request = exitRequestRef.current;
+      if (request) blockedExitRef.current = { id: attempt.id, request };
       const ownership = controlledExitRef.current;
       if (!ownership || ownership.owner !== transitionOwnerRef.current) return;
       if (
@@ -224,6 +295,7 @@ export function useReaderControlledTransitions({
         return;
       }
       controlledExitRef.current = null;
+      setPendingExit((current) => (current === ownership.request ? null : current));
       ownership.resolve(false);
     },
     [ownsTransition],
@@ -231,6 +303,11 @@ export function useReaderControlledTransitions({
 
   const handleBlockedNavigationSettled = useCallback(
     (attempt: AsyncBlockedRouteAttempt, settled: boolean) => {
+      const blocked = blockedExitRef.current;
+      if (blocked?.id === attempt.id) {
+        if (!settled) failExit(blocked.request, "rejected");
+        blockedExitRef.current = null;
+      }
       const ownership = controlledExitRef.current;
       if (
         !ownership ||
@@ -240,9 +317,10 @@ export function useReaderControlledTransitions({
         return;
       }
       controlledExitRef.current = null;
+      setPendingExit((current) => (current === ownership.request ? null : current));
       ownership.resolve(settled);
     },
-    [],
+    [failExit],
   );
 
   const runControlledTransition = useCallback(
@@ -271,21 +349,35 @@ export function useReaderControlledTransitions({
   useEffect(
     () =>
       archiveStore.registerTransitionGuard(async () => {
-        const request = beginTransition();
+        const request = beginLeave();
         const settled = await acquireReaderLeaveSettlement();
         return settled && ownsTransition(request);
       }),
-    [acquireReaderLeaveSettlement, beginTransition, ownsTransition],
+    [acquireReaderLeaveSettlement, beginLeave, ownsTransition],
   );
 
   return useMemo(
     () => ({
       beginTransition,
       leaveReader,
+      exitFailure: exitAttempt?.request.owner === transitionOwner ? exitAttempt.failure : null,
+      // Operational ownership only; presentation stays pending beyond this acknowledgement.
+      leavePending:
+        pendingExit?.owner === transitionOwner || pendingSettlement?.owner === transitionOwner,
       ownsTransition,
       runAfterSettlement,
       runControlledTransition,
     }),
-    [beginTransition, leaveReader, ownsTransition, runAfterSettlement, runControlledTransition],
+    [
+      beginTransition,
+      leaveReader,
+      ownsTransition,
+      pendingExit,
+      exitAttempt,
+      pendingSettlement,
+      transitionOwner,
+      runAfterSettlement,
+      runControlledTransition,
+    ],
   );
 }

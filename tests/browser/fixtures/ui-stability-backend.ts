@@ -11,8 +11,32 @@ import {
 
 export const catalogSizes = [0, 2, 48, 49, 50, 500, 3000] as const;
 
+function fixtureDelay(value: string | null, fallback: number): number {
+  const delay = value === null ? fallback : Number(value);
+  if (!Number.isInteger(delay) || delay < 0 || delay > 10_000)
+    throw new Error("Fixture delay must be between 0 and 10000ms");
+  return delay;
+}
+
 /** Generated identities only. No file system, network archive or personal data access. */
 export async function installUIStabilityBackend(params: URLSearchParams) {
+  const settingsDelay = fixtureDelay(params.get("settingsDelay"), 80);
+  const sourceDelay = fixtureDelay(params.get("sourceDelay"), 100);
+  const archiveDelay = fixtureDelay(params.get("archiveDelay"), 100);
+  const scanDelay = fixtureDelay(params.get("scanDelay"), 80);
+  const progressDelay = fixtureDelay(params.get("progressDelay"), 0);
+  let sourceFailure = params.get("sourceFailure") === "once";
+  let archiveFailure = params.get("archiveFailure") === "once";
+  let scanFailure = params.get("scanFailure") === "once";
+  const settingsFailure = params.get("settingsFailure");
+  const firstSettingsDocument = sessionStorage.getItem("utility-settings-document") === null;
+  sessionStorage.setItem("utility-settings-document", "opened");
+  if (settingsFailure && !["unavailable", "hang-once", "reject-once"].includes(settingsFailure))
+    throw new Error("Unsupported settings failure");
+  const themeDelay = fixtureDelay(params.get("themeDelay"), 0);
+  const themeFailure = params.get("themeFailure");
+  if (themeFailure && !["missing", "corrupt"].includes(themeFailure))
+    throw new Error("Unsupported theme failure");
   let count = Number(params.get("count") ?? 50);
   if (!catalogSizes.includes(count as (typeof catalogSizes)[number]))
     throw new Error("Unsupported catalog size");
@@ -25,10 +49,13 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   }));
   let active = "a";
   let revision = 0;
+  let themeReads = 0;
   const windowMode = params.get("window") ?? "main";
   if (!["main", "about", "settings", "archive-manager", "theme-manager"].includes(windowMode))
     throw new Error("Unsupported window mode");
-  let nativeVisible = windowMode !== "main";
+  const revealKey = `utility-revealed:${windowMode}:${params.get("windowInstance")}`;
+  let nativeVisible = windowMode !== "main" && sessionStorage.getItem(revealKey) === "true";
+  const utilityEvents: Array<{ kind: string; time: number; shell: boolean }> = [];
   const unexpected: string[] = [];
   let update: AppUpdateSnapshot = {
     revision: 1,
@@ -54,12 +81,12 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   preferences.appearance.animationsEnabled = params.get("motion") !== "off";
   preferences.filesAndMetadata.liveWatcherEnabled = false;
   const theme = params.get("theme") ?? "dark";
-  if (!["dark", "light", "system-light", "custom"].includes(theme))
+  if (!["dark", "light", "system-light", "system-dark", "custom"].includes(theme))
     throw new Error("Unsupported theme");
   preferences.appTheme =
     theme === "custom"
       ? { kind: "custom", id: "shell-distinct" }
-      : theme === "system-light"
+      : theme.startsWith("system-")
         ? { kind: "system" }
         : { kind: "builtin", id: theme as "dark" | "light" };
   const readerTheme = params.get("reader") ?? "light";
@@ -104,9 +131,38 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     async (command, args) => {
       const input = args as Record<string, unknown>;
       switch (command) {
-        case "load_app_settings_snapshot":
-          await delay(80);
+        case "managed_window_shell_ready":
+          utilityEvents.push({
+            kind: "shell-ready",
+            time: performance.now(),
+            shell: Boolean(document.querySelector(".window-app main")),
+          });
+          if (String(input.instance) !== params.get("windowInstance"))
+            throw new Error("Wrong window instance");
+          if (!nativeVisible)
+            utilityEvents.push({
+              kind: "native-show",
+              time: performance.now(),
+              shell: Boolean(document.querySelector(".window-app main")),
+            });
+          nativeVisible = true;
+          sessionStorage.setItem(revealKey, "true");
+          return;
+        case "load_app_settings_snapshot": {
+          const attempts = Number(sessionStorage.getItem("utility-settings-reads") ?? 0) + 1;
+          sessionStorage.setItem("utility-settings-reads", String(attempts));
+          if (settingsFailure === "hang-once" && attempts === 1) {
+            // The original read remains unresolved. Only a new document can recover.
+            return await new Promise(() => undefined);
+          }
+          await delay(settingsDelay);
+          if (
+            settingsFailure === "unavailable" ||
+            (settingsFailure === "reject-once" && firstSettingsDocument)
+          )
+            throw new Error("Synthetic settings unavailable");
           return { revision, preferences };
+        }
         case "update_app_settings": {
           // Exercise the real normalization/mutation owner, preserving snapshot revisions.
           const { applyAppSettingsMutation } =
@@ -123,17 +179,29 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         case "validate_archive_path":
           return true;
         case "activate_archive":
-          await delay(100);
+          await delay(archiveDelay);
+          if (archiveFailure) {
+            archiveFailure = false;
+            throw new Error("Synthetic unavailable archive");
+          }
           active = String(input.archiveId);
           metadata = { library: { version: 1, books: {} }, progress: { version: 1, progress: {} } };
           return registry();
         case "load_archive_metadata":
           return metadata;
         case "scan_archive":
-          await delay(80);
+          await delay(scanDelay);
+          if (active === "b" && scanFailure) {
+            scanFailure = false;
+            throw new Error("Synthetic archive scan failure");
+          }
           return scan();
         case "read_epub_file":
-          await delay(100);
+          await delay(sourceDelay);
+          if (sourceFailure) {
+            sourceFailure = false;
+            throw new Error("Synthetic missing EPUB");
+          }
           return epub.buffer;
         case "load_epub_cover":
           return coverBytes;
@@ -143,6 +211,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           metadata.library = input.metadata as typeof metadata.library;
           return;
         case "save_progress_metadata":
+          await delay(progressDelay);
           metadata.progress = input.metadata as typeof metadata.progress;
           return;
         case "save_annotations_metadata":
@@ -155,7 +224,13 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         case "list_theme_packages":
           return ["shell-distinct"];
         case "read_theme_manifest":
+          themeReads += 1;
+          await delay(themeDelay);
+          if (themeFailure === "missing") throw new Error("Synthetic missing theme");
+          if (themeFailure === "corrupt") return "invalid json";
           return JSON.stringify(shellStressThemes.distinct);
+        case "prepare_app_appearance":
+          return;
         case "load_theme_catalog_revision":
           return { revision: 0 };
         case "refresh_theme_catalog":
@@ -176,6 +251,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           nativeVisible = true;
           return;
         case "plugin:window|hide":
+        case "plugin:window|close":
           nativeVisible = false;
           return;
         case "plugin:window|set_focus":
@@ -193,6 +269,8 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     { shouldMockEvents: true },
   );
   return {
+    utilityEvents,
+    themeReadStarted: () => themeReads > 0,
     unexpected,
     windowMode,
     preferences,

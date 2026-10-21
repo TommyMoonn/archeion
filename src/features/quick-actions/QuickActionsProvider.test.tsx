@@ -1058,6 +1058,14 @@ describe("QuickActionsProvider", () => {
     });
 
     expect(consoleError).toHaveBeenCalledWith("open_settings_window failed", error);
+    expect(rendered.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Settings could not open",
+    );
+    expect(
+      [...rendered.container.querySelectorAll("button")].some(
+        (button) => button.textContent === "Open Settings",
+      ),
+    ).toBe(true);
     expect(document.querySelector(".settings-window")).toBeNull();
   });
 

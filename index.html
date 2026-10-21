@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-appearance-pending>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,11 +8,13 @@
       content="A local-first library for organizing and reading EPUB files."
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <meta name="theme-color" content="#171717" />
+    <script src="/appearance-prepaint.js"></script>
+    <link rel="stylesheet" href="/appearance-startup.css" />
     <title>Archeion</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="appearance-startup" role="status">Opening Archeion</div>
+    <div id="root" inert></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

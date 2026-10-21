@@ -1,8 +1,15 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+mod placement;
+mod readiness;
+pub use readiness::ManagedWindowState;
+
+const SHELL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+
 pub const ABOUT_WINDOW_LABEL: &str = "about";
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 pub const THEME_MANAGER_WINDOW_LABEL: &str = "theme-manager";
+pub const ARCHIVE_MANAGER_WINDOW_LABEL: &str = "archive-manager";
 
 const ABOUT_WINDOW_QUERY: &str = "window=about";
 const ABOUT_WINDOW_APP_URL: &str = "index.html?window=about";
@@ -104,6 +111,7 @@ fn managed_window_webview_url(
     query: &str,
     app_url: &str,
     title: &str,
+    generation: u64,
 ) -> Result<WebviewUrl, String> {
     let (kind, url) = window_url_parts(
         app.config().build.dev_url.as_ref(),
@@ -113,6 +121,7 @@ fn managed_window_webview_url(
         title,
     )?;
 
+    let url = format!("{url}&windowInstance={generation}");
     match kind {
         WindowUrlKind::External => url
             .parse()
@@ -130,14 +139,15 @@ fn window_open_action(existing_is_unhealthy: Option<bool>) -> WindowOpenAction {
     }
 }
 
-fn existing_window_is_unhealthy(window: &tauri::WebviewWindow) -> bool {
-    if !cfg!(debug_assertions) {
-        return false;
-    }
+fn window_instance_matches(url: &tauri::Url, generation: u64) -> bool {
+    url.query_pairs()
+        .any(|(key, value)| key == "windowInstance" && value == generation.to_string())
+}
 
+fn existing_window_is_unhealthy(window: &tauri::WebviewWindow, generation: Option<u64>) -> bool {
     window
         .url()
-        .map(|url| url.as_str() == "about:blank")
+        .map(|url| generation.is_none_or(|generation| !window_instance_matches(&url, generation)))
         .unwrap_or(true)
 }
 
@@ -173,11 +183,6 @@ fn apply_window_constraints(
         .map_err(|error| error.to_string())
 }
 
-fn show_and_focus_window(window: &tauri::WebviewWindow) -> Result<(), String> {
-    window.show().map_err(|error| error.to_string())?;
-    window.set_focus().map_err(|error| error.to_string())
-}
-
 struct ManagedWindowSpec {
     app_url: &'static str,
     height: f64,
@@ -206,93 +211,303 @@ fn about_window_spec() -> ManagedWindowSpec {
     }
 }
 
-fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Result<(), String> {
+async fn open_managed_window(
+    app: &tauri::AppHandle,
+    spec: ManagedWindowSpec,
+) -> Result<(), String> {
+    let owner = app.state::<ManagedWindowState>();
+    let operation = owner.operations.lock().await;
+    owner.readiness.lock().unwrap().request_focus(spec.label);
     let existing_window = app.get_webview_window(spec.label);
-    let action = window_open_action(existing_window.as_ref().map(existing_window_is_unhealthy));
+    let generation = owner
+        .readiness
+        .lock()
+        .unwrap()
+        .current(spec.label)
+        .map(|(generation, _)| generation);
+    let action = window_open_action(
+        existing_window
+            .as_ref()
+            .map(|window| existing_window_is_unhealthy(window, generation)),
+    );
 
     match action {
         WindowOpenAction::FocusExisting => {
-            let window = existing_window.expect("focus action requires an existing window");
-            apply_window_constraints(&window, &spec)?;
-            return show_and_focus_window(&window);
+            let current = owner.readiness.lock().unwrap().current(spec.label);
+            if let Some((generation, receiver)) = current {
+                if receiver.borrow().is_some() {
+                    project_ready_window(app, spec.label.to_string(), generation, false).await?;
+                }
+                drop(operation);
+                return readiness::wait_for_shell(receiver).await;
+            }
+            // A close callback retired the instance after the health check.
+            // This outstanding request must not recreate the user's closed window.
+            return Err("The window was closed before it was ready.".to_string());
         }
         WindowOpenAction::ReplaceUnhealthy => {
             let window = existing_window.expect("replace action requires an existing window");
-            let _ = window.close();
+            let current = owner.readiness.lock().unwrap().current(spec.label);
+            if let Some((generation, _)) = current {
+                owner.readiness.lock().unwrap().retire(
+                    spec.label,
+                    generation,
+                    "The window was replaced.",
+                );
+            }
+            window.destroy().map_err(|error| error.to_string())?;
         }
         WindowOpenAction::Create => {}
     }
 
-    let builder = WebviewWindowBuilder::new(
-        app,
-        spec.label,
-        managed_window_webview_url(app, spec.query, spec.app_url, spec.title)?,
-    )
-    .title(spec.title)
-    .inner_size(spec.width, spec.height)
-    .center()
-    .resizable(spec.resizable)
-    .minimizable(true)
-    .maximizable(spec.maximizable)
-    .decorations(false)
-    .closable(true)
-    .visible(false);
+    let (generation, receiver) = owner.readiness.lock().unwrap().reserve(spec.label);
+    let result = (|| {
+        let builder = WebviewWindowBuilder::new(
+            app,
+            spec.label,
+            managed_window_webview_url(app, spec.query, spec.app_url, spec.title, generation)?,
+        )
+        .title(spec.title)
+        .inner_size(spec.width, spec.height)
+        .resizable(spec.resizable)
+        .minimizable(true)
+        .maximizable(spec.maximizable)
+        .decorations(false)
+        .closable(true)
+        .background_color(super::app_appearance::native_background(app))
+        .focused(false)
+        .visible(false);
 
-    let builder = if spec.resizable {
-        builder.min_inner_size(spec.min_width, spec.min_height)
-    } else {
-        builder
-            .min_inner_size(spec.width, spec.height)
-            .max_inner_size(spec.width, spec.height)
-    };
+        let builder = if spec.resizable {
+            builder.min_inner_size(spec.min_width, spec.min_height)
+        } else {
+            builder
+                .min_inner_size(spec.width, spec.height)
+                .max_inner_size(spec.width, spec.height)
+        };
 
-    let window = builder.build().map_err(|error| error.to_string())?;
+        let window = builder.build().map_err(|error| error.to_string())?;
 
-    apply_window_constraints(&window, &spec)?;
-    show_and_focus_window(&window)
+        let event_app = app.clone();
+        let label = spec.label;
+        let closing = std::sync::atomic::AtomicBool::new(false);
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                let retired = event_app
+                    .state::<ManagedWindowState>()
+                    .readiness
+                    .lock()
+                    .unwrap()
+                    .retire(
+                        label,
+                        generation,
+                        "The window was closed before it was ready.",
+                    );
+                closing.fetch_or(retired, std::sync::atomic::Ordering::Relaxed);
+            }
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                let retired = event_app
+                    .state::<ManagedWindowState>()
+                    .readiness
+                    .lock()
+                    .unwrap()
+                    .retire(
+                        label,
+                        generation,
+                        "The window was closed before it was ready.",
+                    );
+                if (retired || closing.load(std::sync::atomic::Ordering::Relaxed))
+                    && label == "archive-manager"
+                {
+                    super::archive::handle_archive_manager_window_destroyed(&event_app);
+                }
+            }
+        });
+        apply_window_constraints(&window, &spec)?;
+        Ok::<_, String>(())
+    })();
+    if let Err(error) = result {
+        owner
+            .readiness
+            .lock()
+            .unwrap()
+            .retire(spec.label, generation, &error);
+        if let Some(window) = app.get_webview_window(spec.label) {
+            let _ = window.destroy();
+        }
+        return Err(error);
+    }
+    let timeout_app = app.clone();
+    let label = spec.label;
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(SHELL_TIMEOUT).await;
+        let owner = timeout_app.state::<ManagedWindowState>();
+        let schedule_app = timeout_app.clone();
+        let dispose_app = timeout_app.clone();
+        owner
+            .expire(
+                label,
+                generation,
+                move |action| {
+                    schedule_app
+                        .run_on_main_thread(action)
+                        .map_err(|error| error.to_string())
+                },
+                move || {
+                    if let Some(window) = dispose_app.get_webview_window(label) {
+                        let _ = window.destroy();
+                    }
+                },
+            )
+            .await;
+    });
+    drop(operation);
+    readiness::wait_for_shell(receiver).await
+}
+
+async fn project_ready_window(
+    app: &tauri::AppHandle,
+    label: String,
+    generation: u64,
+    first: bool,
+) -> Result<(), String> {
+    let (complete, completed) = tokio::sync::oneshot::channel();
+    let current_app = app.clone();
+    app.run_on_main_thread(move || {
+        let result = (|| {
+            let owner = current_app.state::<ManagedWindowState>();
+            let state = owner.readiness.lock().unwrap();
+            let Some((current, _)) = state.current(&label) else {
+                return Ok(());
+            };
+            if current != generation || (first && !state.is_pending(&label, generation)) {
+                return Ok(());
+            }
+            let window = current_app
+                .get_webview_window(&label)
+                .ok_or("The window was closed.")?;
+            // The caller is a WebView, but its label can be reused. Validate the
+            // URL token again on the UI queue before any visible side effect.
+            let url = window.url().map_err(|error| error.to_string())?;
+            if !window_instance_matches(&url, generation) {
+                return Err("The window instance is no longer current.".to_string());
+            }
+            let focus = state.owns_focus(&label);
+            drop(state);
+            if focus && !first && window.is_minimized().map_err(|error| error.to_string())? {
+                window.unminimize().map_err(|error| error.to_string())?;
+            }
+            let spec = managed_window_spec(&label).ok_or("Unknown managed window.")?;
+            placement::prepare_reveal(&current_app, &window, &spec, first)?;
+            window.show().map_err(|error| error.to_string())?;
+            if focus {
+                window.set_focus().map_err(|error| error.to_string())?;
+            }
+            owner.readiness.lock().unwrap().complete(&label, generation);
+            Ok(())
+        })();
+        let _ = complete.send(result);
+    })
+    .map_err(|error| error.to_string())?;
+    completed
+        .await
+        .map_err(|_| "The window reveal was cancelled.".to_string())?
+}
+
+pub(crate) fn handle_window_focus(app: &tauri::AppHandle) {
+    app.state::<ManagedWindowState>()
+        .readiness
+        .lock()
+        .unwrap()
+        .user_focused_window();
+}
+
+#[tauri::command]
+pub async fn managed_window_shell_ready(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    instance: String,
+) -> Result<(), String> {
+    let generation = instance
+        .parse::<u64>()
+        .map_err(|_| "Invalid window instance.".to_string())?;
+    let owner = app.state::<ManagedWindowState>();
+    let _operation = owner.operations.lock().await;
+    project_ready_window(&app, window.label().to_string(), generation, true).await
+}
+
+fn archive_manager_window_spec() -> ManagedWindowSpec {
+    ManagedWindowSpec {
+        app_url: "index.html?window=archive-manager",
+        query: "window=archive-manager",
+        label: ARCHIVE_MANAGER_WINDOW_LABEL,
+        title: "Archive Manager",
+        width: 860.0,
+        height: 620.0,
+        min_width: 860.0,
+        min_height: 620.0,
+        maximizable: false,
+        resizable: false,
+    }
+}
+
+pub(super) async fn open_archive_manager(app: &tauri::AppHandle) -> Result<(), String> {
+    open_managed_window(app, archive_manager_window_spec()).await
 }
 
 #[tauri::command]
 pub async fn open_about_window(app: tauri::AppHandle) -> Result<(), String> {
-    open_managed_window(&app, about_window_spec())
+    open_managed_window(&app, about_window_spec()).await
 }
 
 #[tauri::command]
 pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
-    open_managed_window(
-        &app,
-        ManagedWindowSpec {
-            app_url: SETTINGS_WINDOW_APP_URL,
-            height: SETTINGS_WINDOW_HEIGHT,
-            label: SETTINGS_WINDOW_LABEL,
-            maximizable: true,
-            min_height: SETTINGS_WINDOW_MIN_HEIGHT,
-            min_width: SETTINGS_WINDOW_MIN_WIDTH,
-            query: SETTINGS_WINDOW_QUERY,
-            resizable: true,
-            title: "Settings",
-            width: SETTINGS_WINDOW_WIDTH,
-        },
-    )
+    open_managed_window(&app, settings_window_spec()).await
+}
+
+fn settings_window_spec() -> ManagedWindowSpec {
+    ManagedWindowSpec {
+        app_url: SETTINGS_WINDOW_APP_URL,
+        height: SETTINGS_WINDOW_HEIGHT,
+        label: SETTINGS_WINDOW_LABEL,
+        maximizable: true,
+        min_height: SETTINGS_WINDOW_MIN_HEIGHT,
+        min_width: SETTINGS_WINDOW_MIN_WIDTH,
+        query: SETTINGS_WINDOW_QUERY,
+        resizable: true,
+        title: "Settings",
+        width: SETTINGS_WINDOW_WIDTH,
+    }
 }
 
 #[tauri::command]
 pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), String> {
-    open_managed_window(
-        &app,
-        ManagedWindowSpec {
-            app_url: THEME_MANAGER_WINDOW_APP_URL,
-            height: THEME_MANAGER_WINDOW_HEIGHT,
-            label: THEME_MANAGER_WINDOW_LABEL,
-            maximizable: true,
-            min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
-            min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
-            query: THEME_MANAGER_WINDOW_QUERY,
-            resizable: true,
-            title: "Theme Manager",
-            width: THEME_MANAGER_WINDOW_WIDTH,
-        },
-    )
+    open_managed_window(&app, theme_manager_window_spec()).await
+}
+
+fn theme_manager_window_spec() -> ManagedWindowSpec {
+    ManagedWindowSpec {
+        app_url: THEME_MANAGER_WINDOW_APP_URL,
+        height: THEME_MANAGER_WINDOW_HEIGHT,
+        label: THEME_MANAGER_WINDOW_LABEL,
+        maximizable: true,
+        min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
+        min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
+        query: THEME_MANAGER_WINDOW_QUERY,
+        resizable: true,
+        title: "Theme Manager",
+        width: THEME_MANAGER_WINDOW_WIDTH,
+    }
+}
+
+fn managed_window_spec(label: &str) -> Option<ManagedWindowSpec> {
+    match label {
+        ABOUT_WINDOW_LABEL => Some(about_window_spec()),
+        SETTINGS_WINDOW_LABEL => Some(settings_window_spec()),
+        THEME_MANAGER_WINDOW_LABEL => Some(theme_manager_window_spec()),
+        ARCHIVE_MANAGER_WINDOW_LABEL => Some(archive_manager_window_spec()),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -305,6 +520,38 @@ mod tests {
         SETTINGS_WINDOW_WIDTH, THEME_MANAGER_WINDOW_HEIGHT, THEME_MANAGER_WINDOW_MIN_HEIGHT,
         THEME_MANAGER_WINDOW_MIN_WIDTH, THEME_MANAGER_WINDOW_WIDTH,
     };
+
+    #[test]
+    fn readiness_identity_rejects_blank_and_replaced_webviews() {
+        assert!(!super::window_instance_matches(
+            &tauri::Url::parse("about:blank").unwrap(),
+            4
+        ));
+        let url =
+            tauri::Url::parse("http://tauri.localhost/index.html?window=settings&windowInstance=4")
+                .unwrap();
+        assert!(super::window_instance_matches(&url, 4));
+        assert!(!super::window_instance_matches(&url, 5));
+    }
+
+    #[test]
+    fn archive_manager_keeps_fixed_geometry_and_mode_in_shared_builder() {
+        let spec = super::archive_manager_window_spec();
+        assert_eq!((spec.width, spec.height), (860.0, 620.0));
+        assert_eq!((spec.min_width, spec.min_height), (spec.width, spec.height));
+        assert!(!spec.resizable && !spec.maximizable);
+        let dev = tauri::Url::parse("http://localhost:1420").unwrap();
+        for (debug, expected) in [
+            (true, "http://localhost:1420/?window=archive-manager"),
+            (false, "index.html?window=archive-manager"),
+        ] {
+            let (_, url) =
+                super::window_url_parts(Some(&dev), debug, spec.query, spec.app_url, spec.title)
+                    .unwrap();
+            assert_eq!(url, expected);
+        }
+        assert!(super::window_url_parts(None, true, spec.query, spec.app_url, spec.title).is_err());
+    }
 
     #[test]
     fn managed_window_lifecycle_creates_focuses_or_replaces_one_window() {

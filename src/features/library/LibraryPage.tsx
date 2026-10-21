@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
@@ -25,6 +33,8 @@ import type { SeriesEntry } from "../../types/series";
 import { currentFocusOrigin, focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { useArchive } from "../archive/useArchive";
+import { useArchivePresentation } from "../../app/archivePresentation";
+import { ReaderExitFrameContext } from "../../app/readerExitFrame";
 import { openAboutWindow } from "../about/aboutWindowLifecycle";
 import {
   ARCHIVE_ROOT_DESTINATION,
@@ -96,12 +106,17 @@ function locationEmptyState(location: LibraryLocation, libraryTitle: string) {
 }
 
 export function LibraryPage() {
+  const setExitFrame = useContext(ReaderExitFrameContext)?.setFrame;
+  useLayoutEffect(() => {
+    setExitFrame?.(null);
+  }, [setExitFrame]);
   const archive = useArchive();
   if (archive.status !== "ready") return null;
   return <LibraryPageContent key={archive.archive.id} archive={archive} />;
 }
 
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
+  const archiveInteractionBlocked = useArchivePresentation()?.blocked ?? false;
   const activeArchive = archive.archive;
   const storage = useLibraryStorage();
   const { getCommandBinding, openSettings } = useQuickActions();
@@ -580,6 +595,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [pushFeedback],
   );
   const { activeTarget: activeImportDropTarget } = useExternalEpubDrop({
+    disabled: archiveInteractionBlocked,
     onDrop: handleExternalDrop,
     onInvalidDrop: handleInvalidExternalDrop,
   });
@@ -982,7 +998,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       <LibraryWorkspaceDialogs
         books={books}
         confirmDestructiveFileActions={confirmDestructiveFileActions}
-        dialog={dialog}
+        dialog={archiveInteractionBlocked ? { type: "none" } : dialog}
         dialogActions={dialogActions}
         folders={folders}
         importDefaults={globalImportPreferences}

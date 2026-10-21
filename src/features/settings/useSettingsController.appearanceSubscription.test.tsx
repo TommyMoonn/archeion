@@ -101,6 +101,35 @@ describe("Settings committed appearance subscription", () => {
     });
   }
 
+  it("reports a managed Theme Manager launch failure through Settings status", async () => {
+    await render({ onOpenThemeManager: () => Promise.reject(new Error("shell timeout")) });
+    await act(async () => {
+      await latest.openThemeManager();
+    });
+    expect(latest.status).toEqual({
+      autoDismiss: false,
+      message: "Theme Manager could not open. Try again.",
+      tone: "error",
+    });
+  });
+
+  it("ignores a retired Theme Manager launch failure after a newer request", async () => {
+    const old = deferred<void>();
+    const open = vi.fn().mockReturnValueOnce(old.promise).mockResolvedValueOnce(undefined);
+    await render({ onOpenThemeManager: open });
+    act(() => {
+      void latest.openThemeManager();
+    });
+    await act(async () => {
+      await latest.openThemeManager();
+    });
+    await act(async () => {
+      old.reject(new Error("old shell timeout"));
+      await Promise.resolve();
+    });
+    expect(latest.status).toBeNull();
+  });
+
   it("forwards theme changes as global preference updates", async () => {
     const update = vi.spyOn(appPreferencesStore, "update");
     await render();

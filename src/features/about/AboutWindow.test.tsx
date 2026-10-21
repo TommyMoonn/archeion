@@ -5,7 +5,16 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ABOUT_MAIN_CONTENT_ID } from "../../components/SkipLink";
-import { AboutWindow } from "./AboutWindow";
+import { AboutWindow as AboutWindowContent } from "./AboutWindow";
+import { UtilityWindowFrame } from "../../app/UtilityWindowFrame";
+
+function AboutWindow() {
+  return (
+    <UtilityWindowFrame mode="about">
+      <AboutWindowContent />
+    </UtilityWindowFrame>
+  );
+}
 
 const mocks = vi.hoisted(() => ({
   initialize: vi.fn<() => Promise<void>>(),

@@ -1,16 +1,18 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
-import {
-  ABOUT_MAIN_CONTENT_ID,
-  ARCHIVE_MANAGER_MAIN_CONTENT_ID,
-  MAIN_CONTENT_ID,
-  SETTINGS_MAIN_CONTENT_ID,
-  THEME_MANAGER_MAIN_CONTENT_ID,
-  SkipLink,
-} from "../components/SkipLink";
+import { ARCHIVE_MANAGER_MAIN_CONTENT_ID, MAIN_CONTENT_ID, SkipLink } from "../components/SkipLink";
 import { TooltipProvider } from "../components/Tooltip";
 import { WindowTitlebar } from "../components/WindowTitlebar";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
@@ -26,6 +28,7 @@ import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 import { archiveStore } from "../stores/archiveStore";
 import { startNavigationStateTracking } from "./navigationState";
 import { router } from "./router";
+import { ReaderExitFrameContext, type ReaderExitFrame } from "./readerExitFrame";
 import {
   initializeMainStartup,
   resumeInitialStartupAfterArchiveManagerClose,
@@ -38,6 +41,9 @@ import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 import { startupTrace } from "./startupTrace";
 import { focusPresentationRuntime } from "./inputModality";
 import { AppUpdateRuntime } from "../features/updates/AppUpdateRuntime";
+import { AppearanceStatus } from "./AppearanceStatus";
+import { UtilityWindowContentBoundary, UtilityWindowFrame } from "./UtilityWindowFrame";
+import { useManagedWindowShellReady } from "./useManagedWindowShellReady";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -65,13 +71,28 @@ function subscribeToRouteChanges(listener: () => void): () => void {
 }
 
 export function App() {
-  const windowMode = resolveWindowMode();
-
+  const { ready } = useSyncExternalStore(
+    appearanceRuntime.subscribe,
+    appearanceRuntime.getStartupSnapshot,
+    appearanceRuntime.getStartupSnapshot,
+  );
   useEffect(() => {
     const stop = appearanceRuntime.start();
     startupTrace.mark("appearance-runtime");
     return stop;
   }, []);
+
+  return (
+    <>
+      <AppearanceStatus />
+      {ready && <AppWindow />}
+    </>
+  );
+}
+
+function AppWindow() {
+  const windowMode = resolveWindowMode();
+  useManagedWindowShellReady(windowMode);
 
   useEffect(() => focusPresentationRuntime.start(document), []);
 
@@ -82,11 +103,11 @@ export function App() {
           <SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />
           <WindowTitlebar canMaximize={false} />
           <div className="window-app__content">
-            <AppErrorBoundary mainContentId={ARCHIVE_MANAGER_MAIN_CONTENT_ID}>
+            <UtilityWindowContentBoundary fallback={<ArchiveManagerWindowLoading failed />}>
               <Suspense fallback={<ArchiveManagerWindowLoading />}>
                 <ArchiveManagerWindow />
               </Suspense>
-            </AppErrorBoundary>
+            </UtilityWindowContentBoundary>
           </div>
         </div>
       </TooltipProvider>
@@ -96,11 +117,9 @@ export function App() {
   if (windowMode === "about") {
     return (
       <TooltipProvider>
-        <AppErrorBoundary mainContentId={ABOUT_MAIN_CONTENT_ID}>
-          <Suspense fallback={null}>
-            <AboutWindow />
-          </Suspense>
-        </AppErrorBoundary>
+        <UtilityWindowFrame mode="about">
+          <AboutWindow />
+        </UtilityWindowFrame>
       </TooltipProvider>
     );
   }
@@ -108,11 +127,9 @@ export function App() {
   if (windowMode === "settings") {
     return (
       <TooltipProvider>
-        <AppErrorBoundary mainContentId={SETTINGS_MAIN_CONTENT_ID}>
-          <Suspense fallback={null}>
-            <SettingsWindow />
-          </Suspense>
-        </AppErrorBoundary>
+        <UtilityWindowFrame mode="settings">
+          <SettingsWindow />
+        </UtilityWindowFrame>
       </TooltipProvider>
     );
   }
@@ -120,11 +137,9 @@ export function App() {
   if (windowMode === "theme-manager") {
     return (
       <TooltipProvider>
-        <AppErrorBoundary mainContentId={THEME_MANAGER_MAIN_CONTENT_ID}>
-          <Suspense fallback={null}>
-            <ThemeManagerWindow />
-          </Suspense>
-        </AppErrorBoundary>
+        <UtilityWindowFrame mode="theme-manager">
+          <ThemeManagerWindow />
+        </UtilityWindowFrame>
       </TooltipProvider>
     );
   }
@@ -162,7 +177,12 @@ function StartupLoading() {
     <div className="window-app">
       <SkipLink targetId={MAIN_CONTENT_ID} />
       <div className="window-app__content">
-        <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
+        <main
+          className="archive-setup appearance-startup-shell"
+          aria-busy="true"
+          id={MAIN_CONTENT_ID}
+          tabIndex={-1}
+        >
           <p className="archive-loading">Opening Archeion</p>
         </main>
       </div>
@@ -171,6 +191,7 @@ function StartupLoading() {
 }
 
 function MainWindowApp() {
+  const [readerExitFrame, setReaderExitFrame] = useState<ReaderExitFrame | null>(null);
   const [startupState, setStartupState] = useState<MainWindowStartupState>({ status: "loading" });
   const startupAttemptRef = useRef<InitialStartupAttempt | null>(null);
   const startupAttemptSequenceRef = useRef(0);
@@ -420,16 +441,20 @@ function MainWindowApp() {
         <AppErrorBoundary>
           <AppUpdateRuntime />
           <LibraryStorageProvider storage={startupState.preparedArchive.storage}>
-            <QuickActionsProvider>
-              <ArchiveGate
-                preparedArchiveAtMount={{
-                  id: startupState.preparedArchive.archiveId,
-                  rootPath: startupState.preparedArchive.rootPath,
-                }}
-              >
-                <RouterProvider router={router} />
-              </ArchiveGate>
-            </QuickActionsProvider>
+            <ArchiveGate
+              preparedArchiveAtMount={{
+                id: startupState.preparedArchive.archiveId,
+                rootPath: startupState.preparedArchive.rootPath,
+              }}
+            >
+              <QuickActionsProvider>
+                <ReaderExitFrameContext
+                  value={{ frame: readerExitFrame, setFrame: setReaderExitFrame }}
+                >
+                  <RouterProvider router={router} />
+                </ReaderExitFrameContext>
+              </QuickActionsProvider>
+            </ArchiveGate>
           </LibraryStorageProvider>
         </AppErrorBoundary>
       </div>

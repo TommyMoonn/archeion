@@ -1,3 +1,4 @@
+pub mod app_appearance;
 pub mod app_settings;
 pub(crate) mod app_update_backend;
 pub(crate) mod app_update_prompts;

@@ -299,6 +299,7 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 async function renderReader(
   storage: LibraryStorage = createStorage(),
   returnHref = "/?view=favorites&archiveId=archive-books",
+  routeBook: Book = book,
 ) {
   const returnContext = {
     archiveId: "archive-books",
@@ -314,7 +315,7 @@ async function renderReader(
         HydrateFallback: () => null,
         path: "/reader/:bookId",
         element: <ReaderRoute />,
-        loader: () => book,
+        loader: () => routeBook,
       },
       { path: "/", element: <div data-testid="library" /> },
     ],
@@ -528,6 +529,46 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("keeps missing-file recovery inside the Reader destination without acquiring a source", async () => {
+    const storage = createStorage();
+    const rendered = await renderReader(storage, "/", { ...book, isFileMissing: true });
+    expect(rendered.container.querySelector(".reader-page .reader-toolbar")).not.toBeNull();
+    expect(
+      rendered.container.querySelector(".reader-content-stage [role='alert']")?.textContent,
+    ).toContain("Book file missing");
+    expect(rendered.container.querySelector(".reader-status-page")).toBeNull();
+    expect(storage.loadBookFile).not.toHaveBeenCalled();
+  });
+  it("keeps one themed destination and stage through slow source acquisition and retry", async () => {
+    let reject!: (error: Error) => void;
+    const firstSource = new Promise<Blob>((_accept, fail) => {
+      reject = fail;
+    });
+    const storage = createStorage();
+    vi.mocked(storage.loadBookFile).mockReturnValueOnce(firstSource);
+    const rendered = await renderReader(storage);
+    const shell = rendered.container.querySelector(".reader-page");
+    const stage = rendered.container.querySelector(".reader-content-stage");
+    expect(stage?.textContent).toContain("Opening book");
+    expect(rendered.container.querySelector(".reader-status-page")).toBeNull();
+    expect(rendered.container.querySelector(".reader-toolbar")).not.toBeNull();
+    await act(async () => {
+      reject(new Error("missing file"));
+      await firstSource.catch(() => undefined);
+    });
+    expect(rendered.container.querySelector(".reader-page")).toBe(shell);
+    expect(rendered.container.querySelector(".reader-content-stage")).toBe(stage);
+    expect(stage?.querySelector('[role="alert"]')?.textContent).toContain(
+      "EPUB could not be opened",
+    );
+    const retry = Array.from(stage!.querySelectorAll("button")).find(
+      (button) => button.textContent === "Try again",
+    )!;
+    await act(async () => retry.click());
+    expect(rendered.container.querySelector(".reader-content-stage")).toBe(stage);
+    expect(stage?.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it("reads book layout from the library snapshot and saves Appearance intent immediately", async () => {
     const snapshots = createReaderLibrarySnapshotFixture([
       { ...book, readerPresentation: "publisher" },
@@ -946,6 +987,33 @@ describe("ReaderPage Quick Actions", () => {
     expect(main).not.toBeNull();
     expect(main?.tabIndex).toBe(-1);
     expect(document.activeElement).toBe(main);
+  });
+
+  it("replaces the whole retired Reader and recovers a rejected route without repeating teardown", async () => {
+    const rendered = await renderReader();
+    const navigate = vi
+      .spyOn(rendered.router, "navigate")
+      .mockRejectedValueOnce(new Error("Destination rejected"));
+    await act(async () => {
+      rendered.container
+        .querySelector<HTMLButtonElement>('button[aria-label^="Back to "]')
+        ?.click();
+    });
+    expect(viewerMock.teardown).toHaveBeenCalledOnce();
+    expect(rendered.container.querySelector(".reader-toolbar")).toBeNull();
+    expect(rendered.container.querySelector(".reader-loading")).toBeNull();
+    expect(rendered.container.querySelector(".reader-exit [role=alert]")?.textContent).toContain(
+      "The destination could not be opened",
+    );
+    const recovery = rendered.container.querySelector<HTMLButtonElement>(".reader-exit button");
+    expect(document.activeElement).toBe(recovery);
+    expect(recovery?.disabled).toBe(false);
+    await act(async () => {
+      recovery?.click();
+    });
+    expect(rendered.router.state.location.pathname).toBe("/");
+    expect(navigate).toHaveBeenCalledTimes(2);
+    expect(viewerMock.teardown).toHaveBeenCalledOnce();
   });
 
   it("falls back to Library when its saved Smart View return destination becomes hidden", async () => {

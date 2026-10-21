@@ -267,11 +267,13 @@ export function ReaderToolbar({
 }
 
 type ReaderToolbarVisibilityToggleProps = {
+  disabled?: boolean;
   expanded: boolean;
   onToggle: MouseEventHandler<HTMLButtonElement>;
 };
 
 export function ReaderToolbarVisibilityToggle({
+  disabled,
   expanded,
   onToggle,
 }: ReaderToolbarVisibilityToggleProps) {
@@ -282,6 +284,7 @@ export function ReaderToolbarVisibilityToggle({
       aria-controls={READER_TOOLBAR_ID}
       aria-expanded={expanded}
       className="reader-toolbar-toggle"
+      disabled={disabled}
       label={label}
       onClick={onToggle}
       size="compact"

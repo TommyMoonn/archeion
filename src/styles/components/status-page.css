@@ -1,5 +1,30 @@
-.reader-page > .reader-error {
+.reader-content-stage > .reader-error {
+  width: 100%;
   height: 100%;
+  color: var(--reader-muted);
+  background: var(--reader-bg);
+}
+
+.reader-content-stage > .reader-error :is(h1, p) {
+  color: inherit;
+}
+
+.reader-content-stage > .reader-error .button {
+  border-color: var(--reader-line);
+  color: var(--reader-strong);
+  background: var(--reader-surface);
+}
+
+.reader-content-stage > .reader-error .button:hover:not(:disabled) {
+  border-color: var(--reader-muted);
+  background: color-mix(in srgb, var(--reader-surface) 82%, var(--reader-strong));
+}
+
+.reader-content-stage :is(.reader-error, .reader-loading) .text-link {
+  border: 0;
+  padding: 0;
+  color: var(--reader-focus);
+  background: transparent;
 }
 
 .reader-status-page,

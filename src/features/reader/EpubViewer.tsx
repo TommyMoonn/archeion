@@ -94,6 +94,7 @@ type EpubViewerProps = {
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
   interactionBlocked?: boolean;
+  externalOpeningStatus?: boolean;
   publicationLayoutCapability: ReaderPublicationLayoutCapability | null;
   onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
   onHighlightInteractionClear?: () => void;
@@ -131,6 +132,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     highlights = [],
     initialCfi,
     interactionBlocked = false,
+    externalOpeningStatus = false,
     publicationLayoutCapability,
     onError,
     onHighlightAnchorInvalid,
@@ -725,7 +727,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           </span>
         </button>
       ) : null}
-      {isLoading ? (
+      {isLoading && !externalOpeningStatus ? (
         <div className="reader-loading" role="status">
           <span className="reader-loading__line" />
           <span className="reader-loading__line reader-loading__line--short" />
@@ -819,6 +821,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
     previous.interactionBlocked === next.interactionBlocked &&
+    previous.externalOpeningStatus === next.externalOpeningStatus &&
     previous.onError === next.onError &&
     previous.onHighlightAnchorInvalid === next.onHighlightAnchorInvalid &&
     previous.onHighlightInteractionClear === next.onHighlightInteractionClear &&

@@ -35,7 +35,7 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
   const author = entry.origin === "custom" ? entry.author : undefined;
 
   return (
-    <section className="theme-details" aria-labelledby={titleId}>
+    <section aria-busy={busy || undefined} className="theme-details" aria-labelledby={titleId}>
       <header className="theme-details__header">
         <div className="theme-details__header-copy">
           <div className="theme-details__title-row">

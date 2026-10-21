@@ -1,10 +1,12 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { getLibraryStorage } from "../storage/defaultLibraryStorage";
+import { LibraryRouteError } from "./LibraryRouteError";
 
 export const router = createBrowserRouter([
   {
     path: "/",
+    ErrorBoundary: LibraryRouteError,
     lazy: async () => {
       const { LibraryPage } = await import("../features/library/LibraryPage");
 

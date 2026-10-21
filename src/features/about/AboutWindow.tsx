@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 
-import { ABOUT_MAIN_CONTENT_ID, SkipLink } from "../../components/SkipLink";
-import { WindowTitlebar } from "../../components/WindowTitlebar";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { AboutSurface } from "./AboutSurface";
 
@@ -13,14 +11,8 @@ export function AboutWindow() {
   }, []);
 
   return (
-    <div className="window-app window-app--about">
-      <SkipLink targetId={ABOUT_MAIN_CONTENT_ID} />
-      <WindowTitlebar canMaximize={false} />
-      <div className="window-app__content">
-        <main className="about-window-shell" id={ABOUT_MAIN_CONTENT_ID} tabIndex={-1}>
-          <AboutSurface />
-        </main>
-      </div>
+    <div className="utility-window-ready" data-utility-ready="true">
+      <AboutSurface />
     </div>
   );
 }

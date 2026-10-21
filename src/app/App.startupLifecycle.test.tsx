@@ -134,8 +134,13 @@ vi.mock("../stores/archiveStore", () => ({
     refreshActiveArchive: mocks.refreshActiveArchive,
   },
 }));
+const appearanceStartup = { ready: true, error: null };
 vi.mock("../themes/appearanceRuntimeInstance", () => ({
-  appearanceRuntime: { start: () => () => undefined },
+  appearanceRuntime: {
+    start: () => () => undefined,
+    subscribe: () => () => undefined,
+    getStartupSnapshot: () => appearanceStartup,
+  },
 }));
 vi.mock("./navigationState", () => ({
   startNavigationStateTracking: () => () => undefined,

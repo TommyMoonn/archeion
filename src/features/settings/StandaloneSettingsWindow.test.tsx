@@ -5,7 +5,16 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../types/appSettings";
-import { SettingsWindow } from "./StandaloneSettingsWindow";
+import { SettingsWindow as SettingsWindowContent } from "./StandaloneSettingsWindow";
+import { UtilityWindowFrame } from "../../app/UtilityWindowFrame";
+
+function SettingsWindow() {
+  return (
+    <UtilityWindowFrame mode="settings">
+      <SettingsWindowContent />
+    </UtilityWindowFrame>
+  );
+}
 
 const mocks = vi.hoisted(() => ({
   initialize: vi.fn<() => Promise<void>>(),
@@ -48,14 +57,13 @@ function deferred() {
   return { promise, reject, resolve };
 }
 
-async function createRetryablePreferencesStore() {
+async function createFailingPreferencesStore() {
   const { AppPreferencesStore } = await vi.importActual<
     typeof import("../../stores/appPreferencesStore")
   >("../../stores/appPreferencesStore");
   const loadDesktop = vi
     .fn<() => Promise<unknown>>()
-    .mockRejectedValueOnce(new Error("settings unavailable"))
-    .mockResolvedValueOnce({ preferences: defaultAppPreferences, revision: 1 });
+    .mockRejectedValue(new Error("settings unavailable"));
   const store = new AppPreferencesStore({
     isDesktop: () => true,
     loadDesktop,
@@ -82,6 +90,23 @@ afterEach(() => {
 });
 
 describe("SettingsWindow", () => {
+  it("bounds stalled preferences and ignores their late completion", async () => {
+    vi.useFakeTimers();
+    try {
+      const initialization = deferred();
+      mocks.initialize.mockReturnValue(initialization.promise);
+      await act(async () => root.render(<SettingsWindow />));
+      await act(async () => vi.advanceTimersByTime(10_000));
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        "Settings could not be loaded",
+      );
+      await act(async () => initialization.resolve());
+      expect(container.querySelector('[data-testid="settings-surface"]')).toBeNull();
+      expect(container.querySelector('[data-testid="settings-titlebar"]')).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("bootstraps global preferences before mounting the standalone Settings surface", async () => {
     const initialization = deferred();
     mocks.initialize.mockReturnValue(initialization.promise);
@@ -89,7 +114,9 @@ describe("SettingsWindow", () => {
 
     expect(container.querySelector('[data-testid="settings-titlebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="settings-surface"]')).toBeNull();
-    expect(container.querySelector("main")?.getAttribute("aria-busy")).toBe("true");
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Opening Settings");
+    expect(container.querySelector('[data-utility-slot="navigation"]')).not.toBeNull();
+    expect(container.querySelector("[data-utility-ready]")).toBeNull();
 
     await act(async () => initialization.resolve());
     expect(container.querySelector('[data-testid="settings-surface"]')).not.toBeNull();
@@ -100,9 +127,10 @@ describe("SettingsWindow", () => {
     expect(container.querySelector("dialog")).toBeNull();
   });
 
-  it("keeps initialization failure inside the Settings window and supports retry", async () => {
+  it("keeps initialization failure inside the Settings layout and requests a real reload", async () => {
+    const reload = vi.spyOn(location, "reload").mockImplementation(() => {});
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const { loadDesktop, store } = await createRetryablePreferencesStore();
+    const { loadDesktop, store } = await createFailingPreferencesStore();
     mocks.initialize.mockImplementation(() => store.initialize());
     await act(async () => root.render(<SettingsWindow />));
     await act(async () => Promise.resolve());
@@ -112,14 +140,17 @@ describe("SettingsWindow", () => {
     );
     await act(async () => {
       Array.from(container.querySelectorAll("button"))
-        .find((button) => button.textContent === "Retry")
+        .find((button) => button.textContent === "Reload window")
         ?.click();
       await Promise.resolve();
     });
 
-    expect(mocks.initialize).toHaveBeenCalledTimes(2);
-    expect(loadDesktop).toHaveBeenCalledTimes(2);
-    expect(container.querySelector('[data-testid="settings-surface"]')).not.toBeNull();
+    expect(reload).toHaveBeenCalledOnce();
+    expect(mocks.initialize).toHaveBeenCalledOnce();
+    expect(loadDesktop).toHaveBeenCalledOnce();
+    expect(container.querySelector('[data-testid="settings-surface"]')).toBeNull();
+    expect(container.querySelector('[data-utility-slot="navigation"]')).not.toBeNull();
+    reload.mockRestore();
     consoleError.mockRestore();
   });
 });

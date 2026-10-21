@@ -5,6 +5,13 @@ import type {
   ReaderThemePublicToken,
   ThemeColor,
 } from "./themeTokenRegistry";
+import shellPalettes from "./appShellPalettes.json" with { type: "json" };
+import { isThemeColor } from "./themeColor";
+
+function shellColor(value: string): ThemeColor {
+  if (!isThemeColor(value)) throw new Error("Invalid built-in application shell color.");
+  return value;
+}
 
 type AppThemeBaseTokens = Readonly<Record<AppThemePublicToken, ThemeColor>>;
 type ReaderThemeBaseTokens = Readonly<Record<ReaderThemePublicToken, ThemeColor>>;
@@ -18,11 +25,11 @@ const app = Object.freeze({
     surfaceHover: "#29292d",
     frame: "#151516",
     sidebar: "#151516",
-    main: "#1b1b1d",
+    main: shellColor(shellPalettes.dark.background),
     mainRaised: "#222225",
     line: "#303034",
     lineStrong: "#414147",
-    text: "#d6d3d9",
+    text: shellColor(shellPalettes.dark.foreground),
     textStrong: "#ebe8ef",
     muted: "#bab7bd",
     mutedSoft: "#6f6d73",
@@ -42,11 +49,11 @@ const app = Object.freeze({
     surfaceHover: "#f2ece2",
     frame: "#eee8de",
     sidebar: "#eee8de",
-    main: "#f8f5ef",
+    main: shellColor(shellPalettes.light.background),
     mainRaised: "#ffffff",
     line: "#ddd4c8",
     lineStrong: "#cabeae",
-    text: "#403b34",
+    text: shellColor(shellPalettes.light.foreground),
     textStrong: "#1e1a17",
     muted: "#6f665a",
     mutedSoft: "#91887d",

@@ -14,7 +14,7 @@ describe("Phase 0.9.0.28 navigation landmarks and focus entry", () => {
 
     expect(app).toContain("<SkipLink targetId={MAIN_CONTENT_ID} />");
     expect(app).toContain("<SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />");
-    expect(app).toContain("<AppErrorBoundary mainContentId={ARCHIVE_MANAGER_MAIN_CONTENT_ID}>");
+    expect(app).toContain("<ArchiveManagerWindowLoading failed />");
     expect(app).toContain("<Suspense fallback={<ArchiveManagerWindowLoading />}>");
     expect(storage).toContain("id={MAIN_CONTENT_ID}");
     expect(storage).toContain("tabIndex={-1}");
@@ -37,19 +37,22 @@ describe("Phase 0.9.0.28 navigation landmarks and focus entry", () => {
     const librarySidebar = read("src/features/library/LibrarySidebar.tsx");
     const series = read("src/features/series/SeriesOverview.tsx");
     const settings = read("src/features/settings/SettingsSidebar.tsx");
+    const settingsLayout = read("src/features/settings/SettingsWindowLayout.tsx");
 
     expect(librarySidebar).toContain('aria-label="Library navigation"');
     expect(series).toContain('aria-label="Series search"');
     expect(series).toContain('role="search"');
-    expect(settings).toContain('aria-label="Settings navigation"');
+    expect(settingsLayout).toContain('aria-label="Settings navigation"');
     expect(settings).toContain('aria-label="Settings search"');
     expect(settings).toContain('aria-label="Settings sections"');
   });
 
   it("keeps the shared Settings surface free of a competing main landmark", () => {
     const settings = read("src/features/settings/SettingsSurface.tsx");
+    const settingsLayout = read("src/features/settings/SettingsWindowLayout.tsx");
 
-    expect(settings).toContain('<section aria-label="Settings content"');
+    expect(settingsLayout).toMatch(/<section\s+aria-label="Settings content"/);
+    expect(settingsLayout).not.toContain("<main");
     expect(settings).not.toContain('<main className="settings-content"');
   });
 });

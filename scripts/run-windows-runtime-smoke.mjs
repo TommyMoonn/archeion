@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { createWriteStream } from "node:fs";
-import { lstat, mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
@@ -18,10 +18,16 @@ import {
 
 import { cleanupOwnedRuntime, requireContained } from "./runtime-smoke-cleanup.mjs";
 import { runRuntimeFlows } from "../tests/runtime/windowsRuntimeSmoke.mjs";
+import { runWindowPlacementFlows } from "../tests/runtime/windowsWindowPlacement.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratchRoot = path.join(projectRoot, ".scratch", "runtime-smoke");
-const evidenceRoot = path.join(projectRoot, "test-results", "runtime-smoke");
+const placementOnly = process.argv.includes("--placement-only");
+const evidenceRoot = path.join(
+  projectRoot,
+  "test-results",
+  placementOnly ? "window-placement" : "runtime-smoke",
+);
 const tauriDriverPath = path.join(
   projectRoot,
   ".scratch",
@@ -107,13 +113,39 @@ async function main() {
 
   try {
     const overridePath = path.join(runRoot, "tauri.smoke.conf.json");
+    let placementSecurity;
+    if (placementOnly) {
+      const capabilityRoot = path.join(projectRoot, "src-tauri", "capabilities");
+      const capabilityFiles = (await readdir(capabilityRoot)).filter((file) =>
+        file.endsWith(".json"),
+      );
+      const capabilityIds = await Promise.all(
+        capabilityFiles.map(
+          async (file) =>
+            JSON.parse(await readFile(path.join(capabilityRoot, file), "utf8")).identifier,
+        ),
+      );
+      placementSecurity = {
+        capabilities: [
+          ...capabilityIds,
+          {
+            identifier: "placement-smoke-only",
+            windows: ["about", "settings", "theme-manager", "archive-manager"],
+            permissions: ["core:window:allow-set-position"],
+          },
+        ],
+      };
+    }
     await writeFile(
       overridePath,
       JSON.stringify({
         productName: "Archeion Runtime Smoke",
         identifier: appIdentifier,
         mainBinaryName: "ArcheionRuntimeSmoke",
-        app: { withGlobalTauri: true },
+        app: {
+          withGlobalTauri: true,
+          ...(placementSecurity ? { security: placementSecurity } : {}),
+        },
         // Runtime flows do not exercise the updater. Never let this test build
         // inherit the production endpoint, including after preference resets.
         plugins: { updater: { endpoints: [] } },
@@ -174,7 +206,7 @@ async function main() {
       await activeSession.manage().setTimeouts({ script: 30_000 });
       return activeSession;
     };
-    await runRuntimeFlows({
+    await (placementOnly ? runWindowPlacementFlows : runRuntimeFlows)({
       startSession,
       closeSession,
       fixtureRoot: path.join(runRoot, "fixtures"),

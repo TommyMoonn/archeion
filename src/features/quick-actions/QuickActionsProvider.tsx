@@ -14,6 +14,7 @@ import { flushSync } from "react-dom";
 import { router } from "../../app/router";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { DeferredTransientFallback } from "../../components/DeferredTransientFallback";
+import { Button } from "../../components/Button";
 import { captureFocusReturn, type FocusReturnRecord } from "../../utils/focusRestoration";
 import {
   appPreferencesStore,
@@ -40,6 +41,7 @@ import {
 } from "./quickActionThemeMode";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 import { openSettingsWindow as openNativeSettingsWindow } from "../settings/settingsWindow";
+import { useArchivePresentation } from "../../app/archivePresentation";
 
 const loadQuickActionsPalette = () =>
   import("./QuickActionsPalette").then((module) => ({ default: module.QuickActionsPalette }));
@@ -58,11 +60,14 @@ export function QuickActionsProvider({
   themeModeServices,
 }: QuickActionsProviderProps) {
   const registry = quickActionsRegistry;
+  const archiveInteractionBlocked = useArchivePresentation()?.blocked ?? false;
   const [palette, setPalette] = useState<{
     archiveId: string | null;
     focusReturn: FocusReturnRecord;
   } | null>(null);
   const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
+  const [settingsOpenFailed, setSettingsOpenFailed] = useState(false);
+  const settingsOpenRevision = useRef(0);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const mountedRef = useRef(true);
   const preferences = useAppPreferences();
@@ -95,13 +100,18 @@ export function QuickActionsProvider({
   }, [archive]);
 
   const openSettings = useCallback(() => {
+    const revision = ++settingsOpenRevision.current;
+    setSettingsOpenFailed(false);
     void openSettingsWindow().catch((error) => {
       console.error("open_settings_window failed", error);
+      if (mountedRef.current && revision === settingsOpenRevision.current)
+        setSettingsOpenFailed(true);
     });
   }, [openSettingsWindow]);
 
   const executeCommand = useCallback(
     (command: AppCommand, focusReturn?: FocusReturnRecord) => {
+      if (archiveInteractionBlocked) return;
       registry.recordRecent(command.id);
       commandFocusReturnRef.current = focusReturn ?? null;
       let result: void | Promise<void>;
@@ -114,11 +124,12 @@ export function QuickActionsProvider({
         console.error(`Command failed: ${command.id}`, error);
       });
     },
-    [registry],
+    [archiveInteractionBlocked, registry],
   );
 
   const handleKeyboardEvent = useCallback(
     (event: KeyboardEvent, context?: KeyboardInteractionContext): boolean => {
+      if (archiveInteractionBlocked) return false;
       const resolved = resolveKeyboardCommand(
         event,
         registry.getSnapshot().commands,
@@ -133,7 +144,7 @@ export function QuickActionsProvider({
       if (resolved.availability.available) executeCommand(resolved.command);
       return true;
     },
-    [executeCommand, keyboard, registry],
+    [archiveInteractionBlocked, executeCommand, keyboard, registry],
   );
 
   useEffect(() => {
@@ -316,7 +327,14 @@ export function QuickActionsProvider({
   return (
     <QuickActionsContext.Provider value={contextValue}>
       {children}
-      {palette ? (
+      {settingsOpenFailed && (
+        <div className="appearance-status--visible">
+          <p role="alert">Settings could not open. Try again.</p>
+          <Button onClick={openSettings}>Open Settings</Button>
+          <Button onClick={() => setSettingsOpenFailed(false)}>Dismiss</Button>
+        </div>
+      )}
+      {palette && !archiveInteractionBlocked ? (
         <Suspense fallback={<QuickActionsLoadingFallback />}>
           <QuickActionsPalette
             focusReturn={palette.focusReturn}
