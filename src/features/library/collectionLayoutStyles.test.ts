@@ -123,7 +123,7 @@ describe("collection content spacing ownership", () => {
     expect(collectionContentStyles).toMatch(
       /\.collection-content:not\(\.library-content--books\):is\([\s\S]*?\)\s*\{[^}]*align-content:\s*center;/s,
     );
-    expect(cssBlock(collectionContentStyles, "\n.library-content--books")).toContain(
+    expect(cssBlock(collectionContentStyles, "\n.library-content--books ")).toContain(
       "padding-block: var(--collection-content-offset) 0;",
     );
     expect(cssBlock(collectionContentStyles, ".collection-content__state")).toContain(

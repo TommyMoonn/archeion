@@ -29,6 +29,19 @@
 }
 
 /* Book collection ownership lives on the persistent archive/view boundary. */
+.collection-content__items[data-return-preparing] {
+  visibility: hidden;
+}
+
+/* Measure bounded retained rows before reveal, including non-windowed lists. */
+.collection-content__items[data-return-preparing] :is(.book-card__select, .book-row__select) {
+  content-visibility: visible;
+}
+
+.library-content--books:has(> .collection-content__items[data-return-preparing]) {
+  animation: none;
+}
+
 .library-content--books {
   row-gap: var(--collection-content-offset);
   padding-block: var(--collection-content-offset) 0;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { canonicalReaderRoute } from "../../app/navigationState";
@@ -136,6 +136,14 @@ export function useLibraryWorkspaceNavigation({
         label: returnLabel,
         query,
         scrollTop: pageShellRef.current?.scrollTop ?? 0,
+        viewportY: (() => {
+          const main = pageShellRef.current;
+          const target = main && findMountedReaderBookFocusTarget(main, book.id);
+          const bookElement = target?.closest<HTMLElement>("[data-reader-book-id]");
+          return main && bookElement
+            ? bookElement.getBoundingClientRect().top - main.getBoundingClientRect().top
+            : undefined;
+        })(),
         seriesQuery,
       });
       const readerRoute = canonicalReaderRoute(book.id);
@@ -247,11 +255,36 @@ export function useLibraryWorkspaceNavigationLifecycle({
   returnContextRestoredRef,
   visibleBooks,
 }: UseLibraryWorkspaceNavigationLifecycleInput): LibraryReturnRestoration {
-  const [pendingBookId, setPendingBookId] = useState<string | null>(null);
+  const [pendingBookId, setPendingBookId] = useState<string | null>(
+    restoreContext?.focusBookId ?? null,
+  );
   const pendingBookIdRef = useRef<string | null>(null);
   const focusAtRequestRef = useRef<Element | null>(null);
   const readyMountedSurfaceKeyRef = useRef<string | null>(null);
   const restorationRequestedRef = useRef(false);
+  const initialLocationKey = useRef(libraryLocationKey(location));
+  const missingSeriesAtReturn = useRef(location.type === "series-detail" && !activeSeriesExists);
+
+  useLayoutEffect(() => {
+    const cancel = () => {
+      returnContextRestoredRef.current = true;
+      pendingBookIdRef.current = null;
+      setPendingBookId(null);
+    };
+    if (
+      libraryLocationKey(location) !== initialLocationKey.current &&
+      !(missingSeriesAtReturn.current && location.type === "series")
+    )
+      cancel();
+    for (const type of ["wheel", "pointerdown", "keydown", "touchstart"]) {
+      document.addEventListener(type, cancel, { capture: true, passive: true });
+    }
+    return () => {
+      for (const type of ["wheel", "pointerdown", "keydown", "touchstart"]) {
+        document.removeEventListener(type, cancel, true);
+      }
+    };
+  }, [location, returnContextRestoredRef]);
 
   const pendingCollectionIndex = pendingBookId
     ? visibleBooks.findIndex((book) => book.id === pendingBookId)
@@ -276,15 +309,20 @@ export function useLibraryWorkspaceNavigationLifecycle({
   );
 
   const resolveMountedTarget = useCallback(
-    (bookId: string): boolean => {
+    (bookId: string, outsideCollection = false): boolean => {
       const main = pageShellRef.current;
       if (!main) return false;
       const target = findMountedReaderBookFocusTarget(main, bookId);
       if (!target) return false;
+      if (outsideCollection) {
+        if (target.closest("[data-library-index]")) return false;
+        // Continue Reading and other mounted summaries do not use the virtual range.
+        main.scrollTop = restoreContext?.scrollTop ?? 0;
+      }
       completeRestoration(target);
       return true;
     },
-    [completeRestoration, pageShellRef],
+    [completeRestoration, pageShellRef, restoreContext],
   );
 
   const onMountedSurfaceReady = useCallback(
@@ -330,7 +368,7 @@ export function useLibraryWorkspaceNavigationLifecycle({
     }
   }, [activeSeriesExists, booksReady, changeLocation, location.type]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (
       returnContextRestoredRef.current ||
       restorationRequestedRef.current ||
@@ -341,36 +379,31 @@ export function useLibraryWorkspaceNavigationLifecycle({
       return;
     }
 
-    const frame = window.requestAnimationFrame(() => {
-      const main = pageShellRef.current;
-      if (!main) return;
-      restorationRequestedRef.current = true;
-      focusAtRequestRef.current = document.activeElement;
-      main.scrollTop = restoreContext.scrollTop ?? 0;
-      const bookId = restoreContext.focusBookId;
-      if (!bookId) {
-        completeRestoration(null);
-        return;
-      }
-
-      if (resolveMountedTarget(bookId)) return;
-
-      pendingBookIdRef.current = bookId;
-      setPendingBookId(bookId);
-      if (locationUsesBookCollection(location)) {
-        if (!visibleBooks.some((book) => book.id === bookId)) completeRestoration(null);
-        return;
-      }
-      if (
-        locationUsesMountedReaderSurface(location) &&
-        readyMountedSurfaceKeyRef.current !== libraryLocationKey(location)
-      ) {
-        return;
-      }
+    const main = pageShellRef.current;
+    if (!main) return;
+    restorationRequestedRef.current = true;
+    focusAtRequestRef.current = document.activeElement;
+    if (!locationUsesBookCollection(location)) main.scrollTop = restoreContext.scrollTop ?? 0;
+    const bookId = restoreContext.focusBookId;
+    if (!bookId) {
       completeRestoration(null);
-    });
+      return;
+    }
 
-    return () => window.cancelAnimationFrame(frame);
+    if (resolveMountedTarget(bookId, locationUsesBookCollection(location))) return;
+
+    pendingBookIdRef.current = bookId;
+    if (locationUsesBookCollection(location)) {
+      if (!visibleBooks.some((book) => book.id === bookId)) completeRestoration(null);
+      return;
+    }
+    if (
+      locationUsesMountedReaderSurface(location) &&
+      readyMountedSurfaceKeyRef.current !== libraryLocationKey(location)
+    ) {
+      return;
+    }
+    completeRestoration(null);
   }, [
     activeSeriesExists,
     booksReady,
@@ -384,8 +417,9 @@ export function useLibraryWorkspaceNavigationLifecycle({
   ]);
 
   useEffect(() => {
-    if (!pendingBookId || returnContextRestoredRef.current) return;
-    if (resolveMountedTarget(pendingBookId)) return;
+    if (!restorationRequestedRef.current || !pendingBookId || returnContextRestoredRef.current)
+      return;
+    if (resolveMountedTarget(pendingBookId, locationUsesBookCollection(location))) return;
     if (locationUsesBookCollection(location)) {
       if (pendingCollectionIndex < 0) completeRestoration(null);
       return;
@@ -407,11 +441,21 @@ export function useLibraryWorkspaceNavigationLifecycle({
 
   return {
     collectionRequest:
-      pendingBookId && locationUsesBookCollection(location) && pendingCollectionIndex >= 0
+      booksReady &&
+      pendingBookId &&
+      locationUsesBookCollection(location) &&
+      pendingCollectionIndex >= 0
         ? {
             bookId: pendingBookId,
             index: pendingCollectionIndex,
+            anchor: {
+              viewportY: restoreContext?.viewportY,
+              scrollTop: restoreContext?.scrollTop ?? 0,
+            },
             onTargetReady: completeCollectionTargetRestoration,
+            onUnavailable: () => {
+              if (pendingBookIdRef.current === pendingBookId) completeRestoration(null);
+            },
           }
         : null,
     onMountedSurfaceReady,

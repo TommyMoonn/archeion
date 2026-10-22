@@ -217,17 +217,19 @@ export const BookList = memo(function BookList({
   returnFocusRequest,
   ...rowProps
 }: BookListProps) {
-  const { collectionRef, range, windowed } = useLibraryCollectionWindow(
+  const { collectionRef, range, windowed, preparingReturn } = useLibraryCollectionWindow(
     books.length,
     "list",
     returnFocusRequest?.index,
+    returnFocusRequest,
   );
   const retainedBooks = windowed ? books.slice(range.start, range.end) : books;
   const contextMenuDisabledReason =
     selectedBookIds.size > 1 ? MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON : undefined;
 
   useLayoutEffect(() => {
-    reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
+    if (!returnFocusRequest?.anchor)
+      reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
   }, [collectionRef, range.end, range.start, returnFocusRequest]);
 
   return (
@@ -235,6 +237,9 @@ export const BookList = memo(function BookList({
       ref={collectionRef}
       className="book-list collection-content__items"
       aria-label="Books"
+      aria-busy={preparingReturn || undefined}
+      inert={preparingReturn || undefined}
+      data-return-preparing={preparingReturn || undefined}
       data-windowed={windowed || undefined}
       data-window-start={range.start}
       data-window-end={range.end}
