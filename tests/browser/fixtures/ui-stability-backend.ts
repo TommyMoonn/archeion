@@ -4,6 +4,10 @@ import type { ArchiveScan } from "../../../src/storage/reconcileLibraryState";
 import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
 import { buildReaderFixture } from "../../fixtures/reader/readerFixtures";
 import { emit } from "@tauri-apps/api/event";
+import tideCover from "../../../docs/assets/images/cover-tide.svg?url";
+import orbitCover from "../../../docs/assets/images/cover-orbit.svg?url";
+import relayCover from "../../../docs/assets/images/cover-relay.svg?url";
+import quietCover from "../../../docs/assets/images/cover-quiet.svg?url";
 import {
   APP_UPDATE_CHANGED_EVENT,
   type AppUpdateSnapshot,
@@ -74,6 +78,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     },
   };
   const preferences: AppPreferences = structuredClone(defaultAppPreferences);
+  preferences.library.collections.books.viewMode = params.get("view") === "list" ? "list" : "grid";
   preferences.automaticallyCheckForUpdates = false;
   preferences.rememberWindowState = false;
   preferences.restoreLastReader = false;
@@ -102,13 +107,27 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   if (!context) throw new Error("Synthetic cover canvas is unavailable");
   context.fillStyle = "#607080";
   context.fillRect(0, 0, canvas.width, canvas.height);
-  const cover = await new Promise<Blob>((resolve, reject) =>
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Synthetic PNG generation failed"))),
-      "image/png",
-    ),
-  );
-  const coverBytes = await cover.arrayBuffer();
+  const coverBytes: ArrayBuffer[] = [];
+  const artwork =
+    params.get("covers") === "artwork" ? [tideCover, orbitCover, relayCover, quietCover] : [null];
+  for (const source of artwork) {
+    if (source) {
+      const image = new Image();
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Fixture artwork unavailable"));
+        image.src = source;
+      });
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    }
+    const cover = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("Synthetic PNG generation failed"))),
+        "image/png",
+      ),
+    );
+    coverBytes.push(await cover.arrayBuffer());
+  }
   let metadata = { library: { version: 1, books: {} }, progress: { version: 1, progress: {} } };
   const registry = () => ({ version: 1, archives, lastOpenedArchiveId: active });
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -204,7 +223,9 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           }
           return epub.buffer;
         case "load_epub_cover":
-          return coverBytes;
+          return coverBytes[
+            (Number(String(input.bookId).split("-").at(-1)) || 0) % coverBytes.length
+          ];
         case "load_annotations_metadata":
           return { version: 1, books: {} };
         case "save_library_metadata":

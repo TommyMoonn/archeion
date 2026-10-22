@@ -1,18 +1,230 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
+import {
+  acquireCoverUrl,
+  coverCacheKey,
+  COVER_RETENTION,
+  retireCoverUrlScope,
+} from "./coverUrlCache";
+import { decodeCoverImage } from "./decodeCoverImage";
+
+vi.mock("./decodeCoverImage", () => ({
+  decodeCoverImage: vi.fn(async () => ({
+    naturalWidth: 120,
+    naturalHeight: 180,
+    removeAttribute: vi.fn(),
+  })),
+}));
 
 describe("coverUrlCache", () => {
   let scope: string;
 
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.mocked(decodeCoverImage).mockClear();
     scope = "archive-a";
   });
 
+  it("reuses decoded pixels across a short return, then expires them", async () => {
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:return");
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const load = vi.fn().mockResolvedValue(new Blob(["cover"]));
+    const first = acquireCoverUrl(scope, "return", load);
+    await first.promise;
+    first.release();
+    await vi.advanceTimersByTimeAsync(2_000);
+    const returned = acquireCoverUrl(scope, "return", load);
+    expect(await returned.promise).toBe("blob:return");
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(decodeCoverImage).toHaveBeenCalledTimes(1);
+    returned.release();
+    await vi.advanceTimersByTimeAsync(COVER_RETENTION.milliseconds);
+    expect(revoke).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([50, 500, 3000])(
+    "bounds retained URL and decode resources over %i books",
+    async (count) => {
+      let serial = 0;
+      const create = vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:${serial++}`);
+      const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+      const load = vi.fn().mockResolvedValue(new Blob(["cover"]));
+      for (let index = 0; index < count; index++) {
+        const cover = acquireCoverUrl(scope, `scale-${index}`, load);
+        await cover.promise;
+        cover.release();
+        expect(create.mock.calls.length - revoke.mock.calls.length).toBeLessThanOrEqual(
+          COVER_RETENTION.count,
+        );
+      }
+      expect(decodeCoverImage).toHaveBeenCalledTimes(count);
+      retireCoverUrlScope(scope);
+      expect(revoke).toHaveBeenCalledTimes(count);
+    },
+  );
+
+  it("evicts by decoded byte estimate before reaching the count bound", async () => {
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:large");
+    const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    vi.mocked(decodeCoverImage).mockResolvedValueOnce({
+      naturalWidth: 2000,
+      naturalHeight: 2000,
+      removeAttribute: vi.fn(),
+    } as unknown as HTMLImageElement);
+    const cover = acquireCoverUrl(scope, "large", async () => new Blob(["cover"]));
+    await cover.promise;
+    cover.release();
+    expect(revoke).toHaveBeenCalledWith("blob:large");
+  });
+
+  it("holds the four-slot concurrency limit through decode and cancels retirement", async () => {
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:decode");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const signals: AbortSignal[] = [];
+    vi.mocked(decodeCoverImage).mockImplementation(
+      (_url, signal) =>
+        new Promise((_resolve, reject) => {
+          signals.push(signal);
+          signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        }),
+    );
+    const load = vi.fn().mockResolvedValue(new Blob(["cover"]));
+    const acquired = Array.from({ length: 50 }, (_, index) =>
+      acquireCoverUrl(scope, `pending-${index}`, load),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(4);
+    expect(signals).toHaveLength(4);
+    retireCoverUrlScope(scope);
+    await Promise.all(acquired.map((cover) => cover.promise));
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(load).toHaveBeenCalledTimes(4);
+    vi.mocked(decodeCoverImage).mockResolvedValue({
+      naturalWidth: 120,
+      naturalHeight: 180,
+      removeAttribute: vi.fn(),
+    } as unknown as HTMLImageElement);
+  });
+
   afterEach(() => {
+    retireCoverUrlScope(scope);
+    retireCoverUrlScope("archive-b");
     vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("starts a newly visible cover ahead of earlier queued prefetch", async () => {
+    const starts: string[] = [];
+    const finish: Array<() => void> = [];
+    const load = (id: string) => async () => {
+      starts.push(id);
+      await new Promise<void>((resolve) => finish.push(resolve));
+      return undefined;
+    };
+    const blocking = Array.from({ length: 4 }, (_, index) =>
+      acquireCoverUrl(scope, `blocking-${index}`, load(`blocking-${index}`)),
+    );
+    const near = acquireCoverUrl(scope, "near", load("near"), "prefetch");
+    const visible = acquireCoverUrl(scope, "visible", load("visible"), "visible");
+    finish[0]!();
+    await blocking[0]!.promise;
+    await Promise.resolve();
+    const next = starts[4];
+    retireCoverUrlScope(scope);
+    finish.forEach((resolve) => resolve());
+    await Promise.all([...blocking, near, visible].map((cover) => cover.promise));
+    expect(next).toBe("visible");
+  });
+
+  it("reserves capacity for visible work while native prefetch lookups cannot be cancelled", async () => {
+    const finish: Array<() => void> = [];
+    const prefetchLoad = vi.fn(async () => {
+      await new Promise<void>((resolve) => finish.push(resolve));
+      return undefined;
+    });
+    const near = Array.from({ length: 8 }, (_, index) =>
+      acquireCoverUrl(scope, `near-${index}`, prefetchLoad, "prefetch"),
+    );
+    const visibleLoad = vi.fn().mockResolvedValue(undefined);
+    const visible = acquireCoverUrl(scope, "visible", visibleLoad, "visible");
+    const startedPrefetch = prefetchLoad.mock.calls.length;
+    const startedVisible = visibleLoad.mock.calls.length;
+    retireCoverUrlScope(scope);
+    finish.forEach((resolve) => resolve());
+    await Promise.all([...near, visible].map((cover) => cover.promise));
+    expect(startedPrefetch).toBe(2);
+    expect(startedVisible).toBe(1);
+  });
+
+  it("promotes an existing queued consumer and skips prefetch released outside the margin", async () => {
+    const starts: string[] = [];
+    const finish: Array<() => void> = [];
+    const load = (id: string) => async () => {
+      starts.push(id);
+      await new Promise<void>((resolve) => finish.push(resolve));
+      return undefined;
+    };
+    const active = Array.from({ length: 2 }, (_, index) =>
+      acquireCoverUrl(scope, `active-${index}`, load(`active-${index}`), "prefetch"),
+    );
+    const retired = acquireCoverUrl(scope, "retired", load("retired"), "prefetch");
+    const promoted = acquireCoverUrl(scope, "promoted", load("promoted"), "prefetch");
+    retired.release();
+    promoted.setPriority("visible");
+    expect(starts).toEqual(["active-0", "active-1", "promoted"]);
+    retireCoverUrlScope(scope);
+    finish.forEach((resolve) => resolve());
+    await Promise.all([...active, retired, promoted].map((cover) => cover.promise));
+    expect(starts).not.toContain("retired");
+  });
+
+  it("uses the highest priority among shared consumers and demotes after visible release", async () => {
+    const starts: string[] = [];
+    const finish: Array<() => void> = [];
+    const load = (id: string) => async () => {
+      starts.push(id);
+      await new Promise<void>((resolve) => finish.push(resolve));
+      return undefined;
+    };
+    const active = Array.from({ length: 4 }, (_, index) =>
+      acquireCoverUrl(scope, `active-${index}`, load(`active-${index}`)),
+    );
+    const near = acquireCoverUrl(scope, "shared", load("shared"), "prefetch");
+    const shared = acquireCoverUrl(scope, "shared", load("never-called"), "visible");
+    shared.release();
+    const visible = acquireCoverUrl(scope, "visible", load("visible"), "visible");
+    finish[0]!();
+    await active[0]!.promise;
+    await Promise.resolve();
+    const next = starts[4];
+    retireCoverUrlScope(scope);
+    finish.forEach((resolve) => resolve());
+    await Promise.all([...active, near, shared, visible].map((cover) => cover.promise));
+    expect(next).toBe("visible");
+  });
+
+  it("starts the nearest directional prefetch before an earlier speculative task", async () => {
+    const starts: string[] = [],
+      finish: Array<() => void> = [];
+    const load = (id: string) => async () => {
+      starts.push(id);
+      await new Promise<void>((resolve) => finish.push(resolve));
+      return undefined;
+    };
+    const active = Array.from({ length: 2 }, (_, index) =>
+      acquireCoverUrl(scope, `active-${index}`, load(`active-${index}`), "prefetch"),
+    );
+    const far = acquireCoverUrl(scope, "far", load("far"), "prefetch", 1800);
+    const next = acquireCoverUrl(scope, "next", load("next"), "prefetch", 100);
+    finish[0]!();
+    await active[0]!.promise;
+    await Promise.resolve();
+    const started = starts[2];
+    retireCoverUrlScope(scope);
+    finish.forEach((resolve) => resolve());
+    await Promise.all([...active, far, next].map((cover) => cover.promise));
+    expect(started).toBe("next");
   });
 
   it("shares one object URL and revokes it after the final consumer", async () => {
@@ -29,11 +241,11 @@ describe("coverUrlCache", () => {
     expect(createObjectUrl).toHaveBeenCalledTimes(1);
 
     first.release();
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(COVER_RETENTION.milliseconds);
     expect(revokeObjectUrl).not.toHaveBeenCalled();
 
     second.release();
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(COVER_RETENTION.milliseconds);
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:shared-cover");
   });
 
@@ -180,7 +392,7 @@ describe("coverUrlCache", () => {
 
     first.release();
     second.release();
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(COVER_RETENTION.milliseconds);
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:first-archive");
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:second-archive");
   });

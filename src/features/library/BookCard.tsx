@@ -35,7 +35,6 @@ type BookCardProps = {
   canManageFile?: boolean;
   selected: boolean;
   selectionMode: boolean;
-  loadCoverImmediately?: boolean;
   collectionIndex?: number;
   contextMenuDisabledReason?: string;
   onContextMenuUnavailable?: (reason: string) => void;
@@ -56,7 +55,6 @@ function BookCardComponent({
   canManageFile = false,
   selected,
   selectionMode,
-  loadCoverImmediately = false,
   collectionIndex,
   contextMenuDisabledReason,
   onContextMenuUnavailable,
@@ -118,7 +116,7 @@ function BookCardComponent({
         ref={primaryActionRef}
         type="button"
       >
-        <BookCover book={book} loadImmediately={loadCoverImmediately} />
+        <BookCover book={book} />
         <span className="book-card__copy">
           <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
@@ -174,7 +172,6 @@ export const BookCard = memo(
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
     previous.selectionMode === next.selectionMode &&
-    previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
     previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
     previous.onContextMenuUnavailable === next.onContextMenuUnavailable &&

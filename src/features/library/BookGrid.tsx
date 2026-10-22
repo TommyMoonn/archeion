@@ -95,7 +95,6 @@ export const BookGrid = memo(function BookGrid({
             canManageFile={canManageFile}
             selected={selectedBookIds.has(book.id)}
             selectionMode={selectionMode}
-            loadCoverImmediately
             collectionIndex={range.start + retainedIndex}
             contextMenuDisabledReason={contextMenuDisabledReason}
             onContextMenuUnavailable={onContextMenuUnavailable}

@@ -48,7 +48,6 @@ type BookListProps = {
 
 type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
   book: ReadonlyBook;
-  loadCoverImmediately?: boolean;
   collectionIndex?: number;
   selected: boolean;
   contextMenuDisabledReason?: string;
@@ -70,7 +69,6 @@ function BookRowComponent({
   canManageFile = false,
   selected,
   selectionMode,
-  loadCoverImmediately = false,
   collectionIndex,
   contextMenuDisabledReason,
   onContextMenuUnavailable,
@@ -132,7 +130,7 @@ function BookRowComponent({
         ref={primaryActionRef}
         type="button"
       >
-        <BookCover book={book} className="book-cover--row" loadImmediately={loadCoverImmediately} />
+        <BookCover book={book} className="book-cover--row" />
         <span className="book-row__identity">
           <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
@@ -199,7 +197,6 @@ const BookRow = memo(
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
     previous.selectionMode === next.selectionMode &&
-    previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
     previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
     previous.onContextMenuUnavailable === next.onContextMenuUnavailable &&
@@ -252,7 +249,6 @@ export const BookList = memo(function BookList({
             book={book}
             key={book.id}
             selected={selectedBookIds.has(book.id)}
-            loadCoverImmediately
             collectionIndex={range.start + retainedIndex}
             contextMenuDisabledReason={contextMenuDisabledReason}
             {...rowProps}
