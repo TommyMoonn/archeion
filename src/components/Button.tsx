@@ -1,4 +1,12 @@
-import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type ButtonHTMLAttributes,
+  type MouseEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { Tooltip } from "./Tooltip";
 import { useOwnedTooltipAvailable } from "./tooltipStore";
 
@@ -6,7 +14,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ControlSize = "compact" | "standard" | "prominent";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  // Pass false while idle to reserve the same slot used during work.
   busy?: boolean;
+  // For standalone actions only. Omit when the feature already owns a live status.
+  busyStatus?: string;
   children: ReactNode;
   disabledReason?: string;
   icon?: ReactNode;
@@ -16,7 +27,8 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export function Button({
-  busy = false,
+  busy,
+  busyStatus,
   children,
   className = "",
   disabled = false,
@@ -37,7 +49,7 @@ export function Button({
   const usesOwnedDisabledDescription = Boolean(ownedTooltipAvailable && hasExplainedDisabledState);
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
-    if (disabled) {
+    if (disabled || busy) {
       event.preventDefault();
       event.stopPropagation();
       return;
@@ -49,18 +61,19 @@ export function Button({
     <button
       aria-busy={busy || undefined}
       aria-describedby={!usesOwnedDisabledDescription ? reasonId : undefined}
-      aria-disabled={hasExplainedDisabledState || undefined}
+      aria-disabled={(!busy && hasExplainedDisabledState) || undefined}
       className={`button button--${variant} button--${size} ${className}`.trim()}
-      disabled={disabled && !hasExplainedDisabledState}
+      disabled={busy || (disabled && !hasExplainedDisabledState)}
       onClick={handleClick}
       ref={ref}
       title={hasExplainedDisabledState ? undefined : title}
       type={type}
       {...props}
     >
-      {icon ? (
+      {icon || busy !== undefined ? (
         <span aria-hidden="true" className="button__icon icon-slot">
           {icon}
+          {busy ? <BusyIndicator /> : null}
         </span>
       ) : null}
       <span className="button__label">{children}</span>
@@ -75,6 +88,11 @@ export function Button({
   return (
     <>
       {control}
+      {busyStatus ? (
+        <span className="sr-only" role="status">
+          {busy ? busyStatus : ""}
+        </span>
+      ) : null}
       {reasonId && !usesOwnedDisabledDescription ? (
         <span className="sr-only" id={reasonId}>
           {disabledReason}
@@ -82,4 +100,14 @@ export function Button({
       ) : null}
     </>
   );
+}
+
+// Presentation only. The caller retains operation and live-status ownership.
+function BusyIndicator() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const reveal = window.setTimeout(() => setVisible(true), 180);
+    return () => window.clearTimeout(reveal);
+  }, []);
+  return <span className="button__busy" data-visible={visible || undefined} />;
 }

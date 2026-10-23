@@ -10,8 +10,8 @@ async function bounds(page: Page) {
     return {
       outer: rect(dialog),
       header: rect(dialog.querySelector(".dialog__copy")!),
-      // Busy-label width is owned by phase 1.8.0.14; this phase fixes the action row's Y/height.
       footer: { y: footer.y, height: footer.height },
+      actions: [...dialog.querySelectorAll(".dialog__footer .button")].map(rect),
     };
   });
 }

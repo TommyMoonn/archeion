@@ -193,13 +193,15 @@ export function ArchiveCreateView({
             </div>
             <Button
               className="archive-create-form__browse"
+              busy={isBrowsing}
+              busyStatus="Choosing archive location…"
               disabled={isBrowsing || isCreating}
               icon={<FolderOpen aria-hidden="true" />}
               onClick={() => void browseLocation()}
               ref={browseButtonRef}
               variant="secondary"
             >
-              {isBrowsing ? "Browsing" : "Browse"}
+              Browse
             </Button>
           </div>
         </div>
@@ -239,8 +241,14 @@ export function ArchiveCreateView({
         ) : null}
 
         <div className="archive-create-form__footer">
-          <Button disabled={isCreating} type="submit" variant="primary">
-            {isCreating ? "Creating" : "Create"}
+          <Button
+            busy={isCreating}
+            busyStatus="Creating archive…"
+            disabled={isCreating}
+            type="submit"
+            variant="primary"
+          >
+            Create
           </Button>
         </div>
       </form>

@@ -96,7 +96,9 @@ export function RenameFileDialog({
               </p>
             ) : null}
           </>
-        ) : null
+        ) : (
+          <p role="status">{isSaving ? "Renaming file…" : ""}</p>
+        )
       }
       onClose={() => {
         if (!isSaving) {

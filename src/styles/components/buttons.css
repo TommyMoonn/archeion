@@ -38,6 +38,40 @@
   cursor: progress;
 }
 
+.button__icon {
+  position: relative;
+  flex: none;
+}
+
+.button__busy {
+  position: absolute;
+  inset: 2px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  visibility: hidden;
+}
+
+.button__busy[data-visible="true"] {
+  visibility: visible;
+}
+
+.button__icon:has(.button__busy[data-visible="true"]) > svg {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-motion="on"] .button__busy[data-visible="true"] {
+    animation: button-busy-turn 1s linear infinite;
+  }
+}
+
+@keyframes button-busy-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 html[data-motion="on"] .button--compact:active:not(:disabled):not([aria-disabled="true"]),
 html[data-motion="on"] .button--standard:active:not(:disabled):not([aria-disabled="true"]),
 html[data-motion="on"] .icon-button:active:not(:disabled):not([aria-disabled="true"]) {

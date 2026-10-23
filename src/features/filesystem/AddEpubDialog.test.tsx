@@ -138,7 +138,7 @@ describe("AddEpubDialog replacement confirmation", () => {
       );
     });
 
-    const adding = buttonWithText(container, "Adding");
+    const adding = buttonWithText(container, "Add EPUB");
     const cancel = buttonWithText(container, "Cancel");
 
     expect(container.querySelector("dialog[open]")).not.toBeNull();

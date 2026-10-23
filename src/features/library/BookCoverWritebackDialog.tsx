@@ -219,34 +219,35 @@ export function BookCoverWritebackDialog({
       onClose={closeEditor}
       title="Replace embedded cover"
       feedback={
-        book.isFileMissing || error || success || warning ? (
-          <>
-            {book.isFileMissing ? (
-              <p className="cover-writeback__status" data-tone="error" role="alert">
-                <CircleAlert aria-hidden="true" size={17} />
-                The EPUB file is missing. Cover writeback is unavailable.
-              </p>
-            ) : null}
-            {error ? (
-              <p className="cover-writeback__status" data-tone="error" role="alert">
-                <CircleAlert aria-hidden="true" size={17} />
-                {error}
-              </p>
-            ) : null}
+        <>
+          <div role="status" aria-atomic="true">
+            {isWriting ? <p className="cover-writeback__status">Writing cover to EPUB…</p> : null}
             {success ? (
-              <p className="cover-writeback__status" data-tone="success" role="status">
+              <p className="cover-writeback__status" data-tone="success">
                 <CircleCheck aria-hidden="true" size={17} />
                 Cover written to EPUB.
               </p>
             ) : null}
             {warning ? (
-              <p className="cover-writeback__status" data-tone="warning" role="status">
+              <p className="cover-writeback__status" data-tone="warning">
                 <CircleAlert aria-hidden="true" size={17} />
                 {warning}
               </p>
             ) : null}
-          </>
-        ) : null
+          </div>
+          {book.isFileMissing ? (
+            <p className="cover-writeback__status" data-tone="error" role="alert">
+              <CircleAlert aria-hidden="true" size={17} />
+              The EPUB file is missing. Cover writeback is unavailable.
+            </p>
+          ) : null}
+          {error ? (
+            <p className="cover-writeback__status" data-tone="error" role="alert">
+              <CircleAlert aria-hidden="true" size={17} />
+              {error}
+            </p>
+          ) : null}
+        </>
       }
       footer={
         <>
@@ -254,11 +255,12 @@ export function BookCoverWritebackDialog({
             Close
           </Button>
           <Button
+            busy={isWriting}
             disabled={!canWrite}
             disabledReason={!isWriting ? writeDisabledReason : undefined}
             onClick={() => void writeCover()}
           >
-            {isWriting ? "Writing cover" : "Write cover to EPUB"}
+            Write cover to EPUB
           </Button>
         </>
       }

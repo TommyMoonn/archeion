@@ -81,7 +81,9 @@ export function MoveToFolderDialog({
           <p className="form-error" role="alert">
             {error}
           </p>
-        ) : null
+        ) : (
+          <p role="status">{isSaving ? "Moving…" : ""}</p>
+        )
       }
       onClose={() => {
         if (!isSaving) {

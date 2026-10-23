@@ -58,16 +58,45 @@ export function ReaderNoteConfirmationFixture() {
   );
 }
 
-export function LibraryConfirmationFixture() {
+declare global {
+  interface Window {
+    confirmationWork?: { settle: (failed?: boolean) => void };
+  }
+}
+
+export function LibraryConfirmationFixture({
+  performMutation,
+}: { performMutation?: () => Promise<void> } = {}) {
   const { dialog, actions } = useLibraryWorkspaceDialogs();
   const [mutations, setMutations] = useState(0);
+  const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState("idle");
   const recordMutation = async () => {
     setMutations((count) => count + 1);
+    if (!performMutation && !new URLSearchParams(location.search).has("controlled")) return;
+    setPending(true);
+    setOutcome("pending");
+    try {
+      if (performMutation) await performMutation();
+      else
+        await new Promise<void>((resolve, reject) => {
+          window.confirmationWork = {
+            settle: (failed) => (failed ? reject(new Error("Synthetic failure")) : resolve()),
+          };
+        });
+      setOutcome("resolved");
+    } catch {
+      setOutcome("rejected");
+    } finally {
+      setPending(false);
+      delete window.confirmationWork;
+    }
   };
 
   return (
     <main style={{ padding: 24 }}>
       <output data-testid="mutation-count">{mutations}</output>
+      <span data-testid="operation-outcome">{outcome}</span>
       <button type="button" onClick={() => actions.openClearProgress(book)}>
         Clear reading progress
       </button>
@@ -87,9 +116,9 @@ export function LibraryConfirmationFixture() {
         dialogActions={actions}
         folders={[folder]}
         importDefaults={{ defaultConflictAction: "skip", defaultMode: "copy" }}
-        isBulkRunning={false}
-        isClearingProgress={false}
-        isDeleting={false}
+        isBulkRunning={pending}
+        isClearingProgress={pending}
+        isDeleting={pending}
         isImporting={false}
         isRescanning={false}
         onConfirmClearProgress={recordMutation}

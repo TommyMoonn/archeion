@@ -180,6 +180,12 @@ describe("About update status", () => {
     expect(container.textContent).toContain("Checking for updates…");
     const button = container.querySelector<HTMLButtonElement>(".about-update button")!;
     expect(button.disabled).toBe(true);
+    expect(button.textContent).toBe("Check for updates");
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(container.querySelectorAll('.about-update [role="status"]')).toHaveLength(1);
+    expect(container.querySelector('.about-update [role="status"]')?.textContent).toBe(
+      "Checking for updates…",
+    );
     await act(async () => {
       button.click();
     });
@@ -198,7 +204,7 @@ describe("About update status", () => {
     });
     await click("Check for updates");
     expect(container.textContent).toContain("Updates could not be checked.");
-    await click("Try again");
+    await click("Check for updates");
     expect(backend.check).toHaveBeenCalledTimes(2);
     expect(container.textContent).toContain("Archeion is up to date.");
   });
@@ -209,7 +215,7 @@ describe("About update status", () => {
     await click("Check for updates");
     expect(container.textContent).toContain("Updates could not be checked. Try again.");
     expect(container.textContent).not.toContain("Technical IPC detail");
-    await click("Try again");
+    await click("Check for updates");
     expect(container.textContent).toContain("Archeion is up to date.");
   });
   it("opens the same fixed Changelog root and candidate anchor through the external owner", async () => {
@@ -296,7 +302,7 @@ describe("About update status", () => {
       available: null,
       error: { operation: "install", message: "Installation failed. Try again." },
     });
-    await click("Try again");
+    await click("Check for updates");
     expect(backend.check).toHaveBeenCalledWith("manual");
     expect(backend.install).not.toHaveBeenCalled();
   });

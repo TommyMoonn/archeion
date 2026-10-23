@@ -194,14 +194,11 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
             <Button
               size="standard"
               variant="ghost"
+              busy={busy === "check" || update.status === "checking"}
               disabled={busy !== null || Boolean(operating)}
               onClick={() => void run("check")}
             >
-              {update?.status === "checking"
-                ? "Checking…"
-                : operationError && !update.available
-                  ? "Try again"
-                  : "Check for updates"}
+              Check for updates
             </Button>
           ) : null}
           {update?.status === "ready" && !operationError ? (

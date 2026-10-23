@@ -178,7 +178,10 @@ describe("BookCoverWritebackDialog", () => {
       write.click();
     });
     expect(onWriteCover).toHaveBeenCalledOnce();
-    expect(buttonByText("Writing cover")?.disabled).toBe(true);
+    expect(buttonByText("Write cover to EPUB")).toBe(write);
+    expect(write.disabled).toBe(true);
+    expect(write.getAttribute("aria-busy")).toBe("true");
+    expect(container?.querySelector('[role="status"]')?.textContent).toBe("Writing cover to EPUB…");
     expect(buttonByText("Fit")?.disabled).toBe(true);
     act(() => {
       buttonByText("Fit")?.click();

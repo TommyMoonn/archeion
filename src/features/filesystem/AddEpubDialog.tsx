@@ -139,7 +139,9 @@ export function AddEpubDialog({
             <p className="form-error" role="alert">
               {error}
             </p>
-          ) : null
+          ) : (
+            <p role="status">{isImporting ? "Replacing and adding EPUB files…" : ""}</p>
+          )
         }
         onClose={() => {
           if (!isImporting) {
@@ -155,8 +157,13 @@ export function AddEpubDialog({
             >
               Cancel
             </Button>
-            <Button disabled={isImporting} onClick={() => void runImport()} variant="danger">
-              {isImporting ? "Replacing" : "Replace and add"}
+            <Button
+              busy={isImporting}
+              disabled={isImporting}
+              onClick={() => void runImport()}
+              variant="danger"
+            >
+              Replace and add
             </Button>
           </>
         }
@@ -174,7 +181,9 @@ export function AddEpubDialog({
             <CircleAlert aria-hidden="true" size={15} />
             {error}
           </p>
-        ) : null
+        ) : (
+          <p role="status">{isImporting ? "Adding EPUB files…" : ""}</p>
+        )
       }
       onClose={() => {
         if (!isImporting) {
@@ -187,11 +196,12 @@ export function AddEpubDialog({
             Cancel
           </Button>
           <Button
+            busy={isImporting}
             disabled={isImporting || sourcePaths.length === 0}
             icon={<FilePlus aria-hidden="true" />}
             onClick={submit}
           >
-            {isImporting ? "Adding" : "Add EPUB"}
+            Add EPUB
           </Button>
         </>
       }

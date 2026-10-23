@@ -159,7 +159,9 @@ export function BulkMetadataDialog({
               <p className="form-error" role="alert">
                 {error}
               </p>
-            ) : null
+            ) : (
+              <p role="status">{isWriting ? "Writing metadata to EPUBs…" : ""}</p>
+            )
           }
           closeOnBackdropClick={false}
           description={`${writableChangedBooks.length} of ${books.length} selected books will be modified. Each EPUB is written independently.`}
@@ -175,8 +177,8 @@ export function BulkMetadataDialog({
               >
                 Back
               </Button>
-              <Button disabled={isWriting} onClick={() => void apply()}>
-                {isWriting ? "Writing metadata" : `Update ${writableChangedBooks.length} EPUBs`}
+              <Button busy={isWriting} disabled={isWriting} onClick={() => void apply()}>
+                {`Update ${writableChangedBooks.length} EPUBs`}
               </Button>
             </>
           }

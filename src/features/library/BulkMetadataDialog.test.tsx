@@ -195,7 +195,11 @@ describe("BulkMetadataDialog", () => {
       );
     });
 
-    const writing = button(container, "Writing metadata");
+    const writing = [...container.querySelectorAll<HTMLButtonElement>("button")].find((candidate) =>
+      /^Update \d+ EPUBs$/.test(candidate.textContent ?? ""),
+    )!;
+    expect(writing).toBeDefined();
+    expect(writing.getAttribute("aria-busy")).toBe("true");
     const back = button(container, "Back");
     expect(container.querySelector("dialog[open]")).not.toBeNull();
     expect(container.querySelector(".dialog-loading-fallback")).toBeNull();

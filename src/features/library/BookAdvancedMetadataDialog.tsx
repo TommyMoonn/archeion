@@ -95,7 +95,7 @@ type MetadataChange = {
 };
 
 type MetadataStatus =
-  { tone: "success"; message: string } | { tone: "error"; message: string } | null;
+  { tone: "success" | "working"; message: string } | { tone: "error"; message: string } | null;
 
 type MetadataFieldUpdate = (field: keyof MetadataFormState, value: string) => void;
 
@@ -351,15 +351,13 @@ function MetadataWritebackStatus({
         </p>
       ) : null}
 
-      {status ? (
-        <p
-          className="metadata-writeback__status"
-          data-tone={status.tone}
-          role={status.tone === "error" ? "alert" : "status"}
-        >
-          {status.message}
-        </p>
-      ) : null}
+      <p
+        className={status ? "metadata-writeback__status" : "sr-only"}
+        data-tone={status?.tone}
+        role={status?.tone === "error" ? "alert" : "status"}
+      >
+        {status?.message}
+      </p>
     </>
   );
 }
@@ -394,7 +392,7 @@ export function BookAdvancedMetadataDialog({
     if (!canWrite) return;
 
     setIsWriting(true);
-    setStatus(null);
+    setStatus({ tone: "working", message: "Writing metadata to EPUB…" });
     try {
       const result = await onWriteMetadata(book, nextMetadata);
       const updatedMetadata = normalizedSourceMetadata(result.sourceMetadata);
@@ -434,8 +432,8 @@ export function BookAdvancedMetadataDialog({
           <Button onClick={onClose} variant="secondary">
             Close
           </Button>
-          <Button disabled={!canWrite} onClick={writeMetadata}>
-            {isWriting ? "Writing metadata" : "Write metadata to EPUB"}
+          <Button busy={isWriting} disabled={!canWrite} onClick={writeMetadata}>
+            Write metadata to EPUB
           </Button>
         </>
       }

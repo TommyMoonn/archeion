@@ -280,6 +280,15 @@ export function LibraryWorkspaceDialogs({
       <Dialog
         returnFocusTo={dialog.returnFocusTo}
         title={dialog.book.isFileMissing ? "Remove book metadata?" : "Delete EPUB file?"}
+        feedback={
+          <p role="status">
+            {isDeleting
+              ? dialog.book.isFileMissing
+                ? "Removing metadata…"
+                : "Deleting EPUB…"
+              : ""}
+          </p>
+        }
         description={
           dialog.book.isFileMissing
             ? `Favorites and progress for “${bookTitle(dialog.book)}” will be removed. No EPUB file will be deleted.`
@@ -295,14 +304,11 @@ export function LibraryWorkspaceDialogs({
             </Button>
             <Button
               variant="danger"
+              busy={isDeleting}
               disabled={isDeleting}
               onClick={() => void onDeleteBook(dialog.book)}
             >
-              {isDeleting
-                ? "Removing"
-                : dialog.book.isFileMissing
-                  ? "Remove metadata"
-                  : "Delete EPUB"}
+              {dialog.book.isFileMissing ? "Remove metadata" : "Delete EPUB"}
             </Button>
           </>
         }
@@ -341,6 +347,7 @@ export function LibraryWorkspaceDialogs({
     return (
       <Dialog
         title={`Delete ${selectedBookIds.size} selected books?`}
+        feedback={<p role="status">{isBulkRunning ? "Deleting selected books…" : ""}</p>}
         description="Available EPUB files will be moved to the Recycle Bin or platform Trash. Saved library data for successful items will also be removed."
         onClose={() => {
           if (!isBulkRunning) dialogActions.close();
@@ -351,11 +358,12 @@ export function LibraryWorkspaceDialogs({
               Cancel
             </Button>
             <Button
+              busy={isBulkRunning}
               disabled={isBulkRunning}
               onClick={() => void onDeleteSelectedBooks()}
               variant="danger"
             >
-              {isBulkRunning ? "Deleting" : "Delete selected books"}
+              Delete selected books
             </Button>
           </>
         }
@@ -368,6 +376,7 @@ export function LibraryWorkspaceDialogs({
       <Dialog
         returnFocusTo={dialog.returnFocusTo}
         title="Clear reading progress?"
+        feedback={<p role="status">{isClearingProgress ? "Clearing reading progress…" : ""}</p>}
         description={`This resets the saved reading position for “${bookTitle(dialog.book)}”. The EPUB file and last-opened date are not changed.`}
         onClose={() => {
           if (!isClearingProgress)
@@ -384,10 +393,11 @@ export function LibraryWorkspaceDialogs({
               Cancel
             </Button>
             <Button
+              busy={isClearingProgress}
               disabled={isClearingProgress}
               onClick={() => void onConfirmClearProgress(dialog.book)}
             >
-              {isClearingProgress ? "Clearing" : "Clear progress"}
+              Clear progress
             </Button>
           </>
         }
@@ -431,6 +441,7 @@ export function LibraryWorkspaceDialogs({
   return (
     <Dialog
       title={`Delete “${dialog.folder.name}” folder?`}
+      feedback={<p role="status">{isDeleting ? "Deleting folder…" : ""}</p>}
       description={`The “${dialog.folder.name}” folder and ${deleteFolderBookCount} contained EPUB ${
         deleteFolderBookCount === 1 ? "file" : "files"
       } will be moved to Trash when available.`}
@@ -444,10 +455,11 @@ export function LibraryWorkspaceDialogs({
           </Button>
           <Button
             variant="danger"
+            busy={isDeleting}
             disabled={isDeleting}
             onClick={() => void onDeleteFolder(dialog.folder)}
           >
-            {isDeleting ? "Deleting" : "Delete folder"}
+            Delete folder
           </Button>
         </>
       }
