@@ -154,6 +154,13 @@ export function BulkMetadataDialog({
       <>
         <Dialog
           className="dialog--bulk-metadata"
+          feedback={
+            error ? (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            ) : null
+          }
           closeOnBackdropClick={false}
           description={`${writableChangedBooks.length} of ${books.length} selected books will be modified. Each EPUB is written independently.`}
           onClose={requestClose}
@@ -219,11 +226,6 @@ export function BulkMetadataDialog({
                 ) : null}
               </section>
             ))}
-            {error ? (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
-            ) : null}
           </div>
         </Dialog>
         {discardConfirmation}

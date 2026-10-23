@@ -417,10 +417,18 @@ export function BookAdvancedMetadataDialog({
   return (
     <Dialog
       className="dialog--metadata-writeback"
+      layout="workspace"
+      feedbackSize="summary"
       closeOnBackdropClick={false}
       returnFocusTo={returnFocusTo}
       title="Edit EPUB metadata"
       onClose={onClose}
+      feedback={
+        <>
+          <PendingChangesSummary changes={changes} />
+          <MetadataWritebackStatus isFileMissing={book.isFileMissing} status={status} />
+        </>
+      }
       footer={
         <>
           <Button onClick={onClose} variant="secondary">
@@ -433,21 +441,16 @@ export function BookAdvancedMetadataDialog({
       }
     >
       <div className="metadata-writeback">
-        <div className="metadata-writeback__groups">
-          {METADATA_FIELD_GROUPS.map((group) => (
-            <MetadataFieldGroup
-              book={book}
-              committedMetadata={committedMetadata}
-              form={form}
-              group={group}
-              key={group.title}
-              onFieldChange={updateField}
-            />
-          ))}
-        </div>
-
-        <PendingChangesSummary changes={changes} />
-        <MetadataWritebackStatus isFileMissing={book.isFileMissing} status={status} />
+        {METADATA_FIELD_GROUPS.map((group) => (
+          <MetadataFieldGroup
+            book={book}
+            committedMetadata={committedMetadata}
+            form={form}
+            group={group}
+            key={group.title}
+            onFieldChange={updateField}
+          />
+        ))}
       </div>
     </Dialog>
   );

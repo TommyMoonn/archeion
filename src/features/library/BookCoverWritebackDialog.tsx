@@ -192,6 +192,7 @@ export function BookCoverWritebackDialog({
   return (
     <Dialog
       className="dialog--cover-writeback"
+      layout="workspace"
       returnFocusTo={returnFocusTo}
       closeOnBackdropClick={!isWriting}
       description="Review the final 2:3 cover frame, then confirm the EPUB modification. No separate app cover override is created."
@@ -199,6 +200,36 @@ export function BookCoverWritebackDialog({
         if (!isWriting) onClose();
       }}
       title="Replace embedded cover"
+      feedback={
+        book.isFileMissing || error || success || warning ? (
+          <>
+            {book.isFileMissing ? (
+              <p className="cover-writeback__status" data-tone="error" role="alert">
+                <CircleAlert aria-hidden="true" size={17} />
+                The EPUB file is missing. Cover writeback is unavailable.
+              </p>
+            ) : null}
+            {error ? (
+              <p className="cover-writeback__status" data-tone="error" role="alert">
+                <CircleAlert aria-hidden="true" size={17} />
+                {error}
+              </p>
+            ) : null}
+            {success ? (
+              <p className="cover-writeback__status" data-tone="success" role="status">
+                <CircleCheck aria-hidden="true" size={17} />
+                Cover written to EPUB.
+              </p>
+            ) : null}
+            {warning ? (
+              <p className="cover-writeback__status" data-tone="warning" role="status">
+                <CircleAlert aria-hidden="true" size={17} />
+                {warning}
+              </p>
+            ) : null}
+          </>
+        ) : null
+      }
       footer={
         <>
           <Button disabled={isWriting} onClick={onClose} variant="secondary">
@@ -321,31 +352,6 @@ export function BookCoverWritebackDialog({
               {preparation.replacingExistingCover ? "replaces" : "adds"} its embedded cover.
             </span>
           </label>
-        ) : null}
-
-        {book.isFileMissing ? (
-          <p className="cover-writeback__status" data-tone="error" role="alert">
-            <CircleAlert aria-hidden="true" size={17} />
-            The EPUB file is missing. Cover writeback is unavailable.
-          </p>
-        ) : null}
-        {error ? (
-          <p className="cover-writeback__status" data-tone="error" role="alert">
-            <CircleAlert aria-hidden="true" size={17} />
-            {error}
-          </p>
-        ) : null}
-        {success ? (
-          <p className="cover-writeback__status" data-tone="success" role="status">
-            <CircleCheck aria-hidden="true" size={17} />
-            Cover written to EPUB.
-          </p>
-        ) : null}
-        {warning ? (
-          <p className="cover-writeback__status" data-tone="warning" role="status">
-            <CircleAlert aria-hidden="true" size={17} />
-            {warning}
-          </p>
         ) : null}
       </div>
     </Dialog>

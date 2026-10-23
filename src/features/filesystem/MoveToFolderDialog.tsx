@@ -76,6 +76,13 @@ export function MoveToFolderDialog({
     <Dialog
       returnFocusTo={returnFocusTo}
       title={title}
+      feedback={
+        error ? (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        ) : null
+      }
       onClose={() => {
         if (!isSaving) {
           onClose();
@@ -105,11 +112,6 @@ export function MoveToFolderDialog({
           options={options}
           value={destination}
         />
-        {error ? (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        ) : null}
       </div>
     </Dialog>
   );

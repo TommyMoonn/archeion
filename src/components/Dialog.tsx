@@ -6,7 +6,11 @@ type DialogProps = {
   children?: ReactNode;
   className?: string;
   description?: string;
+  /** Pass null to reserve feedback space before an operation has a message. */
+  feedback?: ReactNode;
+  feedbackSize?: "message" | "summary";
   footer?: ReactNode;
+  layout?: "content" | "workspace";
   closeOnBackdropClick?: boolean;
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
@@ -18,7 +22,10 @@ export function Dialog({
   className,
   closeOnBackdropClick = true,
   description,
+  feedback,
+  feedbackSize = "message",
   footer,
+  layout = "content",
   onClose,
   returnFocusTo,
   title,
@@ -36,7 +43,9 @@ export function Dialog({
   return (
     <dialog
       ref={dialogRef}
-      className={className ? `dialog ${className}` : "dialog"}
+      className={["dialog", layout === "workspace" ? "dialog--workspace" : "", className]
+        .filter(Boolean)
+        .join(" ")}
       aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
       aria-modal="true"
@@ -47,10 +56,33 @@ export function Dialog({
       <div className="dialog__panel">
         <div className="dialog__copy constrained-user-content">
           <h2 id={titleId}>{title}</h2>
-          {description ? <p id={descriptionId}>{description}</p> : null}
         </div>
-        {children}
-        {footer ? <div className="dialog__footer">{footer}</div> : null}
+        {description || children ? (
+          <div className="dialog__body" role="region" aria-label={`${title} content`} tabIndex={0}>
+            {description ? (
+              <p className="dialog__description" id={descriptionId}>
+                {description}
+              </p>
+            ) : null}
+            {children}
+          </div>
+        ) : null}
+        {feedback !== undefined || footer ? (
+          <div className="dialog__bottom">
+            {feedback !== undefined ? (
+              <div
+                className="dialog__feedback"
+                data-feedback-size={feedbackSize}
+                role="region"
+                aria-label={`${title} feedback`}
+                tabIndex={feedback ? 0 : -1}
+              >
+                {feedback}
+              </div>
+            ) : null}
+            {footer ? <div className="dialog__footer">{footer}</div> : null}
+          </div>
+        ) : null}
       </div>
     </dialog>
   );

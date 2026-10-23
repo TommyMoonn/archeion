@@ -82,6 +82,22 @@ export function RenameFileDialog({
     <Dialog
       returnFocusTo={returnFocusTo}
       title="Rename EPUB file"
+      feedback={
+        validationError || operationError ? (
+          <>
+            {validationError ? (
+              <p className="form-error" id={validationErrorId} role="alert">
+                {validationError}
+              </p>
+            ) : null}
+            {operationError ? (
+              <p className="form-error" role="alert">
+                {operationError}
+              </p>
+            ) : null}
+          </>
+        ) : null
+      }
       onClose={() => {
         if (!isSaving) {
           onClose();
@@ -100,9 +116,7 @@ export function RenameFileDialog({
     >
       <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
         <label className="form-field">
-          <span>
-            Filename <span className="form-required">Required</span>
-          </span>
+          <span>Filename</span>
           <span className="epub-filename-field">
             <input
               aria-describedby={`${suffixId}${validationError ? ` ${validationErrorId}` : ""}`}
@@ -123,16 +137,6 @@ export function RenameFileDialog({
             </span>
           </span>
         </label>
-        {validationError ? (
-          <p className="form-error" id={validationErrorId} role="alert">
-            {validationError}
-          </p>
-        ) : null}
-        {operationError ? (
-          <p className="form-error" role="alert">
-            {operationError}
-          </p>
-        ) : null}
       </form>
     </Dialog>
   );

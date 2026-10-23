@@ -134,6 +134,13 @@ export function AddEpubDialog({
         closeOnBackdropClick={initialSourcePaths.length === 0}
         title="Replace existing EPUB files?"
         description="Files with matching names will be replaced. Existing files are preserved until each replacement succeeds."
+        feedback={
+          error ? (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          ) : null
+        }
         onClose={() => {
           if (!isImporting) {
             setReplaceConfirmationOpen(false);
@@ -161,6 +168,14 @@ export function AddEpubDialog({
     <Dialog
       closeOnBackdropClick={initialSourcePaths.length === 0}
       title="Add EPUB files"
+      feedback={
+        error ? (
+          <p className="form-error add-epub-dialog__error" role="alert">
+            <CircleAlert aria-hidden="true" size={15} />
+            {error}
+          </p>
+        ) : null
+      }
       onClose={() => {
         if (!isImporting) {
           onClose();
@@ -237,13 +252,6 @@ export function AddEpubDialog({
             value={mode}
           />
         </div>
-
-        {error ? (
-          <p className="form-error add-epub-dialog__error" role="alert">
-            <CircleAlert aria-hidden="true" size={15} />
-            {error}
-          </p>
-        ) : null}
       </div>
     </Dialog>
   );
