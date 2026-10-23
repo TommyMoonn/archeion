@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
+// Run only through library-layout-benchmark.config.ts, outside the contract suite.
 // A browser comparison of production Library owners with synthetic IPC. Timing
 // includes instrumentation; deviceScaleFactor is raster scale, not Windows zoom.
 test.setTimeout(120_000);

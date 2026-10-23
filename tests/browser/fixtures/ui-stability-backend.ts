@@ -84,6 +84,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   preferences.restoreLastReader = false;
   preferences.showContinueReading = false;
   preferences.appearance.animationsEnabled = params.get("motion") !== "off";
+  preferences.reader.progressPlacement = params.get("progress") === "side" ? "side" : "top";
   preferences.filesAndMetadata.liveWatcherEnabled = false;
   const theme = params.get("theme") ?? "dark";
   if (!["dark", "light", "system-light", "system-dark", "custom"].includes(theme))

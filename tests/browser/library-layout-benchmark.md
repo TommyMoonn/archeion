@@ -16,6 +16,9 @@ windowed items. It does not change virtualization or introduce a scroll writer.
 
 Use locked dependencies and the installed Chromium browser. Run the benchmark
 alone, serially, without other tests, builds, profiling sessions or source edits.
+The `.benchmark.ts` filename keeps this comparison outside the default
+`*.pw.ts` browser contract suite. Its dedicated configuration selects all 18
+benchmark cases explicitly.
 
 ```powershell
 npm run test:browser:typecheck

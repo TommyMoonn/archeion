@@ -4,7 +4,7 @@ import base from "../../playwright.config";
 export default defineConfig({
   ...base,
   testDir: ".",
-  testMatch: "library-layout-benchmark.pw.ts",
+  testMatch: "library-layout-benchmark.benchmark.ts",
   outputDir: "../../test-results/library-layout-benchmark",
   reporter: "list",
   workers: 1,
