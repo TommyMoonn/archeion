@@ -79,7 +79,7 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   grid-column: 1 / -1;
 }
 
-.dialog--workspace .dialog__bottom {
+.dialog--workspace .dialog__bottom:not([data-feedback-placement="inline"]) {
   grid-template-columns: minmax(0, 1fr);
 }
 

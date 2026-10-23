@@ -168,8 +168,10 @@ for (const scale of [1, 2]) {
     expect(await bounds(page)).toEqual(baseline);
     await page.getByRole("button", { name: "Choose another image", exact: true }).click();
     await page.evaluate(() => window.dialogGeometryFixture.release());
-    await expect(page.getByRole("checkbox")).toBeVisible();
-    await page.getByRole("checkbox").check();
+    await expect(
+      page.getByRole("button", { name: "Write cover to EPUB", exact: true }),
+    ).toBeEnabled();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
     expect(await bounds(page)).toEqual(baseline);
     await page.getByRole("button", { name: "Write cover to EPUB", exact: true }).click();
     expect(await bounds(page)).toEqual(baseline);
@@ -183,6 +185,60 @@ for (const scale of [1, 2]) {
     expect(await bounds(page)).toEqual(baseline);
     await keyboardScroll(page, ".dialog__feedback");
     await containedTabOrder(page);
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Open dialog", exact: true })).toBeFocused();
+  });
+}
+
+for (const width of [480, 1100]) {
+  test(`cover explicit write, aligned controls and keyboard navigation at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 480 ? 520 : 900 });
+    await openSurface(page, "cover");
+    await page.getByRole("button", { name: "Choose image", exact: true }).click();
+    await page.evaluate(() => window.dialogGeometryFixture.release());
+    const fit = page.getByRole("radio", { name: "Fit", exact: true });
+    await page.getByRole("radio", { name: "Crop", exact: true }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(fit).toBeFocused();
+    await page.evaluate(() => window.dialogGeometryFixture.release());
+    await expect(fit).toHaveAttribute("aria-checked", "true");
+    expect(await page.locator("body").getAttribute("data-cover-writes")).toBeNull();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+    await reachableShell(page);
+    await containedTabOrder(page);
+    if (width === 1100) {
+      const tops = await page
+        .locator(".cover-writeback__workspace")
+        .evaluate((workspace) => [
+          workspace.querySelector(".cover-writeback__preview")!.getBoundingClientRect().top,
+          workspace.querySelector(".cover-writeback__controls")!.getBoundingClientRect().top,
+        ]);
+      expect(Math.abs(tops[0] - tops[1])).toBeLessThanOrEqual(1);
+    }
+    await page.locator(".dialog__body").evaluate((body) => {
+      body.scrollTop = 0;
+    });
+    await test.info().attach(`cover-${width}-preview`, {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await page.locator(".dialog__body").evaluate((body) => {
+      body.scrollTop = body.scrollHeight;
+    });
+    await test.info().attach(`cover-${width}-prepared`, {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
+    await page.getByRole("button", { name: "Write cover to EPUB", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(fit).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.locator("body")).toHaveAttribute("data-cover-writes", "1");
+    await page.evaluate(() => window.dialogGeometryFixture.release());
+    await expect(page.getByRole("status").first()).toContainText("Cover written to EPUB");
     await page.getByRole("button", { name: "Close", exact: true }).click();
     await expect(page.getByRole("button", { name: "Open dialog", exact: true })).toBeFocused();
   });

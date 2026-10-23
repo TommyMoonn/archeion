@@ -70,6 +70,44 @@ async function release(page: Page, message?: string) {
   await page.evaluate((message) => window.workspaceFixture.release(message), message);
 }
 
+test("desktop cover uses content-sized workspace and proportionate feedback through all states", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await openWorkspace(page, "cover");
+  const baseline = await capture(page, "cover-initial");
+  await page.getByRole("button", { name: "Choose image", exact: true }).click();
+  stable(await capture(page, "cover-preparing"), baseline);
+  await release(page);
+  await expect(
+    page.getByRole("button", { name: "Write cover to EPUB", exact: true }),
+  ).toBeEnabled();
+  const prepared = await capture(page, "cover-prepared");
+  stable(prepared, baseline);
+  expect(prepared.alignment).toBeLessThanOrEqual(1);
+  expect(prepared.unusedBody).toBeLessThanOrEqual(4);
+  // Inline feedback shares the action row; only the ordinary body/footer spacing remains.
+  expect.soft(prepared.contentToActions).toBeLessThanOrEqual(32);
+  expect.soft(prepared.bodyScrollHeight).toBeLessThanOrEqual(prepared.body.height + 1);
+  for (const message of [
+    "Cannot write this EPUB.",
+    "Long failure 日本語 Ελληνικά العربية. ".repeat(40),
+    undefined,
+  ]) {
+    await page.getByRole("button", { name: "Write cover to EPUB", exact: true }).click();
+    stable(await capture(page, "cover-writing"), baseline);
+    await release(page, message);
+    if (message) await expect(page.getByRole("alert")).toContainText(message);
+    else await expect(page.getByRole("status").first()).toContainText("Cover written");
+    stable(await capture(page, message ? "cover-error" : "cover-success"), baseline);
+  }
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Open dialog", exact: true })).toBeFocused();
+  await test
+    .info()
+    .attach("cover-closed", { body: await page.screenshot(), contentType: "image/png" });
+});
+
 test("desktop metadata gives its form the available height without pending/status shifts", async ({
   page,
 }) => {
@@ -131,7 +169,7 @@ test("desktop metadata gives its form the available height without pending/statu
     .attach("metadata-closed", { body: await page.screenshot(), contentType: "image/png" });
 });
 
-for (const surface of ["metadata"]) {
+for (const surface of ["cover", "metadata"]) {
   for (const motion of ["on", "off", "reduced"] as const) {
     test(`${surface} keyboard scroll, long feedback and focus at 480x520 with 200% text, motion ${motion}`, async ({
       page,

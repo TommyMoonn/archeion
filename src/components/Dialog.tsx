@@ -9,6 +9,7 @@ type DialogProps = {
   /** Pass null to reserve feedback space before an operation has a message. */
   feedback?: ReactNode;
   feedbackSize?: "message" | "summary";
+  feedbackPlacement?: "stacked" | "inline";
   footer?: ReactNode;
   layout?: "content" | "workspace";
   closeOnBackdropClick?: boolean;
@@ -24,6 +25,7 @@ export function Dialog({
   description,
   feedback,
   feedbackSize = "message",
+  feedbackPlacement,
   footer,
   layout = "content",
   onClose,
@@ -68,7 +70,7 @@ export function Dialog({
           </div>
         ) : null}
         {feedback !== undefined || footer ? (
-          <div className="dialog__bottom">
+          <div className="dialog__bottom" data-feedback-placement={feedbackPlacement}>
             {feedback !== undefined ? (
               <div
                 className="dialog__feedback"

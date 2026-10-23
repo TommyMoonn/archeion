@@ -24,6 +24,7 @@ declare global {
 
 const book: Book = {
   id: "geometry-book",
+  relativePath: "A_very_long_multilingual_book_filename.epub",
   fileName: "A_very_long_multilingual_book_filename.epub",
   originalTitle: "日本語 Ελληνικά العربية A long book title ".repeat(5),
   sourceMetadata: {
@@ -121,6 +122,9 @@ export function DialogGeometryFixture() {
             return preparation;
           }}
           onWriteCover={async () => {
+            document.body.dataset.coverWrites = String(
+              Number(document.body.dataset.coverWrites ?? 0) + 1,
+            );
             await operation();
             return {
               sourceMetadata: {},
