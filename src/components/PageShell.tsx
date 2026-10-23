@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode, type Ref } from "react";
+import { type ReactNode, type Ref } from "react";
 import { MAIN_CONTENT_ID } from "./SkipLink";
 
 type PageShellProps = {
@@ -23,28 +23,8 @@ export function PageShell({
   sidebar,
   sidebarCollapsed = false,
 }: PageShellProps) {
-  const shellRef = useRef<HTMLDivElement>(null);
-  const noticeRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const shell = shellRef.current;
-    const element = noticeRef.current;
-    if (!shell || !element || typeof ResizeObserver === "undefined") return;
-    const measure = () =>
-      shell.style.setProperty(
-        "--page-shell-notice-height",
-        `${element.getBoundingClientRect().height}px`,
-      );
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [notice]);
   return (
-    <div
-      className="app-shell"
-      data-sidebar-collapsed={sidebarCollapsed || undefined}
-      ref={shellRef}
-    >
+    <div className="app-shell" data-sidebar-collapsed={sidebarCollapsed || undefined}>
       {sidebar}
       <main
         className="page-shell"
@@ -59,11 +39,7 @@ export function PageShell({
       >
         {children}
       </main>
-      {notice ? (
-        <div className="page-shell-notice" ref={noticeRef}>
-          {notice}
-        </div>
-      ) : null}
+      {notice ? <div className="page-shell-notice">{notice}</div> : null}
     </div>
   );
 }

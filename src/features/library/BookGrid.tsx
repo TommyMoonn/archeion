@@ -50,17 +50,19 @@ export const BookGrid = memo(function BookGrid({
   returnFocusRequest,
   onContextMenuUnavailable,
 }: BookGridProps) {
-  const { collectionRef, range, windowed } = useLibraryCollectionWindow(
+  const { collectionRef, range, windowed, preparingReturn } = useLibraryCollectionWindow(
     books.length,
     "grid",
     returnFocusRequest?.index,
+    returnFocusRequest,
   );
   const retainedBooks = windowed ? books.slice(range.start, range.end) : books;
   const contextMenuDisabledReason =
     selectedBookIds.size > 1 ? MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON : undefined;
 
   useLayoutEffect(() => {
-    reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
+    if (!returnFocusRequest?.anchor)
+      reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
   }, [collectionRef, range.end, range.start, returnFocusRequest]);
 
   return (
@@ -69,6 +71,9 @@ export const BookGrid = memo(function BookGrid({
       className="book-grid collection-content__items"
       data-book-card-size={cardSize}
       aria-label="Books"
+      aria-busy={preparingReturn || undefined}
+      inert={preparingReturn || undefined}
+      data-return-preparing={preparingReturn || undefined}
       data-windowed={windowed || undefined}
       data-window-start={range.start}
       data-window-end={range.end}
@@ -95,7 +100,6 @@ export const BookGrid = memo(function BookGrid({
             canManageFile={canManageFile}
             selected={selectedBookIds.has(book.id)}
             selectionMode={selectionMode}
-            loadCoverImmediately
             collectionIndex={range.start + retainedIndex}
             contextMenuDisabledReason={contextMenuDisabledReason}
             onContextMenuUnavailable={onContextMenuUnavailable}

@@ -5,6 +5,7 @@ export type ReaderReturnContext = {
   label?: string;
   query?: string;
   scrollTop?: number;
+  viewportY?: number;
   seriesQuery?: string;
 };
 
@@ -54,6 +55,10 @@ export function normalizeReaderReturnContext(
     label: optionalString(candidate.label, 100),
     query: optionalString(candidate.query),
     scrollTop,
+    viewportY:
+      typeof candidate.viewportY === "number" && Number.isFinite(candidate.viewportY)
+        ? candidate.viewportY
+        : undefined,
     seriesQuery: optionalString(candidate.seriesQuery),
   };
 }

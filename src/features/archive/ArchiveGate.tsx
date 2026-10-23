@@ -15,7 +15,7 @@ import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore
 import { ArchiveWatcherController } from "./archiveWatcher";
 import { ArchivePresentationContext } from "../../app/archivePresentation";
 import { Button } from "../../components/Button";
-import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
+import { CoverUrlCacheScopeContext, useCoverUrlCacheLifetime } from "../library/coverUrlCacheScope";
 import { router } from "../../app/router";
 import { startupTrace } from "../../app/startupTrace";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
@@ -38,6 +38,7 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
   const archivePath = state.status === "ready" ? state.path : null;
   const readyArchiveId = state.status === "ready" ? state.archive.id : null;
   const [presentedArchive, setPresentedArchive] = useState(state.status === "ready" ? state : null);
+  useCoverUrlCacheLifetime(presentedArchive?.archive.id);
   const [navigationFailure, setNavigationFailure] = useState<string | null>(null);
   const [retryRevision, setRetryRevision] = useState(0);
   const subscribe = useCallback(

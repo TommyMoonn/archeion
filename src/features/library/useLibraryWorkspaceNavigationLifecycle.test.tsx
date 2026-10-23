@@ -42,16 +42,20 @@ function Harness({
   books,
   location = { type: "library" },
   mountedBookId,
+  booksReady = true,
+  onCommit,
 }: {
   books: readonly Book[];
   location?: LibraryLocation;
   mountedBookId?: string;
+  booksReady?: boolean;
+  onCommit?: (restoration: LibraryReturnRestoration) => void;
 }) {
   const pageShellRef = useRef<HTMLElement>(null);
   const restoredRef = useRef(false);
   const restoration = useLibraryWorkspaceNavigationLifecycle({
     activeSeriesExists: true,
-    booksReady: true,
+    booksReady,
     changeLocation: vi.fn(),
     location,
     pageShellRef,
@@ -61,13 +65,17 @@ function Harness({
   });
   useLayoutEffect(() => {
     latestRestoration = restoration;
-  }, [restoration]);
+    onCommit?.(restoration);
+  }, [onCommit, restoration]);
 
   return (
     <main className="page-shell" ref={pageShellRef} tabIndex={-1}>
       <button type="button">Other focus</button>
       {mountedBookId ? (
-        <article data-reader-book-id={mountedBookId}>
+        <article
+          data-reader-book-id={mountedBookId}
+          data-library-index={books.findIndex((book) => book.id === mountedBookId)}
+        >
           <button type="button">Mounted target</button>
         </article>
       ) : null}
@@ -113,6 +121,21 @@ afterEach(() => {
 });
 
 describe("windowed reader-return request stability", () => {
+  it("provides the return request in the first ready commit without waiting for a frame", async () => {
+    const commits: LibraryReturnRestoration[] = [];
+    await renderHarness({ books: [book("target-book")], onCommit: (value) => commits.push(value) });
+    expect(commits[0]?.collectionRequest?.bookId).toBe("target-book");
+  });
+
+  it("starts with delayed data only when ready and respects earlier direct input", async () => {
+    const books = [book("target-book")];
+    await renderHarness({ books, booksReady: false });
+    expect(latestRestoration?.collectionRequest).toBeNull();
+    await act(async () => document.dispatchEvent(new Event("wheel")));
+    await renderHarness({ books, booksReady: true });
+    await flushRestoration();
+    expect(latestRestoration?.collectionRequest).toBeNull();
+  });
   it("derives a moved target index from its stable book ID", async () => {
     const initialBooks = Array.from({ length: 500 }, (_, index) =>
       book(index === 300 ? "target-book" : `book-${index}`),
@@ -157,7 +180,7 @@ describe("windowed reader-return request stability", () => {
     expect(focus).toHaveBeenCalledTimes(1);
   });
 
-  it("prefers a newly mounted target and ignores a later stale collection report", async () => {
+  it("waits for the collection geometry owner before focusing a newly mounted target", async () => {
     const books = [book("first"), book("target-book"), book("last")];
     await renderHarness({ books });
     await flushRestoration();
@@ -168,12 +191,50 @@ describe("windowed reader-return request stability", () => {
     const mountedTarget = Array.from(container?.querySelectorAll("button") ?? []).find(
       (buttonElement) => buttonElement.textContent === "Mounted target",
     );
+    expect(document.activeElement).not.toBe(mountedTarget);
+
+    const currentTarget = appendCollectionTarget(1);
+    act(() => latestRestoration?.collectionRequest?.onTargetReady("target-book", 1, currentTarget));
     expect(document.activeElement).toBe(mountedTarget);
 
     const staleTarget = document.createElement("button");
     container?.append(staleTarget);
     act(() => staleRequest?.onTargetReady("target-book", 1, staleTarget));
     expect(document.activeElement).toBe(mountedTarget);
+  });
+
+  it.each(["wheel", "pointerdown", "keydown", "touchstart"])(
+    "retires pending scroll and focus after %s intent",
+    async (type) => {
+      await renderHarness({ books: [book("target-book")] });
+      await flushRestoration();
+      const stale = latestRestoration?.collectionRequest;
+      await act(async () => document.dispatchEvent(new Event(type, { bubbles: true })));
+      const target = appendCollectionTarget(0);
+      act(() => stale?.onTargetReady("target-book", 0, target));
+      expect(document.activeElement).not.toBe(target);
+      expect(latestRestoration?.collectionRequest).toBeNull();
+    },
+  );
+
+  it("cancels even before the initial return frame", async () => {
+    await renderHarness({ books: [book("target-book")] });
+    await act(async () => document.dispatchEvent(new Event("wheel")));
+    await flushRestoration();
+    expect(latestRestoration?.collectionRequest).toBeNull();
+    expect(container?.querySelector("main")?.scrollTop).toBe(0);
+  });
+
+  it("retires an old return when the collection identity changes", async () => {
+    const books = [book("target-book")];
+    await renderHarness({ books });
+    await flushRestoration();
+    const stale = latestRestoration?.collectionRequest;
+    await renderHarness({ books, location: { type: "folder", folderId: "different-folder" } });
+    const target = appendCollectionTarget(0);
+    act(() => stale?.onTargetReady("target-book", 0, target));
+    expect(document.activeElement).not.toBe(target);
+    expect(latestRestoration?.collectionRequest).toBeNull();
   });
 
   it("completes without stealing focus when the user moves focus while retention is pending", async () => {

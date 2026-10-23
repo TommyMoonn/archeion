@@ -168,7 +168,7 @@ export function LibraryWorkspaceSurface({
     isLoading,
     visibleBooks,
   );
-  const surfaceKey = `${libraryLocationKey(location)}:${view}:${surfaceState}`;
+  const surfaceKey = `${focusOwnershipKey}:${view}`;
   const bookCollectionRootRef = useRef<HTMLDivElement>(null);
   const bookSurfaceActive =
     !isLibraryIntegrityLocation(location) &&
@@ -323,7 +323,7 @@ export function LibraryWorkspaceSurface({
           <div
             aria-busy={surfaceState === "loading" || undefined}
             ref={bookCollectionRootRef}
-            className="collection-content library-content"
+            className="collection-content library-content library-content--books"
             data-surface-state={surfaceState}
             key={surfaceKey}
           >
@@ -333,41 +333,47 @@ export function LibraryWorkspaceSurface({
             showContinueReading ? (
               <ContinueReading books={continuePreview} onContinue={bookCollectionProps.onRead} />
             ) : null}
-            {books === undefined || ((isLoading || isImporting) && books.length === 0) ? (
-              <div className="collection-content__loading library-loading" role="status">
-                <span className="library-loading__cover" />
-                <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>
+            {surfaceState !== "results" ? (
+              <div className="collection-content__state">
+                {surfaceState === "loading" ? (
+                  <div className="collection-content__loading library-loading" role="status">
+                    <span className="library-loading__cover" />
+                    <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>
+                  </div>
+                ) : surfaceState === "filter-empty" ? (
+                  <EmptyState
+                    action={
+                      <Button variant="secondary" onClick={onClearFilters}>
+                        Clear filters
+                      </Button>
+                    }
+                    description="Remove one or more filters to broaden this view."
+                    icon={<BookOpenText size={42} strokeWidth={1.5} />}
+                    title="No matching books"
+                  />
+                ) : surfaceState === "empty" ? (
+                  <EmptyState
+                    description={emptyState.description}
+                    icon={<BookOpenText size={42} strokeWidth={1.5} />}
+                    title={emptyState.title}
+                  />
+                ) : (
+                  <EmptyState
+                    action={
+                      <Button variant="secondary" onClick={onClearLibrarySearch}>
+                        Clear search
+                      </Button>
+                    }
+                    description="Try another title, author, or folder name."
+                    icon={<BookOpenText size={42} strokeWidth={1.5} />}
+                    title="No search results"
+                  />
+                )}
               </div>
-            ) : visibleBooks.length === 0 && hasFilters && !debouncedQuery ? (
-              <EmptyState
-                action={
-                  <Button variant="secondary" onClick={onClearFilters}>
-                    Clear filters
-                  </Button>
-                }
-                description="Remove one or more filters to broaden this view."
-                icon={<BookOpenText size={42} strokeWidth={1.5} />}
-                title="No matching books"
-              />
-            ) : visibleBooks.length === 0 && !debouncedQuery ? (
-              <EmptyState
-                description={emptyState.description}
-                icon={<BookOpenText size={42} strokeWidth={1.5} />}
-                title={emptyState.title}
-              />
-            ) : visibleBooks.length === 0 ? (
-              <EmptyState
-                action={
-                  <Button variant="secondary" onClick={onClearLibrarySearch}>
-                    Clear search
-                  </Button>
-                }
-                description="Try another title, author, or folder name."
-                icon={<BookOpenText size={42} strokeWidth={1.5} />}
-                title="No search results"
-              />
-            ) : view === "grid" ? (
+            ) : null}
+            {view === "grid" ? (
               <BookGrid
+                key="books"
                 books={visibleBooks}
                 cardSize={bookCardSize}
                 returnFocusRequest={effectiveReturnFocusRequest}
@@ -375,6 +381,7 @@ export function LibraryWorkspaceSurface({
               />
             ) : (
               <BookList
+                key="books"
                 books={visibleBooks}
                 returnFocusRequest={effectiveReturnFocusRequest}
                 {...bookCollectionProps}

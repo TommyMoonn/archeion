@@ -109,8 +109,12 @@ describe("CI workflow contract", () => {
     expect(browserContracts).toContain(
       "        run: npx playwright install --with-deps chromium --only-shell",
     );
-    expect(browserContracts).toContain("        run: npm run test:browser");
-    expect(browserContracts).toContain("          name: browser-contract-failure");
+    expect(browserContracts).toContain(
+      "        run: npm run test:browser -- --shard=${{ matrix.shard }}/2",
+    );
+    expect(browserContracts).toContain(
+      "          name: browser-contract-failure-${{ matrix.shard }}",
+    );
     const windowsRuntime = jobLines("windows-runtime");
     expect(windowsRuntime).toContain("    runs-on: windows-2022");
     expect(windowsRuntime).toContain("        run: npm run test:runtime:windows");
@@ -125,6 +129,28 @@ describe("CI workflow contract", () => {
     expect(jobLines("release-tooling")).toContain(
       "        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts",
     );
+  });
+
+  it("runs both browser shards independently and reserves time for failure evidence", () => {
+    const browserContracts = jobLines("browser-contracts");
+    expect(browserContracts).toContain("      fail-fast: false");
+    expect(browserContracts).toContain("        shard: [1, 2]");
+    const testStep = browserContracts.indexOf("      - name: Run browser contracts");
+    const uploadStep = browserContracts.indexOf("      - name: Upload browser failure evidence");
+    const jobTimeout = Number(
+      browserContracts.find((line) => line.startsWith("    timeout-minutes:"))?.split(":")[1],
+    );
+    const testTimeout = Number(
+      browserContracts
+        .slice(testStep + 1, uploadStep)
+        .find((line) => line.startsWith("        timeout-minutes:"))
+        ?.split(":")[1],
+    );
+    expect(testStep).toBeGreaterThanOrEqual(0);
+    expect(uploadStep).toBeGreaterThan(testStep);
+    expect(testTimeout).toBeGreaterThan(0);
+    expect(jobTimeout - testTimeout).toBeGreaterThanOrEqual(5);
+    expect(browserContracts[uploadStep + 1]).toBe("        if: ${{ failure() && !cancelled() }}");
   });
 
   it("runs Rust formatting inside the Clippy job and retains tests and MSRV", () => {

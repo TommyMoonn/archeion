@@ -60,7 +60,7 @@ const DuplicateMember = memo(function DuplicateMember({
         onClick={() => onOpenDetails(book)}
         type="button"
       >
-        <BookCover book={book} className="book-cover--duplicate" loadImmediately />
+        <BookCover book={book} className="book-cover--duplicate" />
         <span className="duplicate-member__identity">
           <Tooltip content={title} onlyWhenTruncated>
             <strong>{title}</strong>

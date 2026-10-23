@@ -18,7 +18,9 @@ export type LibraryWindowRange = Readonly<{
 export type LibraryReturnFocusRequest = Readonly<{
   bookId: string;
   index: number;
+  anchor?: Readonly<{ viewportY?: number; scrollTop: number }>;
   onTargetReady: (bookId: string, index: number, target: HTMLElement) => void;
+  onUnavailable?: () => void;
 }>;
 
 export function reportLibraryReturnTarget(
@@ -132,19 +134,28 @@ export function useLibraryCollectionWindow(
   itemCount: number,
   view: LibraryView,
   restorationIndex?: number,
+  returnRequest?: LibraryReturnFocusRequest | null,
 ): {
   collectionRef: React.RefObject<HTMLElement | null>;
   range: LibraryWindowRange;
   windowed: boolean;
+  preparingReturn: boolean;
 } {
   const collectionRef = useRef<HTMLElement>(null);
   const layoutRef = useRef<CachedLibraryCollectionLayout | null>(null);
   const focusedIndexRef = useRef<number | undefined>(undefined);
   const measurementElementRef = useRef<HTMLElement | null>(null);
   const measurementObserverRef = useRef<ResizeObserver | null>(null);
+  const returnAnchorRef = useRef<LibraryReturnFocusRequest | null>(null);
+  const returnCancelledRef = useRef(false);
+  const releaseReturnAnchorRef = useRef<(() => void) | null>(null);
+  const [geometryRevision, setGeometryRevision] = useState(0);
+  const manualReturn = Boolean(returnRequest?.anchor);
+  const [returnPrepared, setReturnPrepared] = useState(false);
+  const preparingReturn = manualReturn && !returnPrepared;
   const windowed = itemCount > LIBRARY_WINDOWING_THRESHOLD;
   const [range, setRange] = useState<LibraryWindowRange>(() =>
-    initialRange(itemCount, view, windowed),
+    initialRange(itemCount, view, windowed, manualReturn ? restorationIndex : undefined),
   );
 
   const updateWindow = useCallback(() => {
@@ -167,14 +178,16 @@ export function useLibraryCollectionWindow(
       DEFAULT_VIEWPORT_HEIGHT;
     let viewportStart = relativeViewportStart(collection, scrollRoot);
 
-    if (scrollRoot && restorationIndex !== undefined) {
-      const targetRow = Math.floor(restorationIndex / columns);
+    const anchorIndex = restorationIndex ?? returnAnchorRef.current?.index;
+    if (scrollRoot && anchorIndex !== undefined) {
+      const targetRow = Math.floor(anchorIndex / columns);
       const targetStart = targetRow * (itemHeight + rowGap);
       const targetEnd = targetStart + itemHeight;
       const viewportEnd = viewportStart + viewportHeight;
       if (targetStart < viewportStart || targetEnd > viewportEnd) {
         const centeredStart = Math.max(0, targetStart - (viewportHeight - itemHeight) / 2);
-        scrollRoot.scrollTop += centeredStart - viewportStart;
+        if (!manualReturn && !returnAnchorRef.current)
+          scrollRoot.scrollTop += centeredStart - viewportStart;
         viewportStart = centeredStart;
       }
     }
@@ -190,7 +203,7 @@ export function useLibraryCollectionWindow(
       focusedIndex: focusedIndexRef.current,
     });
     setRange((current) => (rangesEqual(current, next) ? current : next));
-  }, [itemCount, restorationIndex, view, windowed]);
+  }, [itemCount, manualReturn, restorationIndex, view, windowed]);
 
   const measureLayout = useCallback(() => {
     const collection = collectionRef.current;
@@ -231,6 +244,8 @@ export function useLibraryCollectionWindow(
       scrollRoot &&
       view === "grid" &&
       previous &&
+      !manualReturn &&
+      !returnAnchorRef.current &&
       hasMeaningfulGridLayoutChange(previous.layout, nextLayout)
     ) {
       const nextViewportStart = calculateAnchoredViewportStart(
@@ -244,7 +259,120 @@ export function useLibraryCollectionWindow(
     }
 
     updateWindow();
-  }, [updateWindow, view, windowed]);
+    setGeometryRevision((revision) => revision + 1);
+  }, [manualReturn, updateWindow, view, windowed]);
+
+  // Return position and focus share this boundary. Retain the measured book anchor
+  // for late row measurements until direct input hands scrolling back to the user.
+  useLayoutEffect(() => {
+    const collection = collectionRef.current;
+    const root = collection && findScrollRoot(collection);
+    if (!root) return;
+    returnCancelledRef.current = false;
+    const previousAnchoring = root.style.overflowAnchor;
+    const cancel = () => {
+      returnCancelledRef.current = true;
+      returnAnchorRef.current = null;
+      root.style.setProperty("overflow-anchor", previousAnchoring);
+    };
+    const cancelFromInput = () => {
+      cancel();
+      setReturnPrepared(true);
+    };
+    releaseReturnAnchorRef.current = cancel;
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            if (returnAnchorRef.current) setGeometryRevision((revision) => revision + 1);
+          });
+    observer?.observe(collection!);
+    for (const type of ["wheel", "pointerdown", "keydown", "touchstart"]) {
+      document.addEventListener(type, cancelFromInput, { capture: true, passive: true });
+    }
+    return () => {
+      cancel();
+      observer?.disconnect();
+      for (const type of ["wheel", "pointerdown", "keydown", "touchstart"]) {
+        document.removeEventListener(type, cancelFromInput, true);
+      }
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const collection = collectionRef.current;
+    const root = collection && findScrollRoot(collection);
+    if (!returnRequest?.anchor && !returnPrepared && returnAnchorRef.current) {
+      releaseReturnAnchorRef.current?.();
+      return;
+    }
+    const request = returnRequest?.anchor ? returnRequest : returnAnchorRef.current;
+    if (!collection || !root || !request?.anchor || returnCancelledRef.current) return;
+    const entrance = collection.closest<HTMLElement>(".library-content--books");
+    const animations =
+      entrance
+        ?.getAnimations?.()
+        .filter((animation) => animation.playState === "running" || animation.pending) ?? [];
+    if (!preparingReturn && animations.length > 0) {
+      let current = true;
+      void Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {
+        if (current && !returnCancelledRef.current) setGeometryRevision((revision) => revision + 1);
+      });
+      return () => {
+        current = false;
+      };
+    }
+    const book = Array.from(collection.querySelectorAll<HTMLElement>("[data-reader-book-id]")).find(
+      (element) => element.dataset.readerBookId === request.bookId,
+    );
+    if (!book) {
+      if (!returnRequest?.anchor) releaseReturnAnchorRef.current?.();
+      return;
+    }
+    const geometryAvailable = () =>
+      book.getBoundingClientRect().height > 0 && root.clientHeight > 0;
+    const initialAnchor = geometryAvailable()
+      ? applyReturnAnchor(root, book, request.anchor)
+      : null;
+    returnAnchorRef.current = initialAnchor ? { ...request, anchor: initialAnchor } : request;
+    if (!returnRequest?.anchor) return;
+    let current = true;
+    let stableFrames = 0;
+    let frames = 0;
+    let previous = initialAnchor;
+    let frame = 0;
+    const settle = () => {
+      if (!current || returnCancelledRef.current || !book.isConnected) return;
+      if (!geometryAvailable()) {
+        if (++frames >= 12) {
+          releaseReturnAnchorRef.current?.();
+          setReturnPrepared(true);
+          request.onUnavailable?.();
+        } else frame = window.requestAnimationFrame(settle);
+        return;
+      }
+      const next = applyReturnAnchor(root, book, request.anchor!);
+      stableFrames =
+        previous &&
+        Math.abs(next.scrollTop - previous.scrollTop) <= LAYOUT_PIXEL_TOLERANCE &&
+        Math.abs(next.viewportY! - previous.viewportY!) <= LAYOUT_PIXEL_TOLERANCE
+          ? stableFrames + 1
+          : 0;
+      previous = next;
+      returnAnchorRef.current = { ...request, anchor: next };
+      // Two unchanged frames allow content-visibility and row measurements to settle.
+      // Bound settlement if external geometry never becomes stationary.
+      if (stableFrames >= 2 || ++frames >= 12) {
+        if (preparingReturn) setReturnPrepared(true);
+        else reportLibraryReturnTarget(collection, request);
+      } else frame = window.requestAnimationFrame(settle);
+    };
+    frame = window.requestAnimationFrame(settle);
+    return () => {
+      current = false;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [geometryRevision, preparingReturn, range, returnPrepared, returnRequest]);
 
   useLayoutEffect(() => {
     const collection = collectionRef.current;
@@ -363,19 +491,50 @@ export function useLibraryCollectionWindow(
   }, [itemCount, measureLayout, updateWindow, windowed]);
 
   return useMemo(
-    () => ({ collectionRef, range: windowed ? range : fullRange(itemCount), windowed }),
-    [itemCount, range, windowed],
+    () => ({
+      collectionRef,
+      range: windowed ? range : fullRange(itemCount),
+      windowed,
+      preparingReturn,
+    }),
+    [itemCount, preparingReturn, range, windowed],
   );
 }
 
-function initialRange(itemCount: number, view: LibraryView, windowed: boolean): LibraryWindowRange {
+function applyReturnAnchor(
+  root: HTMLElement,
+  book: HTMLElement,
+  anchor: NonNullable<LibraryReturnFocusRequest["anchor"]>,
+): NonNullable<LibraryReturnFocusRequest["anchor"]> {
+  root.style.setProperty("overflow-anchor", "none");
+  const currentY = book.getBoundingClientRect().top - root.getBoundingClientRect().top;
+  const correction =
+    anchor.viewportY === undefined
+      ? anchor.scrollTop - root.scrollTop
+      : currentY - anchor.viewportY;
+  if (Math.abs(correction) > LAYOUT_PIXEL_TOLERANCE) root.scrollTop += correction;
+  return {
+    scrollTop: root.scrollTop,
+    viewportY: book.getBoundingClientRect().top - root.getBoundingClientRect().top,
+  };
+}
+
+function initialRange(
+  itemCount: number,
+  view: LibraryView,
+  windowed: boolean,
+  returnIndex?: number,
+): LibraryWindowRange {
   if (!windowed) return fullRange(itemCount);
   return calculateLibraryWindowRange({
     itemCount,
     columns: view === "grid" ? 5 : 1,
     itemHeight: view === "grid" ? 300 : 75,
     rowGap: view === "grid" ? 28 : 0,
-    viewportStart: 0,
+    viewportStart:
+      returnIndex === undefined
+        ? 0
+        : Math.floor(returnIndex / (view === "grid" ? 5 : 1)) * (view === "grid" ? 328 : 75),
     viewportHeight: DEFAULT_VIEWPORT_HEIGHT,
     overscan: DEFAULT_VIEWPORT_HEIGHT * 0.75,
   });

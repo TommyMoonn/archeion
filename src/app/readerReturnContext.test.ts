@@ -66,4 +66,15 @@ describe("reader return context", () => {
     ).toBeUndefined();
     expect(createReaderReturnContext({ ...context, scrollTop: -10 }).scrollTop).toBe(0);
   });
+
+  it("preserves a finite book-relative viewport anchor and rejects invalid geometry", () => {
+    expect(
+      normalizeReaderReturnContext({ ...context, viewportY: -12.5 }, "archive-1")?.viewportY,
+    ).toBe(-12.5);
+    for (const viewportY of [Number.NaN, Number.POSITIVE_INFINITY, "12"]) {
+      expect(
+        normalizeReaderReturnContext({ ...context, viewportY }, "archive-1")?.viewportY,
+      ).toBeUndefined();
+    }
+  });
 });

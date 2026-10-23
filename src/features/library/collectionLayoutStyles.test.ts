@@ -115,13 +115,19 @@ describe("collection content spacing ownership", () => {
     expect(seriesStyles).toContain(".series-grid--list[data-series-card-size]");
   });
 
-  it("gives every collection view the same empty-state placement contract", () => {
+  it("keeps book state alignment inside a stable collection boundary", () => {
     expect(libraryStyles).toMatch(/\.continue-reading\s*\{[^}]*margin:\s*0 auto;/s);
     expect(collectionContentStyles).toMatch(
       /\.collection-content\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
     );
     expect(collectionContentStyles).toMatch(
-      /\.collection-content:is\([\s\S]*?\[data-surface-state="empty"\],[\s\S]*?\[data-surface-state="filter-empty"\],[\s\S]*?\[data-surface-state="loading"\],[\s\S]*?\[data-surface-state="search-empty"\][\s\S]*?\)\s*\{[^}]*align-content:\s*center;[^}]*padding-block:\s*clamp\(24px, 6vh, 72px\);/s,
+      /\.collection-content:not\(\.library-content--books\):is\([\s\S]*?\)\s*\{[^}]*align-content:\s*center;/s,
+    );
+    expect(cssBlock(collectionContentStyles, "\n.library-content--books ")).toContain(
+      "padding-block: var(--collection-content-offset) 0;",
+    );
+    expect(cssBlock(collectionContentStyles, ".collection-content__state")).toContain(
+      "place-items: center;",
     );
     expect(collectionContentStyles).toMatch(
       /\.collection-content > \.empty-state,\s*\.collection-content > \.collection-content__loading\s*\{[^}]*justify-self:\s*center;[^}]*margin:\s*0;/s,

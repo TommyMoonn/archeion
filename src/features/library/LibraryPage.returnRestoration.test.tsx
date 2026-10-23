@@ -55,13 +55,16 @@ function seriesBooks(): Book[] {
 }
 
 async function flushRestoration(): Promise<void> {
-  await act(async () => {
-    await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
-    await Promise.resolve();
-  });
-  await act(async () => {
-    await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
-  });
+  for (let frame = 0; frame < 16; frame++) {
+    await act(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
+    });
+    if (
+      document.activeElement !== document.body &&
+      !document.querySelector("[data-return-preparing]")
+    )
+      return;
+  }
 }
 
 async function waitForSelector<T extends Element>(
@@ -184,7 +187,7 @@ describe.each(["grid", "list"] as const)("%s reader-return restoration", (view) 
     await flushRestoration();
 
     const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
-    expect(pageShell.scrollTop).toBe(4_000);
+    expect(pageShell.scrollTop).toBe(0);
     expect(document.activeElement).toBe(pageShell);
 
     const search = session.container.querySelector<HTMLInputElement>(
@@ -214,7 +217,7 @@ describe.each(["grid", "list"] as const)("%s reader-return restoration", (view) 
 
     const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
     expect(session.container.querySelector(`[data-reader-book-id="${books[300]!.id}"]`)).toBeNull();
-    expect(pageShell.scrollTop).toBe(900);
+    expect(pageShell.scrollTop).toBe(0);
     expect(document.activeElement).toBe(pageShell);
   });
 });
@@ -223,6 +226,10 @@ describe.each(["grid", "list"] as const)("small %s reader-return restoration", (
   const suite = setupLibraryPageTestSuite();
 
   beforeEach(async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 1000, 75),
+    );
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
     const preferences = appPreferencesStore.getSnapshot();
     await appPreferencesStore.update({
       library: {

@@ -61,7 +61,7 @@ function EpubIssueBook({
           onClick={() => onOpenDetails(book)}
           type="button"
         >
-          <BookCover book={book} className="book-cover--epub-issue" loadImmediately />
+          <BookCover book={book} className="book-cover--epub-issue" />
         </button>
         <div className="epub-issues-book__identity">
           <h2 id={titleId}>

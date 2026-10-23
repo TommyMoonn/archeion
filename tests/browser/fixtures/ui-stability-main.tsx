@@ -4,6 +4,7 @@ import "../../../src/styles/index.css";
 
 const fixtureLocation = location.href;
 const backend = await installUIStabilityBackend(new URLSearchParams(location.search));
+window.installCoverReadinessProbe?.();
 // App/router must be imported after mock Windows/IPC installation. Production owners are unchanged.
 const [{ App }, { archiveStore }, { router }, { getLibraryStorage }, { appPreferencesStore }] =
   await Promise.all([

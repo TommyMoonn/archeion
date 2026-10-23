@@ -589,21 +589,6 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   content: "";
 }
 
-.book-cover__loading {
-  width: 48%;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background:
-    linear-gradient(
-      100deg,
-      transparent 25%,
-      color-mix(in srgb, var(--text) 8%, transparent) 50%,
-      transparent 75%
-    ),
-    var(--surface-raised);
-  background-size: 220% 100%;
-}
-
 .book-card__copy {
   display: block;
   block-size: 78px;

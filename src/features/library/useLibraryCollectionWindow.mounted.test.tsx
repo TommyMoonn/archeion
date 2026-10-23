@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useState } from "react";
+import { act, useLayoutEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +9,7 @@ import {
   calculateAnchoredViewportStart,
   useLibraryCollectionWindow,
   type LibraryCollectionLayout,
+  type LibraryReturnFocusRequest,
 } from "./useLibraryCollectionWindow";
 
 (
@@ -21,18 +22,34 @@ function Harness({
   layout,
   restorationIndex,
   view,
+  returnRequest,
+  itemCount = 500,
+  onCommit,
 }: {
   layout: LibraryCollectionLayout;
   restorationIndex?: number;
   view: LibraryView;
+  returnRequest?: LibraryReturnFocusRequest;
+  itemCount?: number;
+  onCommit?: (value: { start: number; end: number; preparing: boolean }) => void;
 }) {
-  const { collectionRef, range } = useLibraryCollectionWindow(500, view, restorationIndex);
+  const { collectionRef, range, preparingReturn } = useLibraryCollectionWindow(
+    itemCount,
+    view,
+    restorationIndex,
+    returnRequest,
+  );
+  useLayoutEffect(() => {
+    onCommit?.({ start: range.start, end: range.end, preparing: preparingReturn });
+  }, [onCommit, preparingReturn, range]);
   return (
     <section
       ref={collectionRef}
       data-testid="collection"
       data-window-end={range.end}
       data-window-start={range.start}
+      data-return-preparing={preparingReturn || undefined}
+      inert={preparingReturn || undefined}
       style={{
         columnGap: layout.rowGap,
         display: "grid",
@@ -205,6 +222,207 @@ afterEach(() => {
 });
 
 describe("mounted library collection window", () => {
+  it("reveals a bounded safe fallback when row geometry remains unavailable", async () => {
+    const root = document.createElement("main");
+    root.className = "page-shell";
+    document.body.append(root);
+    activeRoot = createRoot(root);
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue(
+      new DOMRect(0, 0, 1000, 0),
+    );
+    const unavailable = vi.fn();
+    const ready = vi.fn();
+    await act(async () =>
+      activeRoot?.render(
+        <Harness
+          view="list"
+          layout={{ columns: 1, itemHeight: 75, rowGap: 0 }}
+          restorationIndex={300}
+          returnRequest={{
+            bookId: "book-300",
+            index: 300,
+            anchor: { viewportY: 100, scrollTop: 10000 },
+            onTargetReady: ready,
+            onUnavailable: unavailable,
+          }}
+        />,
+      ),
+    );
+    expect(root.querySelector("[data-return-preparing]")).not.toBeNull();
+    for (let frame = 0; frame < 13; frame++) await nextFrame();
+    expect(unavailable).toHaveBeenCalledTimes(1);
+    expect(ready).not.toHaveBeenCalled();
+    expect(root.scrollTop).toBe(0);
+    expect(root.querySelector("[data-return-preparing]")).toBeNull();
+  });
+  it.each([48, 49, 500, 3000])(
+    "retains the target in the first preparing commit at %i books",
+    async (itemCount) => {
+      const root = document.createElement("main");
+      root.className = "page-shell";
+      document.body.append(root);
+      activeRoot = createRoot(root);
+      const index = Math.floor(itemCount / 2);
+      const commits: { start: number; end: number; preparing: boolean }[] = [];
+      await act(async () =>
+        activeRoot?.render(
+          <Harness
+            view="grid"
+            itemCount={itemCount}
+            layout={{ columns: 5, itemHeight: 300, rowGap: 28 }}
+            restorationIndex={index}
+            returnRequest={{
+              bookId: `book-${index}`,
+              index,
+              anchor: { viewportY: 120, scrollTop: 1 },
+              onTargetReady: vi.fn(),
+            }}
+            onCommit={(value) => commits.push(value)}
+          />,
+        ),
+      );
+      expect(commits[0]?.preparing).toBe(true);
+      expect(commits[0]!.start).toBeLessThanOrEqual(index);
+      expect(commits[0]!.end).toBeGreaterThan(index);
+    },
+  );
+  it.each([false, true])(
+    "waits for entrance completion and fences a cancelled animation wait (%s)",
+    async (cancelled) => {
+      const root = document.createElement("main");
+      root.className = "page-shell library-content--books";
+      document.body.append(root);
+      let finish!: () => void;
+      const animation = {
+        playState: "running",
+        pending: false,
+        finished: new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+      };
+      Object.defineProperty(root, "getAnimations", { value: () => [animation] });
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return new DOMRect(
+          0,
+          this.hasAttribute("data-reader-book-id") ? -root.scrollTop : 0,
+          1000,
+          300,
+        );
+      });
+      const ready = vi.fn();
+      activeRoot = createRoot(root);
+      await act(async () =>
+        activeRoot?.render(
+          <Harness
+            view="grid"
+            layout={{ columns: 5, itemHeight: 300, rowGap: 28 }}
+            restorationIndex={300}
+            returnRequest={{
+              bookId: "book-300",
+              index: 300,
+              anchor: { viewportY: -120, scrollTop: 1 },
+              onTargetReady: ready,
+            }}
+          />,
+        ),
+      );
+      expect(ready).not.toHaveBeenCalled();
+      expect(root.scrollTop).toBe(120);
+      if (cancelled) act(() => document.dispatchEvent(new Event("wheel")));
+      await act(async () => {
+        animation.playState = "finished";
+        finish();
+        await Promise.resolve();
+      });
+      await nextFrame();
+      await nextFrame();
+      if (cancelled) {
+        expect(ready).not.toHaveBeenCalled();
+        expect(root.scrollTop).toBe(120);
+      } else {
+        expect(ready).toHaveBeenCalled();
+        expect(root.scrollTop).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it.each(["grid", "list"] as const)(
+    "owns %s return geometry through delayed measurement and releases on input",
+    async (view) => {
+      const root = document.createElement("main");
+      root.className = "page-shell";
+      document.body.append(root);
+      activeRoot = createRoot(root);
+      let height = 300;
+      let columns = view === "grid" ? 5 : 1;
+      vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const index = this.dataset.libraryIndex;
+        const top =
+          index === undefined
+            ? this.dataset.testid === "collection"
+              ? -root.scrollTop
+              : 0
+            : Math.floor(Number(index) / columns) * height - root.scrollTop;
+        return {
+          top,
+          bottom: top + height,
+          height,
+          left: 0,
+          right: 1000,
+          width: 1000,
+          x: 0,
+          y: top,
+          toJSON: () => ({}),
+        };
+      });
+      const ready = vi.fn();
+      const request: LibraryReturnFocusRequest = {
+        bookId: "book-300",
+        index: 300,
+        anchor: { scrollTop: 9, viewportY: 120 },
+        onTargetReady: ready,
+      };
+      const render = (returnRequest?: LibraryReturnFocusRequest) =>
+        act(async () =>
+          activeRoot?.render(
+            <Harness
+              layout={{ columns, itemHeight: height, rowGap: 0 }}
+              restorationIndex={returnRequest?.index}
+              returnRequest={returnRequest}
+              view={view}
+            />,
+          ),
+        );
+      await render(request);
+      await nextFrame();
+      await nextFrame();
+      expect(ready).toHaveBeenCalled();
+      expect(root.scrollTop).toBe((300 / columns) * height - 120);
+      expect(root.style.overflowAnchor).toBe("none");
+      await render();
+      height = 340;
+      await render();
+      await nextMeasurement();
+      expect(root.scrollTop).toBe((300 / columns) * height - 120);
+      if (view === "grid") {
+        columns = 4;
+        await render();
+        await nextMeasurement();
+        expect(root.scrollTop).toBe((300 / columns) * height - 120);
+      }
+      act(() => document.dispatchEvent(new Event("wheel")));
+      expect(root.style.overflowAnchor).toBe("");
+      root.scrollTop = 200;
+      root.dispatchEvent(new Event("scroll"));
+      await nextFrame();
+      expect(root.scrollTop).toBe(200);
+    },
+  );
+
   it("does not correct or drift ordinary grid scrolling under unchanged geometry", async () => {
     const scrollRoot = document.createElement("div");
     scrollRoot.className = "page-shell";

@@ -48,7 +48,6 @@ type BookListProps = {
 
 type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
   book: ReadonlyBook;
-  loadCoverImmediately?: boolean;
   collectionIndex?: number;
   selected: boolean;
   contextMenuDisabledReason?: string;
@@ -70,7 +69,6 @@ function BookRowComponent({
   canManageFile = false,
   selected,
   selectionMode,
-  loadCoverImmediately = false,
   collectionIndex,
   contextMenuDisabledReason,
   onContextMenuUnavailable,
@@ -132,7 +130,7 @@ function BookRowComponent({
         ref={primaryActionRef}
         type="button"
       >
-        <BookCover book={book} className="book-cover--row" loadImmediately={loadCoverImmediately} />
+        <BookCover book={book} className="book-cover--row" />
         <span className="book-row__identity">
           <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
@@ -199,7 +197,6 @@ const BookRow = memo(
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
     previous.selectionMode === next.selectionMode &&
-    previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
     previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
     previous.onContextMenuUnavailable === next.onContextMenuUnavailable &&
@@ -220,17 +217,19 @@ export const BookList = memo(function BookList({
   returnFocusRequest,
   ...rowProps
 }: BookListProps) {
-  const { collectionRef, range, windowed } = useLibraryCollectionWindow(
+  const { collectionRef, range, windowed, preparingReturn } = useLibraryCollectionWindow(
     books.length,
     "list",
     returnFocusRequest?.index,
+    returnFocusRequest,
   );
   const retainedBooks = windowed ? books.slice(range.start, range.end) : books;
   const contextMenuDisabledReason =
     selectedBookIds.size > 1 ? MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON : undefined;
 
   useLayoutEffect(() => {
-    reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
+    if (!returnFocusRequest?.anchor)
+      reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
   }, [collectionRef, range.end, range.start, returnFocusRequest]);
 
   return (
@@ -238,6 +237,9 @@ export const BookList = memo(function BookList({
       ref={collectionRef}
       className="book-list collection-content__items"
       aria-label="Books"
+      aria-busy={preparingReturn || undefined}
+      inert={preparingReturn || undefined}
+      data-return-preparing={preparingReturn || undefined}
       data-windowed={windowed || undefined}
       data-window-start={range.start}
       data-window-end={range.end}
@@ -252,7 +254,6 @@ export const BookList = memo(function BookList({
             book={book}
             key={book.id}
             selected={selectedBookIds.has(book.id)}
-            loadCoverImmediately
             collectionIndex={range.start + retainedIndex}
             contextMenuDisabledReason={contextMenuDisabledReason}
             {...rowProps}

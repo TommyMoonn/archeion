@@ -1,77 +1,93 @@
 import { BookOpenText } from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { ReadonlyBook } from "../../types/book";
-import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
+import {
+  acquireCoverUrl,
+  coverCacheKey,
+  readyCoverUrl,
+  type AcquiredCoverUrl,
+  type CoverLoadPriority,
+} from "./coverUrlCache";
 import { useCoverUrlCacheScope } from "./coverUrlCacheScope";
 import { observeCoverVisibility } from "./coverVisibilityObserver";
 
 type BookCoverProps = {
   book: ReadonlyBook;
   className?: string;
-  loadImmediately?: boolean;
 };
 
-export const BookCover = memo(function BookCover({
-  book,
-  className = "",
-  loadImmediately = false,
-}: BookCoverProps) {
-  const storage = useLibraryStorage();
+export const BookCover = memo(function BookCover({ book, className = "" }: BookCoverProps) {
   const cacheScope = useCoverUrlCacheScope();
+  const coverKey = coverCacheKey(book.id, book.modifiedAt, book.size, book.coverRevision);
+  return (
+    <CoverResource
+      key={`${cacheScope}\u0000${coverKey}`}
+      book={book}
+      className={className}
+      cacheScope={cacheScope}
+      coverKey={coverKey}
+    />
+  );
+});
+
+function CoverResource({
+  book,
+  className,
+  cacheScope,
+  coverKey,
+}: BookCoverProps & { cacheScope: string; coverKey: string }) {
+  const storage = useLibraryStorage();
   const coverRef = useRef<HTMLDivElement>(null);
-  const [shouldLoad, setShouldLoad] = useState(loadImmediately);
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [state, setState] = useState<"loading" | "available" | "unavailable">("loading");
-
-  useEffect(() => {
-    if (loadImmediately) {
-      setShouldLoad(true);
-      return;
-    }
-    if (shouldLoad || !coverRef.current) {
-      return;
-    }
-    return observeCoverVisibility(coverRef.current, () => setShouldLoad(true));
-  }, [loadImmediately, shouldLoad]);
-
-  const coverKey = useMemo(
-    () => coverCacheKey(book.id, book.modifiedAt, book.size, book.coverRevision),
-    [book.id, book.modifiedAt, book.size, book.coverRevision],
+  const cachedUrl = readyCoverUrl(cacheScope, coverKey);
+  const [coverUrl, setCoverUrl] = useState<string | null>(cachedUrl ?? null);
+  const [state, setState] = useState<"loading" | "available" | "unavailable">(
+    cachedUrl ? "available" : "loading",
   );
 
   useEffect(() => {
-    if (!shouldLoad) {
-      return;
-    }
-    let cancelled = false;
-    setCoverUrl(null);
-    setState("loading");
-    const acquired = acquireCoverUrl(cacheScope, coverKey, () => storage.loadBookCover(book.id));
-
-    void acquired.promise
-      .then((url) => {
-        if (cancelled || !url) {
-          if (!cancelled) {
-            setState("unavailable");
-          }
-          return;
-        }
-        setCoverUrl(url);
-        setState("available");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setState("unavailable");
+    let acquired: AcquiredCoverUrl | null = null;
+    let generation = 0;
+    let stopObserving: (() => void) | undefined;
+    const request = (priority: CoverLoadPriority, distance = 0) => {
+      if (acquired) {
+        acquired.setPriority(priority, distance);
+        return;
+      }
+      const current = ++generation;
+      acquired = acquireCoverUrl(
+        cacheScope,
+        coverKey,
+        () => storage.loadBookCover(book.id),
+        priority,
+        distance,
+      );
+      void acquired.promise.then((url) => {
+        if (generation !== current) return;
+        setCoverUrl(url ?? null);
+        setState(url ? "available" : "unavailable");
+        stopObserving?.();
+      });
+    };
+    if (readyCoverUrl(cacheScope, coverKey)) request("visible");
+    else if (coverRef.current) {
+      stopObserving = observeCoverVisibility(coverRef.current, (priority, distance) => {
+        if (priority) request(priority, distance);
+        else {
+          generation++;
+          acquired?.release();
+          acquired = null;
         }
       });
+    }
 
     return () => {
-      cancelled = true;
-      acquired.release();
+      generation++;
+      stopObserving?.();
+      acquired?.release();
     };
-  }, [book.id, cacheScope, coverKey, shouldLoad, storage]);
+  }, [book.id, cacheScope, coverKey, storage]);
 
   return (
     <div
@@ -81,9 +97,17 @@ export const BookCover = memo(function BookCover({
       aria-hidden="true"
       title={state === "unavailable" ? "Cover unavailable" : undefined}
     >
-      {coverUrl ? <img alt="" decoding="async" loading="lazy" src={coverUrl} /> : null}
+      {coverUrl ? (
+        <img
+          alt=""
+          src={coverUrl}
+          onError={() => {
+            setCoverUrl(null);
+            setState("unavailable");
+          }}
+        />
+      ) : null}
       {state === "unavailable" ? <BookOpenText size={30} strokeWidth={1.5} /> : null}
-      {state === "loading" ? <span className="book-cover__loading" /> : null}
     </div>
   );
-});
+}
