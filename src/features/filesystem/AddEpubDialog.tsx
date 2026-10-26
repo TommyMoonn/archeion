@@ -1,11 +1,10 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { FilePlus, Files, Folder as FolderIcon, CircleAlert } from "lucide-react";
+import { Plus, CircleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { AppSelect } from "../../components/AppSelect";
+import { AddEpubDialogFields } from "./AddEpubDialogFields";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { SegmentedControl } from "../../components/SegmentedControl";
 import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "../../types/archiveImport";
 import type { ReadonlyFolder } from "../../types/folder";
@@ -13,12 +12,9 @@ import { defaultAppPreferences } from "../../types/appSettings";
 import type { GlobalImportSettings } from "../../types/settings";
 import {
   ARCHIVE_ROOT_DESTINATION,
-  archiveImportConflictOptions,
-  archiveImportModeOptions,
   createArchiveDestinationOptions,
   destinationValueFromFolderPath,
   destinationValueToFolderPath,
-  getFileNameFromPath,
   isEpubSourcePath,
 } from "./archiveImport";
 import { shouldConfirmImportReplace } from "./destructiveActionPolicy";
@@ -121,13 +117,6 @@ export function AddEpubDialog({
     void runImport();
   }
 
-  const selectedLabel =
-    sourcePaths.length === 0
-      ? "No files selected"
-      : sourcePaths.length === 1
-        ? getFileNameFromPath(sourcePaths[0])
-        : `${sourcePaths.length} selected`;
-
   if (replaceConfirmationOpen) {
     return (
       <Dialog
@@ -158,6 +147,7 @@ export function AddEpubDialog({
               Cancel
             </Button>
             <Button
+              icon={<Plus aria-hidden="true" />}
               busy={isImporting}
               disabled={isImporting}
               onClick={() => void runImport()}
@@ -198,7 +188,7 @@ export function AddEpubDialog({
           <Button
             busy={isImporting}
             disabled={isImporting || sourcePaths.length === 0}
-            icon={<FilePlus aria-hidden="true" />}
+            icon={<Plus aria-hidden="true" />}
             onClick={submit}
           >
             Add EPUB
@@ -206,63 +196,20 @@ export function AddEpubDialog({
         </>
       }
     >
-      <div className="add-epub-dialog">
-        <button
-          className="add-epub-dialog__picker"
-          disabled={isImporting}
-          onClick={() => void chooseFiles()}
-          type="button"
-        >
-          <Files aria-hidden="true" size={20} />
-          <span className="constrained-user-content">{selectedLabel}</span>
-        </button>
-
-        {sourcePaths.length > 1 ? (
-          <ul className="add-epub-dialog__files" aria-label="Selected EPUB files">
-            {sourcePaths.slice(0, 5).map((path) => (
-              <li className="constrained-user-content" key={path}>
-                {getFileNameFromPath(path)}
-              </li>
-            ))}
-            {sourcePaths.length > 5 ? <li>{sourcePaths.length - 5} more</li> : null}
-          </ul>
-        ) : null}
-
-        <AppSelect
-          id="add-epub-destination"
-          label={
-            <span className="add-epub-dialog__label">
-              <FolderIcon aria-hidden="true" size={14} />
-              Destination
-            </span>
-          }
-          onChange={setDestinationValue}
-          options={destinations}
-          value={destinationValue}
-        />
-
-        <AppSelect
-          id="add-epub-conflict"
-          label="Filename conflicts"
-          onChange={setConflictAction}
-          options={archiveImportConflictOptions}
-          value={conflictAction}
-        />
-
-        <div
-          aria-labelledby="add-epub-operation-label"
-          className="add-epub-dialog__field"
-          role="group"
-        >
-          <span id="add-epub-operation-label">Operation</span>
-          <SegmentedControl
-            label="Import operation"
-            onChange={setMode}
-            options={archiveImportModeOptions}
-            value={mode}
-          />
-        </div>
-      </div>
+      <AddEpubDialogFields
+        {...{
+          sourcePaths,
+          destinations,
+          destinationValue,
+          conflictAction,
+          mode,
+          isImporting,
+          chooseFiles,
+          setDestinationValue,
+          setConflictAction,
+          setMode,
+        }}
+      />
     </Dialog>
   );
 }

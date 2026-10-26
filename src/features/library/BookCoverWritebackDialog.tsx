@@ -1,10 +1,10 @@
-import { CircleCheck, Image, Upload, CircleAlert } from "lucide-react";
+import { CircleCheck, Save, CircleAlert } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { SegmentedControl } from "../../components/SegmentedControl";
+import { CoverWritebackFields } from "./CoverWritebackFields";
 import type {
   EpubCoverFraming,
   EpubCoverPreparation,
@@ -12,9 +12,6 @@ import type {
   EpubCoverWritebackResult,
   ReadonlyBook,
 } from "../../types/book";
-import { formatFileSize } from "../../utils/formatters";
-import { BookCover } from "./BookCover";
-import { bookTitle } from "./libraryFilters";
 
 type BookCoverWritebackDialogProps = {
   book: ReadonlyBook;
@@ -30,11 +27,6 @@ type BookCoverWritebackDialogProps = {
     input: EpubCoverWritebackInput,
   ) => Promise<EpubCoverWritebackResult>;
 };
-
-const framingOptions = [
-  { label: "Crop", value: "crop" },
-  { label: "Fit", value: "fit" },
-] satisfies Array<{ label: string; value: EpubCoverFraming }>;
 
 function coverErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
@@ -255,6 +247,7 @@ export function BookCoverWritebackDialog({
             Close
           </Button>
           <Button
+            icon={<Save aria-hidden="true" />}
             busy={isWriting}
             disabled={!canWrite}
             disabledReason={!isWriting ? writeDisabledReason : undefined}
@@ -265,94 +258,20 @@ export function BookCoverWritebackDialog({
         </>
       }
     >
-      <div className="cover-writeback">
-        <div className="cover-writeback__book">
-          <BookCover book={book} className="cover-writeback__current-cover" />
-          <div>
-            <span>Book</span>
-            <strong>{bookTitle(book)}</strong>
-            <small title={book.relativePath ?? book.fileName}>
-              {book.relativePath ?? book.fileName}
-            </small>
-          </div>
-        </div>
-
-        <section className="cover-writeback__workspace">
-          <div className="cover-writeback__preview-column">
-            <div className="cover-writeback__preview" data-loading={isPreparing || undefined}>
-              {previewUrl ? <img alt="Final replacement cover preview" src={previewUrl} /> : null}
-              {!previewUrl ? (
-                <div className="cover-writeback__preview-empty">
-                  <Image aria-hidden="true" size={34} strokeWidth={1.5} />
-                  <span>{isPreparing ? "Preparing preview" : "Choose a cover image"}</span>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="cover-writeback__controls" ref={recoveryControlsRef}>
-            <Button
-              disabled={isPreparing || isWriting || book.isFileMissing || !book.relativePath}
-              icon={<Upload aria-hidden="true" />}
-              onClick={() => void chooseImage()}
-              variant="secondary"
-            >
-              {imagePath ? "Choose another image" : "Choose image"}
-            </Button>
-
-            <div
-              aria-describedby="cover-writeback-framing-help"
-              aria-labelledby="cover-writeback-framing-label"
-              className="cover-writeback__framing"
-              role="group"
-            >
-              <span id="cover-writeback-framing-label">Framing</span>
-              <SegmentedControl
-                ariaDescribedBy="cover-writeback-framing-help"
-                label="Cover framing"
-                onChange={changeFraming}
-                options={framingOptions.map((option) => ({
-                  ...option,
-                  disabled: isWriting || book.isFileMissing,
-                }))}
-                value={framing}
-              />
-              <p id="cover-writeback-framing-help">
-                {framing === "crop"
-                  ? "Fills the cover frame and crops evenly from the center."
-                  : "Keeps the full image and adds transparent or white padding."}
-              </p>
-            </div>
-
-            {preparation ? (
-              <dl className="cover-writeback__details">
-                <div>
-                  <dt>Image</dt>
-                  <dd title={preparation.fileName}>{preparation.fileName}</dd>
-                </div>
-                <div>
-                  <dt>Source</dt>
-                  <dd>
-                    {preparation.sourceWidth} × {preparation.sourceHeight} ·{" "}
-                    {preparation.sourceFormat}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Output</dt>
-                  <dd>
-                    {preparation.outputWidth} × {preparation.outputHeight} ·{" "}
-                    {preparation.outputFormat}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Size</dt>
-                  <dd>{formatFileSize(preparation.imageSize)}</dd>
-                </div>
-              </dl>
-            ) : null}
-          </div>
-        </section>
-      </div>
+      <CoverWritebackFields
+        {...{
+          book,
+          previewUrl,
+          isPreparing,
+          isWriting,
+          imagePath,
+          framing,
+          preparation,
+          recoveryControlsRef,
+          chooseImage,
+          changeFraming,
+        }}
+      />
     </Dialog>
   );
 }

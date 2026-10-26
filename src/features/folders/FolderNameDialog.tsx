@@ -1,3 +1,5 @@
+import { FolderPlus, Save } from "lucide-react";
+import { FolderNameFields } from "./FolderNameFields";
 import { useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "../../components/Button";
@@ -80,32 +82,28 @@ export function FolderNameDialog({
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button busy={isSaving} disabled={isSaving} form={formId} type="submit">
+          <Button
+            icon={
+              mode === "create" ? <FolderPlus aria-hidden="true" /> : <Save aria-hidden="true" />
+            }
+            busy={isSaving}
+            disabled={isSaving}
+            form={formId}
+            type="submit"
+          >
             {mode === "create" ? "Create" : "Save"}
           </Button>
         </>
       }
     >
-      <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>Name</span>
-          <input
-            aria-describedby={validationError ? validationErrorId : undefined}
-            aria-invalid={validationError ? true : undefined}
-            autoFocus
-            maxLength={80}
-            placeholder="e.g. Fiction"
-            onChange={(event) => {
-              setName(event.currentTarget.value);
-              setValidationError(null);
-              setOperationError(null);
-            }}
-            ref={nameInputRef}
-            required
-            value={name}
-          />
-        </label>
-      </form>
+      <FolderNameFields
+        {...{ formId, handleSubmit, validationError, validationErrorId, name, nameInputRef }}
+        onNameChange={(value) => {
+          setName(value);
+          setValidationError(null);
+          setOperationError(null);
+        }}
+      />
     </Dialog>
   );
 }

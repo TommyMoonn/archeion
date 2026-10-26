@@ -169,6 +169,66 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   gap: 10px;
 }
 
+.dialog-skeleton {
+  display: contents;
+}
+
+.dialog-skeleton,
+.dialog-skeleton * {
+  color: transparent !important;
+  caret-color: transparent !important;
+  text-shadow: none !important;
+}
+
+.dialog-skeleton ::placeholder {
+  color: transparent !important;
+}
+
+.dialog-skeleton
+  :is(
+    input,
+    textarea,
+    button,
+    .segmented-control,
+    .metadata-writeback__reference-value,
+    .cover-writeback__preview,
+    .book-cover
+  ) {
+  background: var(--surface-raised);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.dialog-skeleton
+  :is(
+    label > span,
+    h3,
+    .app-select__label,
+    .add-epub-dialog__field > span,
+    .cover-writeback__framing > span,
+    .cover-writeback__book strong,
+    .cover-writeback__book small
+  ) {
+  background: linear-gradient(var(--surface-raised), var(--surface-raised)) left center /
+    min(8rem, 75%) 0.65em no-repeat;
+}
+
+.dialog-load-working {
+  position: relative;
+  min-width: 0;
+}
+
+.dialog-load-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+
 .dialog__footer > .button--ghost:first-child {
   margin-inline-end: auto;
 }
@@ -194,40 +254,4 @@ html[data-motion="on"] dialog[open] > .modal-surface {
     margin-inline-end: 0;
     white-space: normal;
   }
-}
-
-.dialog-loading-fallback {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--backdrop);
-}
-
-.dialog-loading-fallback__panel {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 15px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-popover);
-  font-size: var(--type-meta);
-}
-
-.dialog-loading-fallback__indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-}
-
-html[data-motion="on"] .dialog-loading-fallback__indicator {
-  animation: app-motion-pulse var(--motion-duration-loop) var(--motion-ease-standard) infinite
-    alternate;
 }

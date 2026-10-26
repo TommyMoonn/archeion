@@ -5,12 +5,12 @@ import {
   FileCheck2,
   FileWarning,
   FolderOpen,
-  RefreshCw,
   TriangleAlert,
 } from "lucide-react";
 import { useId } from "react";
 
 import { Button } from "../../components/Button";
+import { LibraryIntegrityHeader } from "./LibraryIntegrityHeader";
 import { EmptyState } from "../../components/EmptyState";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import type {
@@ -146,33 +146,18 @@ export function LibraryEpubIssuesView({
 
   return (
     <section aria-labelledby="epub-issues-title" className="epub-issues-view">
-      <header className="library-header epub-issues-header">
-        <div className="library-header__title">
-          <p className="eyebrow">Archive integrity</p>
-          <h1 id="epub-issues-title">EPUB Issues</h1>
-        </div>
-        <div className="epub-issues-header__actions">
-          <Button
-            busy={refreshing}
-            disabled={refreshing}
-            icon={<RefreshCw />}
-            onClick={() => void onRefresh()}
-            size="standard"
-            variant="secondary"
-          >
-            Refresh
-          </Button>
-        </div>
-        <div className="library-controls epub-issues-controls">
-          <span aria-live="polite" className="library-result-count">
-            {initialLoading
-              ? "Checking EPUB files"
-              : failedWithoutSnapshot
-                ? "Analysis unavailable"
-                : resultLabel}
-          </span>
-        </div>
-      </header>
+      <LibraryIntegrityHeader
+        kind="epub-issues"
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        resultLabel={
+          initialLoading
+            ? "Checking EPUB files"
+            : failedWithoutSnapshot
+              ? "Analysis unavailable"
+              : resultLabel
+        }
+      />
 
       <div
         aria-busy={initialLoading || refreshing || undefined}

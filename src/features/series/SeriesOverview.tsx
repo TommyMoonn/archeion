@@ -1,27 +1,15 @@
-import { ChevronRight, Grid2x2, List, Search, Layers, X } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-  type Ref,
-} from "react";
+import { ChevronRight, Layers } from "lucide-react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, type Ref } from "react";
 
-import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
-import { IconButton } from "../../components/IconButton";
-import { Input } from "../../components/Input";
-import { SegmentedControl } from "../../components/SegmentedControl";
 import { focusElementIfRestorationOwned, focusIsUnowned } from "../../utils/focusRestoration";
 import type { CollectionCardSize, LibraryView, SeriesSort } from "../../types/library";
 import type { SeriesEntry } from "../../types/series";
 import { BookCover } from "../library/BookCover";
 import { seriesProgressLabel, volumeCountLabel } from "./seriesDisplay";
 import { deriveSeriesOverviewEntries } from "./seriesOverviewReadModel";
-import { seriesSortOptions } from "./seriesSortOptions";
+import { SeriesOverviewHeader } from "./SeriesOverviewHeader";
 
 type SeriesOverviewProps = {
   cardSize: CollectionCardSize;
@@ -48,23 +36,6 @@ function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
     ref.current = value;
   }
 }
-
-const seriesViewOptions: Array<{
-  icon: ReactNode;
-  label: string;
-  value: LibraryView;
-}> = [
-  {
-    icon: <Grid2x2 aria-hidden="true" />,
-    label: "Grid",
-    value: "grid",
-  },
-  {
-    icon: <List aria-hidden="true" />,
-    label: "List",
-    value: "list",
-  },
-];
 
 const SeriesOverviewCard = memo(function SeriesOverviewCard({
   entry,
@@ -164,63 +135,22 @@ export const SeriesOverview = memo(function SeriesOverview({
 
   return (
     <section ref={overviewRef} aria-labelledby="series-overview-title" className="series-overview">
-      <header className="library-header series-header">
-        <div className="library-header__title">
-          <p className="eyebrow">Your collection</p>
-          <h1 id="series-overview-title">Series</h1>
-        </div>
-        <div className="library-header__actions library-header__actions--search-only series-header__actions">
-          <div aria-label="Series search" className="series-search" role="search">
-            <Input
-              aria-keyshortcuts={searchAriaKeyShortcuts}
-              autoCapitalize="none"
-              autoComplete="off"
-              autoCorrect="off"
-              icon={<Search aria-hidden="true" />}
-              label="Search series"
-              name="archeion-series-search"
-              onChange={(event) => onQueryChange(event.currentTarget.value)}
-              placeholder="Search series"
-              ref={setSeriesSearchRef}
-              size="standard"
-              spellCheck={false}
-              type="search"
-              value={query}
-            />
-            {query ? (
-              <IconButton
-                className="series-search__clear"
-                label="Clear series search"
-                onClick={onClearSearch}
-              >
-                <X aria-hidden="true" />
-              </IconButton>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="library-controls series-overview__controls">
-          <span className="library-result-count" aria-live="polite">
-            {surfaceState === "loading" ? "Loading series" : `${visibleEntries.length} series`}
-          </span>
-          <div className="library-controls__display">
-            <AppSelect
-              ariaLabel="Sort series"
-              className="series-sort-select"
-              onChange={onSortChange}
-              options={seriesSortOptions}
-              value={sort}
-            />
-            <SegmentedControl
-              appearance="icon-only"
-              label="Series view"
-              onChange={onViewChange}
-              options={seriesViewOptions}
-              value={view}
-            />
-          </div>
-        </div>
-      </header>
+      <SeriesOverviewHeader
+        {...{
+          onQueryChange,
+          onClearSearch,
+          onSortChange,
+          onViewChange,
+          query,
+          sort,
+          view,
+          searchAriaKeyShortcuts,
+        }}
+        searchInputRef={setSeriesSearchRef}
+        resultLabel={
+          surfaceState === "loading" ? "Loading series" : `${visibleEntries.length} series`
+        }
+      />
 
       <div
         aria-busy={surfaceState === "loading" || undefined}
