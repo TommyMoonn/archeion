@@ -39,8 +39,19 @@ const ownershipListeners = new Set<() => void>();
 const outsidePointerDismissals = new WeakSet<Event>();
 let ownershipRevision = 0;
 let listenersInstalled = false;
+// A same-commit modal replacement inherits the displayed scrim, never a new fade from clear.
+let backdropHandoff: { opacity: string } | undefined;
 
 function publishOwnershipChange(): void {
+  const modals = surfaceStack.filter((surface) => surface.modal && surface.element.isConnected);
+  modals.forEach((surface, index) => {
+    const element = surface.element;
+    if (index === 0 && (element.dataset.backdropOwner === "false" || modals.length > 1)) {
+      element.style.setProperty("--backdrop-from-opacity", "1");
+    }
+    element.dataset.backdropOwner = String(index === 0);
+    element.dataset.backdropHeld = String(index === 0 && modals.length > 1);
+  });
   ownershipRevision += 1;
   for (const listener of ownershipListeners) listener();
 }
@@ -121,7 +132,17 @@ function uninstallListenersWhenIdle(): void {
 function unregister(token: object): void {
   const index = surfaceStack.findIndex((surface) => surface.token === token);
   if (index >= 0) {
+    const surface = surfaceStack[index];
+    if (surface.modal && surface.element.dataset.backdropOwner === "true") {
+      const handoff = { opacity: getComputedStyle(surface.element, "::backdrop").opacity };
+      backdropHandoff = handoff;
+      queueMicrotask(() => {
+        if (backdropHandoff === handoff) backdropHandoff = undefined;
+      });
+    }
     surfaceStack.splice(index, 1);
+    delete surface.element.dataset.backdropOwner;
+    delete surface.element.dataset.backdropHeld;
     publishOwnershipChange();
   }
   uninstallListenersWhenIdle();
@@ -144,6 +165,10 @@ export function registerTransientSurface(registration: TransientSurfaceRegistrat
     for (const candidate of incompatible) candidate.onDismiss("modal-open");
   }
 
+  if (surface.modal && backdropHandoff) {
+    surface.element.style.setProperty("--backdrop-from-opacity", backdropHandoff.opacity);
+    backdropHandoff = undefined;
+  }
   surface.element.dataset.applicationTransient = surface.kind;
   surfaceStack.push(surface);
   publishOwnershipChange();
@@ -251,6 +276,7 @@ export function useTransientSurfaceOwnership({
 }
 
 export function resetTransientSurfaceOwnershipForTests(): void {
+  backdropHandoff = undefined;
   const hadSurfaces = surfaceStack.length > 0;
   surfaceStack.splice(0);
   if (hadSurfaces) publishOwnershipChange();

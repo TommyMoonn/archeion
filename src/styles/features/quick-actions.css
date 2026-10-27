@@ -1,4 +1,5 @@
 .quick-actions {
+  --surface-duration: var(--motion-duration-fast);
   width: min(640px, calc(100% - 24px));
   max-width: none;
   margin: clamp(20px, 10dvh, 96px) auto auto;
@@ -13,10 +14,6 @@
 
 html[data-motion="on"] .quick-actions[open] {
   animation: quick-actions-enter var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-.quick-actions::backdrop {
-  background: var(--backdrop);
 }
 
 .quick-actions__panel {

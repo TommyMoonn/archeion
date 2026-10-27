@@ -1,4 +1,7 @@
 .dialog {
+  --surface-duration: var(--motion-duration-emphasized);
+  --surface-exit-duration: var(--motion-duration-fast);
+  transform-origin: center;
   --dialog-width: 430px;
   --dialog-inset: 32px;
   width: min(var(--dialog-width), calc(100% - var(--dialog-inset)));
@@ -14,16 +17,53 @@
 }
 
 html[data-motion="on"] .dialog[open] {
-  animation: dialog-presence-enter var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
 }
 
-html[data-motion="on"] dialog[open] > .modal-surface {
-  animation: app-motion-scale-in var(--motion-duration-standard) var(--motion-ease-standard);
+/* One dimming treatment and timing owner for all native application surfaces. */
+:is(.dialog, .details-drawer, .quick-actions)::backdrop {
+  background: var(--backdrop);
+  backdrop-filter: none;
 }
 
-.dialog::backdrop {
-  background: var(--backdrop-strong);
-  backdrop-filter: blur(3px);
+html[data-motion="on"] :is(.dialog, .details-drawer, .quick-actions)[open]::backdrop {
+  animation: surface-backdrop-enter var(--surface-duration) var(--motion-ease-standard) both;
+}
+
+html[data-motion="on"]
+  :is(.dialog, .details-drawer, .quick-actions)[open][data-surface-state="closing"]::backdrop {
+  animation: surface-backdrop-exit var(--surface-exit-duration, var(--surface-duration))
+    var(--motion-ease-standard) forwards;
+}
+
+/* The first modal owns the scrim through nested routes. Native stacking stays intact. */
+:is(.dialog, .details-drawer, .quick-actions)[data-backdrop-owner="false"]::backdrop {
+  background: transparent;
+  animation: none !important;
+}
+
+html[data-motion="on"]
+  :is(.dialog, .details-drawer, .quick-actions)[data-backdrop-held="true"]::backdrop {
+  opacity: 1;
+  animation: none;
+}
+
+@keyframes surface-backdrop-enter {
+  from {
+    opacity: var(--backdrop-from-opacity, 0);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes surface-backdrop-exit {
+  from {
+    opacity: var(--backdrop-from-opacity, 1);
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .dialog__panel {
@@ -257,7 +297,7 @@ html[data-motion="on"] dialog[open] > .modal-surface {
 }
 
 html[data-motion="on"] .dialog[open][data-surface-state="closing"] {
-  animation: dialog-exit var(--motion-duration-standard) var(--motion-ease-standard) forwards;
+  animation: dialog-exit var(--surface-exit-duration) var(--motion-ease-standard) forwards;
 }
 
 @keyframes dialog-exit {
@@ -267,14 +307,14 @@ html[data-motion="on"] .dialog[open][data-surface-state="closing"] {
   }
   to {
     opacity: 0;
-    transform: scale(0.985);
+    transform: var(--surface-from-transform, scale(1));
   }
 }
 
 @keyframes dialog-presence-enter {
   from {
-    opacity: var(--surface-from-opacity, 0);
-    transform: var(--surface-from-transform, scale(0.985));
+    opacity: var(--surface-from-opacity, 0.92);
+    transform: var(--surface-from-transform, scale(0.97));
   }
   to {
     opacity: 1;

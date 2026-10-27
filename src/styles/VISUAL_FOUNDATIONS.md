@@ -117,16 +117,16 @@ Application motion is opt-in. The appearance runtime sets `html[data-motion="on"
 
 The shared motion language assigns movement by purpose instead of applying one vertical entrance everywhere:
 
-| Role                    | Primitive                             | Typical use                                                                               |
-| ----------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Collection items        | `app-motion-view-content-in`          | Book, Folder, and Series card or list content                                             |
-| Settings section switch | `app-motion-settings-section-in`      | User-initiated Settings navigation after the dialog is already open                       |
-| Raised overlay          | `app-motion-scale-in`                 | Dialogs and Quick Actions                                                                 |
-| Transient notice        | `app-motion-notice-in`                | Settings status and Library feedback                                                      |
-| Hierarchy disclosure    | `app-motion-disclosure-in`            | Nested folder children                                                                    |
-| Spatial panel           | directional slide                     | Details drawers, Reader table of contents, and Archive Manager forward or back navigation |
-| Supplemental hint       | `app-tooltip-bounce-in`               | Tooltips, with a restrained placement-aware scale overshoot                               |
-| Indeterminate activity  | `app-motion-pulse` or `loading-sheen` | Loading indicators that remain visible while work is active                               |
+| Role                    | Primitive                               | Typical use                                                                               |
+| ----------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Collection items        | `app-motion-view-content-in`            | Book, Folder, and Series card or list content                                             |
+| Settings section switch | `app-motion-settings-section-in`        | User-initiated Settings navigation after the dialog is already open                       |
+| Raised overlay          | `dialog-presence-enter` / `dialog-exit` | Centered native dialogs: 0.97�1 scale, limited opacity, emphasized duration               |
+| Transient notice        | `app-motion-notice-in`                  | Settings status and Library feedback                                                      |
+| Hierarchy disclosure    | `app-motion-disclosure-in`              | Nested folder children                                                                    |
+| Spatial panel           | directional slide                       | Details drawers, Reader table of contents, and Archive Manager forward or back navigation |
+| Supplemental hint       | `app-tooltip-bounce-in`                 | Tooltips, with a restrained placement-aware scale overshoot                               |
+| Indeterminate activity  | `app-motion-pulse` or `loading-sheen`   | Loading indicators that remain visible while work is active                               |
 
 Deliberately opened Library dialogs mount their native modal shell immediately, retaining the title, existing dismissal paths and viewport-bounded content layout while code loads. Each modal skeleton reuses its form's presentation components, so field groups, natural body height, feedback reserve and footer match the ready form. Skeleton fields are inert and hidden from accessibility; one contained status announces loading. Series and integrity views use their shared header and controls during loading and chunk failure. Chunk failures offer a contained retry. `DeferredTransientFallback` remains specific to Quick Actions. Operation-owned progress is not deferred: imports, bulk metadata writes, deletion, rescans, and similar work remain visible inside their already-loaded surface as soon as the operation starts.
 
@@ -152,3 +152,5 @@ Repeat the review in dark and light appearance, normal and compact density, and 
 ## UI Integration Gate
 
 Phase 0.4.0.6 keeps recurring menu rows and disclosure triggers on the shared menu contract, requires explicit focus-visible treatment when a surface suppresses the global outline, and preserves the 900 by 600 main-window minimum. `tests/uiIntegrationGate.test.ts` protects these cross-surface invariants without replacing the owner-run Windows matrix.
+
+Native dialogs, Library details and Quick Actions share the `--backdrop` subtle dim without blur. The existing transient-surface stack assigns one scrim to the first modal through nested routes; same-commit replacements inherit its displayed opacity. Backdrop reversal samples the current opacity alongside the surface pose. Surface and backdrop share entry timing through `--surface-duration`: emphasized (180ms) for dialogs, view (200ms) for the opaque full-distance Library drawer, and the unchanged fast (120ms) palette motion. Shared dialogs close with `--surface-exit-duration` (fast, 120ms): opacity reaches zero while the displayed transform stays fixed, including interrupted entry. Their backdrop uses the same exit duration; drawer and palette exits retain their existing timing and travel. Effective motion-off remains immediate.

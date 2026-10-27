@@ -23,10 +23,13 @@ for (const surface of ["dialog", "drawer", "palette"]) {
     await page.goto(`/tests/browser/fixtures/modal-lifetime.html?surface=${surface}`);
     // Extend tokens only to inspect the intermediate state, without changing production timing.
     await page.evaluate(() =>
-      document.documentElement.style.setProperty("--motion-duration-standard", "1500ms"),
+      document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms"),
     );
     await page.evaluate(() =>
       document.documentElement.style.setProperty("--motion-duration-fast", "1500ms"),
+    );
+    await page.evaluate(() =>
+      document.documentElement.style.setProperty("--motion-duration-view", "1500ms"),
     );
     await page.getByRole("button", { name: "Open surface" }).click();
     await page
@@ -62,8 +65,9 @@ for (const surface of ["dialog", "drawer", "palette"]) {
   }) => {
     await page.goto(`/tests/browser/fixtures/modal-lifetime.html?surface=${surface}`);
     await page.evaluate(() => {
-      document.documentElement.style.setProperty("--motion-duration-standard", "1500ms");
+      document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
       document.documentElement.style.setProperty("--motion-duration-fast", "1500ms");
+      document.documentElement.style.setProperty("--motion-duration-view", "1500ms");
       window.modalLifetime.show();
     });
     const samples = await page.locator("dialog").evaluate((element) => {

@@ -124,6 +124,8 @@ export function useModalDialogLifecycle({
     if (previousState && wasClosing !== closing) {
       // Reverse from the displayed pose, including Escape during entry and reopen during exit.
       const pose = window.getComputedStyle(dialog);
+      const backdrop = window.getComputedStyle(dialog, "::backdrop");
+      dialog.style.setProperty("--backdrop-from-opacity", backdrop.opacity);
       dialog.style.setProperty("--surface-from-opacity", pose.opacity);
       dialog.style.setProperty("--surface-from-transform", pose.transform);
     }

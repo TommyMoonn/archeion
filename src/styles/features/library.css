@@ -777,6 +777,7 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 }
 
 .details-drawer {
+  --surface-duration: var(--motion-duration-view);
   position: fixed;
   inset-block: 0;
   inset-inline: auto 0;
@@ -799,11 +800,7 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 }
 
 html[data-motion="on"] .details-drawer[open] {
-  animation: details-drawer-enter var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
-.details-drawer::backdrop {
-  background: var(--backdrop-soft);
+  animation: details-drawer-enter var(--surface-duration) var(--motion-ease-standard);
 }
 
 .details-drawer__panel {
@@ -2988,25 +2985,24 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 html[data-motion="on"] .details-drawer[open][data-surface-state="closing"] {
-  animation: details-drawer-exit var(--motion-duration-standard) var(--motion-ease-standard)
-    forwards;
+  animation: details-drawer-exit var(--surface-duration) var(--motion-ease-standard) forwards;
 }
 
 @keyframes details-drawer-exit {
   from {
-    opacity: var(--surface-from-opacity, 1);
+    opacity: 1;
     transform: var(--surface-from-transform, translateX(0));
   }
   to {
-    opacity: 0;
-    transform: translateX(var(--motion-distance-small));
+    opacity: 1;
+    transform: translateX(100%);
   }
 }
 
 @keyframes details-drawer-enter {
   from {
-    opacity: var(--surface-from-opacity, 0);
-    transform: var(--surface-from-transform, translateX(var(--motion-distance-small)));
+    opacity: 1;
+    transform: var(--surface-from-transform, translateX(100%));
   }
   to {
     opacity: 1;

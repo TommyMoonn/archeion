@@ -4,7 +4,7 @@ import base from "../../playwright.config";
 export default defineConfig({
   ...base,
   testDir: ".",
-  testMatch: "modal-lifetime.pw.ts",
+  testMatch: ["modal-lifetime.pw.ts", "surface-motion.pw.ts"],
   testIgnore: [],
   workers: 1,
   retries: 0,

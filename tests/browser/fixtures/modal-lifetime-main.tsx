@@ -49,6 +49,7 @@ declare global {
 export function Fixture() {
   const [identity, setIdentity] = useState<string | null>(null);
   const [alive, setAlive] = useState(true);
+  const [nested, setNested] = useState(false);
   const close = () => {
     window.modalLifetime.dismissals += 1;
     setIdentity(null);
@@ -112,6 +113,14 @@ export function Fixture() {
         }
       >
         <button>Inside</button>
+        <button onClick={() => setNested(true)}>Open nested</button>
+        <SurfacePresence>
+          {nested ? (
+            <Dialog title="Nested" onClose={() => setNested(false)}>
+              Nested content
+            </Dialog>
+          ) : null}
+        </SurfacePresence>
       </Dialog>
     )
   ) : null;
@@ -119,6 +128,14 @@ export function Fixture() {
     <>
       <button onClick={() => setIdentity("first")}>Open surface</button>
       <button onClick={submit}>Background action</button>
+      <section className="library">
+        <header className="library-header">
+          <h1>Library</h1>
+        </header>
+        <div className="book-grid">
+          <article className="book-card">Example</article>
+        </div>
+      </section>
       {alive ? baseline ? child : <SurfacePresence>{child}</SurfacePresence> : null}
     </>
   );
