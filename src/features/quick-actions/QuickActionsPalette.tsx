@@ -1,4 +1,6 @@
+import { SurfacePresenceContext } from "../../components/modalPresenceContext";
 import {
+  useContext,
   useEffect,
   useId,
   useLayoutEffect,
@@ -55,6 +57,7 @@ export function QuickActionsPalette({
   onExecute,
   registry,
 }: QuickActionsPaletteProps) {
+  const presence = useContext(SurfacePresenceContext);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -165,6 +168,13 @@ export function QuickActionsPalette({
     onClose: dismissPalette,
     surfaceKind: "quick-actions",
   });
+
+  useLayoutEffect(() => {
+    if (presence?.present === false) {
+      retirePendingOutcomes();
+      disposeActiveMode();
+    }
+  }, [presence?.present]);
 
   useEffect(() => {
     mountedRef.current = true;

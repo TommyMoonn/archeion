@@ -799,7 +799,7 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 }
 
 html[data-motion="on"] .details-drawer[open] {
-  animation: app-motion-slide-in-right var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: details-drawer-enter var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .details-drawer::backdrop {
@@ -2984,5 +2984,32 @@ html[data-motion="on"] .library-feedback__token {
   .library-filter__metadata,
   .library-filter__group {
     grid-template-columns: 1fr;
+  }
+}
+
+html[data-motion="on"] .details-drawer[open][data-surface-state="closing"] {
+  animation: details-drawer-exit var(--motion-duration-standard) var(--motion-ease-standard)
+    forwards;
+}
+
+@keyframes details-drawer-exit {
+  from {
+    opacity: var(--surface-from-opacity, 1);
+    transform: var(--surface-from-transform, translateX(0));
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--motion-distance-small));
+  }
+}
+
+@keyframes details-drawer-enter {
+  from {
+    opacity: var(--surface-from-opacity, 0);
+    transform: var(--surface-from-transform, translateX(var(--motion-distance-small)));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }

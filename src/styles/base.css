@@ -221,18 +221,6 @@ a {
   }
 }
 
-@keyframes app-motion-slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(var(--motion-distance-small));
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 @keyframes app-motion-pulse {
   from {
     opacity: 0.55;

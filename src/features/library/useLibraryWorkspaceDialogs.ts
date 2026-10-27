@@ -80,6 +80,17 @@ export function useLibraryWorkspaceDialogs() {
 
   const close = useCallback(() => dispatch({ type: "close" }), []);
   const closeBookEditor = useCallback(() => dispatch({ type: "close-book-editor" }), []);
+  const captureClose = useCallback(
+    (
+      type: "close" | "close-book-editor" = "close",
+      owner: LibraryWorkspaceDialog = dialogRef.current,
+    ) => {
+      return () => {
+        if (dialogRef.current === owner) dispatch({ type });
+      };
+    },
+    [],
+  );
   const show = useCallback(
     (nextDialog: Exclude<LibraryWorkspaceDialog, { type: "none" }>) =>
       dispatch({ type: "show", dialog: nextDialog }),
@@ -167,6 +178,7 @@ export function useLibraryWorkspaceDialogs() {
     () => ({
       close,
       closeBookEditor,
+      captureClose,
       openAddEpub,
       openBookCover,
       openBookDetails,
@@ -188,6 +200,7 @@ export function useLibraryWorkspaceDialogs() {
     [
       close,
       closeBookEditor,
+      captureClose,
       openAddEpub,
       openBookCover,
       openBookDetails,

@@ -14,7 +14,7 @@
 }
 
 html[data-motion="on"] .dialog[open] {
-  animation: app-motion-scale-in var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: dialog-presence-enter var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 html[data-motion="on"] dialog[open] > .modal-surface {
@@ -253,5 +253,31 @@ html[data-motion="on"] dialog[open] > .modal-surface {
     min-width: 0;
     margin-inline-end: 0;
     white-space: normal;
+  }
+}
+
+html[data-motion="on"] .dialog[open][data-surface-state="closing"] {
+  animation: dialog-exit var(--motion-duration-standard) var(--motion-ease-standard) forwards;
+}
+
+@keyframes dialog-exit {
+  from {
+    opacity: var(--surface-from-opacity, 1);
+    transform: var(--surface-from-transform, scale(1));
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@keyframes dialog-presence-enter {
+  from {
+    opacity: var(--surface-from-opacity, 0);
+    transform: var(--surface-from-transform, scale(0.985));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
