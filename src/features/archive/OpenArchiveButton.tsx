@@ -1,5 +1,5 @@
 import { FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { archiveStore } from "../../stores/archiveStore";
@@ -20,12 +20,14 @@ export function OpenArchiveButton({
   variant = "primary",
 }: OpenArchiveButtonProps) {
   const [isOpening, setIsOpening] = useState(false);
+  const opening = useRef(false);
 
   async function handleOpen() {
-    if (isOpening) {
+    if (opening.current) {
       return;
     }
 
+    opening.current = true;
     setIsOpening(true);
     try {
       const opened = await archiveStore.chooseArchive();
@@ -33,14 +35,15 @@ export function OpenArchiveButton({
         await onOpened?.();
       }
     } finally {
+      opening.current = false;
       setIsOpening(false);
     }
   }
 
-  const buttonLabel = isOpening ? "Opening" : label;
-
   return (
     <Button
+      busy={isOpening}
+      busyStatus="Opening archive…"
       className={className}
       disabled={isOpening}
       icon={<FolderOpen aria-hidden="true" />}
@@ -49,11 +52,11 @@ export function OpenArchiveButton({
     >
       {description ? (
         <span className="archive-action-row__copy">
-          <span className="archive-action-row__title">{buttonLabel}</span>
+          <span className="archive-action-row__title">{label}</span>
           <span className="archive-action-row__description">{description}</span>
         </span>
       ) : (
-        buttonLabel
+        label
       )}
     </Button>
   );

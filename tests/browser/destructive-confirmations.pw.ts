@@ -28,6 +28,12 @@ for (const key of ["Enter", "Space"]) {
 
     await expect(confirmation).toHaveCount(0);
     await expect(page.getByTestId("mutation-count")).toHaveText("0");
+    const details = page.getByRole("dialog", { name: "Fixture", exact: true });
+    await expect(
+      details.getByRole("button", { name: "Clear reading progress", exact: true }),
+    ).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(details).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Clear reading progress", exact: true }),
     ).toBeFocused();

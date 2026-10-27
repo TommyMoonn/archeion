@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { ExternalLink } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
@@ -95,7 +96,13 @@ export function ReaderExternalLinkDialog({
           >
             Cancel
           </Button>
-          <Button busy={opening} disabled={opening} onClick={onConfirm} size="standard">
+          <Button
+            icon={<ExternalLink aria-hidden="true" />}
+            busy={opening}
+            disabled={opening}
+            onClick={onConfirm}
+            size="standard"
+          >
             Open in browser
           </Button>
         </div>

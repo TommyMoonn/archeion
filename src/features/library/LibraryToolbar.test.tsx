@@ -179,7 +179,7 @@ describe("LibraryToolbar", () => {
       "utf8",
     );
     const seriesSource = readFileSync(
-      resolve(process.cwd(), "src/features/series/SeriesOverview.tsx"),
+      resolve(process.cwd(), "src/features/series/SeriesOverviewHeader.tsx"),
       "utf8",
     );
 

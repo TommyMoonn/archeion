@@ -24,7 +24,7 @@ const seriesStyles = readFileSync(
   "utf8",
 );
 const libraryWorkspaceSource = readFileSync(
-  new URL("./LibraryWorkspaceSurface.tsx", import.meta.url),
+  new URL("./LibrarySecondaryViewFallback.tsx", import.meta.url),
   "utf8",
 );
 const seriesOverviewSource = readFileSync(

@@ -1,8 +1,19 @@
-import { Suspense } from "react";
-
+import { AsyncDialogShell } from "../../components/AsyncDialogShell";
+import {
+  Plus,
+  FolderPlus,
+  Save,
+  Pencil,
+  MoveRight,
+  ListChecks,
+  Trash2,
+  Eraser,
+  RefreshCw,
+} from "lucide-react";
+import { LibraryDialogSkeleton } from "./LibraryDialogSkeleton";
+import { BULK_METADATA_DESCRIPTION } from "./bulkMetadataDialogModel";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import type {
   AddArchiveEpubInput,
   LibrarySnapshotBook,
@@ -129,10 +140,27 @@ export function LibraryWorkspaceDialogs({
   selectedBooks,
 }: LibraryWorkspaceDialogsProps) {
   if (dialog.type === "none") return null;
+  const loadingContent = (
+    <LibraryDialogSkeleton
+      dialog={dialog}
+      books={books ?? []}
+      folders={folders ?? []}
+      importDefaults={importDefaults}
+      selectedBooks={selectedBooks}
+    />
+  );
 
   if (dialog.type === "add-epub") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening import dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={dialog.type}
+        title="Add EPUB files"
+        actionLabel="Add EPUB"
+        actionIcon={<Plus aria-hidden="true" />}
+        onClose={dialogActions.close}
+        closeOnBackdropClick={!dialog.droppedImport?.sourcePaths.length}
+      >
         <AddEpubDialog
           confirmDestructiveFileActions={confirmDestructiveFileActions}
           folders={folders ?? []}
@@ -143,7 +171,7 @@ export function LibraryWorkspaceDialogs({
           onClose={dialogActions.close}
           onImport={onImport}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
@@ -151,27 +179,26 @@ export function LibraryWorkspaceDialogs({
     const book = findBook(books, dialog.bookId);
     if (!book) return null;
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening book details" />}>
-        <BookDetailsDrawer
-          book={book}
-          initialFocus={dialog.initialFocus}
-          canManageFile
-          canRevealFile
-          onClearProgress={onRequestClearProgress}
-          onClose={dialogActions.close}
-          onDelete={onRequestDeleteBook}
-          onMoveFile={dialogActions.openMoveBook}
-          onRead={onReadBook}
-          onReadFromBeginning={onReadBookFromBeginning}
-          onRenameFile={dialogActions.openRenameBook}
-          onReplaceCover={dialogActions.openBookCover}
-          onRescan={dialogActions.openRescan}
-          onRevealFile={(target) => void onRevealBookFile(target)}
-          onToggleFavorite={(target) => void onToggleFavorite(target)}
-          onViewMetadata={dialogActions.openBookMetadata}
-          returnFocusTo={dialog.returnFocusTo}
-        />
-      </Suspense>
+      <BookDetailsDrawer
+        key={book.id}
+        book={book}
+        initialFocus={dialog.initialFocus}
+        canManageFile
+        canRevealFile
+        onClearProgress={onRequestClearProgress}
+        onClose={dialogActions.close}
+        onDelete={onRequestDeleteBook}
+        onMoveFile={dialogActions.openMoveBook}
+        onRead={onReadBook}
+        onReadFromBeginning={onReadBookFromBeginning}
+        onRenameFile={dialogActions.openRenameBook}
+        onReplaceCover={dialogActions.openBookCover}
+        onRescan={dialogActions.openRescan}
+        onRevealFile={(target) => void onRevealBookFile(target)}
+        onToggleFavorite={(target) => void onToggleFavorite(target)}
+        onViewMetadata={dialogActions.openBookMetadata}
+        returnFocusTo={dialog.returnFocusTo}
+      />
     );
   }
 
@@ -179,14 +206,27 @@ export function LibraryWorkspaceDialogs({
     const book = findBook(books, dialog.bookId);
     if (!book) return null;
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening metadata editor" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={`${dialog.type}:${book.id}`}
+        title="Edit EPUB metadata"
+        actionLabel="Write metadata to EPUB"
+        actionIcon={<Save aria-hidden="true" />}
+        className="dialog--metadata-writeback"
+        workspace
+        feedbackSize="summary"
+        closeOnBackdropClick={false}
+        dismissLabel="Close"
+        onClose={dialogActions.closeBookEditor}
+        returnFocusTo={dialog.returnFocusTo}
+      >
         <BookAdvancedMetadataDialog
           book={book}
           onClose={dialogActions.closeBookEditor}
           onWriteMetadata={onWriteBookMetadata}
           returnFocusTo={dialog.returnFocusTo}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
@@ -194,7 +234,19 @@ export function LibraryWorkspaceDialogs({
     const book = findBook(books, dialog.bookId);
     if (!book) return null;
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening cover editor" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={`${dialog.type}:${book.id}`}
+        title="Replace embedded cover"
+        actionLabel="Write cover to EPUB"
+        actionIcon={<Save aria-hidden="true" />}
+        dismissLabel="Close"
+        className="dialog--cover-writeback"
+        workspace
+        feedbackPlacement="inline"
+        onClose={dialogActions.closeBookEditor}
+        returnFocusTo={dialog.returnFocusTo}
+      >
         <BookCoverWritebackDialog
           book={book}
           onClose={dialogActions.closeBookEditor}
@@ -202,26 +254,42 @@ export function LibraryWorkspaceDialogs({
           onWriteCover={onWriteBookCover}
           returnFocusTo={dialog.returnFocusTo}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
   if (dialog.type === "rename-book") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening rename dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={`${dialog.type}:${dialog.book.id}`}
+        title="Rename EPUB file"
+        actionLabel="Rename file"
+        actionIcon={<Pencil aria-hidden="true" />}
+        onClose={dialogActions.close}
+        returnFocusTo={dialog.returnFocusTo}
+      >
         <RenameFileDialog
           book={dialog.book}
           onClose={dialogActions.close}
           onRename={(fileName) => onRenameBookFile(dialog.book, fileName)}
           returnFocusTo={dialog.returnFocusTo}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
   if (dialog.type === "move-book") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={`${dialog.type}:${dialog.book.id}`}
+        title="Move EPUB file"
+        actionLabel="Move"
+        actionIcon={<MoveRight aria-hidden="true" />}
+        onClose={dialogActions.close}
+        returnFocusTo={dialog.returnFocusTo}
+      >
         <MoveToFolderDialog
           currentFolderId={dialog.book.folderId ?? null}
           folders={folders ?? []}
@@ -230,27 +298,41 @@ export function LibraryWorkspaceDialogs({
           returnFocusTo={dialog.returnFocusTo}
           title="Move EPUB file"
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
   if (dialog.type === "create-folder") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={dialog.type}
+        title="Create folder"
+        actionLabel="Create"
+        actionIcon={<FolderPlus aria-hidden="true" />}
+        onClose={dialogActions.close}
+      >
         <FolderCreateDialog onClose={dialogActions.close} onCreate={onCreateFolder} />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
   if (dialog.type === "rename-folder") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={`${dialog.type}:${dialog.folder.id}`}
+        title="Rename folder"
+        actionLabel="Save"
+        actionIcon={<Save aria-hidden="true" />}
+        onClose={dialogActions.close}
+      >
         <FolderRenameDialog
           folder={dialog.folder}
           onClose={dialogActions.close}
           onRename={(name) => onRenameFolder(dialog.folder, name)}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
@@ -262,7 +344,14 @@ export function LibraryWorkspaceDialogs({
       )
       .map((folder) => folder.id);
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={`${dialog.type}:${dialog.folder.id}`}
+        title="Move folder"
+        actionLabel="Move"
+        actionIcon={<MoveRight aria-hidden="true" />}
+        onClose={dialogActions.close}
+      >
         <MoveToFolderDialog
           currentFolderId={dialog.folder.parentId ?? null}
           excludedFolderIds={excludedFolderIds}
@@ -271,7 +360,7 @@ export function LibraryWorkspaceDialogs({
           onMove={(folderId) => onMoveFolder(dialog.folder, folderId)}
           title="Move folder"
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
@@ -280,6 +369,15 @@ export function LibraryWorkspaceDialogs({
       <Dialog
         returnFocusTo={dialog.returnFocusTo}
         title={dialog.book.isFileMissing ? "Remove book metadata?" : "Delete EPUB file?"}
+        feedback={
+          <p role="status">
+            {isDeleting
+              ? dialog.book.isFileMissing
+                ? "Removing metadata…"
+                : "Deleting EPUB…"
+              : ""}
+          </p>
+        }
         description={
           dialog.book.isFileMissing
             ? `Favorites and progress for “${bookTitle(dialog.book)}” will be removed. No EPUB file will be deleted.`
@@ -295,14 +393,12 @@ export function LibraryWorkspaceDialogs({
             </Button>
             <Button
               variant="danger"
+              icon={<Trash2 aria-hidden="true" />}
+              busy={isDeleting}
               disabled={isDeleting}
               onClick={() => void onDeleteBook(dialog.book)}
             >
-              {isDeleting
-                ? "Removing"
-                : dialog.book.isFileMissing
-                  ? "Remove metadata"
-                  : "Delete EPUB"}
+              {dialog.book.isFileMissing ? "Remove metadata" : "Delete EPUB"}
             </Button>
           </>
         }
@@ -312,7 +408,14 @@ export function LibraryWorkspaceDialogs({
 
   if (dialog.type === "bulk-move") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={dialog.type}
+        title={`Move ${selectedBookIds.size} selected books`}
+        actionLabel="Move"
+        actionIcon={<MoveRight aria-hidden="true" />}
+        onClose={dialogActions.close}
+      >
         <MoveToFolderDialog
           disableUnchanged={false}
           folders={folders ?? []}
@@ -320,20 +423,32 @@ export function LibraryWorkspaceDialogs({
           onMove={onMoveSelectedBooks}
           title={`Move ${selectedBookIds.size} selected books`}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
   if (dialog.type === "bulk-metadata") {
     return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening metadata editor" />}>
+      <AsyncDialogShell
+        loadingContent={loadingContent}
+        key={dialog.type}
+        title={`Edit metadata for ${selectedBooks.length} books`}
+        actionLabel="Review changes"
+        actionIcon={<ListChecks aria-hidden="true" />}
+        loadingDescription={BULK_METADATA_DESCRIPTION}
+        reserveFeedback={false}
+        reserveActionIndicator={false}
+        className="dialog--bulk-metadata"
+        onClose={dialogActions.close}
+        closeOnBackdropClick={false}
+      >
         <BulkMetadataDialog
           books={selectedBooks}
           isWriting={isBulkRunning}
           onApply={onWriteSelectedBookMetadata}
           onClose={dialogActions.close}
         />
-      </Suspense>
+      </AsyncDialogShell>
     );
   }
 
@@ -341,6 +456,7 @@ export function LibraryWorkspaceDialogs({
     return (
       <Dialog
         title={`Delete ${selectedBookIds.size} selected books?`}
+        feedback={<p role="status">{isBulkRunning ? "Deleting selected books…" : ""}</p>}
         description="Available EPUB files will be moved to the Recycle Bin or platform Trash. Saved library data for successful items will also be removed."
         onClose={() => {
           if (!isBulkRunning) dialogActions.close();
@@ -351,11 +467,13 @@ export function LibraryWorkspaceDialogs({
               Cancel
             </Button>
             <Button
+              icon={<Trash2 aria-hidden="true" />}
+              busy={isBulkRunning}
               disabled={isBulkRunning}
               onClick={() => void onDeleteSelectedBooks()}
               variant="danger"
             >
-              {isBulkRunning ? "Deleting" : "Delete selected books"}
+              Delete selected books
             </Button>
           </>
         }
@@ -368,6 +486,7 @@ export function LibraryWorkspaceDialogs({
       <Dialog
         returnFocusTo={dialog.returnFocusTo}
         title="Clear reading progress?"
+        feedback={<p role="status">{isClearingProgress ? "Clearing reading progress…" : ""}</p>}
         description={`This resets the saved reading position for “${bookTitle(dialog.book)}”. The EPUB file and last-opened date are not changed.`}
         onClose={() => {
           if (!isClearingProgress)
@@ -384,10 +503,12 @@ export function LibraryWorkspaceDialogs({
               Cancel
             </Button>
             <Button
+              icon={<Eraser aria-hidden="true" />}
+              busy={isClearingProgress}
               disabled={isClearingProgress}
               onClick={() => void onConfirmClearProgress(dialog.book)}
             >
-              {isClearingProgress ? "Clearing" : "Clear progress"}
+              Clear progress
             </Button>
           </>
         }
@@ -410,6 +531,7 @@ export function LibraryWorkspaceDialogs({
             </Button>
             <Button
               autoFocus
+              icon={<RefreshCw aria-hidden="true" />}
               busy={isRescanning}
               disabled={isRescanning}
               onClick={() => {
@@ -431,6 +553,7 @@ export function LibraryWorkspaceDialogs({
   return (
     <Dialog
       title={`Delete “${dialog.folder.name}” folder?`}
+      feedback={<p role="status">{isDeleting ? "Deleting folder…" : ""}</p>}
       description={`The “${dialog.folder.name}” folder and ${deleteFolderBookCount} contained EPUB ${
         deleteFolderBookCount === 1 ? "file" : "files"
       } will be moved to Trash when available.`}
@@ -444,10 +567,12 @@ export function LibraryWorkspaceDialogs({
           </Button>
           <Button
             variant="danger"
+            icon={<Trash2 aria-hidden="true" />}
+            busy={isDeleting}
             disabled={isDeleting}
             onClick={() => void onDeleteFolder(dialog.folder)}
           >
-            {isDeleting ? "Deleting" : "Delete folder"}
+            Delete folder
           </Button>
         </>
       }

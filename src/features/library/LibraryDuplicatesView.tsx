@@ -1,7 +1,8 @@
-import { BookOpen, Copy, Ellipsis, FolderOpen, MoveRight, RefreshCw, Trash2 } from "lucide-react";
+import { BookOpen, Copy, Ellipsis, FolderOpen, MoveRight, Trash2 } from "lucide-react";
 import { memo, useId } from "react";
 
 import { Button } from "../../components/Button";
+import { LibraryIntegrityHeader } from "./LibraryIntegrityHeader";
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import { EmptyState } from "../../components/EmptyState";
 import { Tooltip } from "../../components/Tooltip";
@@ -204,33 +205,18 @@ export function LibraryDuplicatesView({
 
   return (
     <section aria-labelledby="duplicates-title" className="duplicates-view">
-      <header className="library-header duplicates-header">
-        <div className="library-header__title">
-          <p className="eyebrow">Archive integrity</p>
-          <h1 id="duplicates-title">Duplicates</h1>
-        </div>
-        <div className="duplicates-header__actions">
-          <Button
-            busy={refreshing}
-            disabled={refreshing}
-            icon={<RefreshCw />}
-            onClick={() => void onRefresh()}
-            size="standard"
-            variant="secondary"
-          >
-            Refresh
-          </Button>
-        </div>
-        <div className="library-controls duplicates-controls">
-          <span aria-live="polite" className="library-result-count">
-            {initialLoading
-              ? "Checking EPUB files"
-              : failedWithoutSnapshot
-                ? "Analysis unavailable"
-                : groupCountLabel}
-          </span>
-        </div>
-      </header>
+      <LibraryIntegrityHeader
+        kind="duplicates"
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        resultLabel={
+          initialLoading
+            ? "Checking EPUB files"
+            : failedWithoutSnapshot
+              ? "Analysis unavailable"
+              : groupCountLabel
+        }
+      />
 
       <div
         aria-busy={initialLoading || refreshing || undefined}

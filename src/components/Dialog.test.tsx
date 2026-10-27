@@ -27,6 +27,78 @@ function renderDialog(closeOnBackdropClick = true) {
 }
 
 describe("Dialog backdrop dismissal", () => {
+  it("focuses the safe footer action rather than the scrollable body on open", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    act(() =>
+      root.render(
+        <Dialog
+          title="Confirm action"
+          onClose={vi.fn()}
+          footer={
+            <>
+              <button>Cancel</button>
+              <button>Delete</button>
+            </>
+          }
+        >
+          <p>Confirm the operation.</p>
+        </Dialog>,
+      ),
+    );
+    expect(document.activeElement).toBe(container.querySelector("button"));
+    act(() => root.unmount());
+  });
+
+  it("keeps the form, focus and modal lifetime when feedback changes", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const onClose = vi.fn();
+    function render(feedback: string | null) {
+      act(() =>
+        root.render(
+          <Dialog
+            title="Save file"
+            onClose={onClose}
+            feedback={feedback ? <p role="alert">{feedback}</p> : null}
+            feedbackSize="summary"
+            footer={<button type="button">Save</button>}
+          >
+            <input aria-label="Filename" defaultValue="Book" />
+          </Dialog>,
+        ),
+      );
+    }
+    render(null);
+    const dialog = container.querySelector("dialog")!;
+    const input = container.querySelector("input")!;
+    const body = container.querySelector(".dialog__body")!;
+    const feedback = container.querySelector(".dialog__feedback")!;
+    expect(feedback.getAttribute("data-feedback-size")).toBe("summary");
+    const footer = container.querySelector(".dialog__footer")!;
+    input.focus();
+    input.setSelectionRange(1, 3);
+    const close = vi.spyOn(dialog, "close");
+    render("Could not save");
+    expect(container.querySelector("dialog")).toBe(dialog);
+    expect(container.querySelector(".dialog__body")).toBe(body);
+    expect(container.querySelector(".dialog__feedback")).toBe(feedback);
+    expect(container.querySelector(".dialog__footer")).toBe(footer);
+    expect(body.contains(input)).toBe(true);
+    expect(feedback.textContent).toBe("Could not save");
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(1);
+    expect(input.selectionEnd).toBe(3);
+    expect(close).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    render(null);
+    expect(feedback.textContent).toBe("");
+    expect(container.querySelector(".dialog__feedback")).toBe(feedback);
+    act(() => root.unmount());
+  });
+
   it("keeps an open select menu inside a modal dialog under an outer transform", () => {
     const transformedAncestor = document.createElement("div");
     transformedAncestor.style.transform = "translateX(40px)";
@@ -55,16 +127,16 @@ describe("Dialog backdrop dismissal", () => {
     vi.spyOn(dialog, "matches").mockImplementation((selector) =>
       selector === ":modal" ? true : originalMatches(selector),
     );
-    const panel = container.querySelector<HTMLElement>(".dialog__panel")!;
+    const body = container.querySelector<HTMLElement>(".dialog__body")!;
     const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
-    panel.scrollTop = 32;
+    body.scrollTop = 32;
 
     act(() => trigger.click());
 
     const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
     expect(dialog.contains(menu)).toBe(true);
     expect(menu.style.visibility).toBe("visible");
-    expect(panel.scrollTop).toBe(32);
+    expect(body.scrollTop).toBe(32);
 
     const second = Array.from(
       menu.querySelectorAll<HTMLButtonElement>('button[role="option"]'),
@@ -73,7 +145,7 @@ describe("Dialog backdrop dismissal", () => {
 
     expect(onChange).toHaveBeenCalledWith("second");
     expect(container.querySelector(".app-select__menu")).toBeNull();
-    expect(panel.scrollTop).toBe(32);
+    expect(body.scrollTop).toBe(32);
     expect(document.activeElement).toBe(trigger);
     act(() => root.unmount());
   });

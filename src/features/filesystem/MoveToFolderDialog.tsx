@@ -1,7 +1,8 @@
-import { Folder as FolderIcon } from "lucide-react";
+import { MoveRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { AppSelect } from "../../components/AppSelect";
+import { MoveToFolderFields } from "./MoveToFolderFields";
+import { moveDestinationOptions } from "./moveDestinationOptions";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import type { ReadonlyFolder } from "../../types/folder";
@@ -30,20 +31,9 @@ export function MoveToFolderDialog({
   title,
   disableUnchanged = true,
 }: MoveToFolderDialogProps) {
-  const excluded = useMemo(() => new Set(excludedFolderIds), [excludedFolderIds]);
   const options = useMemo(
-    () => [
-      { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },
-      ...[...folders]
-        .filter((folder) => folder.relativePath)
-        .sort((left, right) => (left.relativePath ?? "").localeCompare(right.relativePath ?? ""))
-        .map((folder) => ({
-          disabled: excluded.has(folder.id),
-          label: folder.relativePath ?? folder.name,
-          value: folder.id,
-        })),
-    ],
-    [excluded, folders],
+    () => moveDestinationOptions(folders, excludedFolderIds),
+    [folders, excludedFolderIds],
   );
   const currentValue = currentFolderId ?? ARCHIVE_ROOT_DESTINATION;
   const [destination, setDestination] = useState<DestinationValue>(currentValue);
@@ -76,6 +66,15 @@ export function MoveToFolderDialog({
     <Dialog
       returnFocusTo={returnFocusTo}
       title={title}
+      feedback={
+        error ? (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p role="status">{isSaving ? "Moving…" : ""}</p>
+        )
+      }
       onClose={() => {
         if (!isSaving) {
           onClose();
@@ -86,31 +85,18 @@ export function MoveToFolderDialog({
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button busy={isSaving} disabled={isSaving || isUnchanged} onClick={() => void submit()}>
+          <Button
+            icon={<MoveRight aria-hidden="true" />}
+            busy={isSaving}
+            disabled={isSaving || isUnchanged}
+            onClick={() => void submit()}
+          >
             Move
           </Button>
         </>
       }
     >
-      <div className="move-to-folder-dialog">
-        <AppSelect
-          id="move-folder-destination"
-          label={
-            <span className="move-to-folder-dialog__label">
-              <FolderIcon aria-hidden="true" size={14} />
-              Destination
-            </span>
-          }
-          onChange={setDestination}
-          options={options}
-          value={destination}
-        />
-        {error ? (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        ) : null}
-      </div>
+      <MoveToFolderFields {...{ options, destination, setDestination }} />
     </Dialog>
   );
 }

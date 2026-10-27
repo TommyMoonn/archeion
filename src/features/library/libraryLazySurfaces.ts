@@ -1,4 +1,11 @@
-import { lazy } from "react";
+import { createElement } from "react";
+import { createAsyncSurface } from "../../components/createAsyncSurface";
+import {
+  IntegrityViewFallback,
+  SeriesOverviewFallback,
+  SeriesDetailFallback,
+} from "./LibrarySecondaryViewFallback";
+export { BookDetailsDrawer } from "./LazyBookDetailsDrawer";
 
 const loadAddEpubDialog = () =>
   import("../filesystem/AddEpubDialog").then((module) => ({
@@ -11,10 +18,6 @@ const loadMoveToFolderDialog = () =>
 const loadRenameFileDialog = () =>
   import("../filesystem/RenameFileDialog").then((module) => ({
     default: module.RenameFileDialog,
-  }));
-const loadBookDetailsDrawer = () =>
-  import("./BookDetailsDrawer").then((module) => ({
-    default: module.BookDetailsDrawer,
   }));
 const loadBookAdvancedMetadataDialog = () =>
   import("./BookAdvancedMetadataDialog").then((module) => ({
@@ -47,16 +50,39 @@ const loadLibraryEpubIssuesView = () =>
     default: module.LibraryEpubIssuesView,
   }));
 
-export const AddEpubDialog = lazy(loadAddEpubDialog);
-export const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
-export const RenameFileDialog = lazy(loadRenameFileDialog);
-export const BookDetailsDrawer = lazy(loadBookDetailsDrawer);
-export const BookAdvancedMetadataDialog = lazy(loadBookAdvancedMetadataDialog);
-export const BookCoverWritebackDialog = lazy(loadBookCoverWritebackDialog);
-export const BulkMetadataDialog = lazy(loadBulkMetadataDialog);
-export const FolderCreateDialog = lazy(loadFolderCreateDialog);
-export const FolderRenameDialog = lazy(loadFolderRenameDialog);
-export const SeriesDetail = lazy(loadSeriesDetail);
-export const SeriesOverview = lazy(loadSeriesOverview);
-export const LibraryDuplicatesView = lazy(loadLibraryDuplicatesView);
-export const LibraryEpubIssuesView = lazy(loadLibraryEpubIssuesView);
+export const AddEpubDialog = createAsyncSurface(loadAddEpubDialog);
+export const MoveToFolderDialog = createAsyncSurface(loadMoveToFolderDialog);
+export const RenameFileDialog = createAsyncSurface(loadRenameFileDialog);
+export const BookAdvancedMetadataDialog = createAsyncSurface(loadBookAdvancedMetadataDialog);
+export const BookCoverWritebackDialog = createAsyncSurface(loadBookCoverWritebackDialog);
+export const BulkMetadataDialog = createAsyncSurface(loadBulkMetadataDialog);
+export const FolderCreateDialog = createAsyncSurface(loadFolderCreateDialog);
+export const FolderRenameDialog = createAsyncSurface(loadFolderRenameDialog);
+export const SeriesDetail = createAsyncSurface(loadSeriesDetail, (props, retry) =>
+  createElement(SeriesDetailFallback, { ...props, onRetry: retry }),
+);
+export const SeriesOverview = createAsyncSurface(loadSeriesOverview, (props, retry) =>
+  createElement(SeriesOverviewFallback, {
+    ...props,
+    resultLabel: "Series unavailable",
+    onRetry: retry,
+  }),
+);
+export const LibraryDuplicatesView = createAsyncSurface(loadLibraryDuplicatesView, (props, retry) =>
+  createElement(IntegrityViewFallback, {
+    kind: "duplicates",
+    refreshing: false,
+    onRefresh: props.onRefresh,
+    resultLabel: "View unavailable",
+    onRetry: retry,
+  }),
+);
+export const LibraryEpubIssuesView = createAsyncSurface(loadLibraryEpubIssuesView, (props, retry) =>
+  createElement(IntegrityViewFallback, {
+    kind: "epub-issues",
+    refreshing: false,
+    onRefresh: props.onRefresh,
+    resultLabel: "View unavailable",
+    onRetry: retry,
+  }),
+);

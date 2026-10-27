@@ -17,7 +17,7 @@ for (const { mode, module, title } of windows) {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(`**/${module}.tsx*`, async (route) => {
+    await page.route(new RegExp(`/${module}(?:\\.tsx.*|-[^/]+\\.js)$`), async (route) => {
       await held;
       await route.continue();
     });
@@ -87,7 +87,7 @@ test("a stalled feature import becomes a recoverable error inside the original c
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/StandaloneSettingsWindow.tsx*", async (route) => {
+  await page.route(/\/StandaloneSettingsWindow(?:\.tsx.*|-[^/]+\.js)$/, async (route) => {
     await held;
     await route.continue();
   });
@@ -109,7 +109,7 @@ test("a stalled feature import becomes a recoverable error inside the original c
 test("a failed feature import retains native controls and an accessible error", async ({
   page,
 }) => {
-  await page.route("**/AboutWindow.tsx*", (route) => route.abort());
+  await page.route(/\/AboutWindow(?:\.tsx.*|-[^/]+\.js)$/, (route) => route.abort());
   await page.goto(`${fixture}?window=about&windowInstance=9&settingsDelay=0`, {
     waitUntil: "commit",
   });

@@ -1,7 +1,9 @@
 .dialog {
-  width: min(430px, calc(100% - 32px));
+  --dialog-width: 430px;
+  --dialog-inset: 32px;
+  width: min(var(--dialog-width), calc(100% - var(--dialog-inset)));
   max-width: none;
-  max-height: calc(100dvh - 32px);
+  max-height: calc(100dvh - var(--dialog-inset));
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-dialog);
@@ -28,9 +30,81 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   container-name: dialog-panel;
   container-type: inline-size;
   box-sizing: border-box;
-  max-height: calc(100dvh - 34px);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - var(--dialog-inset) - 2px);
   padding: 24px;
+  overflow: hidden;
+}
+
+.dialog__copy,
+.dialog__bottom {
+  flex: none;
+  min-width: 0;
+}
+
+.dialog__body,
+.dialog__feedback {
+  min-width: 0;
+  min-height: 0;
   overflow-y: auto;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 2px;
+}
+
+.dialog__body {
+  flex: 1 1 auto;
+  margin-block-start: 20px;
+}
+
+.dialog__feedback {
+  flex: none;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  height: var(--control-height-prominent);
+}
+
+.dialog__bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-block-start: 20px;
+}
+
+.dialog__bottom > .dialog__footer:only-child {
+  grid-column: 1 / -1;
+}
+
+.dialog--workspace .dialog__bottom:not([data-feedback-placement="inline"]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dialog--workspace .dialog__feedback {
+  /* Reserve two message lines independently of content or operation state. */
+  height: calc(2 * var(--type-meta) * var(--type-meta-line-height) + 4px);
+}
+
+.dialog--workspace .dialog__feedback[data-feedback-size="summary"] {
+  /* A structured summary includes its heading, detail line and internal padding. */
+  height: calc(4 * var(--type-meta) * var(--type-meta-line-height) + 4px);
+}
+
+.dialog__feedback > :first-child {
+  margin-top: 0;
+}
+
+.dialog__feedback > :last-child {
+  margin-bottom: 0;
+}
+
+:root[data-focus-presentation="keyboard-navigation"] .dialog__body:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"] .dialog__feedback:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 
 .dialog__copy h2 {
@@ -54,9 +128,9 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   gap: 10px;
 }
 
-.dialog__copy p {
+.dialog__description {
   max-width: 65ch;
-  margin: 0;
+  margin: 0 0 20px;
   color: var(--muted);
   font-size: var(--type-body);
   font-weight: var(--type-body-weight);
@@ -68,25 +142,25 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   justify-content: flex-end;
   gap: 9px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
-.dialog__panel > .dialog__copy + :not(.dialog__footer) {
-  margin-top: 20px;
-}
-
-.dialog__panel > .dialog__footer {
-  margin-top: 24px;
+.dialog__description:last-child {
+  margin-bottom: 0;
 }
 
 @media (max-height: 520px), (max-width: 480px) {
   .dialog {
-    width: min(100% - 20px, 430px);
-    max-height: calc(100dvh - 20px);
+    --dialog-inset: 20px;
   }
 
   .dialog__panel {
-    max-height: calc(100dvh - 22px);
     padding: 20px;
+  }
+
+  .dialog__body,
+  .dialog__bottom {
+    margin-block-start: 12px;
   }
 }
 
@@ -95,11 +169,79 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   gap: 10px;
 }
 
+.dialog-skeleton {
+  display: contents;
+}
+
+.dialog-skeleton,
+.dialog-skeleton * {
+  color: transparent !important;
+  caret-color: transparent !important;
+  text-shadow: none !important;
+}
+
+.dialog-skeleton ::placeholder {
+  color: transparent !important;
+}
+
+.dialog-skeleton
+  :is(
+    input,
+    textarea,
+    button,
+    .segmented-control,
+    .metadata-writeback__reference-value,
+    .cover-writeback__preview,
+    .book-cover
+  ) {
+  background: var(--surface-raised);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.dialog-skeleton
+  :is(
+    label > span,
+    h3,
+    .app-select__label,
+    .add-epub-dialog__field > span,
+    .cover-writeback__framing > span,
+    .cover-writeback__book strong,
+    .cover-writeback__book small
+  ) {
+  background: linear-gradient(var(--surface-raised), var(--surface-raised)) left center /
+    min(8rem, 75%) 0.65em no-repeat;
+}
+
+.dialog-load-working {
+  position: relative;
+  min-width: 0;
+}
+
+.dialog-load-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+
 .dialog__footer > .button--ghost:first-child {
   margin-inline-end: auto;
 }
 
-@container dialog-panel (max-width: 320px) {
+@container dialog-panel (max-width: 20rem) {
+  .dialog__bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dialog__feedback {
+    height: calc(2 * var(--type-meta) * var(--type-meta-line-height));
+  }
+
   .dialog__footer {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -112,40 +254,4 @@ html[data-motion="on"] dialog[open] > .modal-surface {
     margin-inline-end: 0;
     white-space: normal;
   }
-}
-
-.dialog-loading-fallback {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--backdrop);
-}
-
-.dialog-loading-fallback__panel {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 15px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  color: var(--muted);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-popover);
-  font-size: var(--type-meta);
-}
-
-.dialog-loading-fallback__indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-}
-
-html[data-motion="on"] .dialog-loading-fallback__indicator {
-  animation: app-motion-pulse var(--motion-duration-loop) var(--motion-ease-standard) infinite
-    alternate;
 }

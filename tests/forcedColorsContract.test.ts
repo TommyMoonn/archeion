@@ -208,7 +208,7 @@ describe("forced-colors and focus visibility contract", () => {
     expect(errorContract).toContain("background: Mark");
     expect(forcedColorsBlock).not.toContain('[role="alert"]');
     expect(forcedColorsBlock).not.toContain("[aria-live]");
-    expect(read("src/components/DialogLoadingFallback.tsx")).not.toContain('data-tone="error"');
+    expect(read("src/components/AsyncDialogShell.tsx")).not.toContain('data-tone="error"');
     expect(read("src/features/quick-actions/QuickActionsPalette.tsx")).not.toContain(
       'data-tone="error"',
     );

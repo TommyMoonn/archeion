@@ -9,6 +9,8 @@ const baseURL = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: "./tests/browser",
   testMatch: "**/*.pw.ts",
+  // Chunk interception requires the production fixture build, run separately in CI.
+  testIgnore: "**/async-surfaces.pw.ts",
   timeout: 30_000,
   expect: { timeout: 5_000 },
   workers: 2,

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listOwnedApplications, stopOwnedApplications } from "../scripts/runtime-smoke-cleanup.mjs";
+import { isWindowsProcessElevated } from "../scripts/windows-smoke-support.mjs";
 import {
   assertBundlePrivileges,
   createSmokeOverlay,
@@ -22,6 +23,22 @@ const options = {
 };
 
 describe("isolated Windows updater fixtures", () => {
+  it("uses the shared Windows command deadline for elevation and fails closed on probe errors", async () => {
+    const run = vi.fn().mockResolvedValue("True\r\n");
+    await expect(isWindowsProcessElevated(run)).resolves.toBe(true);
+    expect(run).toHaveBeenCalledWith(
+      "powershell.exe",
+      expect.arrayContaining(["-NoProfile", "-NonInteractive"]),
+    );
+    run.mockResolvedValueOnce("False\r\n");
+    await expect(isWindowsProcessElevated(run)).resolves.toBe(false);
+    run.mockResolvedValueOnce("");
+    await expect(isWindowsProcessElevated(run)).rejects.toThrow(
+      "Invalid Windows token elevation result",
+    );
+    run.mockRejectedValueOnce(new Error("Token query failed"));
+    await expect(isWindowsProcessElevated(run)).rejects.toThrow("Token query failed");
+  });
   it("collects exact owned partial-build bundles without matching ordinary or prior-run files", () => {
     const owned = [
       "Archeion Updater Smoke 0123456789abcdef_1.6.0_x64-setup.exe",

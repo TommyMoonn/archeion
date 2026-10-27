@@ -1,3 +1,5 @@
+import { FolderPlus, Save } from "lucide-react";
+import { FolderNameFields } from "./FolderNameFields";
 import { useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "../../components/Button";
@@ -54,6 +56,22 @@ export function FolderNameDialog({
   return (
     <Dialog
       title={mode === "create" ? "Create folder" : "Rename folder"}
+      feedback={
+        validationError || operationError ? (
+          <>
+            {validationError ? (
+              <p className="form-error" id={validationErrorId} role="alert">
+                {validationError}
+              </p>
+            ) : null}
+            {operationError ? (
+              <p className="form-error" role="alert">
+                {operationError}
+              </p>
+            ) : null}
+          </>
+        ) : null
+      }
       onClose={() => {
         if (!isSaving) {
           onClose();
@@ -64,43 +82,28 @@ export function FolderNameDialog({
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button busy={isSaving} disabled={isSaving} form={formId} type="submit">
+          <Button
+            icon={
+              mode === "create" ? <FolderPlus aria-hidden="true" /> : <Save aria-hidden="true" />
+            }
+            busy={isSaving}
+            disabled={isSaving}
+            form={formId}
+            type="submit"
+          >
             {mode === "create" ? "Create" : "Save"}
           </Button>
         </>
       }
     >
-      <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
-        <label className="form-field">
-          <span>
-            Name <span className="form-required">Required</span>
-          </span>
-          <input
-            aria-describedby={validationError ? validationErrorId : undefined}
-            aria-invalid={validationError ? true : undefined}
-            autoFocus
-            maxLength={80}
-            onChange={(event) => {
-              setName(event.currentTarget.value);
-              setValidationError(null);
-              setOperationError(null);
-            }}
-            ref={nameInputRef}
-            required
-            value={name}
-          />
-        </label>
-        {validationError ? (
-          <p className="form-error" id={validationErrorId} role="alert">
-            {validationError}
-          </p>
-        ) : null}
-        {operationError ? (
-          <p className="form-error" role="alert">
-            {operationError}
-          </p>
-        ) : null}
-      </form>
+      <FolderNameFields
+        {...{ formId, handleSubmit, validationError, validationErrorId, name, nameInputRef }}
+        onNameChange={(value) => {
+          setName(value);
+          setValidationError(null);
+          setOperationError(null);
+        }}
+      />
     </Dialog>
   );
 }

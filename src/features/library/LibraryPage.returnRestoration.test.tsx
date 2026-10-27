@@ -418,7 +418,7 @@ describe("mounted reader-return surfaces", () => {
       await vi.waitFor(() =>
         expect(archiveIntegrityCommandClient[requestMethod]).toHaveBeenCalled(),
       );
-      await waitForSelector(session.container, "main h1");
+      await waitForSelector(session.container, `.${view}-content[data-surface-state="empty"]`);
       await flushRestoration();
 
       const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;

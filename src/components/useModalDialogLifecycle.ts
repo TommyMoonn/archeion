@@ -22,9 +22,10 @@ import {
 import { focusPresentationRuntime } from "../app/inputModality";
 
 type UseModalDialogLifecycleOptions = {
-  closeOnBackdropClick?: boolean;
+  closeOnBackdropClick?: boolean | (() => boolean);
   dialogRef: RefObject<HTMLDialogElement | null>;
   initialFocusRef?: RefObject<HTMLElement | null>;
+  resolveInitialFocus?: () => HTMLElement | null;
   focusReturn?: FocusReturnRecord;
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
@@ -46,6 +47,7 @@ export function useModalDialogLifecycle({
   dialogRef,
   focusReturn,
   initialFocusRef,
+  resolveInitialFocus,
   onClose,
   returnFocusTo,
   surfaceKind = "app-dialog",
@@ -82,7 +84,7 @@ export function useModalDialogLifecycle({
     }
     if (focusReturn) claimFocusReturnSurface(focusReturn, dialog ?? null);
     focusPresentationRuntime.markProgrammatic();
-    focusElementIfUsable(initialFocusRef?.current);
+    focusElementIfUsable(resolveInitialFocus?.() ?? initialFocusRef?.current);
 
     return () => {
       if (dialog?.open) {
@@ -95,7 +97,7 @@ export function useModalDialogLifecycle({
         }
       });
     };
-  }, [dialogRef, focusReturnRecord, initialFocusRef]);
+  }, [dialogRef, focusReturnRecord, initialFocusRef, resolveInitialFocus]);
 
   return {
     suppressFocusRestoration: () => {
@@ -107,7 +109,9 @@ export function useModalDialogLifecycle({
     },
     onClick: (event) => {
       if (
-        closeOnBackdropClick &&
+        (typeof closeOnBackdropClick === "function"
+          ? closeOnBackdropClick()
+          : closeOnBackdropClick) &&
         pointerStartedOnBackdropRef.current &&
         event.target === event.currentTarget
       ) {

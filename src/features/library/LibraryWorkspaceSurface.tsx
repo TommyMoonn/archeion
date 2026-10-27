@@ -36,6 +36,11 @@ import {
 } from "./LibraryTitlebarComposition";
 import { LibraryToolbar } from "./LibraryToolbar";
 import {
+  IntegrityViewFallback,
+  SeriesOverviewFallback,
+  SeriesDetailFallback,
+} from "./LibrarySecondaryViewFallback";
+import {
   LibraryDuplicatesView,
   LibraryEpubIssuesView,
   SeriesDetail,
@@ -224,15 +229,7 @@ export function LibraryWorkspaceSurface({
       ) : location.type === "series" ? (
         <Suspense
           fallback={
-            <div
-              aria-busy="true"
-              className="collection-content library-content"
-              data-surface-state="loading"
-            >
-              <div className="collection-content__loading library-loading" role="status">
-                Loading series
-              </div>
-            </div>
+            <SeriesOverviewFallback {...seriesOverviewProps} resultLabel="Loading series" />
           }
         >
           <MountedReaderReturnSurface
@@ -244,19 +241,7 @@ export function LibraryWorkspaceSurface({
           </MountedReaderReturnSurface>
         </Suspense>
       ) : location.type === "series-detail" ? (
-        <Suspense
-          fallback={
-            <div
-              aria-busy="true"
-              className="collection-content library-content"
-              data-surface-state="loading"
-            >
-              <div className="collection-content__loading library-loading" role="status">
-                Loading series
-              </div>
-            </div>
-          }
-        >
+        <Suspense fallback={<SeriesDetailFallback {...seriesDetailProps} />}>
           <MountedReaderReturnSurface
             key={libraryLocationKey(location)}
             onReady={onMountedReturnSurfaceReady}
@@ -268,15 +253,12 @@ export function LibraryWorkspaceSurface({
       ) : location.type === "duplicates" ? (
         <Suspense
           fallback={
-            <div
-              aria-busy="true"
-              className="collection-content library-content"
-              data-surface-state="loading"
-            >
-              <div className="collection-content__loading library-loading" role="status">
-                Checking for duplicate EPUBs
-              </div>
-            </div>
+            <IntegrityViewFallback
+              kind="duplicates"
+              refreshing={false}
+              onRefresh={duplicatesViewProps.onRefresh}
+              resultLabel="Checking for duplicate EPUBs"
+            />
           }
         >
           <MountedReaderReturnSurface
@@ -294,15 +276,12 @@ export function LibraryWorkspaceSurface({
       ) : location.type === "epub-issues" ? (
         <Suspense
           fallback={
-            <div
-              aria-busy="true"
-              className="collection-content library-content"
-              data-surface-state="loading"
-            >
-              <div className="collection-content__loading library-loading" role="status">
-                Checking EPUB files
-              </div>
-            </div>
+            <IntegrityViewFallback
+              kind="epub-issues"
+              refreshing={false}
+              onRefresh={epubIssuesViewProps.onRefresh}
+              resultLabel="Checking EPUB files"
+            />
           }
         >
           <MountedReaderReturnSurface

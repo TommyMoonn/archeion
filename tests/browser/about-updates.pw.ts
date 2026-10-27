@@ -11,6 +11,29 @@ const candidate = {
   notes: "Release prose stays outside About",
   publishedAt: null,
 };
+
+test("checking keeps one visible status, one live owner and the idle action footprint", async ({
+  page,
+}) => {
+  await page.goto(fixture);
+  const region = page.getByRole("region", { name: "Application updates" });
+  const button = region.getByRole("button", { name: "Check for updates", exact: true });
+  await expect(button).toBeEnabled();
+  const before = await button.boundingBox();
+  await page.evaluate(() => window.updateToastFixture!.set({ status: "checking" }));
+  await expect(button).toBeDisabled();
+  await expect(button).toHaveAttribute("aria-busy", "true");
+  await expect(region.locator(".about-update__message")).toHaveText("Checking for updates…");
+  await expect(region.getByRole("status")).toHaveCount(1);
+  await expect(region.getByRole("status")).toHaveText("Checking for updates…");
+  await expect(region.getByRole("button", { name: "Checking…", exact: true })).toHaveCount(0);
+  const during = await button.boundingBox();
+  expect(during!.width).toBe(before!.width);
+  expect(during!.height).toBe(before!.height);
+  await page.evaluate(() => window.updateToastFixture!.set({ status: "idle" }));
+  await expect(button).toBeEnabled();
+  expect((await button.boundingBox())!.width).toBe(before!.width);
+});
 for (const appearance of ["dark", "light"] as const) {
   test(`simplified About keeps flat links and one primary action in ${appearance}`, async ({
     page,
@@ -156,7 +179,7 @@ test("About surfaces retryable manual failure and stays useful in an unsupported
   await page.evaluate(() => window.updateToastFixture!.failNext("check"));
   await status.getByRole("button", { name: "Check for updates" }).click();
   await expect(status).toContainText("Updates could not be checked. Try again.");
-  await status.getByRole("button", { name: "Try again" }).click();
+  await status.getByRole("button", { name: "Check for updates" }).click();
   await expect(status).toContainText("Archeion 1.6.1 is available");
   await page.evaluate(() => window.updateToastFixture!.set({ supported: false }));
   await expect(status).toContainText("Updates are unavailable in this build.");

@@ -88,7 +88,7 @@ function openCapture(commandLabel: string): HTMLButtonElement {
 }
 
 function captureTarget(): HTMLElement {
-  const match = document.querySelector<HTMLElement>('dialog [tabindex="0"]');
+  const match = document.querySelector<HTMLElement>('.keyboard-shortcut-capture[tabindex="0"]');
   if (!match) throw new Error("Shortcut capture target was not rendered");
   return match;
 }
