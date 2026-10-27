@@ -3,6 +3,8 @@ import { useState } from "react";
 import { LibraryWorkspaceDialogs } from "../../../src/features/library/LibraryWorkspaceDialogs";
 import { useLibraryWorkspaceDialogs } from "../../../src/features/library/useLibraryWorkspaceDialogs";
 import { ReaderNoteEditor } from "../../../src/features/reader/ReaderNoteEditor";
+import { LibraryStorageProvider } from "../../../src/storage/LibraryStorageContext";
+import { TauriArchiveLibraryStorage } from "../../../src/storage/TauriArchiveLibraryStorage";
 import type {
   LibrarySnapshotBook,
   LibrarySnapshotFolder,
@@ -33,6 +35,9 @@ function ignore() {}
 async function unsupportedOperation(): Promise<never> {
   throw new Error("This operation is outside the confirmation fixture.");
 }
+
+const storage = new TauriArchiveLibraryStorage();
+storage.loadBookCover = async () => undefined;
 
 export function ReaderNoteConfirmationFixture() {
   const [deletes, setDeletes] = useState(0);
@@ -94,58 +99,60 @@ export function LibraryConfirmationFixture({
   };
 
   return (
-    <main style={{ padding: 24 }}>
-      <output data-testid="mutation-count">{mutations}</output>
-      <span data-testid="operation-outcome">{outcome}</span>
-      <button type="button" onClick={() => actions.openClearProgress(book)}>
-        Clear reading progress
-      </button>
-      <button type="button" onClick={() => actions.openDeleteBook(book)}>
-        Delete book
-      </button>
-      <button type="button" onClick={actions.openBulkDelete}>
-        Delete selected books
-      </button>
-      <button type="button" onClick={() => actions.openDeleteFolder(folder)}>
-        Delete folder
-      </button>
-      <LibraryWorkspaceDialogs
-        books={[book]}
-        confirmDestructiveFileActions
-        dialog={dialog}
-        dialogActions={actions}
-        folders={[folder]}
-        importDefaults={{ defaultConflictAction: "skip", defaultMode: "copy" }}
-        isBulkRunning={pending}
-        isClearingProgress={pending}
-        isDeleting={pending}
-        isImporting={false}
-        isRescanning={false}
-        onConfirmClearProgress={recordMutation}
-        onCreateFolder={unsupportedOperation}
-        onDeleteBook={recordMutation}
-        onDeleteFolder={recordMutation}
-        onDeleteSelectedBooks={recordMutation}
-        onImport={unsupportedOperation}
-        onMoveBook={unsupportedOperation}
-        onMoveFolder={unsupportedOperation}
-        onMoveSelectedBooks={unsupportedOperation}
-        onPrepareBookCover={unsupportedOperation}
-        onReadBook={ignore}
-        onReadBookFromBeginning={ignore}
-        onRenameBookFile={unsupportedOperation}
-        onRenameFolder={unsupportedOperation}
-        onRequestClearProgress={actions.openClearProgress}
-        onRequestDeleteBook={actions.openDeleteBook}
-        onRescan={unsupportedOperation}
-        onRevealBookFile={unsupportedOperation}
-        onToggleFavorite={unsupportedOperation}
-        onWriteBookCover={unsupportedOperation}
-        onWriteBookMetadata={unsupportedOperation}
-        onWriteSelectedBookMetadata={unsupportedOperation}
-        selectedBookIds={new Set([book.id])}
-        selectedBooks={[book]}
-      />
-    </main>
+    <LibraryStorageProvider storage={storage}>
+      <main style={{ padding: 24 }}>
+        <output data-testid="mutation-count">{mutations}</output>
+        <span data-testid="operation-outcome">{outcome}</span>
+        <button type="button" onClick={() => actions.openClearProgress(book)}>
+          Clear reading progress
+        </button>
+        <button type="button" onClick={() => actions.openDeleteBook(book)}>
+          Delete book
+        </button>
+        <button type="button" onClick={actions.openBulkDelete}>
+          Delete selected books
+        </button>
+        <button type="button" onClick={() => actions.openDeleteFolder(folder)}>
+          Delete folder
+        </button>
+        <LibraryWorkspaceDialogs
+          books={[book]}
+          confirmDestructiveFileActions
+          dialog={dialog}
+          dialogActions={actions}
+          folders={[folder]}
+          importDefaults={{ defaultConflictAction: "skip", defaultMode: "copy" }}
+          isBulkRunning={pending}
+          isClearingProgress={pending}
+          isDeleting={pending}
+          isImporting={false}
+          isRescanning={false}
+          onConfirmClearProgress={recordMutation}
+          onCreateFolder={unsupportedOperation}
+          onDeleteBook={recordMutation}
+          onDeleteFolder={recordMutation}
+          onDeleteSelectedBooks={recordMutation}
+          onImport={unsupportedOperation}
+          onMoveBook={unsupportedOperation}
+          onMoveFolder={unsupportedOperation}
+          onMoveSelectedBooks={unsupportedOperation}
+          onPrepareBookCover={unsupportedOperation}
+          onReadBook={ignore}
+          onReadBookFromBeginning={ignore}
+          onRenameBookFile={unsupportedOperation}
+          onRenameFolder={unsupportedOperation}
+          onRequestClearProgress={actions.openClearProgress}
+          onRequestDeleteBook={actions.openDeleteBook}
+          onRescan={unsupportedOperation}
+          onRevealBookFile={unsupportedOperation}
+          onToggleFavorite={unsupportedOperation}
+          onWriteBookCover={unsupportedOperation}
+          onWriteBookMetadata={unsupportedOperation}
+          onWriteSelectedBookMetadata={unsupportedOperation}
+          selectedBookIds={new Set([book.id])}
+          selectedBooks={[book]}
+        />
+      </main>
+    </LibraryStorageProvider>
   );
 }

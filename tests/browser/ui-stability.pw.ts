@@ -132,7 +132,7 @@ test("metadata pending changes, busy action and failed status geometry", async (
   expect(
     report.probe.frames.some((frame) =>
       frame.groups.actions!.bounds.some(
-        (bounds) => bounds.disabled && bounds.labelLength === "Writing metadata".length,
+        (bounds) => bounds.disabled && bounds.labelLength === "Write metadata to EPUB".length,
       ),
     ),
   ).toBe(true);
@@ -288,7 +288,10 @@ for (const hypothesis of ["font", "lazy-mount"]) {
       release = resolve;
     });
     let requests = 0;
-    const pattern = hypothesis === "font" ? "**/Inter-*.woff2" : "**/BookDetailsDrawer.tsx*";
+    const pattern =
+      hypothesis === "font"
+        ? /\/Inter-[^/]+\.woff2(?:\?.*)?$/
+        : /\/BookDetailsDrawer(?:\.tsx(?:\?.*)?|-[^/]+\.js)$/;
     await page.route(pattern, async (route) => {
       requests++;
       await held;
@@ -303,10 +306,24 @@ for (const hypothesis of ["font", "lazy-mount"]) {
       await expect.poll(() => requests).toBeGreaterThan(0);
       await page.evaluate(() => window.uiStabilityProbe.mark("dependency-held"));
       await frames(page, 20);
-      if (hypothesis === "lazy-mount") await expect(page.locator(".details-drawer")).toHaveCount(0);
+      if (hypothesis === "lazy-mount") {
+        await expect(page.locator(".details-drawer[open]")).toBeVisible();
+        await expect(page.locator(".details-drawer").getByRole("status")).toContainText("Opening");
+        await page
+          .locator(".details-drawer")
+          .evaluate((element) => element.setAttribute("data-frame-probe", "pending"));
+      }
       release();
       if (hypothesis === "font") await page.evaluate(() => document.fonts.ready);
-      else await expect(page.locator(".details-drawer[open]")).toBeVisible();
+      else {
+        await expect(
+          page.locator(".details-drawer").getByRole("status").filter({ hasText: "Opening" }),
+        ).toHaveCount(0);
+        await expect(page.locator(".details-drawer[open]")).toHaveAttribute(
+          "data-frame-probe",
+          "pending",
+        );
+      }
       await page.evaluate(() => window.uiStabilityProbe.mark("dependency-released"));
       await frames(page);
     } finally {

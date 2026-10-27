@@ -38,6 +38,32 @@ for (const view of ["grid", "list"] as const) {
       });
       await expect(page.locator("[data-window-total]")).toBeVisible();
       await page.evaluate((view) => window.uiStabilityFixture.setView(view), view);
+      await expect(page.locator(view === "list" ? ".book-list" : ".book-grid")).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      if (view === "list") {
+        // The first list render uses an estimated row height. Wait for its measured
+        // spacers before attributing later geometry changes to the update notice.
+        await expect
+          .poll(() =>
+            page.locator(".book-list").evaluate((collection) => {
+              const row = collection.querySelector<HTMLElement>("[data-reader-book-id]");
+              const list = collection.querySelector<HTMLElement>(".book-list__window");
+              const remaining =
+                Number(collection.getAttribute("data-window-total")) -
+                Number(collection.getAttribute("data-window-end"));
+              return Boolean(
+                row &&
+                list &&
+                remaining > 0 &&
+                Math.abs(
+                  parseFloat(getComputedStyle(list).paddingBottom) / remaining -
+                    row.getBoundingClientRect().height,
+                ) < 1,
+              );
+            }),
+          )
+          .toBe(true);
+      }
       const main = page.locator(".page-shell");
       await main.evaluate((element, position) => {
         element.scrollTop =

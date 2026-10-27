@@ -2,9 +2,13 @@ import { rm, mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { cleanupOwnedRuntime, removeOwnedDirectory } from "../scripts/runtime-smoke-cleanup.mjs";
+import {
+  cleanupOwnedRuntime,
+  removeOwnedDirectory,
+  terminateProcess,
+} from "../scripts/runtime-smoke-cleanup.mjs";
 
 function ownedProcesses() {
   return new Map([
@@ -32,6 +36,64 @@ function ownedProcesses() {
 }
 
 describe("Windows runtime smoke cleanup", () => {
+  it("rechecks creation identity before stopping a PID replaced during shutdown", async () => {
+    const processes = ownedProcesses();
+    const stopped: number[] = [];
+    await cleanupOwnedRuntime({
+      session: {},
+      closeSession: async () => {},
+      processHandle: { pid: 41 },
+      closed: Promise.resolve({}),
+      snapshot: async () => [...processes.values()],
+      terminate: async (pid: number) => {
+        stopped.push(pid);
+        processes.delete(pid);
+        if (pid === 41)
+          processes.set(42, {
+            ProcessId: 42,
+            ParentProcessId: 1,
+            Name: "unrelated.exe",
+            ExecutablePath: "C:\\other\\unrelated.exe",
+            StartedAt: "2026-10-01T00:00:00.0000000Z",
+          });
+      },
+      directories: [],
+    });
+    expect(stopped).toEqual([41]);
+    expect(processes.get(42)?.Name).toBe("unrelated.exe");
+  });
+
+  it("terminates only the verified PID without recursively following historical parent IDs", async () => {
+    const execute = vi.fn().mockResolvedValue({});
+    await terminateProcess(41, execute);
+    expect(execute).toHaveBeenCalledWith("taskkill.exe", ["/PID", "41", "/F"], {
+      windowsHide: true,
+    });
+  });
+  it("does not claim older processes whose historical parent PID has been reused by the driver", async () => {
+    const processes = ownedProcesses();
+    processes.set(43, {
+      ProcessId: 43,
+      ParentProcessId: 41,
+      Name: "unrelated.exe",
+      ExecutablePath: "C:\\other\\unrelated.exe",
+      StartedAt: "2026-09-29T00:00:00.0000000Z",
+    });
+    const stopped: number[] = [];
+    await cleanupOwnedRuntime({
+      processHandle: { pid: 41 },
+      closed: Promise.resolve({}),
+      snapshot: async () => [...processes.values()],
+      terminate: async (pid: number) => {
+        stopped.push(pid);
+        processes.delete(pid);
+      },
+      directories: [],
+    });
+    expect(stopped).toEqual([41, 42]);
+    expect(processes.has(43)).toBe(true);
+  });
+
   it("closes the session and all owned driver processes before deleting scratch state", async () => {
     const processes = ownedProcesses();
     const events: string[] = [];

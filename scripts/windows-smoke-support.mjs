@@ -32,6 +32,22 @@ export async function runWindowsCommand(command, args, options = {}) {
   return stdout;
 }
 
+export async function isWindowsProcessElevated(run = runWindowsCommand) {
+  // Use the shared bounded Windows-command runner: cold PowerShell startup on hosted
+  // runners can exhaust a short probe-specific deadline before the token is queried.
+  const output = await run("powershell.exe", [
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    "$identity = [Security.Principal.WindowsIdentity]::GetCurrent(); " +
+      "$principal = New-Object Security.Principal.WindowsPrincipal($identity); " +
+      "$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
+  ]);
+  const result = output.trim();
+  assert.ok(result === "True" || result === "False", "Invalid Windows token elevation result");
+  return result === "True";
+}
+
 export async function webViewRuntimeVersion() {
   const runtimeId = "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
   const machineKey = `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\${runtimeId}`;

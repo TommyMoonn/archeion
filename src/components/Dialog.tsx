@@ -1,4 +1,4 @@
-import { useContext, useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useCallback, useContext, useId, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { DialogShellContext, type DialogShellOwner } from "./DialogShellContext";
 import { useModalDialogLifecycle } from "./useModalDialogLifecycle";
@@ -58,9 +58,20 @@ function StandaloneDialog({
   const descriptionId = useId();
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const resolveInitialFocus = useCallback(() => {
+    const dialog = dialogRef.current;
+    return (
+      dialog?.querySelector<HTMLElement>("[autofocus], [data-dialog-initial-focus]") ??
+      dialog?.querySelector<HTMLElement>(
+        "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]",
+      ) ??
+      null
+    );
+  }, []);
   const modal = useModalDialogLifecycle({
     closeOnBackdropClick,
     dialogRef,
+    resolveInitialFocus,
     onClose,
     returnFocusTo,
   });

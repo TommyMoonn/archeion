@@ -65,6 +65,12 @@ export async function terminateProcessTree(pid) {
   });
 }
 
+export async function terminateProcess(pid, execute = execFileAsync) {
+  assert.ok(Number.isInteger(pid) && pid > 0, "Invalid owned process ID");
+  // Each descendant is verified separately; /T would also follow stale Windows parent PIDs.
+  await execute("taskkill.exe", ["/PID", String(pid), "/F"], { windowsHide: true });
+}
+
 export async function listOwnedApplications(
   application,
   startedAt,
@@ -116,30 +122,36 @@ function collectOwnedProcesses(processes, rootPid, owned) {
       "tauri-driver.exe",
       `Owned tauri-driver PID ${rootPid} now belongs to ${root.Name}`,
     );
-  }
-  const parentIds = new Set([rootPid, ...owned.keys()]);
-  let added;
-  do {
-    added = false;
-    for (const process of processes) {
-      if (process.ProcessId !== rootPid && parentIds.has(process.ParentProcessId)) {
-        if (!owned.has(process.ProcessId)) {
-          assert.ok(process.StartedAt, `Missing creation time for owned PID ${process.ProcessId}`);
-          owned.set(process.ProcessId, process);
-          added = true;
-        }
-        parentIds.add(process.ProcessId);
-      }
-    }
-  } while (added);
-  if (root) {
-    assert.ok(root.StartedAt, `Missing creation time for owned PID ${rootPid}`);
+    assert.ok(
+      root.StartedAt && Number.isFinite(Date.parse(root.StartedAt)),
+      `Missing creation time for owned PID ${rootPid}`,
+    );
     const known = owned.get(rootPid);
     if (known && known.StartedAt !== root.StartedAt) {
       throw new Error(`Owned tauri-driver PID ${rootPid} was reused before cleanup`);
     }
     owned.set(rootPid, root);
   }
+  let added;
+  do {
+    added = false;
+    for (const process of processes) {
+      const parent = owned.get(process.ParentProcessId);
+      if (process.ProcessId !== rootPid && parent) {
+        assert.ok(
+          process.StartedAt && Number.isFinite(Date.parse(process.StartedAt)),
+          `Missing creation time for owned PID ${process.ProcessId}`,
+        );
+        // Win32 retains ParentProcessId after the parent exits. Its PID may now
+        // identify our newer driver, but a child cannot predate its actual parent.
+        if (Date.parse(process.StartedAt) < Date.parse(parent.StartedAt)) continue;
+        if (!owned.has(process.ProcessId)) {
+          owned.set(process.ProcessId, process);
+          added = true;
+        }
+      }
+    }
+  } while (added);
 }
 
 function stillRunning(processes, owned) {
@@ -169,7 +181,7 @@ export async function shutdownOwnedDriver({
   processHandle,
   closed,
   snapshot = listWindowsProcesses,
-  terminate = terminateProcessTree,
+  terminate = terminateProcess,
   wait = pause,
   now = Date.now,
 }) {
@@ -207,14 +219,11 @@ export async function shutdownOwnedDriver({
     try {
       let processes = await snapshot();
       let running = stillRunning(processes, owned);
-      const rootRunning = running.some((process) => process.ProcessId === processHandle.pid);
-      if (rootRunning) {
-        await terminate(processHandle.pid).catch(() => {});
-        processes = await snapshot();
-        running = stillRunning(processes, owned);
-      }
-      for (const process of running.filter((item) => item.ProcessId !== processHandle.pid)) {
-        await terminate(process.ProcessId).catch(() => {});
+      for (const process of running) {
+        const current = stillRunning(await snapshot(), owned).find(
+          (item) => item.ProcessId === process.ProcessId,
+        );
+        if (current) await terminate(current.ProcessId).catch(() => {});
       }
 
       const deadline = now() + 10_000;

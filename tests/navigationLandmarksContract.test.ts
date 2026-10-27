@@ -35,7 +35,7 @@ describe("Phase 0.9.0.28 navigation landmarks and focus entry", () => {
 
   it("names collection and Settings search and navigation landmarks", () => {
     const librarySidebar = read("src/features/library/LibrarySidebar.tsx");
-    const series = read("src/features/series/SeriesOverview.tsx");
+    const series = read("src/features/series/SeriesOverviewHeader.tsx");
     const settings = read("src/features/settings/SettingsSidebar.tsx");
     const settingsLayout = read("src/features/settings/SettingsWindowLayout.tsx");
 

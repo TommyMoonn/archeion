@@ -153,6 +153,25 @@ describe("CI workflow contract", () => {
     expect(browserContracts[uploadStep + 1]).toBe("        if: ${{ failure() && !cancelled() }}");
   });
 
+  it("runs production async chunk contracts separately from the source-served browser shards", () => {
+    const browserContracts = jobLines("browser-contracts").join("\n");
+    expect(browserContracts).toContain(
+      "npx vite build --config tests/browser/async-surfaces-build.config.ts",
+    );
+    expect(browserContracts).toContain(
+      "npx playwright test --config tests/browser/async-surfaces.config.ts",
+    );
+    expect(browserContracts).toContain("if: matrix.shard == 1");
+    expect(browserContracts).toContain("name: async-surface-contract-failure");
+    const config = fs.readFileSync(path.join(projectRoot, "playwright.config.ts"), "utf8");
+    const asyncConfig = fs.readFileSync(
+      path.join(projectRoot, "tests/browser/async-surfaces.config.ts"),
+      "utf8",
+    );
+    expect(config).toContain('testIgnore: "**/async-surfaces.pw.ts"');
+    expect(asyncConfig).toContain("testIgnore: []");
+  });
+
   it("runs Rust formatting inside the Clippy job and retains tests and MSRV", () => {
     const rustChecks = jobLines("rust-checks");
     const formatStep = rustChecks.indexOf("      - name: Check Rust formatting");

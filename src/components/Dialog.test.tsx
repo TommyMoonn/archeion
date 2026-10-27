@@ -27,6 +27,30 @@ function renderDialog(closeOnBackdropClick = true) {
 }
 
 describe("Dialog backdrop dismissal", () => {
+  it("focuses the safe footer action rather than the scrollable body on open", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    act(() =>
+      root.render(
+        <Dialog
+          title="Confirm action"
+          onClose={vi.fn()}
+          footer={
+            <>
+              <button>Cancel</button>
+              <button>Delete</button>
+            </>
+          }
+        >
+          <p>Confirm the operation.</p>
+        </Dialog>,
+      ),
+    );
+    expect(document.activeElement).toBe(container.querySelector("button"));
+    act(() => root.unmount());
+  });
+
   it("keeps the form, focus and modal lifetime when feedback changes", () => {
     const container = document.createElement("div");
     document.body.append(container);

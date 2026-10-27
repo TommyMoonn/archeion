@@ -26,6 +26,7 @@ import {
   awaitDriver,
   freePort,
   installMatchingEdgeDriver,
+  isWindowsProcessElevated,
   runWindowsCommand,
 } from "./windows-smoke-support.mjs";
 import {
@@ -102,19 +103,7 @@ async function main() {
   const families = requested.length ? [requested[1]] : ["nsis", "msi"];
   assert.ok(families.every((family) => ["nsis", "msi"].includes(family)));
   if (families.includes("msi")) {
-    const { stdout } = await execFileAsync(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        "$identity = [Security.Principal.WindowsIdentity]::GetCurrent(); " +
-          "$principal = New-Object Security.Principal.WindowsPrincipal($identity); " +
-          "$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
-      ],
-      { windowsHide: true, timeout: 10_000 },
-    );
-    assertBundlePrivileges(families, stdout.trim() === "True");
+    assertBundlePrivileges(families, await isWindowsProcessElevated());
   }
   const nonce = randomBytes(8).toString("hex");
   const runRoot = path.join(scratch, `run-${nonce}`);

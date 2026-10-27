@@ -232,7 +232,7 @@ for (const [surface, chunk] of [
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(`**/src/features/**/${chunk}.tsx*`, async (route) => {
+    await page.route(`**/${chunk}-*.js`, async (route) => {
       await held;
       await route.continue();
     });

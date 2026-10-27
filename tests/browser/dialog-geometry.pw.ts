@@ -134,6 +134,9 @@ for (const surface of ["add", "move", "rename", "folder", "bulk"]) {
         await page.getByRole("textbox", { name: "New series", exact: true }).fill("New series");
         await page.getByRole("button", { name: "Review changes" }).click();
       }
+      // Review introduces semibold preview text. Establish its loaded font geometry
+      // before comparing operation states, independently of network/font startup.
+      await page.evaluate(() => document.fonts.ready);
       const baseline = await bounds(page);
       await reachableShell(page);
       await page.locator(".dialog__footer .button--primary").click();

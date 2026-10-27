@@ -5,6 +5,7 @@ export default defineConfig({
   ...base,
   testDir: ".",
   testMatch: "async-surfaces.pw.ts",
+  testIgnore: [],
   workers: 1,
   reporter: "list",
   outputDir: "../../test-results/async-surfaces",
