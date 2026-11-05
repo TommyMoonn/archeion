@@ -90,7 +90,8 @@ try {
     Push-Location $ProjectRoot
     try {
         if ($Mode -eq 'repo') {
-            & git archive --format=zip --output=$sourceArchive $SourceCommit
+            # Store source entries without compression; the final ZIP compresses them once.
+            & git archive --format=zip -0 --output=$sourceArchive $SourceCommit
             if ($LASTEXITCODE -ne 0) {
                 throw "Git archive failed for $SourceCommit."
             }
@@ -100,7 +101,8 @@ try {
             }
             $fileList = [System.IO.Path]::GetTempFileName()
             Get-ChildItem -Force -Name | Set-Content -LiteralPath $fileList -Encoding utf8
-            & tar -a -cf $sourceArchive --exclude-from=.zipignore -T $fileList
+            # Windows tar (bsdtar) supports storing ZIP entries without deflate.
+            & tar -a -cf $sourceArchive --options zip:compression=store --exclude-from=.zipignore -T $fileList
             if ($LASTEXITCODE -ne 0) {
                 throw "Workspace ZIP creation failed for $ProjectRoot."
             }
@@ -109,8 +111,9 @@ try {
         Pop-Location
     }
 
-    # Rebuild instead of updating the source ZIP in place. Streamed ZIPs can use data
-    # descriptors that ZipArchive Update does not preserve reliably across tools.
+    # The source ZIP is uncompressed; rebuilding compresses its contents only once.
+    # Avoid updating it in place: streamed ZIP data descriptors are not reliably
+    # preserved by ZipArchive Update across archive tools.
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $inputArchive = [System.IO.Compression.ZipFile]::OpenRead($sourceArchive)
     try {
