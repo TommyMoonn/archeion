@@ -1,156 +1,262 @@
-# Design System
+# Archeion Design System
 
-This document defines Archeion's shared visual language and UI integration rules. Feature styles should consume these roles instead of adding one-off font, icon, control, radius, or elevation values.
+This guide records the visual rules for Archeion's desktop app. It covers the application frame, Library, Reader controls, settings, dialogs, menus, and utility windows. It does not cover the layout or typography of EPUB content, the public website, or the documentation site.
+
+The guide describes the intended UI. Implementation values are defined in `src/styles/tokens.css`, and theme colors are defined in `src/themes/themeTokenRegistry.ts`. Update this guide when an accepted design decision changes either source.
+
+## Design principles
+
+- Archeion is a library and reading app. Books, metadata, and the current task take priority over decoration.
+- The default layout is compact. Related controls and information stay close without crowding labels, hit targets, or content.
+- Typography, alignment, spacing, and surface contrast establish hierarchy.
+- Neutral fills and subtle borders define most areas. Cards and shadows appear when they establish a content group or elevation.
+- Loading, empty, ready, and error states stay within their owning area. A status change does not move the title, toolbar, actions, or nearby content.
+- Interface copy stays concise and specific. It does not repeat headings or duplicate visible status messages.
+- Colors, shapes, icons, and state treatments keep the same meaning throughout the application.
+
+## Scope and implementation references
+
+| Area                                                                          | Implementation source                                                            |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Shared color, typography, icon, control, radius, elevation, and motion tokens | `src/styles/tokens.css`                                                          |
+| Shared component presentation                                                 | `src/styles/components/`                                                         |
+| Feature-specific presentation                                                 | `src/styles/features/`                                                           |
+| Application shell and window geometry                                         | `src/styles/layout/`                                                             |
+| Forced-colors behavior                                                        | `src/styles/forced-colors.css`                                                   |
+| Themeable token contract                                                      | `src/themes/themeTokenRegistry.ts`                                               |
+| Custom theme authoring                                                        | [`custom-themes.md`](custom-themes.md)                                           |
+| Installed-font behavior and Windows validation                                | [`font-preferences-validation.md`](font-preferences-validation.md)               |
+| Visual regression tests and current evidence                                  | [`../tests/browser/visual-refinement.md`](../tests/browser/visual-refinement.md) |
+
+Feature code reuses shared components such as `Button`, `IconButton`, `AppSelect`, `SegmentedControl`, `Toggle`, `Dialog`, `MenuItem`, and `EmptyState`. Feature styles do not redefine a shared control's appearance. A shared component is extended only when multiple parts of the app need the same behavior and presentation.
+
+Archeion's application UI uses React components, CSS, shared tokens, and `lucide-react`. An isolated presentation change does not require another UI framework, styling framework, or icon library.
+
+## Appearance and color
+
+### Themes
+
+- The default application theme is dark.
+- Light and system appearance are also available. Custom themes can change colors only.
+- The application theme and Reader theme are independent. Changing one leaves the other unchanged.
+- Reader supports dark, light, and sepia themes. Reader settings and publication styles control its typography. Application theme packages do not change it.
+- Custom theme packages can override supported application and Reader color tokens. They cannot provide CSS, scripts, fonts, layout, spacing, radii, motion, assets, or behavior.
+- System appearance follows the operating system's color preference only when that setting is selected.
+
+### Color roles
+
+Feature styles use semantic color tokens. They do not copy hex values.
+
+| Role                | Tokens                                                                                | Use                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Application areas   | `--surface-app-frame`, `--surface-sidebar`, `--surface-main`, `--surface-main-raised` | Window chrome, navigation, workspace, and raised workspace surfaces                  |
+| General surfaces    | `--canvas`, `--canvas-deep`, `--surface`, `--surface-raised`, `--surface-hover`       | Canvas, nested regions, controls, cards, and hover states                            |
+| Text hierarchy      | `--text`, `--text-strong`, `--muted`, `--muted-soft`                                  | Primary copy, emphasis, readable secondary copy, and inactive decorative affordances |
+| Borders             | `--line`, `--line-strong`, `--line-subtle`                                            | Default boundaries, emphasized boundaries, and quiet separators                      |
+| Interaction         | `--accent`, `--accent-strong`, `--accent-soft`, `--accent-border`, `--focus`          | Primary actions, selected states, accent treatments, and keyboard focus              |
+| Status              | `--success`, `--warning`, `--info`, `--error` and their soft/border variants          | Success, caution, information, and error states                                      |
+| Destructive actions | `--danger`, `--danger-strong`, `--danger-soft`, `--danger-border`                     | Destructive actions, aliased to the error palette                                    |
+
+Use `--muted` for readable secondary text and `--muted-soft` for inactive or decorative elements. Text opacity does not replace the text hierarchy. Pair status colors with text, an icon, or another visible cue.
+
+Cards, notices, callouts, and other content groups do not use thick accent-colored left borders. Their hierarchy comes from the surface color, a restrained outline, a heading, or a contextual icon.
 
 ## Typography
 
-Inter is Archeion's bundled default application UI font. The application does not depend on a system Inter installation. Segoe UI and system fonts remain defensive fallbacks. The supported UI weights are regular (`400`), medium (`500`), semibold (`600`), and bold (`700`).
+### Font families and ownership
 
-The canonical `@font-face` declarations live in `src/styles/fonts.css`. Their four static WOFF2 sources come from the exact pinned `inter-ui@4.1.1` development package and are verified against the approved Inter v4.1 hashes in `scripts/inter-font-manifest.json`. Vite emits only those selected faces into the application bundle. The assets are owned by the Inter Project Authors, and their notice is stored at `public/licenses/fonts/Inter-OFL-1.1.txt`.
+- The application interface uses bundled Inter, followed by Segoe UI and the system sans-serif stack.
+- The default display family is `"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`.
+- The code stack is `"Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace`.
+- Interface and Display font preferences are independent. Display can use the effective Interface family or a separately selected installed family.
+- Reader font selection is independent of both application font roles. Application fonts do not affect EPUB publication content.
+- The installed-font catalog is cached for the session. Restart the app after installing or removing a Windows font.
 
-Weight communicates role, not a smaller interface:
+The bundled Inter faces are declared in `src/styles/fonts.css` and tracked by `scripts/inter-font-manifest.json`. Update the asset manifest and the Inter license notice in `public/licenses/fonts/` whenever a font asset changes.
 
-- Regular is body copy, supporting explanations, and ordinary metadata.
-- Medium is routine interactive emphasis: navigation, button/select/menu labels, form labels, compact badges, and keyboard hints. These consume `--type-control-label-weight`, which resolves to `--font-weight-medium`.
-- Semibold is stronger local hierarchy, section headings, book titles, and intentionally strong states. It must remain visibly stronger than routine controls.
-- Bold is rare emphasis, such as the status-page diagnostic code, not a default for small section labels.
+### Type scale
 
-Keep existing type sizes, line heights, sidebar width/rows/icon slots, and the editorial `YOUR COLLECTION` / `Library` display treatment. Do not mechanically lower every semibold declaration or create feature-specific weight aliases.
+The type scale uses the semantic roles in `tokens.css`. Sizes use `rem` so browser and system text scaling can enlarge the interface.
 
-The application type scale is deliberately compact but readable. Sizes use `rem` so browser and system text scaling can enlarge the interface without changing its default 16px-root appearance:
+| Token                  | Size        | Line height | Weight | Typical use                               |
+| ---------------------- | ----------- | ----------- | ------ | ----------------------------------------- |
+| `--type-caption`       | `0.75rem`   | `1.4`       | `400`  | Secondary labels and compact metadata     |
+| `--type-meta`          | `0.8125rem` | `1.4`       | `400`  | Supporting text and compact controls      |
+| `--type-body`          | `0.875rem`  | `1.5`       | `400`  | Primary application copy and navigation   |
+| `--type-body-large`    | `0.9375rem` | `1.55`      | `400`  | Emphasized body copy and descriptions     |
+| `--type-title-small`   | `1rem`      | `1.3`       | `600`  | Local titles and compact headings         |
+| `--type-title`         | `1.0625rem` | `1.2`       | `400`  | Application and surface titles            |
+| `--type-heading`       | `1.25rem`   | `1.25`      | `600`  | Section headings                          |
+| `--type-dialog-title`  | `1.5625rem` | `1.15`      | `400`  | Dialog headings; `-0.02em` tracking       |
+| `--type-section-title` | `1.75rem`   | `1.15`      | `400`  | Large local headings; `-0.025em` tracking |
+| `--type-page-title`    | `1.875rem`  | `1.1`       | `400`  | Page headings; `-0.03em` tracking         |
 
-| Role                 | Size        | Default size | Typical use                            |
-| -------------------- | ----------- | ------------ | -------------------------------------- |
-| `--type-caption`     | `0.75rem`   | 12px         | secondary labels and compact metadata  |
-| `--type-meta`        | `0.8125rem` | 13px         | standard metadata and compact controls |
-| `--type-body`        | `0.875rem`  | 14px         | primary UI copy and navigation         |
-| `--type-body-large`  | `0.9375rem` | 15px         | emphasized body copy                   |
-| `--type-title-small` | `1rem`      | 16px         | local titles                           |
+Display roles use `--type-display-line-height` (`1.05`), `--type-display-weight` (`400`), and `--type-display-letter-spacing` (`-0.03em`):
 
-Every canonical text role owns a size, line height, and default weight. Display roles also own their justified tracking. Semantic aliases identify application titles, control labels, supporting body text, and code or path content without introducing additional size steps.
+| Token                    | Responsive size range            |
+| ------------------------ | -------------------------------- |
+| `--type-display-compact` | `clamp(1.875rem, 5vw, 2.375rem)` |
+| `--type-display-medium`  | `clamp(2.125rem, 5vw, 3rem)`     |
+| `--type-display-large`   | `clamp(2.375rem, 5vw, 3.5rem)`   |
 
-These values apply to application surfaces such as the shell, library, archive and settings workflows, dialogs, menus, forms, empty states, and feedback. Normal and compact density may change spacing and control geometry, but they share the same type roles. Application-root font smoothing is intentionally not injected into EPUB publication documents.
+Semantic aliases use this scale:
 
-Reader typography has separate ownership. `.reader-page` and `.reader-status-page` retain the established reader-control scale through scoped overrides, while reader-selected typefaces, sizes, and bundled reading fonts continue to apply only inside EPUB publication content. Shared UI control weights and ordinary Lucide strokes may follow application roles; application typography must not leak into publication fonts or layout.
+| Alias                      | Definition                                      | Use                                      |
+| -------------------------- | ----------------------------------------------- | ---------------------------------------- |
+| `--type-application-title` | `--type-title` and its companions               | Mounted application wordmark             |
+| `--type-control-label`     | `--type-body`, line height `1.25`, weight `500` | Actionable labels                        |
+| `--type-body-supporting`   | `--type-meta`, line height `1.5`                | Explanatory copy                         |
+| `--type-code`              | `--type-meta`, line height `1.45`               | Paths, identifiers, and code-like values |
 
-Application font families have two independent Appearance preferences. Interface defaults to
-bundled Inter; an available system selection precedes the unchanged defensive UI stack.
-Display defaults to `"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`; it can
-follow the effective Interface stack or prepend its own available system family.
+Each type role uses its matching `-line-height`, `-weight`, and `-letter-spacing` companions. The supported UI weights are `400`, `500`, `600`, and `700`. Use regular for body copy, medium for routine controls, semibold for local headings, and bold for rare emphasis. The type system does not add intermediate weights or one-off font-size aliases. Caption is the smallest application text role. Interactive labels, navigation, important status text, and primary metadata use at least that size.
 
-`tokens.css` owns the canonical stacks as `--font-ui-default` and `--font-display-default`.
-`AppearanceRuntime` resolves preferences through the session installed-font catalog and sets
-only `--font-ui` and `--font-display` on the application root. Existing semantic selectors,
-weights, sizes, and line heights stay unchanged. Missing families render with their role's
-default stack without erasing the stored selection. Font preferences are not theme-package
-tokens and are never applied to EPUB publication documents.
+Font metric differences are handled through semantic layout roles. Styles do not target individual installed font names. Fonts and icons are preloaded only when a reproducible trace shows a loading problem. Current browser evidence did not justify a loading change. Native Windows verification remains separate.
 
-The shared `FontPicker` owns searching, keyboard navigation, unavailable-state presentation,
-and transient focus for all three roles. Appearance and Reader adapters own their pinned choices,
-not another catalog or persistence path. Reader selections remain owned by the existing Reader
-appearance controller and publication theme registry; changing a Reader family must not write
-either application-root font variable. Application font changes must not rebuild the publication
-theme or change its selected family.
+## Layout, geometry, and surfaces
 
-The native catalog is cached for the application session; each WebView consumes its window-local
-service over the same native command. Installing or removing Windows fonts requires an application
-restart. Missing selections survive persistence and use their independent fallback stacks until
-a fresh session finds the family again. No theme package, archive, or font picker imports or
-downloads font files. Metric regressions must be fixed at semantic layout roles, never by matching
-individual user font names. See `font-preferences-validation.md` for the runtime review matrix.
+### Application shell
 
-Use the named text roles from `tokens.css`:
+- The main Tauri window has a minimum size of `900 × 600`.
+- The Library sidebar uses the shared `--sidebar-width` and `--sidebar-collapsed-width` values. The titlebar and sidebar body derive their collapse width from the same shared value.
+- Hidden sidebar labels cannot receive keyboard focus. Accessible names, tooltips, and the archive switcher remain available.
+- The Library workspace fills its area without an outer rounded card, border, shadow, or frame-colored gutter.
+- Navigation and workspace sit side by side, separated by one subtle divider. Their colors may match because the layout and divider define the two areas.
+- The Library workspace owns scrolling. The page does not add a second scroll region, and sidebar, titlebar, or status changes do not move the collection.
 
-- `--type-caption` for secondary labels and compact metadata
-- `--type-meta` for standard metadata and supporting text
-- `--type-body` and `--type-body-large` for primary UI copy
-- `--type-control-label` for actionable labels and `--type-body-supporting` for explanatory copy
-- `--type-code` for paths, identifiers, and code-like values
-- `--type-application-title` for the mounted application wordmark
-- `--type-title-small`, `--type-title`, and `--type-heading` for local hierarchy
-- the dialog, section, page, and display roles for large headings
+Comfortable density is the default. Compact density reduces spacing and selected control dimensions. Both modes use the same typography scale and text roles. The collection content offset is `20px` in comfortable density and `16px` in compact density.
 
-Consume the matching `-line-height`, `-weight`, and, where defined, `-letter-spacing` companion instead of rebuilding a role selector by selector.
+`tokens.css` does not define a repository-wide spacing scale. Components use their established gaps and layout variables. A single area does not add a new global spacing scale.
 
-Interactive labels, navigation, important status text, and primary metadata must not drop below `--type-caption`. Caption is the smallest application role and should remain reserved for genuinely secondary information.
+### Shared dimensions
 
-## Icons and Geometry
+| Token                        | Value  | Use                            |
+| ---------------------------- | ------ | ------------------------------ |
+| `--control-height-compact`   | `32px` | Compact buttons and controls   |
+| `--control-height-standard`  | `36px` | Standard buttons and controls  |
+| `--control-height-prominent` | `40px` | Prominent buttons and controls |
+| `--border-width`             | `1px`  | Standard structural border     |
 
-Use `.icon-slot` around SVG glyphs. The slot owns layout stability while the glyph role owns visible size. Compact, standard, and prominent roles are available. Do not restore fractional borders or rotated CSS shapes for static icons when an SVG exists.
+### Corners
 
-Application interface icons come from `lucide-react`. Import named icons directly, let them inherit `currentColor`, and use Lucide's default outline stroke (`2`) for ordinary actions. Do not override ordinary close/dismiss, ellipsis, chevron, external-link, history, or page-turn icons merely for convenience. Filled glyphs still communicate persistent state such as favorite, bookmark, or selected folder.
+| Token              | Value   | Use                                                   |
+| ------------------ | ------- | ----------------------------------------------------- |
+| `--radius-small`   | `4px`   | Nested rows and small items                           |
+| `--radius-control` | `6px`   | Ordinary buttons, fields, selectors, and icon buttons |
+| `--radius-menu`    | `8px`   | Menus, popovers, and floating panels                  |
+| `--radius-dialog`  | `8px`   | Dialogs                                               |
+| `--radius-card`    | `12px`  | Established card and book surfaces                    |
+| `--radius-pill`    | `999px` | Semantically capsule-shaped elements only             |
 
-The deliberate `strokeWidth={2.25}` exceptions are `Check` selection markers, the selection bar's `SquareCheckBig` status mark, and `Plus` on the Library's primary Add EPUB action. They reinforce selection or primary-action hierarchy rather than routine utility chrome. Keep `strokeWidth={1.5}` for intentionally light decorative/empty-state artwork. The glyph and slot sizes remain unchanged. Do not reintroduce a second icon library or Lucide dynamic icon loading into application surfaces.
+Buttons, fields, selectors, and action controls use the control radius, not pill-shaped corners. Capsule shapes are limited to tags, status markers, toggles, progress tracks, and the noninteractive drop hint. In grouped controls, inner options account for the group's inset and border.
 
-Recurring controls should consume the compact, standard, or prominent control-height tokens. Use the shared border, radius, danger, error, and elevation tokens before introducing a feature-specific value.
+Changes to visual radius or padding do not change pointer hit areas. Focus rings and touch targets keep their established geometry.
 
-Surface geometry follows semantic roles rather than local numeric values:
+### Icons
 
-| Role              | Token              | Typical use                                       |
-| ----------------- | ------------------ | ------------------------------------------------- |
-| Small nested item | `--radius-small`   | menu rows, compact covers, and shortcut caps      |
-| Control           | `--radius-control` | buttons, fields, selectors, and compact utilities |
-| Floating menu     | `--radius-menu`    | menus, popovers, and supplemental panels          |
-| Inline card       | `--radius-card`    | collection cards, grouped content, and callouts   |
-| Modal dialog      | `--radius-dialog`  | dialogs and other blocking raised surfaces        |
-| Capsule           | `--radius-pill`    | badges, tags, and progress tracks                 |
+Application icons use named imports from `lucide-react`. Application surfaces do not load icons dynamically or use another icon library.
 
-Nested surfaces must remain concentric. An inner item should use a smaller radius than its containing surface after accounting for the container padding.
+| Role      | Glyph  | Layout slot |
+| --------- | ------ | ----------- |
+| Compact   | `14px` | `16px`      |
+| Standard  | `16px` | `20px`      |
+| Prominent | `20px` | `24px`      |
 
-Elevation also follows surface ownership:
+`.icon-slot` reserves a stable layout box independently of the glyph size. Icons inherit `currentColor`, and the standard Lucide outline stroke is `2`. Existing role-specific exceptions remain, including stronger selection markers, the primary Add EPUB action, and lighter `1.5` icons where appropriate. Glyph size does not compensate for missing layout space.
 
-- `--shadow-card` gives inline cards and raised artwork restrained separation.
-- `--shadow-tooltip` is reserved for compact supplemental overlays.
-- `--shadow-popover` identifies menus, popovers, transient feedback, and floating panels.
-- `--shadow-dialog` identifies blocking modal surfaces.
-- `--shadow-drawer` identifies edge-attached drawers.
+Every icon-only control has an accessible name. Controls with an unclear purpose also have a tooltip. Collapsed navigation keeps its accessible label when the visible text is hidden.
 
-The Library shell uses adjacent navigation and workspace planes. Navigation consumes `--surface-sidebar`, and the flush workspace consumes `--surface-main`, with one 1px `--line-subtle` boundary between them. The boundary continues through the mounted split titlebar, whose navigation plane follows the sidebar width and whose remaining chrome follows the workspace. The expanded titlebar sidebar control shares the navigation rows' right inset; the collapsed control is centered over the navigation icon rail. Titlebar content sits optically 2px below geometric center without increasing titlebar height. When navigation stacks above the workspace, the titlebar uses ordinary frame chrome and the boundary becomes horizontal. The workspace has no enclosing border, rounded corner, shadow, or frame-colored gutter. Equal navigation, workspace, and frame colors remain valid because geometry and the divider establish structure. Forced colors use a system-color boundary.
+### Borders and elevation
 
-Split-titlebar presentation belongs to the mounted surface composition. Removing that composition restores ordinary `--surface-app-frame` titlebar chrome, including Reader in the main window. `PageShell` remains the Library workspace scroll root and retains collection windowing, focus, and import-drop ownership. Forced colors preserve the major divider with system colors without enclosing the workspace in a rectangle.
+Borders mark boundaries. Shadows show overlap and elevation. A quiet border and a small surface contrast come before a shadow. A surface uses both a strong border and a strong shadow only when there is a clear reason.
 
-Borders communicate structure. Shadows communicate overlap and elevation. Raised surfaces use the quiet structural border and the matching elevation token rather than pairing a strong border with a strong shadow. Forced-colors mode removes authored shadows and restores system-color borders, so geometry remains legible without relying on elevation.
+| Token              | Use                                             |
+| ------------------ | ----------------------------------------------- |
+| `--shadow-card`    | Book cards and established raised content       |
+| `--shadow-tooltip` | Compact supplemental hints and floating actions |
+| `--shadow-popover` | Menus, popovers, and transient floating panels  |
+| `--shadow-dialog`  | Blocking dialogs                                |
+| `--shadow-drawer`  | Edge-attached drawers and Reader side panels    |
+
+Components use the matching elevation token. Flat workspace areas do not need an enclosing shadow.
+
+## Shared components and states
+
+### Controls
+
+- Shared `Button` variants cover primary, secondary, ghost, and destructive actions. Each area has one clear primary action. Secondary actions have less visual weight.
+- `IconButton` is used for compact icon actions. Its layout slot stays stable, and each instance has an accessible name.
+- Shared `AppSelect`, `SegmentedControl`, `Toggle`, and menu components provide the common focus, selection, and disabled states. Feature components reuse them.
+- Interactive controls show hover, pressed, selected, disabled, invalid, and keyboard-focus states. Selection remains visible without relying on a small color change.
+- Busy actions keep their label and outer dimensions stable. A status message is not repeated in both visible and live-announced content. A spinner is used only when an operation lasts long enough for progress feedback to help.
+- Forms stay compact and keep visible labels and useful validation text. Narrow areas reflow locally. Error states use a semantic color and another cue, such as an outline or message.
+
+### Empty states
+
+`EmptyState` controls presentation. Each destination decides whether it has no content or no search or filter matches, then provides the heading, guidance, and action.
+
+- An empty destination can show one contextual monochrome glyph at `32px` in the muted foreground. The glyph appears only when it helps identify the destination.
+- Search and filter results with no matches contain text only. Keep a clear or recovery action when it helps.
+- Empty states do not use gradient orbs, glows, shadows, oversized illustrations, or entrance animations.
+- Descriptions are short and specific. An action appears only when the user has a useful next step.
+
+### Loading, feedback, and surfaces
+
+- Each route and utility window keeps its themed shell visible while content loads. Progress and errors appear in the content area. They do not replace the whole window with a generic status page.
+- Status and feedback areas reserve enough space to avoid moving the title, form, or footer. Loading, ready, and error states keep the same layout where possible.
+- Loading placeholders do not look interactive. Skeleton fields are not exposed as controls, and focus does not move into unavailable content.
+- Shared dialog components use native `<dialog>`. They preserve focus containment, Escape behavior, dismissal, and focus restoration.
+- Dialogs, details drawers, and Quick Actions share one restrained dim backdrop without blur. Nested surfaces do not add another backdrop.
+- The Library details drawer is an opaque overlay that enters from the right. It does not move or resize the Library content.
+- Frosted-glass panels, decorative blur, glow, and gradients are not general surface treatments. Existing image and Reader overlay blur remains limited to those features.
+- Functional gradients are limited to local effects such as loading shimmer and transparency checkers. They remain subtle and respect reduced motion. Empty states do not use gradients or glowing artwork.
 
 ## Motion
 
-Application motion is opt-in. The appearance runtime sets `html[data-motion="on"]` only when the user enables animations and the operating system does not request reduced motion. Motion durations remain `0ms` at the root and return to `0ms` under `prefers-reduced-motion: reduce`, so feature styles must not place animation declarations outside the effective-motion selector.
+Motion is disabled by default. Users can enable it when the operating system does not request reduced motion. When system reduced motion is active, motion durations are zero. Motion never delays dismissal, focus restoration, or user input.
 
-The shared motion language assigns movement by purpose instead of applying one vertical entrance everywhere:
+Use the shared duration vocabulary:
 
-| Role                    | Primitive                               | Typical use                                                                               |
-| ----------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Collection items        | `app-motion-view-content-in`            | Book, Folder, and Series card or list content                                             |
-| Settings section switch | `app-motion-settings-section-in`        | User-initiated Settings navigation after the dialog is already open                       |
-| Raised overlay          | `dialog-presence-enter` / `dialog-exit` | Centered native dialogs: 0.97�1 scale, limited opacity, emphasized duration               |
-| Transient notice        | `app-motion-notice-in`                  | Settings status and Library feedback                                                      |
-| Hierarchy disclosure    | `app-motion-disclosure-in`              | Nested folder children                                                                    |
-| Spatial panel           | directional slide                       | Details drawers, Reader table of contents, and Archive Manager forward or back navigation |
-| Supplemental hint       | `app-tooltip-bounce-in`                 | Tooltips, with a restrained placement-aware scale overshoot                               |
-| Indeterminate activity  | `app-motion-pulse` or `loading-sheen`   | Loading indicators that remain visible while work is active                               |
+| Token                          | Duration | Typical role                                          |
+| ------------------------------ | -------- | ----------------------------------------------------- |
+| `--motion-duration-fast`       | `120ms`  | Quick Actions and fast control/surface transitions    |
+| `--motion-duration-standard`   | `150ms`  | Controls and shared sidebar/titlebar geometry         |
+| `--motion-duration-slow`       | `160ms`  | Directional Archive Manager content changes           |
+| `--motion-duration-emphasized` | `180ms`  | Dialog entry, shared backdrop, and tooltips           |
+| `--motion-duration-view`       | `200ms`  | Library collection entrance and details drawer travel |
+| `--motion-duration-loop`       | `900ms`  | Indeterminate activity where motion is useful         |
 
-Deliberately opened Library dialogs mount their native modal shell immediately, retaining the title, existing dismissal paths and viewport-bounded content layout while code loads. Each modal skeleton reuses its form's presentation components, so field groups, natural body height, feedback reserve and footer match the ready form. Skeleton fields are inert and hidden from accessibility; one contained status announces loading. Series and integrity views use their shared header and controls during loading and chunk failure. Chunk failures offer a contained retry. `DeferredTransientFallback` remains specific to Quick Actions. Operation-owned progress is not deferred: imports, bulk metadata writes, deletion, rescans, and similar work remain visible inside their already-loaded surface as soon as the operation starts.
+The application uses these motion patterns:
 
-Collection-facing headings and controls remain stable. Only the rendered book, folder, or series card or list surface rises by 8px as it appears, with no scale, blur, or secondary animation on loading and empty states. Settings content is also static when the dialog first opens. Later user-initiated section changes use a brief opacity settle without translation, preventing the navigation from feeling abrupt without replaying a page entrance inside the dialog. Larger directional translation remains reserved for edge-attached panels or navigation where movement communicates where the surface came from. Tooltip bounce is intentionally compact and must not be reused for routine controls.
+- On intentional entry, the Library collection may rise by `8px` and fade in once. Data updates, filtering, sorting, and other state changes do not replay the entrance or remount the collection.
+- The sidebar and titlebar use the same `150ms` width interpolation during collapse and expansion. Their widths do not animate independently, and the Library subtree is not transformed.
+- Dialogs expand from the center at approximately `0.97` scale with a small opacity change. The exit fades without additional movement.
+- The backdrop follows the dialog or drawer lifecycle and fades once. It does not blur the application.
+- The Library details drawer remains opaque and travels from the right edge. It overlays the collection without changing its layout.
+- Settings section changes use a brief opacity transition. Quick Actions and tooltips keep their existing small transitions.
 
-Keep one-shot entrance keyframes brief. Interactive state changes continue to use interruptible transitions. Never add a generic `transition: all`, and never rely on motion as the only indication of state.
+Empty states and routine data changes do not use entrance animations. Loading shimmer runs only when motion is enabled and reduced motion is off. Card entrances are not staggered, scroll positions are not animated, and generic `transition: all` is not used. Motion is never the only indication of a state change.
 
-## Owner Visual Review
+## Accessibility and text scaling
 
-The automated checks protect token resolution and static geometry, but the final acceptance remains a Windows Tauri WebView review.
+- Keyboard users see a clear focus indicator. Keyboard focus uses a `2px` outline with an offset. The outline remains visible when control radii or borders change.
+- Pointer interaction does not leave keyboard focus styling visible. Focus styling follows the current input method, and keyboard navigation restores it.
+- Changes to compact visual geometry do not reduce pointer or touch hit areas. Coarse-pointer targets may extend beyond the visible control without changing its appearance.
+- Windows forced-colors mode uses system colors for boundaries, focus, selected states, errors, and disabled controls. Essential meaning does not depend on shadows or subtle color differences.
+- Text remains resizable. The semantic `rem` scale supports larger text. Control heights are not tuned to one font's metrics.
+- Truncated metadata keeps its full value available through an accessible detail, tooltip, or expanded view.
+- Long error messages and form content stay inside their own scroll region. Long paths, identifiers, and user text do not cause horizontal overflow.
 
-Review these representative surfaces at 100, 125, and 150 percent display scaling:
+## Visual review
 
-- custom title bar and window controls
-- sidebar navigation and archive switcher
-- library toolbar, book grid, and list rows
-- reader toolbar, page click-zone arrows, table of contents, and settings
-- dialogs, selects, popovers, and status feedback
-- Archive Manager at 860 by 620
+Check the application under conditions that affect layout or contrast:
 
-Repeat the review in dark and light appearance, normal and compact density, and the 1280 by 800, 900 by 600, and maximized main-window sizes. Check pointer and keyboard focus-visible states separately.
+- Dark, light, system-light, and custom application themes.
+- Comfortable and compact density.
+- Normal and enlarged text, including the `150%` browser text-size checks.
+- Narrow and wide layouts, including the `560px` responsive boundary and the normal desktop workspace.
+- Keyboard focus, pointer interaction, disabled and invalid states, and Windows forced colors.
+- Packaged Tauri WebView on Windows at `100%`, `125%`, and `150%` display scaling. Test the `900 × 600` minimum main-window size and the maximized size.
 
-## UI Integration Gate
+Inspect the Library shell, expanded and collapsed sidebar, archive switcher, collection grid and list, Reader toolbar and panels, settings, dialogs, menus, popovers, Theme Manager, Archive Manager, and utility windows. State changes must not move unrelated content, hide actions, or leave hidden controls focusable.
 
-Phase 0.4.0.6 keeps recurring menu rows and disclosure triggers on the shared menu contract, requires explicit focus-visible treatment when a surface suppresses the global outline, and preserves the 900 by 600 main-window minimum. `tests/uiIntegrationGate.test.ts` protects these cross-surface invariants without replacing the owner-run Windows matrix.
-
-Native dialogs, Library details and Quick Actions share the `--backdrop` subtle dim without blur. The existing transient-surface stack assigns one scrim to the first modal through nested routes; same-commit replacements inherit its displayed opacity. Backdrop reversal samples the current opacity alongside the surface pose. Surface and backdrop share entry timing through `--surface-duration`: emphasized (180ms) for dialogs, view (200ms) for the opaque full-distance Library drawer, and the unchanged fast (120ms) palette motion. Shared dialogs close with `--surface-exit-duration` (fast, 120ms): opacity reaches zero while the displayed transform stays fixed, including interrupted entry. Their backdrop uses the same exit duration; drawer and palette exits retain their existing timing and travel. Effective motion-off remains immediate.
+The current automated and owner-run checks are documented in `tests/visualFoundations.test.ts`, `tests/uiIntegrationGate.test.ts`, `tests/formHitAreaContract.test.ts`, `tests/browser/visual-refinement.md`, and `font-preferences-validation.md`. Browser tests verify repeatable geometry and interactions. They do not establish physical Windows display scaling, first paint in packaged WebView2, native frame performance, or screen-reader output. Mark those checks as unverified until they have been tested.
