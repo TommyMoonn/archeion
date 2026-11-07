@@ -1,9 +1,15 @@
 # Theme color audit
 
-This inventory records the Phase 1.4.3.1 built-in palette and the version 1 theme
-contract, including the Phase 1.5.6.4 split-shell ownership and diagnostic update.
-Built-in and custom theme manifests continue to use hexadecimal sRGB colors.
-Derived application and Reader colors are calculated through the internal OKLCH utility.
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
+This audit records the built-in palette results from Phase 1.4.3.1 and the
+split-shell diagnostics from Phase 1.5.6.4. It describes the version 1 theme
+contract, including hexadecimal sRGB manifest colors and OKLCH derivation for
+application and Reader colors. Treat the measurements and ownership details
+below as historical evidence. Use [DESIGN.md](../DESIGN.md) for current UI
+rules and [themeTokenRegistry.ts](../../src/themes/themeTokenRegistry.ts) for
+the current theme token definitions.
 
 ## Classification
 

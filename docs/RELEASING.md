@@ -11,8 +11,6 @@ release-note draft into GitHub. The [development guide](DEVELOPMENT.md) covers
 machine setup. The [testing guide](TESTING.md) lists local and CI validation. The
 [release-note contract](../release-notes/README.md) defines the user-facing note
 format.
-The ignored `.planning/release/RELEASE_PROCESS.md` is superseded and is not an
-operator procedure.
 
 ## Prepare one complete version transition
 

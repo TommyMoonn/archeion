@@ -33,6 +33,9 @@ User-facing instructions are published in the
   schema, supported overrides, and safety rules.
 - [Font preferences validation](font-preferences-validation.md) describes
   installed-font behavior and Windows validation cases.
+- [Theme color audit](design/theme-color-audit.md) records historical palette
+  measurements and split-shell diagnostics. Use [Design](DESIGN.md) for
+  current UI rules.
 - [Theme manifest schema](schemas/archeion-theme-v1.schema.json) defines the
   machine-readable custom theme contract.
 - [Theme examples](examples/themes/) contains example custom theme packages.
@@ -49,8 +52,10 @@ Performance timings are development evidence. They are not release guarantees.
 
 ## Dictionary maintenance
 
-[Dictionary catalog maintenance](dictionaries/README.md) documents the published
-catalog, source archives, conversion process, validation, and package publication.
+[Dictionary catalog maintenance](dictionaries/README.md) documents the build,
+validation, and publication workflow. `dictionaries/catalog-v1.json` owns
+published package metadata. `scripts/dictionaries/english_catalog_sources.json`
+owns the pinned source archives and license inputs.
 
 ## Repository and release references
 

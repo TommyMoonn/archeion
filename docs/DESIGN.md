@@ -29,6 +29,7 @@ The guide describes the intended UI. Implementation values are defined in `src/s
 | Themeable token contract                                                      | `src/themes/themeTokenRegistry.ts`                                               |
 | Custom theme authoring                                                        | [`custom-themes.md`](custom-themes.md)                                           |
 | Installed-font behavior and Windows validation                                | [`font-preferences-validation.md`](font-preferences-validation.md)               |
+| Historical built-in theme color audit                                         | [`design/theme-color-audit.md`](design/theme-color-audit.md)                     |
 | Visual regression tests and current evidence                                  | [`../tests/browser/visual-refinement.md`](../tests/browser/visual-refinement.md) |
 
 Feature code reuses shared components such as `Button`, `IconButton`, `AppSelect`, `SegmentedControl`, `Toggle`, `Dialog`, `MenuItem`, and `EmptyState`. Feature styles do not redefine a shared control's appearance. A shared component is extended only when multiple parts of the app need the same behavior and presentation.

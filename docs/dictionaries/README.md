@@ -1,29 +1,72 @@
-# Archeion dictionary catalog
+# Dictionary catalog
 
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
-This directory is the static publication root for Archeion's production dictionary catalog and its versioned packages. GitHub Pages publishes `docs/`, so dictionary payloads remain optional downloads and are not included in the application bundle. The v1.3.0 production catalog is intentionally limited to English monolingual dictionaries. Generic language-direction metadata and manual StarDict import remain supported independently of that curated release scope.
+This directory contains the production dictionary catalog and its versioned
+packages. GitHub Pages publishes `docs/`, so dictionary packages remain optional
+downloads and are not included in the application bundle. The v1.3.0 production
+catalog contains English monolingual dictionaries. Archeion also supports
+language-direction metadata and manual StarDict imports independently of that
+catalog.
 
-## English package maintenance
+## Source archives and conversion
 
-English catalog packages are maintained by `scripts/dictionaries/build_english_catalog_packages.py`. The builder accepts authoritative upstream archives, verifies the configured source byte size and SHA-256 before conversion, and emits deterministic StarDict 2.4.2 tar.xz candidate packages plus candidate catalog metadata. It never writes the production package directory or production catalog during generation.
+The English package builder is
+`scripts/dictionaries/build_english_catalog_packages.py`. It reads the pinned
+source set from `scripts/dictionaries/english_catalog_sources.json`. That file
+owns each source archive's URL, byte size, SHA-256, and license metadata.
 
-The maintained source set is defined in `scripts/dictionaries/english_catalog_sources.json`:
+The builder verifies each source archive's configured size and SHA-256 before
+conversion. It creates deterministic StarDict 2.4.2 `tar.xz` candidate packages
+and candidate catalog metadata. It does not write to the production package
+directory or production catalog.
 
-| Dictionary                                                 | Authoritative input                                                      | Conversion                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Princeton WordNet 3.0                                      | Princeton `WordNet-3.0.tar.bz2`                                          | WordNet database `data.*` synsets become StarDict headword/definition entries. Every lemma in a synset remains directly searchable. Authoritative `*.exc` exception mappings whose targets exist in the source database become StarDict aliases to the indexed lemma entries.                                                                                                                                                                                                                                                                                                                                              |
-| Open English WordNet 2025+                                 | Official `english-wordnet-2025-plus-index.sense-fixed.zip` release asset | The release WNDB `data.*` files use the same deterministic WordNet conversion. This preserves the headwords, synonyms, textual glosses, and any authoritative `*.exc` irregular-form mappings represented by OEWN's supported StarDict release path.                                                                                                                                                                                                                                                                                                                                                                       |
-| GNU Collaborative International Dictionary of English 0.54 | GNU `gcide-0.54.tar.xz`                                                  | GCIDE `CIDE.A` through `CIDE.Z` are parsed with explicit lexical boundaries. Later `<entry main-word="...">` wrappers own the canonical headword and all paragraphs/senses inside that entry; supported `<def>`/`<cd>`, `<altname>`, and `<asp>` content becomes deterministic StarDict data. `<syn>` contributes only its source-marked leading lexical list: comparative prose, delimiter remnants, and usage qualifications are excluded from searchable aliases. Presentation-only `<hw>`/`<mhw>` text is not indexed. Older `<p><ent>...</ent>` paragraph streams remain a compatibility path outside entry wrappers. |
+### Princeton WordNet 3.0
 
-Package archives retain a concise source/licence notice alongside the StarDict resources. Production package READMEs also record the exact authoritative source archive filename, URL, byte size, SHA-256, the Archeion repository, and SHA-256 values for the conversion script and source configuration. This identifies the exact conversion inputs without putting maintenance prose in the user-facing catalog `Source` field. Catalog entries keep only user-facing source and licence metadata; descriptive marketing copy is not part of the current prerelease catalog contract.
+The converter reads the WordNet database `data.*` files and writes StarDict
+headword and definition entries. Every lemma in a synset remains searchable.
+An authoritative `*.exc` exception mapping becomes an alias only when its
+target exists in the source database.
 
-The Open English WordNet release archive does not contain its licence notice. Maintenance therefore pins the official `WNDB_License.txt` from the same `2025-edition` source tag by URL and SHA-256 in `english_catalog_sources.json`; the builder verifies the maintained notice bytes before packaging them. This keeps the licence input release-bound and reproducible without adding network work to the application runtime.
+### Open English WordNet 2025+
 
-For GCIDE specifically, the packaged StarDict form is a conversion of GPL-3.0-or-later source, not the original source representation. Corresponding source is the exact `gcide-0.54.tar.xz` archive pinned in `scripts/dictionaries/english_catalog_sources.json`; recipients can obtain it from the recorded GNU source URL and verify its recorded byte size and SHA-256 before using the recorded Archeion converter/configuration revision. The complete GCIDE licence notice remains in the package as `COPYING`.
+The converter reads the release WNDB `data.*` files through the same WordNet
+conversion path. It preserves headwords, synonyms, textual glosses, and
+authoritative `*.exc` irregular-form mappings represented by OEWN's supported
+StarDict release path.
 
-To build the complete English candidate set after downloading the three configured source archives:
+The release archive does not contain its license notice. The source
+configuration pins the official `WNDB_License.txt` from the same `2025-edition`
+source tag by URL and SHA-256. The builder verifies the notice bytes before
+packaging them. This keeps the license input tied to the release without
+adding network access to the application runtime.
+
+### GNU Collaborative International Dictionary of English 0.54
+
+The GCIDE converter reads `CIDE.A` through `CIDE.Z` with explicit lexical
+boundaries. In newer source files, each `<entry main-word="...">` wrapper owns
+the canonical headword and the paragraphs and senses inside that entry.
+Supported `<def>` and `<cd>` content supplies definitions. `<altname>` and
+`<asp>` content supplies additional lexical forms.
+
+The converter reads only the source-marked leading lexical list from `<syn>`.
+It excludes comparative prose, delimiter remnants, and usage qualifications
+from searchable aliases. Presentation-only `<hw>` and `<mhw>` text is not
+indexed. Older `<p><ent>...</ent>` paragraph streams remain supported outside
+entry wrappers.
+
+The packaged StarDict data is a conversion of GPL-3.0-or-later source, not the
+original source representation. The corresponding source is the exact
+`gcide-0.54.tar.xz` archive pinned in the source configuration. Use its recorded
+GNU source URL, byte size, and SHA-256 to verify the archive before using the
+recorded Archeion converter and configuration revision. The complete GCIDE license notice remains in the GCIDE package as
+`COPYING`.
+
+## Build candidate packages
+
+Download the three configured source archives, then run the builder with their
+local paths:
 
 ```text
 python scripts/dictionaries/build_english_catalog_packages.py build \
@@ -32,15 +75,35 @@ python scripts/dictionaries/build_english_catalog_packages.py build \
   --gcide /path/to/gcide-0.54.tar.xz
 ```
 
-The default candidate location is `.project/dictionaries/english-catalog-candidate/`. A build invalidates any older native-validation receipt before replacing candidate files. Each candidate file is staged beside its destination and atomically replaced on the same filesystem, so the maintenance path does not depend on the operating-system temporary directory sharing a filesystem or Windows drive with the project. Source verification or conversion failure leaves the production catalog unchanged, and a partially replaced candidate set cannot be published without a fresh receipt bound to its exact bytes.
+The default candidate directory is
+`.project/dictionaries/english-catalog-candidate/`. A build invalidates any
+older native-validation receipt before it replaces candidate files. The builder
+stages each file beside its destination and replaces it atomically on the same
+filesystem. It does not depend on the operating-system temporary directory
+sharing a filesystem or Windows drive with the project.
 
-Validate the exact candidate package bytes through Archeion's native catalog, archive, StarDict, installation, SQLite indexing, activation, and lookup owners before publication:
+Source verification or conversion failure leaves the production catalog
+unchanged. A partial candidate set cannot be published without a new receipt
+that matches its exact contents.
+
+## Validate candidate packages
+
+Run native validation against the exact candidate bytes:
 
 ```text
 python scripts/dictionaries/build_english_catalog_packages.py validate
 ```
 
-The native validation test writes a receipt bound to the exact candidate catalog SHA-256 and each candidate package size/SHA-256 only after all three dictionaries install, become ready, and return a textual representative lookup. The Python maintenance owner verifies that receipt but does not duplicate the Rust archive or StarDict validators.
+The native validation test checks catalog loading, archive handling, StarDict
+installation, SQLite indexing, activation, and a representative text lookup.
+It writes a receipt only after all three dictionaries install, become ready, and
+return a representative lookup result.
+
+The receipt records the candidate catalog SHA-256 and each package's size and
+SHA-256. The Python maintenance script verifies that receipt. It does not repeat
+the Rust archive or StarDict validation.
+
+## Publish validated packages
 
 Publish only a candidate set with a current native-validation receipt:
 
@@ -48,24 +111,43 @@ Publish only a candidate set with a current native-validation receipt:
 python scripts/dictionaries/build_english_catalog_packages.py publish
 ```
 
-Publication copies immutable package files to `docs/dictionaries/packages/` first, re-verifies their exact sizes and SHA-256 values at the publication paths, and replaces `catalog-v1.json` last. A conflicting existing package filename fails closed. When publishing to the production catalog path, the committed catalog validator is run after replacement and the previous catalog is restored if that validation fails. Package files left unreferenced by a failed manifest publication are safe and may be removed separately.
+The publisher copies the immutable package files to `docs/dictionaries/packages/`
+first. It verifies their exact sizes and SHA-256 values at the publication paths,
+then replaces `catalog-v1.json` last.
 
-Small representative packages used by native regression tests are generated independently of the application runtime:
+An existing package filename with different contents is a conflict. The
+publisher fails without overwriting it. If the production catalog validator
+fails after the catalog replacement, the publisher restores the previous
+catalog. Package files left unreferenced by a failed catalog publication are
+safe to remove after inspection.
+
+## Verify dictionary fixtures
+
+Small representative packages for native regression tests are generated
+separately from the application runtime. Verify the current fixtures with:
 
 ```text
 python scripts/dictionaries/build_english_catalog_packages.py verify-fixtures
 ```
 
-Use `write-fixtures` only when intentionally changing the deterministic conversion contract. These fixtures are test data, not production dictionaries.
+Run `write-fixtures` only when you intend to change the deterministic
+conversion contract. These fixtures are test data, not production dictionaries.
 
-## Published English packages
+## Published catalog metadata
 
-The production catalog contains exactly these independently downloadable English monolingual packages:
+`catalog-v1.json` is the source of truth for published package metadata. It
+records each package's immutable version, download URL, compressed size,
+installed-size estimate, and SHA-256. Keep those values in the catalog instead
+of copying them into this guide.
 
-| Dictionary                                                 | Package version                         | Compressed bytes | Installed estimate | SHA-256                                                            |
-| ---------------------------------------------------------- | --------------------------------------- | ---------------: | -----------------: | ------------------------------------------------------------------ |
-| Princeton WordNet 3.0                                      | `3.0-archeion-7`                        |      `5,118,144` |       `27,812,475` | `6f2e86d62f41a4b16a2a5073b06d665f7c191f4a32cbeafd0e6e143f5ad66c56` |
-| Open English WordNet 2025+                                 | `2025-plus-fixed-2026-06-26-archeion-6` |      `5,395,284` |       `29,138,666` | `d6abe6c0953060e8b4e9199cf062445898a2205ef61e78a741b1b33959cda7e3` |
-| GNU Collaborative International Dictionary of English 0.54 | `0.54-archeion-6`                       |      `5,945,004` |       `53,622,727` | `b7c087e434fa4dc3494e612ae5af003fcb8a2a25dad10cf3bf001d5a95f935e0` |
+Each catalog URL names an immutable package version. Catalog entries contain
+user-facing source and license metadata. They do not contain descriptive
+marketing copy.
 
-Each catalog URL names its immutable package version. The catalog records the exact compressed size and SHA-256, while each package records its authoritative source and conversion provenance internally. No dictionary payload is included in the application bundle.
+## Package provenance
+
+Each package archive includes a short source and license notice beside the
+StarDict resources. The production package README files record the authoritative source archive
+filename, URL, byte size, and SHA-256. They also record the Archeion repository
+and the SHA-256 values of the conversion script and source configuration.
+Together, these records identify the exact inputs used to create the package.
