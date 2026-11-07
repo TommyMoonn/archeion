@@ -47,7 +47,13 @@ pub(super) fn rewrite_epub_cover(
         for index in 0..archive.len() {
             let (name, compression) = {
                 let entry = archive.by_index(index).map_err(|error| error.to_string())?;
-                (entry.name().to_string(), entry.compression())
+                (
+                    entry
+                        .name()
+                        .map_err(|error| error.to_string())?
+                        .into_owned(),
+                    entry.compression(),
+                )
             };
             let options = SimpleFileOptions::default().compression_method(compression);
             if name == package_path {
@@ -123,7 +129,8 @@ fn archive_names(archive: &mut ZipArchive<File>) -> Result<Vec<String>, String> 
                 .by_index(index)
                 .map_err(|error| error.to_string())?
                 .name()
-                .to_string(),
+                .map_err(|error| error.to_string())?
+                .into_owned(),
         );
     }
     Ok(names)

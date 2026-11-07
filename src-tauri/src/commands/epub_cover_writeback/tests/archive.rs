@@ -55,7 +55,8 @@ fn writes_landmark_only_cover_without_changing_navigation_page_or_spine() {
                 .by_index(index)
                 .expect("entry should read")
                 .name()
-                .to_string()
+                .expect("entry name should decode")
+                .into_owned()
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -212,7 +213,8 @@ fn writes_guide_only_cover_into_existing_resource_without_duplicate_cover_entrie
                 .by_index(index)
                 .expect("entry should read")
                 .name()
-                .to_string()
+                .expect("entry name should decode")
+                .into_owned()
         })
         .collect::<Vec<_>>();
     assert_eq!(

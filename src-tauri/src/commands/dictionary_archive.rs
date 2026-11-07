@@ -92,10 +92,10 @@ fn extract_zip_archive(
             ));
         }
         if entry.is_dir() {
-            extraction.register_directory(entry.name())?;
+            extraction.register_directory(&entry.name().map_err(zip_error)?)?;
             continue;
         }
-        let entry_name = entry.name().to_owned();
+        let entry_name = entry.name().map_err(zip_error)?.into_owned();
         let entry_size = entry.size();
         extraction.extract_file(&entry_name, entry_size, &mut entry, |error| {
             invalid_archive(format!(
