@@ -1,5 +1,8 @@
 # Custom themes
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 Archeion theme manifests are strict, color-only JSON files. They can recolor the application and EPUB reader without changing layout, typography, motion, assets, or behavior. Current theme packages are application-wide and remain available when you switch archives.
 
 ## Package layout

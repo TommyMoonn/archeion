@@ -1,5 +1,8 @@
 # Archeion annotation export format
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 Archeion JSON annotation exports use the schema identifier
 `archeion.annotation-export`. The current version is `1`.
 

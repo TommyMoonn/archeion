@@ -1,5 +1,8 @@
 # Archeion Design System
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 This guide records the visual rules for Archeion's desktop app. It covers the application frame, Library, Reader controls, settings, dialogs, menus, and utility windows. It does not cover the layout or typography of EPUB content, the public website, or the documentation site.
 
 The guide describes the intended UI. Implementation values are defined in `src/styles/tokens.css`, and theme colors are defined in `src/themes/themeTokenRegistry.ts`. Update this guide when an accepted design decision changes either source.

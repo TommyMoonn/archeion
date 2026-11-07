@@ -1,12 +1,16 @@
 # Release operator guide
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 This tracked guide is the source of truth for preparing an Archeion application
 release. The release must represent deliberate product work, not maintenance of
 the release automation itself. Work through a reviewed pull request into
 `main`; do not manually create or push a `v*` tag or paste an ignored local
 release-note draft into GitHub. The [development guide](DEVELOPMENT.md) covers
-machine setup and general validation. The [release-note contract](../release-notes/README.md)
-defines the user-facing note format.
+machine setup. The [testing guide](TESTING.md) lists local and CI validation. The
+[release-note contract](../release-notes/README.md) defines the user-facing note
+format.
 The ignored `.planning/release/RELEASE_PROCESS.md` is superseded and is not an
 operator procedure.
 

@@ -1,5 +1,8 @@
 # Archeion dictionary catalog
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 This directory is the static publication root for Archeion's production dictionary catalog and its versioned packages. GitHub Pages publishes `docs/`, so dictionary payloads remain optional downloads and are not included in the application bundle. The v1.3.0 production catalog is intentionally limited to English monolingual dictionaries. Generic language-direction metadata and manual StarDict import remain supported independently of that curated release scope.
 
 ## English package maintenance

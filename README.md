@@ -88,6 +88,7 @@ Your Archive/
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
+- [Maintainer documentation index](docs/README.md)
 - [Development guide](docs/DEVELOPMENT.md)
 - [Project scripts](scripts/README.md)
 - [Changelog](CHANGELOG.md)

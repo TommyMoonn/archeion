@@ -1,5 +1,8 @@
 # Archeion architecture
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 Archeion is a local-first Windows desktop application for managing EPUB archives and reading books. The interface runs in a React and TypeScript webview hosted by Tauri 2. The Rust backend handles filesystem access, durable metadata, background work, and desktop integration. Tauri commands and events connect the two sides.
 
 The selected archive remains an ordinary folder on the user's machine. EPUB files stay in that folder. Archeion stores its library metadata and reading state alongside them in a `.archeion` directory.
@@ -50,11 +53,20 @@ The frontend entry point is `src/main.tsx`. It mounts `src/app/App.tsx`, which s
 
 ## Frontend state and storage
 
-`ArchiveStore` owns the known archive registry and active-archive transitions. It handles archive activation, registry updates from other windows, and the lifecycle around switching archives.
+`ArchiveStore` owns the known archive registry and active-archive lifecycle. Activation runs through
+native activation, path validation, metadata initialization, and final state publication. The store
+also owns the long-lived registry event subscription for each application window. It retries a
+failed subscription and cleans it up when the window closes. Keep archive initialization separate
+from the event subscription lifecycle.
 
 `LibraryStorage` defines the contract for archive and book operations. `TauriArchiveLibraryStorage` is the desktop implementation. The main workspace receives it through `LibraryStorageProvider`. The adapter coordinates book and folder operations, annotations, metadata writes, scans, and watcher updates. Its command clients and operation classes live under `src/storage/tauri/`.
 
-`ArchiveScanSession` coordinates full and targeted scans on the frontend. `ArchiveMutationCoordinator` applies scan results and other archive changes to the current library snapshot. Archive-generation checks prevent work started for an old active archive from publishing into the new one.
+`ArchiveScanSession` supplies a stable Library scan consumer to the native full-scan coordinator.
+Native cancellation applies only to a scan for the same archive and consumer. Settings rescan and
+metadata repair request reconciliation from the active Library instead of opening a competing
+full-scan path. Manual Rescan and watcher follow-up work use that Library scan owner.
+
+`ArchiveMutationCoordinator` applies scan results and other archive changes to the current Library snapshot. Archive-generation checks prevent work started for an old active archive from publishing into the new one.
 
 `AppPreferencesStore` owns normalized application preferences and their update lifecycle. In the desktop app, it reads and writes settings through native commands and listens for settings changes from other windows. `ThemeRepository` uses native commands to manage installed custom theme packages. `src/themes/` resolves the selected appearance and publishes the active theme to the interface.
 
@@ -105,14 +117,9 @@ The frontend import rules are defined in `scripts/check-architecture.mjs` and te
 
 Cross-feature dependencies must be explicit. `scripts/feature-domain-baseline.json` records the approved file-level edges and the reason for each one. Keep those dependencies narrow. Remove baseline entries when the corresponding imports no longer exist. Avoid adding a dependency cycle to solve a local feature problem.
 
-The command parity check covers the TypeScript-to-Rust command boundary. Settings and other shared data contracts also have focused cross-language tests. These checks complement code review; the frontend architecture checker does not validate Rust module design.
+The command parity check covers the TypeScript-to-Rust command boundary. Settings and other shared data contracts also have focused cross-language tests. These checks complement code review. The frontend architecture checker does not validate Rust module design.
 
-Run the focused architecture checks after changing module dependencies or native command contracts:
-
-```powershell
-npm run architecture:check
-npm run ipc:check
-npm run settings:contract:check
-```
-
-See [the development guide](DEVELOPMENT.md) for setup and full validation commands. See [the design guide](DESIGN.md) for the visual rules and UI implementation sources of truth.
+Run the architecture, IPC, and settings contract checks described in the
+[testing guide](TESTING.md) after changing module dependencies or native command
+contracts. See the [development guide](DEVELOPMENT.md) for setup and the
+[design guide](DESIGN.md) for visual rules and UI implementation sources of truth.

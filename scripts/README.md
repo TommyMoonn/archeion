@@ -1,5 +1,8 @@
 # Project Scripts
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 Run from the project root with PowerShell 7.
 
 Public flags use Git-style `--kebab-case`. Existing PowerShell-style flags and renamed script entry points remain compatibility aliases.
@@ -21,6 +24,34 @@ Every command supports `-h` / `--help`.
 | `stage-windows-release.ps1`   | Validate and stage Windows release installers.                   | `.\scripts\stage-windows-release.ps1`                   |
 | `verify-windows-release.ps1`  | Verify staged Windows installers and SHA-256 checksums.          | `.\scripts\verify-windows-release.ps1`                  |
 | `smoke-windows-installer.ps1` | Silently install and uninstall the staged per-user NSIS bundle.  | `.\scripts\smoke-windows-installer.ps1`                 |
+
+## npm aliases
+
+Run these aliases from the repository root. They call the PowerShell scripts
+listed above. Add `--` before script arguments so npm passes them through.
+
+| Alias                 | Purpose                                              |
+| --------------------- | ---------------------------------------------------- |
+| `changes:peek`        | Preview applying a changed-files package.            |
+| `changes:apply`       | Apply a changed-files package.                       |
+| `changes:apply:force` | Apply a package while allowing a dirty working tree. |
+| `changes:review`      | Summarize the current working-tree changes.          |
+| `changes:package`     | Package the current Git changes.                     |
+| `changes:restore`     | Restore an import backup.                            |
+| `clean`               | Remove the default set of generated outputs.         |
+| `clean:rust`          | Remove Rust build output.                            |
+| `clean:all`           | Remove all supported generated-output categories.    |
+| `zip:repo`            | Export committed repository source.                  |
+| `zip:workspace`       | Export a filtered local workspace.                   |
+
+Examples:
+
+```powershell
+npm run changes:peek
+npm run changes:package -- --name "task-name"
+npm run clean:all -- --dry-run
+npm run zip:workspace
+```
 
 Compatibility entry points:
 
