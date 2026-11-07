@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { AsyncDialogShell } from "../../components/AsyncDialogShell";
 import {
   Plus,
@@ -102,11 +104,29 @@ function findBook(
   return (books ?? []).find((book) => book.id === bookId) ?? null;
 }
 
-export function LibraryWorkspaceDialogs({
+export function LibraryWorkspaceDialogs(props: LibraryWorkspaceDialogsProps) {
+  const { dialog } = props;
+  const identity =
+    dialog.type +
+    ("bookId" in dialog
+      ? `:${dialog.bookId}`
+      : "book" in dialog
+        ? `:${dialog.book.id}`
+        : "folder" in dialog
+          ? `:${dialog.folder.id}`
+          : "");
+  return (
+    <SurfacePresence>
+      {dialog.type === "none" ? null : <LibraryWorkspaceDialogContent key={identity} {...props} />}
+    </SurfacePresence>
+  );
+}
+
+function LibraryWorkspaceDialogContent({
   books,
   confirmDestructiveFileActions,
   dialog,
-  dialogActions,
+  dialogActions: ownerActions,
   folders,
   importDefaults,
   isBulkRunning,
@@ -139,6 +159,14 @@ export function LibraryWorkspaceDialogs({
   selectedBookIds,
   selectedBooks,
 }: LibraryWorkspaceDialogsProps) {
+  const dialogActions = useMemo(
+    () => ({
+      ...ownerActions,
+      close: ownerActions.captureClose("close", dialog),
+      closeBookEditor: ownerActions.captureClose("close-book-editor", dialog),
+    }),
+    [dialog, ownerActions],
+  );
   if (dialog.type === "none") return null;
   const loadingContent = (
     <LibraryDialogSkeleton

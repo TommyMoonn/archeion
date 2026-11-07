@@ -8,14 +8,11 @@ node_modules
 dist
 dist-ssr
 target
-src-tauri/target
 artifacts
 
-# Generated output
+# Generated output and caches
 src-tauri/gen/schemas
 coverage
-
-# Tooling caches
 .vite
 *.tsbuildinfo
 .eslintcache
@@ -26,7 +23,7 @@ __pycache__
 .env
 .env.*
 
-# Agent/local working data
+# Local agent and development data
 .agent-work
 .scratch
 .dev/chatgpt/bundles
@@ -35,8 +32,32 @@ __pycache__
 .project/dictionaries/source-archives
 .project/dictionaries/english-catalog-*
 
-# Temporary/system files
+# Temporary files and archives
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.log
 *.tmp
 *.zip
+
+# Browser and test runner output
+playwright-report
+test-results
+blob-report
+
+# Phase browser evidence
+.project/v*/browser-final
+.project/v*/cold-acquisition-failures
+.project/v*/browser
+.project/v*/browser-report
+.project/v*/playwright-report
+.project/v*/baseline-results
+
+# Failed native-run evidence
+.project/v*/blocker-follow-up-native-*-attempt
+
+# Phase screenshots
+.project/v*/*.png
+.project/v*/*.jpg
+.project/v*/*.jpeg
+.project/v*/*.webp

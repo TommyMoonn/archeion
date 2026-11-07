@@ -5,7 +5,7 @@
   gap: 8px;
   min-height: var(--button-height, var(--control-height-prominent));
   padding: 0 var(--button-padding-inline, 17px);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   font-size: var(--type-control-label);
   font-weight: var(--type-control-label-weight);
   line-height: var(--type-control-label-line-height);

@@ -6,7 +6,7 @@
   min-height: var(--input-height, var(--control-height-prominent));
   padding: 0 13px;
   border: var(--border-width) solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-control);
   color: var(--muted);
   background: var(--surface);
   transition:
@@ -20,10 +20,6 @@
 
 .input-shell--prominent {
   --input-height: var(--control-height-prominent);
-}
-
-.input-shell:has(input[type="search"]) {
-  border-radius: var(--radius-control);
 }
 
 .input-shell:focus-within {

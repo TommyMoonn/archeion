@@ -203,8 +203,9 @@ export function useLibraryBulkActions({
     [runBulkAction, storage],
   );
   const deleteSelectedBooks = useCallback(async () => {
+    const closeDialog = dialogs.captureClose();
     await runBulkAction("Delete", (ids) => storage.bulkDeleteBooks(ids));
-    dialogs.close();
+    closeDialog();
   }, [dialogs, runBulkAction, storage]);
   const writeSelectedBookMetadata = useCallback(
     (edits: BulkMetadataEditInput) =>

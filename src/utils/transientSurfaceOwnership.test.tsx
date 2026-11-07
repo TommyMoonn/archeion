@@ -27,6 +27,50 @@ function surface(label: string): HTMLElement {
 }
 
 describe("transient surface ownership", () => {
+  it("keeps a single dimming owner through nesting and promotes the remaining modal", () => {
+    const first = surface("first");
+    const second = surface("second");
+    const unregister = registerTransientSurface({
+      element: first,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    registerTransientSurface({
+      element: second,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    expect(first.dataset.backdropOwner).toBe("true");
+    expect(first.dataset.backdropHeld).toBe("true");
+    expect(second.dataset.backdropOwner).toBe("false");
+    unregister();
+    expect(second.dataset.backdropOwner).toBe("true");
+    expect(second.style.getPropertyValue("--backdrop-from-opacity")).toBe("1");
+    expect(first.hasAttribute("data-backdrop-owner")).toBe(false);
+  });
+
+  it("expires backdrop handoff before an unrelated later opening", async () => {
+    const first = surface("first");
+    const unregister = registerTransientSurface({
+      element: first,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    unregister();
+    await Promise.resolve();
+    const second = surface("later");
+    registerTransientSurface({
+      element: second,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    expect(second.style.getPropertyValue("--backdrop-from-opacity")).toBe("");
+  });
+
   it("claims Escape for only the topmost registered surface", () => {
     const first = vi.fn();
     const second = vi.fn();

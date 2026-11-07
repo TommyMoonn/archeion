@@ -103,19 +103,12 @@
 }
 
 .library-titlebar-composition {
+  container: library-titlebar / inline-size;
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  width: var(--sidebar-width);
+  width: var(--library-sidebar-current-width, var(--sidebar-width));
   height: 100%;
-  padding-block: 4px 0;
-  padding-inline: 21px
-    calc(
-      var(--library-sidebar-inset-end) + var(--library-sidebar-nav-inset-end) + var(--border-width)
-    );
+  overflow: hidden;
   color: var(--muted);
-  transition: width var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .library-titlebar-composition__drag-region {
@@ -124,23 +117,25 @@
 }
 
 .library-titlebar-composition[data-collapse-available="false"] {
-  grid-template-columns: auto;
+  container-type: normal;
   width: auto;
   padding-inline: var(--library-sidebar-inset-start);
-  transition: none;
 }
 
-.library-titlebar-composition[data-sidebar-collapsed="true"] {
-  grid-template-columns: minmax(0, 1fr);
-  width: var(--sidebar-collapsed-width);
-  padding-inline: var(--library-sidebar-collapsed-inset)
-    calc(var(--library-sidebar-collapsed-inset) + var(--border-width));
+.library-titlebar-composition[data-collapse-available="false"]
+  .library-titlebar-composition__wordmark {
+  position: relative;
+  inset: auto;
+  height: 100%;
 }
 
 .library-titlebar-composition__wordmark {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
+  position: absolute;
+  inset-block: 4px 0;
+  inset-inline-start: 21px;
+  display: flex;
+  align-items: center;
+  width: max-content;
   color: var(--text);
   font-family: var(--font-display);
   font-size: var(--type-application-title);
@@ -152,16 +147,15 @@
 }
 
 .library-titlebar-composition__actions {
-  position: relative;
+  position: absolute;
+  inset-block: 4px 0;
+  inset-inline-end: calc(
+    (var(--sidebar-collapsed-width) - var(--control-height-compact) + var(--border-width)) / 2
+  );
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 1px;
-}
-
-.library-titlebar-composition[data-sidebar-collapsed="true"]
-  .library-titlebar-composition__actions {
-  justify-self: center;
 }
 
 .library-titlebar-composition__button {

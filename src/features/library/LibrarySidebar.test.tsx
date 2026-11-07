@@ -326,9 +326,11 @@ describe("LibrarySidebar", () => {
         session.container.querySelector(`.sidebar__nav [aria-label="${destination}"]`),
       ).not.toBeNull();
     }
-    expect(session.container.textContent).not.toContain("Smart views");
-    expect(session.container.textContent).not.toContain("Black Saint");
-    expect(session.container.querySelector(".sidebar__folder-scroll")).toBeNull();
+    const expandedContent = session.container.querySelector(".sidebar__expanded-content");
+    expect(expandedContent?.hasAttribute("inert")).toBe(true);
+    expect(expandedContent?.getAttribute("aria-hidden")).toBe("true");
+    expect(expandedContent?.textContent).toContain("Black Saint");
+    expect(session.container.querySelector(".sidebar__folder-scroll")).not.toBeNull();
     expect(session.container.querySelector('[aria-label="Current archive: Books"]')).not.toBeNull();
     for (const label of ["About Archeion", "Settings"]) {
       const control = session.container.querySelector(`[aria-label="${label}"]`);

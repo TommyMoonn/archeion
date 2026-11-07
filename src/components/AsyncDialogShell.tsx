@@ -1,3 +1,4 @@
+import { SurfacePresenceContext } from "./modalPresenceContext";
 import {
   Suspense,
   useCallback,
@@ -73,7 +74,12 @@ export function AsyncDialogShell({
     const dialog = dialogRef.current;
     const previous = pendingFocus.current;
     pendingFocus.current = null;
-    if (!dialog?.open || !isTopmostTransientSurface(dialog)) return;
+    if (
+      !dialog?.open ||
+      dialog.dataset.surfaceState === "closing" ||
+      !isTopmostTransientSurface(dialog)
+    )
+      return;
     // Keep a surviving loading control. Otherwise hand off its action, not its DOM identity.
     if (previous && dialog.contains(previous) && isUsableFocusTarget(previous)) {
       previous.focus({ preventScroll: true });
@@ -199,48 +205,50 @@ export function AsyncDialogShell({
             {visibleTitle}
           </h2>
         </div>
-        <DialogShellContext value={shell}>
-          <Suspense
-            fallback={
-              <LoadingPanel
-                onMount={retainFocus}
-                title={title}
-                titleId={titleId}
-                descriptionId={descriptionId}
-                hosted
-                feedback={reserveFeedback ? null : undefined}
-                description={loadingDescription}
-                feedbackSize={feedbackSize}
-                feedbackPlacement={feedbackPlacement}
-                footer={
-                  <>
-                    <Button
-                      data-dialog-shell-action="dismiss"
-                      variant="secondary"
-                      onClick={() => options.current.onClose()}
-                    >
-                      {dismissLabel}
-                    </Button>
-                    <Button
-                      icon={actionIcon}
-                      busy={reserveActionIndicator ? false : undefined}
-                      disabled
-                    >
-                      {actionLabel}
-                    </Button>
-                  </>
-                }
-              >
-                <span className="sr-only" role="status">
-                  Opening {title.toLowerCase()}…
-                </span>
-                <DialogSkeleton>{loadingContent}</DialogSkeleton>
-              </LoadingPanel>
-            }
-          >
-            {children}
-          </Suspense>
-        </DialogShellContext>
+        <SurfacePresenceContext value={null}>
+          <DialogShellContext value={shell}>
+            <Suspense
+              fallback={
+                <LoadingPanel
+                  onMount={retainFocus}
+                  title={title}
+                  titleId={titleId}
+                  descriptionId={descriptionId}
+                  hosted
+                  feedback={reserveFeedback ? null : undefined}
+                  description={loadingDescription}
+                  feedbackSize={feedbackSize}
+                  feedbackPlacement={feedbackPlacement}
+                  footer={
+                    <>
+                      <Button
+                        data-dialog-shell-action="dismiss"
+                        variant="secondary"
+                        onClick={() => options.current.onClose()}
+                      >
+                        {dismissLabel}
+                      </Button>
+                      <Button
+                        icon={actionIcon}
+                        busy={reserveActionIndicator ? false : undefined}
+                        disabled
+                      >
+                        {actionLabel}
+                      </Button>
+                    </>
+                  }
+                >
+                  <span className="sr-only" role="status">
+                    Opening {title.toLowerCase()}…
+                  </span>
+                  <DialogSkeleton>{loadingContent}</DialogSkeleton>
+                </LoadingPanel>
+              }
+            >
+              {children}
+            </Suspense>
+          </DialogShellContext>
+        </SurfacePresenceContext>
       </div>
     </dialog>
   );

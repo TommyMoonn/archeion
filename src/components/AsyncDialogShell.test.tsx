@@ -3,6 +3,7 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SurfacePresence } from "./SurfacePresence";
 import { AsyncDialogShell } from "./AsyncDialogShell";
 import { createAsyncSurface } from "./createAsyncSurface";
 import { Dialog } from "./Dialog";
@@ -257,4 +258,58 @@ describe("async dialog lifetime", () => {
     expect(load).toHaveBeenCalledTimes(2);
     expect(container.querySelector('input[aria-label="Filename"]')).not.toBeNull();
   });
+});
+
+it("late lazy readiness cannot focus or reactivate a closing native shell", async () => {
+  setup();
+  document.documentElement.dataset.motion = "on";
+  let finish!: () => void;
+  const finished = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  vi.spyOn(HTMLDialogElement.prototype, "getAnimations").mockReturnValue([
+    {
+      currentTime: 0,
+      finished,
+      effect: { getComputedTiming: () => ({ endTime: 500 }) },
+    } as unknown as Animation,
+  ]);
+  const pending = deferred<Module>();
+  const Content = createAsyncSurface(() => pending.promise);
+  const close = vi.fn();
+  const paint = (open: boolean) =>
+    act(() =>
+      root.render(
+        <SurfacePresence>
+          {open ? (
+            <AsyncDialogShell
+              title="Edit file"
+              actionLabel="Save"
+              loadingContent={<input readOnly />}
+              onClose={close}
+            >
+              <Content onClose={close} />
+            </AsyncDialogShell>
+          ) : null}
+        </SurfacePresence>,
+      ),
+    );
+  try {
+    paint(true);
+    paint(false);
+    const dialog = container.querySelector("dialog")!;
+    expect(document.activeElement).toBe(dialog);
+    await act(async () => {
+      pending.resolve({ default: Editor });
+      await pending.promise;
+    });
+    expect(dialog.dataset.surfaceState).toBe("closing");
+    expect(dialog.firstElementChild?.hasAttribute("inert")).toBe(true);
+    expect(document.activeElement).toBe(dialog);
+    expect(close).not.toHaveBeenCalled();
+    await act(async () => finish());
+    expect(container.querySelector("dialog")).toBeNull();
+  } finally {
+    delete document.documentElement.dataset.motion;
+  }
 });

@@ -85,11 +85,13 @@ export const LibraryTitlebarComposition = forwardRef<
         data-sidebar-collapsed={isCollapsed}
       >
         <div className="library-titlebar-composition__drag-region" data-tauri-drag-region />
-        {!isCollapsed ? (
-          <span className="library-titlebar-composition__wordmark" data-tauri-drag-region>
-            Archeion
-          </span>
-        ) : null}
+        <span
+          className="library-titlebar-composition__wordmark"
+          data-tauri-drag-region
+          aria-hidden={isCollapsed || undefined}
+        >
+          Archeion
+        </span>
         {collapseAvailable ? (
           <div
             aria-label="Library window actions"
