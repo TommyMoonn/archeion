@@ -496,7 +496,10 @@ fn rewrite_epub_package_document(
         for index in 0..archive.len() {
             let (name, is_package, options) = {
                 let entry = archive.by_index(index).map_err(|error| error.to_string())?;
-                let name = entry.name().to_string();
+                let name = entry
+                    .name()
+                    .map_err(|error| error.to_string())?
+                    .into_owned();
                 let is_package = name == package_path;
                 let options = SimpleFileOptions::default().compression_method(entry.compression());
                 (name, is_package, options)

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// @vitest-environment-options {"settings":{"enableIframePageLoading":true}}
 
 import type { Location, Rendition } from "epubjs";
 import { act, createRef } from "react";

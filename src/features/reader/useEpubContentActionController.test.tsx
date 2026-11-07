@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// @vitest-environment-options {"settings":{"enableIframePageLoading":true}}
 
 import type { Book as EpubBook } from "epubjs";
 import { act, useLayoutEffect } from "react";

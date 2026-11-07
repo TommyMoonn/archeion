@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// @vitest-environment-options {"settings":{"enableIframePageLoading":true}}
 
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
 import type EpubSection from "epubjs/types/section";
