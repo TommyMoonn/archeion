@@ -1,5 +1,8 @@
 # Performance architecture evidence
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 This is the durable maintainer-facing portion of the Phase 0.9.0.1 performance
 baseline, recorded on 2026-07-24. It documents structural contracts and the
 limits of the original measurements, not current wall-clock targets. The phase
@@ -16,9 +19,9 @@ remain local; they are not required to interpret this record.
 - No packaged WebView2 startup, storage-hardware latency, or end-to-end Reader
   latency was established by the original baseline. Do not extrapolate its
   structural results into release performance guarantees.
-- The [development guide](../DEVELOPMENT.md) gives the current opt-in commands
-  and interpretation rules for repeating scanner, Library, startup, and Reader
-  measurements on a representative machine.
+- The [performance measurement guide](measuring.md) gives the current opt-in
+  commands and interpretation rules for repeating scanner, Library, startup, and
+  Reader measurements on a representative machine.
 
 ## Retained structural contracts
 

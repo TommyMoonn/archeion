@@ -1,20 +1,22 @@
 # Archeion development guide
 
-This guide covers local development, validation, and packaging. The root
-[README](../README.md) remains focused on users and the product itself.
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
+Use this guide to set up a local checkout, run Archeion, and build local
+installers. The root [README](../README.md) describes the product. The
+[maintainer documentation index](README.md) links to the other engineering guides.
 
 ## Requirements
 
 Archeion development currently targets Windows and requires:
 
-- Node.js 22 (at least 22.13). The shared `.node-version` selects the major
-  version for development and CI; `package.json` records the minimum supported
-  version.
+- Node.js 22.13 or newer. `.node-version` selects the major version for
+  development and CI. `package.json` records the minimum supported version.
 - npm with the committed `package-lock.json`.
 - Rust and Cargo. `rust-toolchain.toml` pins the development and normal CI
   toolchain to Rust 1.97.1. `src-tauri/Cargo.toml` declares Rust 1.90 as the
-  minimum supported Rust version (MSRV), which CI checks separately; it is not
-  the development toolchain pin.
+  minimum supported Rust version (MSRV). CI checks the MSRV separately.
 - PowerShell 7.
 - The Windows prerequisites required by Tauri 2.
 
@@ -26,509 +28,22 @@ cd archeion
 npm ci
 ```
 
-Use `npm ci` rather than `npm install` for a clean checkout so the dependency
-versions remain aligned with `package-lock.json`.
+Use `npm ci` for a clean checkout. It installs the versions recorded in
+`package-lock.json`.
 
 ## Run Archeion
 
-Start the Tauri development application:
+Start the Tauri desktop application:
 
 ```powershell
 npm run tauri:dev
 ```
 
-Run only the Vite frontend when desktop APIs are not needed:
+Run only the Vite frontend when you do not need desktop APIs:
 
 ```powershell
 npm run dev
 ```
-
-## Archive lifecycle ownership
-
-`ArchiveStore` owns active-archive transitions through native activation, path validation,
-metadata initialization, and final state publication. It also owns the long-lived archive registry
-event subscription for each application window, including retry after a failed subscription and
-cleanup when the window closes. Keep archive initialization separate from that connection lifecycle.
-
-`ArchiveScanSession` supplies a stable Library scan consumer to the native full-scan coordinator.
-Native cancellation applies only to a scan for the same archive and consumer. Settings rescan and
-metadata repair request reconciliation from the active Library rather than opening a competing
-full-scan path. Manual Rescan and watcher follow-up work use that Library scan owner.
-
-Check rapid archive switches, overlapping Library scans, Settings maintenance, and cross-window
-archive changes with the focused store, scan-session, scanner, and maintenance tests before running
-the broader release gates.
-
-## Validation commands
-
-Run the full local verification suite before preparing a pull request or release:
-
-```powershell
-npm run verify
-```
-
-`verify` runs formatting, linting, TypeScript checks, frontend tests, Rust
-formatting, Clippy, Rust tests, the production frontend build, and bundled Inter
-asset verification.
-
-For release preparation and the post-merge publication procedure, follow the
-[release operator guide](RELEASING.md). The local installer commands below do
-not create a tag or publish a GitHub Release.
-
-Focused commands:
-
-```powershell
-npm run fmt
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-npm run test:inter-assets
-npm run check:rust
-```
-
-The frontend test suite checks byte parity for physical asset copies shared by
-the desktop app and public site. `src-tauri/icons/128x128.png` is the canonical
-128-pixel icon for the frontend and site copies; the frontend Latin Atkinson and
-Literata font files are canonical for the site's four matching font copies.
-Run the focused check with `npm run test -- tests/sharedAssetParity.test.ts`.
-Resized platform icons, the favicon, and distinct site imagery are not parity
-targets.
-
-Commands that apply automatic formatting or lint fixes:
-
-```powershell
-npm run fmt:fix
-npm run lint:fix
-npm run rust:fmt:fix
-```
-
-### Diagnostic coverage
-
-Coverage is an execution map, not a merge threshold. The normal `CI Gate` does
-not depend on coverage percentages. Run the frontend report after `npm ci`:
-
-```powershell
-npm run test:coverage:frontend
-```
-
-This writes a browsable report to `coverage/frontend/index.html` and LCOV data
-to `coverage/frontend/lcov.info`. For Rust, install the coverage tool and the
-LLVM tools component for the pinned development toolchain, then run:
-
-```powershell
-rustup component add llvm-tools-preview
-cargo install cargo-llvm-cov --version 0.9.0 --locked
-npm run test:coverage:rust
-```
-
-The Rust command runs the normal Cargo tests with instrumentation and writes
-`coverage/rust/html/index.html` and `coverage/rust/lcov.info`. Both report trees
-are Git-ignored. The separate Coverage diagnostics workflow runs weekly, on
-manual request, and when coverage tooling changes in a pull request. It uploads
-the reports as short-lived Actions artifacts. Neither report covers the real
-browser or Windows runtime smoke lanes.
-
-### CodeQL diagnostic scanning and future promotion
-
-The separate CodeQL workflow scans JavaScript/TypeScript and Rust with the default
-query suite every Tuesday at 06:17 UTC and can also be started manually from
-the Actions tab. Scheduled scans run on the default branch; a manual dispatch
-can select a ref after the workflow exists on the default branch. CodeQL does
-not run on ordinary pull requests or `main` pushes. Rust analysis runs on
-Windows with the pinned project toolchain. Its two language scans remain
-informational and outside `CI Gate`. `CI Gate` remains a required status check,
-while CodeQL must not be selected under `Require code scanning results` in the
-`Protect main` ruleset on this cadence.
-
-After the workflow is published on the default branch, verify a scheduled or
-manually dispatched run uploads results for both languages. Review every alert,
-fixing it or recording a justified dismissal in GitHub. A green analysis job
-only means the scan completed; it does not establish an empty alert list. If a
-language is missing, extraction is incomplete, or the results are too noisy to
-act on, correct the scan and repeat this review before promotion.
-
-If CodeQL is later considered for merge protection, first restore pull-request
-scanning and verify both language results on representative pull requests. Only
-after that and a clean or intentionally dispositioned baseline should the
-repository owner add CodeQL through `Require code scanning results`, choosing
-alert and security-alert thresholds based on the observed baseline. Keep
-`CI Gate` under required status checks. Requiring the CodeQL job names as status
-checks is not a substitute for code-scanning merge protection because a
-successful job can still report alerts. Dependency Review remains the separate
-pull-request gate for newly introduced dependency vulnerabilities.
-
-## Testing
-
-Frontend tests use Vitest:
-
-```powershell
-npm run test
-npm run test:watch
-```
-
-### Real-browser contracts
-
-The small Chromium suite checks rendered navigation, focus, ARIA values, and
-responsive presentation that the `happy-dom` tests cannot verify. It uses the
-real public pages and a Vite fixture mounting production Reader, Library, and
-dialog components. It does not launch Tauri or replace the lower-level tests.
-
-Install the pinned browser once, then run the suite locally:
-
-```powershell
-npm ci
-npm run test:browser:install
-npm run test:browser
-```
-
-CI runs the same suite as a separate `CI Gate` dependency. On failure, its
-`browser-contract-failure` artifact contains the HTML report, screenshot, and
-retry trace where available. Browser outputs are ignored by Git.
-
-### Documentation pages and navigation
-
-The public documentation is static HTML. Its navigation source of truth is
-`docs/documentation/page-registry.json`, not the repeated sidebar or pager markup.
-Each page records a stable ID, a documentation-root-relative route, its sidebar/pager
-title, navigation group and order, explicit page type, and project-relative source path.
-The article's `h1` and prose remain authored in its HTML file.
-
-To add or update a page:
-
-1. Create or edit its `index.html`, retaining the shared shell and article header.
-2. Add or update its registry entry. Routes start and end with `/`; `/` is the
-   overview. Source paths must match `docs/documentation<route>index.html`.
-3. Choose the type by content, not directory: `overview`, `getting-started`, `guide`,
-   `reference`, `troubleshooting`, or `changelog`. Supporting the `changelog` type
-   does not create a route before its content exists.
-4. Set a unique order within the navigation group. Group order followed by page
-   order defines both sidebar order and the previous/next sequence. Update the
-   explicit first/last IDs when an endpoint changes.
-5. Regenerate navigation and search, then run the checks below. Commit the registry,
-   changed HTML, and generated search index together.
-
-```powershell
-npm run docs:sync
-npm run docs:check
-npm run test -- tests/documentationNavigation.test.ts tests/documentationArticles.test.ts tests/libraryReaderDocumentationCoverage.test.ts
-```
-
-The sync step generates the marked `docs-header`, `docs-navigation`, `docs-pager`, and
-`docs-footer` regions, the shared `docs-search` dialog, the article's `data-page-type`, heading permalinks, and the
-section-level search index. Sidebar links do not carry duplicated search text.
-Keep edits to generated chrome in the renderer, not individual pages. The header's
-`Archeion Docs` brand returns to the overview; `Home ↗` returns to the public landing
-page. Keep one article intro: omit a lead when it repeats the header summary. All
-callouts use `.notice`; retain their meaningful labels and advice instead of using
-color variants to convey their purpose. The first page omits Previous and the last
-omits Next; no interior page may skip a neighbor.
-
-`docs:check` validates registry coverage and reports drift without writing files.
-It runs in the frontend quality gate and CI. Every documentation `index.html` must
-be registered exactly once. Navigation is committed as ordinary links and remains
-usable before JavaScript executes. Shell styling and runtime focus behavior remain
-owned by `docs.css` and `docs.js`; `docs-search.js` owns the search dialog lifecycle.
-
-### Documentation search data
-
-`scripts/sync-documentation-search.mjs` reads the canonical registry and each
-semantic `[data-doc-article]`. It generates one committed static asset,
-`docs/documentation/assets/docs-search-index.js`, loaded before `docs.js` on every
-page. The deferred `docs-search.js` consumes this index. No fetch, service, or build-time deployment step is needed on GitHub Pages.
-
-Each page has an introduction entry and one entry per `h2`/`h3`, in canonical
-page and document order. Bodies belong to the nearest preceding heading, stopping
-at the next heading. Each entry carries its page title and heading, route, group,
-page type, section heading and stable fragment, normalized body text, aliases, and
-an excerpt of at most 240 characters. Navigation, outlines, permalinks, footer,
-hidden helpers, scripts, styles, and copy controls are excluded.
-
-Search uses a case-insensitive, whitespace-normalized phrase. Page titles rank
-before section headings, then explicit aliases, then body-only matches. Canonical
-page/section order breaks ties. Title matches lead to the page; section matches
-lead to its fragment. An empty query lists pages, not every section.
-
-Prefer natural article wording. Only add `data-search-aliases="term|other term"`
-to the article or a heading for justified vocabulary absent from that content,
-such as an alternative spelling. Explain the reason in the review; do not repeat
-headings or body text as aliases. The current corpus needs no explicit aliases.
-
-```powershell
-npm run docs:search:sync
-npm run docs:search:check
-npm run test -- tests/documentationSearchIndex.test.ts tests/documentationSearchAnnouncements.test.ts
-```
-
-`docs:sync` includes search generation. `docs:check` includes its non-writing drift
-check and fails for a missing or stale index, including body-only article edits.
-The focused generator tests reproduce the committed bytes from source-only fixtures.
-
-The search dialog is generated once from the navigation script's template. Its
-programmatic name remains "Search documentation" while the input leads visually.
-"Show details" reveals the existing excerpts without rebuilding or reordering results.
-Native result links retain their accessible title/context names in both modes;
-visible excerpts become descriptions. Highlighting adds text nodes and marks, never HTML.
-Arrow keys move focus among results, Enter opens the focused result (or the active
-result from the input), and Tab retains native access to the input, toggle, and links.
-Escape or a pointer gesture wholly outside the dialog dismisses it and restores
-the opener. Same-page navigation focuses its destination heading. Query updates
-retain input focus and use the existing stable, polite result-count region.
-
-### Documentation release-history data
-
-The tracked `release-notes/vX.Y.Z.md` files are the sole authored release-history
-source. `scripts/release-notes.mjs` validates metadata and download links, preserves
-the metadata-free GitHub Release body, and exposes the Changes Markdown. It orders
-history by newest date, then descending numeric version for same-day releases.
-Do not extract user-facing history from technical `CHANGELOG.md`.
-
-`scripts/sync-documentation-changelog.mjs` projects the shared parser's output into
-`docs/documentation/assets/docs-changelog-data.json`. Its versioned schema carries
-`version`, `date`, `sourcePath`, and LF-normalized `changes` for each release.
-The committed input is deterministic and contains no timestamp or checkout-specific
-paths. Edit canonical notes, then regenerate; do not manually edit generated prose.
-Generation validates the complete history before replacing the output. Check mode
-never writes and reports missing or stale data, including release additions/removals.
-
-```powershell
-npm run docs:changelog:sync
-npm run docs:changelog:check
-npm run test -- tests/releaseNotes.test.ts tests/documentationChangelogData.test.ts
-```
-
-`scripts/sync-documentation-changelog-page.mjs` renders that validated input into
-the marked timeline region in `docs/documentation/changelog/index.html`. It checks
-data freshness before rendering and rejects unsupported Markdown blocks instead
-of dropping prose. The committed page is readable without JavaScript or the
-decorative timeline rail. Edit canonical notes, not the generated timeline.
-
-`docs:sync` runs data, timeline, navigation, then search generation in dependency
-order. `docs:check` checks the same outputs without writing. The registry owns
-the Changelog route, sidebar, pager, and search integration. Header generation
-adds **Release notes** only when that route is registered and validated.
-See [release-note authoring](../release-notes/README.md) for supported formatting.
-
-### Article structure and editorial types
-
-Choose the page's job before writing its sections:
-
-| Type              | Editorial job                                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `overview`        | Route readers through compact grouped links, not a dashboard.                                                     |
-| `getting-started` | Sequential onboarding: explain the task, necessary prerequisites, ordered steps, expected outcome, and next step. |
-| `guide`           | Help complete a task; include limits and recovery links when relevant.                                            |
-| `reference`       | State precise behavior, formats, ownership, limits, and terminology for non-sequential lookup.                    |
-| `troubleshooting` | Start with the symptom, then context, safest correction, data-safety caveats, and escalation if unresolved.       |
-| `changelog`       | Present historical releases from tracked release notes; do not duplicate release prose.                           |
-
-Use headings, paragraphs, lists, links, tables, code, and labeled `.notice` callouts
-with `role="note"`.
-Keep useful comparative tables and diagrams. Add orienting sections or contextual
-Related links only when they help the task; do not stamp a template onto every page.
-Merge fragments that repeat a neighboring section or contain only a next-step link.
-Keep released-product terms and claims; feature-depth expansion belongs in its own task.
-
-Every article `h2`/`h3` needs a unique, stable slug ID. The sync step places a native
-permalink beside, not inside, the heading so heading and outline names remain clean.
-Author only the heading and its inline markup; generated `.article-heading` wrappers
-and `.heading-permalink` links are regenerated by `docs:sync`. Preserve published
-fragment IDs when merging sections by moving the ID to the remaining content.
-The footer's `Edit this page` destination is derived from the registry `sourcePath`;
-issue reporting remains available alongside it. Both work without JavaScript.
-
-### Copying article Markdown
-
-`docs:sync` installs the route-relative `assets/docs-copy.js` module on every
-registered page. The module progressively adds `Copy page` beside the article
-title and `Copy code` to fenced examples. Without JavaScript, the article and
-native links remain usable and no inactive copy controls appear.
-
-This module owns article serialization and the shared clipboard/status lifecycle.
-Copy the article DOM, not the shell or a second stored article corpus. Preserve
-headings, emphasis, lists, links, simple tables, code, and note/quote structure;
-resolve links against the current page URL so pasted Markdown remains portable.
-Exclude hidden helpers, outlines, permalinks, copy controls, and footer/pager chrome.
-Clipboard actions retain their names and focus. A stable polite status region
-reports the newest request and retains its outcome until dismissal or the next
-copy. Dismissal restores focus to the originating copy control and invalidates
-pending feedback; leaving the page also clears it. Keep new vocabulary covered
-by serialization tests.
-
-```powershell
-npm run test -- tests/documentationCopy.test.ts
-npx playwright test tests/browser/documentation-copy.pw.ts
-```
-
-### Windows Tauri runtime smoke
-
-The separate Windows smoke lane builds an unbundled release-profile test executable
-from the current sources and drives its real WebView2 instance through Tauri's
-WebDriver bridge. It covers archive creation/opening, EPUB import/read, settings
-after restart, annotation metadata/export, a disposable EPUB replacement, and a
-secondary window. The test build uses a unique application identifier and a
-temporary archive, so it does not use the normal Archeion settings or archives.
-It does not install an MSI or NSIS package; the separate installer smoke below
-covers packaging without duplicating these runtime flows.
-
-On Windows, install the Tauri WebDriver bridge and run the smoke:
-
-```powershell
-cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
-npm run test:runtime:windows
-```
-
-The runner downloads the Microsoft Edge WebDriver version matching the installed
-**WebView2 Runtime**, which can differ from the Edge browser version. It removes
-its temporary archive, roaming settings, and local WebView2 test-identity state
-on success or failure. If a
-step fails, inspect `test-results/runtime-smoke/failure.txt`, the driver log,
-and any captured page or screenshot. CI uploads those files as the
-`windows-runtime-smoke-failure` artifact. Build and test outputs are ignored by Git.
-
-### Library windowing evidence
-
-`libraryPerformanceEvidence.test.ts` retains deterministic structural measurements for a
-1,000 × 800 CSS-pixel collection viewport. The grid fixture uses six 303-pixel cards with a
-28-pixel row gap; both views use 600 pixels of overscan. These figures are development evidence,
-not hardware-dependent product guarantees.
-
-| Fixture | Results before windowing | Maximum mounted grid books and covers | Maximum mounted list books and covers | Reused index entries after one favorite change |
-| ------- | -----------------------: | ------------------------------------: | ------------------------------------: | ---------------------------------------------: |
-| Medium  |                      500 |                                    48 |                                    28 |                                      499 / 500 |
-| Large   |                    2,000 |                                    48 |                                    28 |                                  1,999 / 2,000 |
-| Stress  |                   10,000 |                                    48 |                                    28 |                                 9,999 / 10,000 |
-
-Before windowing, each view mounted every result and its cover owner. The retained fixtures now
-mount only the calculated viewport and overscan range. `coverUrlCache.test.ts` also verifies that
-queued cover work released after leaving that range does not start; the recorded stale queued-load
-count is zero.
-
-The same evidence suite can emit opt-in, five-sample derivation measurements for the 50, 500, 2,000,
-and 10,000-book fixtures. It records the fixture hash with index creation, unchanged invalidation,
-localized invalidation, filter/sort, folder, and series timings:
-
-```powershell
-$env:ARCHEION_PERF_EVIDENCE = "1"
-npm test -- src/features/library/libraryPerformanceEvidence.test.ts --reporter=dot
-Remove-Item Env:ARCHEION_PERF_EVIDENCE
-```
-
-The measurements are diagnostic only. The default test run uses structural assertions and skips
-the machine-dependent timing output.
-
-Rust tests use the committed Cargo lockfile:
-
-```powershell
-npm run rust:test
-```
-
-### Scanner measurements
-
-The ignored `measures_representative_scanner_fixtures` Rust test generates synthetic archives of
-50, 500, and 2,000 EPUBs. It reports five-run medians and ranges for cold, warm, targeted path-hit,
-and targeted signature-hit scans, plus cache, metadata, cancellation, and bounded-parser
-diagnostics. Fixture generation is excluded from the measured interval. Run it explicitly with:
-
-```powershell
-cargo test --locked --manifest-path src-tauri/Cargo.toml measures_representative_scanner_fixtures -- --ignored --nocapture
-```
-
-The Phase 0.7.0.2 finalization run produced the following same-machine medians. The baseline was an
-isolated `HEAD` archive from before Phase 0.7.0.2; each value is the median of five runs.
-
-| EPUBs | Baseline cold | Final cold | Baseline warm | Final warm |       Payload |
-| ----: | ------------: | ---------: | ------------: | ---------: | ------------: |
-|    50 |         53 ms |      40 ms |         12 ms |      13 ms |  21,637 bytes |
-|   500 |        255 ms |     124 ms |         37 ms |      34 ms | 160,377 bytes |
-| 2,000 |        912 ms |     432 ms |         70 ms |      82 ms | 590,975 bytes |
-
-| EPUBs | Phase | Uncached jobs | Path hits | Signature hits | Max parse workers / open EPUBs | Cache load | Signature index | Metadata resolution | Cache publication | Cancellation |
-| ----: | :---- | ------------: | --------: | -------------: | -----------------------------: | ---------: | --------------: | ------------------: | ----------------: | :----------- |
-|    50 | Cold  |            50 |         0 |              0 |                          4 / 4 |       5 ms |            0 ms |                6 ms |             17 ms | Completed    |
-|    50 | Warm  |             0 |        50 |              0 |                          0 / 0 |       1 ms |            0 ms |                0 ms |              0 ms | Completed    |
-|   500 | Cold  |           500 |         0 |              0 |                          4 / 4 |       6 ms |            0 ms |               55 ms |             34 ms | Completed    |
-|   500 | Warm  |             0 |       500 |              0 |                          0 / 0 |       3 ms |            0 ms |                0 ms |              0 ms | Completed    |
-| 2,000 | Cold  |         2,000 |         0 |              0 |                          4 / 4 |       7 ms |            0 ms |              267 ms |            102 ms | Completed    |
-| 2,000 | Warm  |             0 |     2,000 |              0 |                          0 / 0 |      16 ms |            3 ms |                2 ms |              1 ms | Completed    |
-
-The pre-finalization 2,000-book warm median was 2,784 ms because publication repeatedly traversed
-the complete cache for every accepted path. Normalized map publication and a revision-safe unchanged
-snapshot fast path reduced that median to 82 ms. The four-worker parser reduced the representative
-2,000-book cold median from 912 ms to 432 ms while keeping parser-owned EPUB handles bounded at four.
-
-These measurements are diagnostic development evidence for comparing implementations on the same
-machine. They are not release guarantees or cross-hardware benchmarks.
-
-### Startup measurements
-
-Development builds retain User Timing entries for the main startup critical path. The trace starts
-before React mounts and records appearance runtime startup, preference initialization, archive
-resolution, window restoration, active storage preparation, optional startup scan, the first
-Library render, and the first usable Library state.
-
-The three retained terminal measures are:
-
-```text
-archeion:startup-to-shell
-archeion:startup-to-library-snapshot
-archeion:startup-to-usable-library
-```
-
-`archeion:startup-to-library-snapshot` marks the first ready, archive-scoped Library snapshot.
-Books and Folders at this boundary share the snapshot's authoritative Library revision.
-
-The Library revision advances when the active archive generation changes or a successful model
-commit replaces Books or Folders. Loading, error, and scan-status-only transitions publish updated
-snapshots without advancing that model revision. A failed initial scan therefore retains the empty
-loading model's revision; the first successful commit, including an empty archive, establishes the
-ready model revision.
-
-`LibrarySnapshot` uses a type-enforced ownership boundary. Snapshot Books expose read-only nested
-metadata and tag arrays, and snapshot Folders carry a compile-time-only ownership discriminant.
-Neither entry type can widen back to the mutable storage domain type without an explicit cast.
-Publication still shares storage-owned immutable-replacement entries, so status-only snapshots do
-not clone, traverse, or refreeze the archive and unchanged entry identity remains stable.
-
-Inspect them in the Tauri WebView2 developer tools after startup:
-
-```js
-performance
-  .getEntriesByType("measure")
-  .filter((entry) => entry.name.startsWith("archeion:startup-to-"))
-  .map(({ name, duration }) => ({ name, duration }));
-```
-
-Compare repeated median runs with the same appearance, window state, startup behavior, scan
-setting, archive fixture, and warm/cold filesystem state. Use representative small, medium, and
-large archives; the existing 50, 500, and 2,000 EPUB scanner fixtures are suitable when copied into
-normal development archives. These timings are diagnostic and machine-specific, not release
-guarantees.
-
-Development builds also retain bounded Reader lifecycle entries for the combined native/IPC file
-read, Blob creation, Blob-to-ArrayBuffer conversion, EPUB.js book and rendition creation, first
-location display, source-byte release, and session teardown. Source-byte release is a mark; the
-other timed stages are measures. The frontend cannot isolate transport time from the Tauri
-invocation, so the read entry intentionally reports those stages together:
-
-```js
-performance
-  .getEntries()
-  .filter((entry) => entry.name.startsWith("archeion:reader-"))
-  .map(({ name, entryType, startTime, duration }) => ({
-    name,
-    entryType,
-    startTime,
-    duration,
-  }));
-```
-
-The durable structural evidence and measurement limitations are recorded in the
-[performance architecture baseline](performance/architecture-baseline.md). Raw
-machine-specific phase notes remain local and are not required from a clean clone.
-
-Release-tool integration tests invoke PowerShell, npm, and Cargo against temporary
-fixtures. They never modify the real project version files.
 
 ## Build installers locally
 
@@ -538,14 +53,18 @@ Build both supported Windows installer formats:
 npm run tauri:build:windows
 ```
 
-Stage validated installers and generate `SHA256SUMS.txt`:
+Stage the validated installers and generate `SHA256SUMS.txt`:
 
 ```powershell
 npm run release:stage
 ```
 
-The staging step keeps Tauri's versioned build outputs for validation, then copies
-the public release assets to stable names:
+These commands build and stage local installers. They do not create a tag or
+publish a GitHub Release. Follow the [release operator guide](RELEASING.md) for
+release preparation and publication.
+
+The staging step keeps Tauri's versioned build outputs for validation, then
+copies the public release assets to stable names:
 
 ```text
 Archeion-Setup-x64.exe
@@ -555,32 +74,34 @@ SHA256SUMS.txt
 
 Generated build output and staged artifacts are ignored by Git.
 
-The manual Windows installer workflow and automatic release-candidate build both
-verify staged checksums, then use `scripts/smoke-windows-installer.ps1` to silently
-install and uninstall the per-user NSIS bundle before upload. The smoke requires
-a clean Windows runner: it refuses any existing Archeion installation or default
-data directory. It verifies the installed executable and its product metadata,
-the uninstaller and registration, then checks that uninstall removes the
-installed state. The MSI remains staged and checksum-verified, but is not the
-format exercised by this bounded install/uninstall smoke.
+The manual Windows installer workflow and automatic release-candidate build
+verify staged checksums. They then use `scripts/smoke-windows-installer.ps1` to
+install and uninstall the per-user NSIS bundle silently before upload.
 
-## Project utilities
+The smoke requires a clean Windows runner. It refuses an existing Archeion
+installation or default data directory. It verifies the installed executable
+and product metadata, the uninstaller and registration, then checks that
+uninstall removes the installed state. The MSI is staged and checksum-verified,
+but this bounded install and uninstall smoke does not exercise it.
 
-Common repository utilities are exposed through npm aliases:
+## Use repository utilities
 
-```powershell
-npm run changes:peek
-npm run changes:apply
-npm run changes:review
-npm run changes:package -- --name "task-name"
-npm run changes:restore
-npm run clean
-npm run clean:all -- --dry-run
-npm run zip:repo
-npm run zip:workspace
-```
+The npm aliases for change packaging, cleanup, and repository exports are
+documented in [Project scripts](../scripts/README.md). Use that guide for
+command flags and safety behavior.
 
-See [scripts/README.md](../scripts/README.md) for complete flags and safety
-behavior. The repo export uses committed Git source; the workspace export also
-includes filtered local records. Both contain `EXPORT_MANIFEST.json` with their
-source revision and provenance.
+## Related guides
+
+- [Architecture](ARCHITECTURE.md) describes application ownership and dependency
+  boundaries.
+- [Design](DESIGN.md) defines the desktop application's visual rules.
+- [Testing and validation](TESTING.md) lists the existing local and CI validation
+  lanes.
+- [Public documentation](DOCUMENTATION.md) explains how to edit and publish the
+  static documentation site.
+- The [release operator guide](RELEASING.md) covers release preparation and
+  publication.
+- The [performance measurement guide](performance/measuring.md) documents
+  diagnostic procedures.
+- The [performance architecture baseline](performance/architecture-baseline.md)
+  records retained structural evidence and measurement limits.
