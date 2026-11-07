@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
@@ -79,14 +80,16 @@ export function KeyboardShortcutRow({
         onClear={current ? () => void clearShortcut() : undefined}
         onReset={differsFromDefault ? () => void resetShortcut() : undefined}
       />
-      {captureOpen ? (
-        <KeyboardShortcutCaptureDialog
-          command={command}
-          context={context}
-          onClose={() => setCaptureOpen(false)}
-          onSave={persistOverride}
-        />
-      ) : null}
+      <SurfacePresence>
+        {captureOpen ? (
+          <KeyboardShortcutCaptureDialog
+            command={command}
+            context={context}
+            onClose={() => setCaptureOpen(false)}
+            onSave={persistOverride}
+          />
+        ) : null}
+      </SurfacePresence>
     </>
   );
 }

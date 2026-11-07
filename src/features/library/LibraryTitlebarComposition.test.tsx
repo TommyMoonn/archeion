@@ -214,7 +214,11 @@ describe("LibraryTitlebarComposition", () => {
 
     const composition = container.querySelector(".library-titlebar-composition");
     expect(composition?.getAttribute("data-sidebar-collapsed")).toBe("true");
-    expect(container.querySelector(".library-titlebar-composition__wordmark")).toBeNull();
+    expect(
+      container
+        .querySelector(".library-titlebar-composition__wordmark")
+        ?.getAttribute("aria-hidden"),
+    ).toBe("true");
     expect(actionLabels(container)).toEqual(["Expand sidebar"]);
     expect(container.querySelector('[aria-label="Open Quick Actions"]')).toBeNull();
     expect(container.querySelector('[aria-label="Reveal active archive folder"]')).toBeNull();

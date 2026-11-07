@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { useId } from "react";
 
 import { Button } from "../../components/Button";
@@ -124,28 +125,30 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
         </dl>
       ) : null}
 
-      {controller.pendingDeleteKey === controller.selectedKey ? (
-        <Dialog
-          closeOnBackdropClick={false}
-          description="This removes the theme package from Archeion."
-          footer={
-            <>
-              <Button onClick={controller.cancelDelete} size="standard" variant="secondary">
-                Cancel
-              </Button>
-              <Button
-                onClick={() => void controller.confirmDelete()}
-                size="standard"
-                variant="danger"
-              >
-                Remove theme
-              </Button>
-            </>
-          }
-          onClose={controller.cancelDelete}
-          title={`Remove “${entry.name ?? entry.id}” theme?`}
-        />
-      ) : null}
+      <SurfacePresence>
+        {controller.pendingDeleteKey === controller.selectedKey ? (
+          <Dialog
+            closeOnBackdropClick={false}
+            description="This removes the theme package from Archeion."
+            footer={
+              <>
+                <Button onClick={controller.cancelDelete} size="standard" variant="secondary">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void controller.confirmDelete()}
+                  size="standard"
+                  variant="danger"
+                >
+                  Remove theme
+                </Button>
+              </>
+            }
+            onClose={controller.cancelDelete}
+            title={`Remove “${entry.name ?? entry.id}” theme?`}
+          />
+        ) : null}
+      </SurfacePresence>
     </section>
   );
 }

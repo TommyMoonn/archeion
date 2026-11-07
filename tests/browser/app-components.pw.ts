@@ -115,7 +115,7 @@ for (const shellColors of ["equal", "distinct"]) {
 }
 
 for (const deviceScaleFactor of [1, 1.25, 1.5]) {
-  test(`Library titlebar aligns expanded inset and collapsed icon centers at DPR ${deviceScaleFactor}`, async ({
+  test(`Library titlebar shares sidebar width and collapsed icon centers at DPR ${deviceScaleFactor}`, async ({
     browser,
     baseURL,
   }, testInfo) => {
@@ -139,15 +139,20 @@ for (const deviceScaleFactor of [1, 1.25, 1.5]) {
               .querySelector(".library-titlebar-composition button")!
               .getBoundingClientRect();
             const navigation = document
-              .querySelector(".sidebar__nav .nav-item")!
+              .querySelector(".sidebar__nav .nav-item > svg")!
               .getBoundingClientRect();
             const titlebar = document.querySelector(".window-titlebar")!.getBoundingClientRect();
+            const composition = document
+              .querySelector(".library-titlebar-composition")!
+              .getBoundingClientRect();
+            const sidebar = document.querySelector(".sidebar")!.getBoundingClientRect();
             const wordmark = document
               .querySelector(".library-titlebar-composition__wordmark")
               ?.getBoundingClientRect();
             return {
               toggleRight: toggle.right,
-              navigationRight: navigation.right,
+              compositionRight: composition.right,
+              sidebarRight: sidebar.right,
               toggleCenter: toggle.left + toggle.width / 2,
               navigationCenter: navigation.left + navigation.width / 2,
               titlebarHeight: titlebar.height,
@@ -157,10 +162,10 @@ for (const deviceScaleFactor of [1, 1.25, 1.5]) {
                 : null,
             };
           });
+          expect(geometry.compositionRight).toBeCloseTo(geometry.sidebarRight, 4);
+          expect(geometry.compositionRight - geometry.toggleRight).toBeCloseTo(12.5, 4);
           if (collapsed) {
             expect(geometry.toggleCenter).toBeCloseTo(geometry.navigationCenter, 4);
-          } else {
-            expect(geometry.toggleRight).toBeCloseTo(geometry.navigationRight, 4);
           }
           expect(geometry.titlebarHeight).toBe(38);
           expect(geometry.toggleOffset).toBeCloseTo(2, 4);

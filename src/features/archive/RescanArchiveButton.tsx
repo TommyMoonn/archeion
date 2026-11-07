@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 
@@ -38,34 +39,36 @@ export function RescanArchiveButton({ isRescanning, onRescan }: RescanArchiveBut
       >
         <RefreshCw aria-hidden="true" />
       </IconButton>
-      {confirmationOpen ? (
-        <Dialog
-          title="Rescan archive?"
-          description="This refreshes book and missing-file records. EPUB files are not changed."
-          onClose={() => {
-            if (!isRescanning) setConfirmationOpen(false);
-          }}
-          footer={
-            <>
-              <Button
-                disabled={isRescanning}
-                onClick={() => setConfirmationOpen(false)}
-                variant="secondary"
-              >
-                Cancel
-              </Button>
-              <Button
-                autoFocus
-                busy={isRescanning}
-                disabled={isRescanning}
-                onClick={() => void handleRescan()}
-              >
-                Rescan archive
-              </Button>
-            </>
-          }
-        />
-      ) : null}
+      <SurfacePresence>
+        {confirmationOpen ? (
+          <Dialog
+            title="Rescan archive?"
+            description="This refreshes book and missing-file records. EPUB files are not changed."
+            onClose={() => {
+              if (!isRescanning) setConfirmationOpen(false);
+            }}
+            footer={
+              <>
+                <Button
+                  disabled={isRescanning}
+                  onClick={() => setConfirmationOpen(false)}
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  autoFocus
+                  busy={isRescanning}
+                  disabled={isRescanning}
+                  onClick={() => void handleRescan()}
+                >
+                  Rescan archive
+                </Button>
+              </>
+            }
+          />
+        ) : null}
+      </SurfacePresence>
     </>
   );
 }

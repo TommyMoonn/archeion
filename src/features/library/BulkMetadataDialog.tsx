@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { ArrowLeft, Save, ListChecks, CircleAlert } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
@@ -88,25 +89,29 @@ export function BulkMetadataDialog({
     }
   }
 
-  const discardConfirmation = discardConfirmationOpen ? (
-    <Dialog
-      standalone
-      closeOnBackdropClick={false}
-      description="Your selected fields and preview have not been written to any EPUB."
-      footer={
-        <>
-          <Button onClick={() => setDiscardConfirmationOpen(false)} variant="secondary">
-            Keep editing
-          </Button>
-          <Button onClick={onClose} variant="danger">
-            Discard changes
-          </Button>
-        </>
-      }
-      onClose={() => setDiscardConfirmationOpen(false)}
-      title="Discard metadata changes?"
-    />
-  ) : null;
+  const discardConfirmation = (
+    <SurfacePresence>
+      {discardConfirmationOpen ? (
+        <Dialog
+          standalone
+          closeOnBackdropClick={false}
+          description="Your selected fields and preview have not been written to any EPUB."
+          footer={
+            <>
+              <Button onClick={() => setDiscardConfirmationOpen(false)} variant="secondary">
+                Keep editing
+              </Button>
+              <Button onClick={onClose} variant="danger">
+                Discard changes
+              </Button>
+            </>
+          }
+          onClose={() => setDiscardConfirmationOpen(false)}
+          title="Discard metadata changes?"
+        />
+      ) : null}
+    </SurfacePresence>
+  );
 
   function toggleField(field: BulkMetadataField) {
     setEnabled((current) => ({ ...current, [field]: !current[field] }));

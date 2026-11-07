@@ -36,7 +36,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
             </Button>
           }
           description="Its metadata may have changed since this page was opened."
-          icon={<Layers size={42} strokeWidth={1.5} />}
+          icon={<Layers strokeWidth={1.5} />}
           title="Series not found"
         />
       </section>

@@ -1,5 +1,6 @@
 import { Suspense, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import { TooltipProvider } from "../../../src/components/Tooltip";
 import { Dialog } from "../../../src/components/Dialog";
 import { useState } from "react";
@@ -44,6 +45,7 @@ export function Fixture() {
   const { dialog, actions } = useLibraryWorkspaceDialogs();
   const [replacement, setReplacement] = useState(false);
   Object.assign(window, {
+    closeAsyncSurface: () => flushSync(actions.close),
     replaceAsyncSurface: () => {
       actions.close();
       setReplacement(true);
