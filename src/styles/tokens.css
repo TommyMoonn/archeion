@@ -84,11 +84,11 @@
   --control-height-standard: 36px;
   --control-height-prominent: 40px;
   --border-width: 1px;
-  --radius-small: 6px;
-  --radius-control: 8px;
-  --radius-menu: 10px;
+  --radius-small: 4px;
+  --radius-control: 6px;
+  --radius-menu: 8px;
   --radius-card: 12px;
-  --radius-dialog: 16px;
+  --radius-dialog: 8px;
   --radius-pill: 999px;
 
   font-family: var(--font-ui);

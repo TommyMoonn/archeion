@@ -1,4 +1,4 @@
-import { BookOpenText } from "lucide-react";
+import { BookOpenText, FolderOpen, Heart, History } from "lucide-react";
 import {
   Suspense,
   useLayoutEffect,
@@ -327,13 +327,22 @@ export function LibraryWorkspaceSurface({
                       </Button>
                     }
                     description="Remove one or more filters to broaden this view."
-                    icon={<BookOpenText size={42} strokeWidth={1.5} />}
                     title="No matching books"
                   />
                 ) : surfaceState === "empty" ? (
                   <EmptyState
                     description={emptyState.description}
-                    icon={<BookOpenText size={42} strokeWidth={1.5} />}
+                    icon={
+                      location.type === "favorites" ? (
+                        <Heart strokeWidth={1.5} />
+                      ) : location.type === "folder" ? (
+                        <FolderOpen strokeWidth={1.5} />
+                      ) : location.type === "continue" ? (
+                        <History strokeWidth={1.5} />
+                      ) : (
+                        <BookOpenText strokeWidth={1.5} />
+                      )
+                    }
                     title={emptyState.title}
                   />
                 ) : (
@@ -344,7 +353,6 @@ export function LibraryWorkspaceSurface({
                       </Button>
                     }
                     description="Try another title, author, or folder name."
-                    icon={<BookOpenText size={42} strokeWidth={1.5} />}
                     title="No search results"
                   />
                 )}

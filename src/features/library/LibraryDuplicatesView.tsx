@@ -252,14 +252,14 @@ export function LibraryDuplicatesView({
               description={
                 state.error?.message ?? "Duplicate analysis could not be refreshed. Try again."
               }
-              icon={<Copy size={42} strokeWidth={1.5} />}
+              icon={<Copy strokeWidth={1.5} />}
               title="Duplicates unavailable"
             />
           </div>
         ) : groups.length === 0 ? (
           <EmptyState
             description="No current exact or identifier-based duplicate groups were found."
-            icon={<Copy size={42} strokeWidth={1.5} />}
+            icon={<Copy strokeWidth={1.5} />}
             title="No duplicate groups"
           />
         ) : (

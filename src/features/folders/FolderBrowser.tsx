@@ -309,7 +309,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 ? "No folder matches that search."
                 : "Folders from this library will appear here."
             }
-            icon={<FolderIcon size={40} strokeWidth={1.5} />}
+            icon={query ? undefined : <FolderIcon strokeWidth={1.5} />}
             title={query ? "No folders found" : "No folders yet"}
           />
         ) : (
