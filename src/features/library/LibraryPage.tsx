@@ -995,43 +995,45 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         visibleBooks={visibleBooks}
       />
 
-      <LibraryWorkspaceDialogs
-        books={books}
-        confirmDestructiveFileActions={confirmDestructiveFileActions}
-        dialog={archiveInteractionBlocked ? { type: "none" } : dialog}
-        dialogActions={dialogActions}
-        folders={folders}
-        importDefaults={globalImportPreferences}
-        isBulkRunning={bulkActions.isBulkRunning}
-        isClearingProgress={bookActions.isClearingProgress}
-        isDeleting={bookActions.isDeleting}
-        isImporting={bookActions.isImporting}
-        isRescanning={bookActions.isRescanning}
-        onConfirmClearProgress={bookActions.confirmClearProgress}
-        onCreateFolder={bookActions.createFolder}
-        onDeleteBook={bookActions.deleteBook}
-        onDeleteFolder={bookActions.deleteFolder}
-        onDeleteSelectedBooks={bulkActions.deleteSelectedBooks}
-        onImport={bookActions.importEpubs}
-        onMoveBook={bookActions.moveBook}
-        onMoveFolder={bookActions.moveFolder}
-        onMoveSelectedBooks={bulkActions.moveSelectedBooks}
-        onPrepareBookCover={bookActions.prepareBookCover}
-        onReadBook={readBook}
-        onReadBookFromBeginning={readBookFromBeginning}
-        onRenameBookFile={bookActions.renameBookFile}
-        onRenameFolder={bookActions.renameFolder}
-        onRequestClearProgress={dialogActions.openClearProgress}
-        onRequestDeleteBook={bookActions.requestDeleteBook}
-        onRescan={bookActions.rescanLibrary}
-        onRevealBookFile={bookActions.revealBookFile}
-        onToggleFavorite={bookActions.toggleFavorite}
-        onWriteBookCover={bookActions.writeBookCover}
-        onWriteBookMetadata={bookActions.writeBookMetadata}
-        onWriteSelectedBookMetadata={bulkActions.writeSelectedBookMetadata}
-        selectedBookIds={selectedBookIds}
-        selectedBooks={bulkActions.selectedBooks}
-      />
+      {!archiveInteractionBlocked && (
+        <LibraryWorkspaceDialogs
+          books={books}
+          confirmDestructiveFileActions={confirmDestructiveFileActions}
+          dialog={dialog}
+          dialogActions={dialogActions}
+          folders={folders}
+          importDefaults={globalImportPreferences}
+          isBulkRunning={bulkActions.isBulkRunning}
+          isClearingProgress={bookActions.isClearingProgress}
+          isDeleting={bookActions.isDeleting}
+          isImporting={bookActions.isImporting}
+          isRescanning={bookActions.isRescanning}
+          onConfirmClearProgress={bookActions.confirmClearProgress}
+          onCreateFolder={bookActions.createFolder}
+          onDeleteBook={bookActions.deleteBook}
+          onDeleteFolder={bookActions.deleteFolder}
+          onDeleteSelectedBooks={bulkActions.deleteSelectedBooks}
+          onImport={bookActions.importEpubs}
+          onMoveBook={bookActions.moveBook}
+          onMoveFolder={bookActions.moveFolder}
+          onMoveSelectedBooks={bulkActions.moveSelectedBooks}
+          onPrepareBookCover={bookActions.prepareBookCover}
+          onReadBook={readBook}
+          onReadBookFromBeginning={readBookFromBeginning}
+          onRenameBookFile={bookActions.renameBookFile}
+          onRenameFolder={bookActions.renameFolder}
+          onRequestClearProgress={dialogActions.openClearProgress}
+          onRequestDeleteBook={bookActions.requestDeleteBook}
+          onRescan={bookActions.rescanLibrary}
+          onRevealBookFile={bookActions.revealBookFile}
+          onToggleFavorite={bookActions.toggleFavorite}
+          onWriteBookCover={bookActions.writeBookCover}
+          onWriteBookMetadata={bookActions.writeBookMetadata}
+          onWriteSelectedBookMetadata={bulkActions.writeSelectedBookMetadata}
+          selectedBookIds={selectedBookIds}
+          selectedBooks={bulkActions.selectedBooks}
+        />
+      )}
     </>
   );
 }

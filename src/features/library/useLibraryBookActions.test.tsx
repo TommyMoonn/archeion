@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Book } from "../../types/book";
-import type { LibraryWorkspaceDialogActions } from "./useLibraryWorkspaceDialogs";
+import { useLibraryWorkspaceDialogs } from "./useLibraryWorkspaceDialogs";
 import { useLibraryBookActions } from "./useLibraryBookActions";
 import { useLibraryFeedback } from "./useLibraryFeedback";
 
@@ -64,6 +64,7 @@ let latest: Session;
 
 function Harness({ storage }: Readonly<{ storage: LibraryStorage }>) {
   const feedback = useLibraryFeedback();
+  const { actions: dialogs } = useLibraryWorkspaceDialogs();
   const actions = useLibraryBookActions({
     beginBookMutation: () => null,
     beginFolderDeletion: () => null,
@@ -71,10 +72,7 @@ function Harness({ storage }: Readonly<{ storage: LibraryStorage }>) {
     changeLocation: vi.fn(),
     confirmDestructiveFileActions: true,
     currentFolder: undefined,
-    dialogs: {
-      close: vi.fn(),
-      openBookDetailsById: vi.fn(),
-    } as unknown as LibraryWorkspaceDialogActions,
+    dialogs,
     dismissFeedback: feedback.dismiss,
     location: { type: "library" },
     onBookMutationComplete: vi.fn(),

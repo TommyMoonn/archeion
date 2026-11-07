@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../../components/SurfacePresence";
 import {
   ArrowDown,
   ArrowUp,
@@ -582,33 +583,35 @@ export function DictionarySettingsView({
         ))}
       </div>
 
-      {removing ? (
-        <Dialog
-          description="This permanently deletes Archeion’s installed copy. Your original import files are not changed."
-          footer={
-            <>
-              <Button
-                disabled={controller.managementOperation?.action === "remove"}
-                onClick={() => setRemoving(null)}
-                variant="secondary"
-              >
-                Cancel
-              </Button>
-              <Button
-                busy={controller.managementOperation?.action === "remove"}
-                disabled={controller.managementOperation?.action === "remove"}
-                onClick={() => void confirmRemoval()}
-                variant="danger"
-              >
-                Remove dictionary
-              </Button>
-            </>
-          }
-          onClose={() => setRemoving(null)}
-          returnFocusTo={removeTrigger}
-          title={`Remove “${removing.displayName}”?`}
-        />
-      ) : null}
+      <SurfacePresence>
+        {removing ? (
+          <Dialog
+            description="This permanently deletes Archeion’s installed copy. Your original import files are not changed."
+            footer={
+              <>
+                <Button
+                  disabled={controller.managementOperation?.action === "remove"}
+                  onClick={() => setRemoving(null)}
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  busy={controller.managementOperation?.action === "remove"}
+                  disabled={controller.managementOperation?.action === "remove"}
+                  onClick={() => void confirmRemoval()}
+                  variant="danger"
+                >
+                  Remove dictionary
+                </Button>
+              </>
+            }
+            onClose={() => setRemoving(null)}
+            returnFocusTo={removeTrigger}
+            title={`Remove “${removing.displayName}”?`}
+          />
+        ) : null}
+      </SurfacePresence>
     </section>
   );
 }

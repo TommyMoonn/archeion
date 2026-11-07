@@ -84,11 +84,11 @@
   --control-height-standard: 36px;
   --control-height-prominent: 40px;
   --border-width: 1px;
-  --radius-small: 6px;
-  --radius-control: 8px;
-  --radius-menu: 10px;
+  --radius-small: 4px;
+  --radius-control: 6px;
+  --radius-menu: 8px;
   --radius-card: 12px;
-  --radius-dialog: 16px;
+  --radius-dialog: 8px;
   --radius-pill: 999px;
 
   font-family: var(--font-ui);
@@ -142,9 +142,7 @@
   --shadow-dialog: 0 0 0 1px rgb(255 255 255 / 8%), 0 28px 90px rgb(3 3 3 / 52%);
   --shadow-drawer: -24px 0 70px rgb(7 7 7 / 32%);
 
-  --backdrop: color-mix(in srgb, var(--darkening) 66%, transparent);
-  --backdrop-strong: color-mix(in srgb, var(--darkening) 72%, transparent);
-  --backdrop-soft: color-mix(in srgb, var(--darkening) 62%, transparent);
+  --backdrop: color-mix(in srgb, var(--darkening) 38%, transparent);
 
   --sidebar-width: 248px;
   --sidebar-collapsed-width: 56px;

@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 import {
   lazy,
   Suspense,
@@ -334,24 +335,28 @@ export function QuickActionsProvider({
           <Button onClick={() => setSettingsOpenFailed(false)}>Dismiss</Button>
         </div>
       )}
-      {palette && !archiveInteractionBlocked ? (
-        <Suspense fallback={<QuickActionsLoadingFallback />}>
-          <QuickActionsPalette
-            focusReturn={palette.focusReturn}
-            keyboard={keyboard}
-            onClose={() => setPalette(null)}
-            onExecute={(command) => {
-              if (command.runInPalette) {
-                return command.runInPalette();
-              }
-              flushSync(() => setPalette(null));
-              executeCommand(command, palette.focusReturn);
-              return { kind: "close" };
-            }}
-            registry={registry}
-          />
-        </Suspense>
-      ) : null}
+      {!archiveInteractionBlocked && (
+        <SurfacePresence>
+          {palette ? (
+            <Suspense fallback={<QuickActionsLoadingFallback />}>
+              <QuickActionsPalette
+                focusReturn={palette.focusReturn}
+                keyboard={keyboard}
+                onClose={() => setPalette(null)}
+                onExecute={(command) => {
+                  if (command.runInPalette) {
+                    return command.runInPalette();
+                  }
+                  flushSync(() => setPalette(null));
+                  executeCommand(command, palette.focusReturn);
+                  return { kind: "close" };
+                }}
+                registry={registry}
+              />
+            </Suspense>
+          ) : null}
+        </SurfacePresence>
+      )}
     </QuickActionsContext.Provider>
   );
 }

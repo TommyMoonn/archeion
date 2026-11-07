@@ -118,6 +118,7 @@ export function useLibraryBookActions({
       const feedbackId = `library-delete-book:${book.id}`;
       const feedbackOperation = beginFeedbackOperation(`delete-book:${book.id}`);
       dismissFeedback(feedbackId);
+      const closeDialog = dialogs.captureClose();
       const focusClaim = beginBookMutation(book.id);
 
       try {
@@ -139,7 +140,7 @@ export function useLibraryBookActions({
           ),
         );
       } finally {
-        dialogs.close();
+        closeDialog();
         deleteLock.current = false;
         setIsDeleting(false);
       }
@@ -176,6 +177,7 @@ export function useLibraryBookActions({
       const feedbackId = `library-delete-folder:${folder.id}`;
       const feedbackOperation = beginFeedbackOperation(`delete-folder:${folder.id}`);
       dismissFeedback(feedbackId);
+      const closeDialog = dialogs.captureClose();
       const focusClaim = beginFolderDeletion(folder.id);
 
       try {
@@ -195,7 +197,7 @@ export function useLibraryBookActions({
           createDeleteErrorFeedbackToken("folderDeleteFailed", feedbackId),
         );
       } finally {
-        dialogs.close();
+        closeDialog();
         deleteLock.current = false;
         setIsDeleting(false);
       }

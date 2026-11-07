@@ -1,6 +1,7 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 // @vitest-environment happy-dom
 
-import { act, StrictMode } from "react";
+import { act, StrictMode, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -904,4 +905,62 @@ describe("QuickActionsPalette", () => {
     });
     expect(rendered.onClose).toHaveBeenCalledOnce();
   });
+});
+
+it("retires a pending palette outcome at close request while exit still owns the native layer", async () => {
+  document.documentElement.dataset.motion = "on";
+  const animationSpy = vi.spyOn(HTMLDialogElement.prototype, "getAnimations").mockReturnValue([
+    {
+      currentTime: 0,
+      finished: new Promise(() => {}),
+      effect: { getComputedTiming: () => ({ endTime: 500 }) },
+    } as unknown as Animation,
+  ]);
+  const pending = deferred<QuickActionPaletteOutcome>();
+  const registry = new QuickActionsRegistry();
+  registry.register("retained", [
+    createCommand("late", "Late action", { runInPalette: () => pending.promise }),
+  ]);
+  const disposed = vi.fn();
+  const late = new QuickActionChildModeSession({
+    id: "late",
+    title: "Late",
+    placeholder: "Search",
+    snapshot: { options: [] },
+    confirm: () => ({ kind: "close" }),
+    onDispose: disposed,
+  });
+  function Fixture() {
+    const [open, setOpen] = useState(true);
+    return (
+      <SurfacePresence>
+        {open ? (
+          <QuickActionsPalette
+            keyboard={{ shortcuts: {} }}
+            registry={registry}
+            onClose={() => setOpen(false)}
+            onExecute={() => pending.promise}
+          />
+        ) : null}
+      </SurfacePresence>
+    );
+  }
+  container = document.body.appendChild(document.createElement("div"));
+  root = createRoot(container);
+  try {
+    act(() => root?.render(<Fixture />));
+    const input = container.querySelector<HTMLInputElement>("input")!;
+    act(() => pressKey(input, "Enter"));
+    act(() => pressKey(input, "Escape"));
+    expect(container.querySelector("dialog")?.dataset.surfaceState).toBe("closing");
+    await act(async () => {
+      pending.resolve({ kind: "child-mode", mode: late });
+      await pending.promise;
+    });
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(container.textContent).not.toContain("Search late");
+  } finally {
+    animationSpy.mockRestore();
+    delete document.documentElement.dataset.motion;
+  }
 });

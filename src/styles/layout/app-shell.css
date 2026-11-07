@@ -1,3 +1,22 @@
+/* Only the outer shell width interpolates; navigation geometry stays fixed. */
+@property --library-sidebar-current-width {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 248px;
+}
+
+.window-app {
+  --library-sidebar-current-width: var(--sidebar-width);
+  transition: --library-sidebar-current-width var(--motion-duration-standard)
+    var(--motion-ease-standard);
+}
+
+.window-app:has(.app-shell[data-sidebar-collapsed="true"]) {
+  --library-sidebar-current-width: var(--sidebar-collapsed-width);
+  /* Let labels fade before the moving edge could intersect their text. */
+  transition-delay: calc(var(--motion-duration-standard) / 5);
+}
+
 :root {
   --library-sidebar-inset-start: 12px;
   --library-sidebar-inset-end: 4px;
@@ -7,26 +26,23 @@
 
 .app-shell {
   display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr);
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
   background: var(--surface-main);
-  transition: grid-template-columns var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
-.app-shell[data-sidebar-collapsed="true"] {
-  grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
 }
 
 .sidebar {
+  container: library-sidebar / inline-size;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   padding-block: 12px;
-  padding-inline: var(--library-sidebar-inset-start) var(--library-sidebar-inset-end);
+  padding-inline: var(--library-sidebar-collapsed-inset);
   border-inline-end: var(--border-width) solid var(--line-subtle);
   background: var(--surface-sidebar);
 }
@@ -47,7 +63,9 @@
   display: grid;
   gap: 2px;
   margin-top: 0;
-  padding-inline-end: var(--library-sidebar-nav-inset-end);
+  padding-inline-end: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .nav-item {
@@ -234,24 +252,81 @@
   background: var(--surface-border);
 }
 
+.sidebar__nav .nav-item {
+  grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
+  gap: 9px;
+  padding-inline: calc(
+    (
+        var(--sidebar-collapsed-width) - 2 * var(--library-sidebar-collapsed-inset) -
+          var(--border-width) - var(--icon-slot-standard)
+      ) /
+      2
+  );
+}
+
+.sidebar__nav .nav-item > span {
+  width: max-content;
+  white-space: nowrap;
+}
+
+/* Reveal from available room, not from elapsed shell-travel time. */
+.sidebar__nav .nav-item > span,
+.library-titlebar-composition__wordmark {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity calc(var(--motion-duration-standard) / 5) linear,
+    visibility 0s linear calc(var(--motion-duration-standard) / 5);
+}
+
+/* The content box is 13px narrower than the shared outer width. Primary
+   labels fit earlier; the folder heading/actions need the wider second gate. */
+@container library-sidebar (min-width: 140px) {
+  .sidebar:not([data-collapsed="true"]) .sidebar__nav .nav-item > span {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+}
+
+@container library-sidebar (min-width: 160px) {
+  .sidebar:not([data-collapsed="true"]) .sidebar__expanded-content {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@container library-titlebar (min-width: 153px) {
+  .library-titlebar-composition:not([data-sidebar-collapsed="true"])
+    .library-titlebar-composition__wordmark {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+}
+
+/* Expanded controls follow the labels at their wider fit threshold. Visibility
+   gates focus above zero opacity; collapse retires interaction immediately. */
+.sidebar__expanded-content {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity calc(var(--motion-duration-standard) * 2 / 5) linear,
+    visibility 0s linear calc(var(--motion-duration-standard) / 10);
+}
+
+.sidebar__expanded-content[inert] {
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+  pointer-events: none;
+}
+
 .sidebar[data-collapsed="true"] {
   overflow: visible;
-  padding: 12px var(--library-sidebar-collapsed-inset);
 }
 
-.sidebar[data-collapsed="true"] .sidebar__nav {
-  width: 100%;
-  padding: 0;
-}
-
-.sidebar[data-collapsed="true"] .nav-item {
-  grid-template-columns: 1fr;
-  place-items: center;
-  width: 100%;
-  padding: 0;
-}
-
-.sidebar[data-collapsed="true"] .nav-item > span {
+.sidebar[data-collapsed="true"] .archive-switcher__trigger-label {
   display: none;
 }
 
@@ -271,10 +346,6 @@
   min-height: var(--control-height-standard);
   justify-content: center;
   padding: 0;
-}
-
-.sidebar[data-collapsed="true"] .archive-switcher__trigger-label {
-  display: none;
 }
 
 .sidebar[data-collapsed="true"] .archive-switcher__menu {
@@ -349,14 +420,22 @@ html[data-density="compact"] .nav-item {
 }
 
 @media (max-width: 560px) {
-  .app-shell {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+  .window-app {
+    --library-sidebar-current-width: var(--sidebar-width) !important;
     transition: none;
   }
 
-  .app-shell[data-sidebar-collapsed="true"] {
+  .sidebar__nav .nav-item > span,
+  .sidebar__expanded-content,
+  .library-titlebar-composition__wordmark {
+    opacity: 1;
+    visibility: visible;
+    transition: none;
+  }
+
+  .app-shell {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .sidebar {

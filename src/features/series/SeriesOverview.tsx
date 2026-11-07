@@ -165,7 +165,7 @@ export const SeriesOverview = memo(function SeriesOverview({
         ) : entries.length === 0 ? (
           <EmptyState
             description="Add series metadata to EPUBs to group their volumes here."
-            icon={<Layers size={42} strokeWidth={1.5} />}
+            icon={<Layers strokeWidth={1.5} />}
             title="No series metadata"
           />
         ) : visibleEntries.length === 0 ? (
@@ -176,7 +176,6 @@ export const SeriesOverview = memo(function SeriesOverview({
               </Button>
             }
             description="Try another series name."
-            icon={<Layers size={42} strokeWidth={1.5} />}
             title="No matching series"
           />
         ) : (
