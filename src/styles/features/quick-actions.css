@@ -1,4 +1,5 @@
 .quick-actions {
+  --surface-duration: var(--motion-duration-fast);
   width: min(640px, calc(100% - 24px));
   max-width: none;
   margin: clamp(20px, 10dvh, 96px) auto auto;
@@ -13,10 +14,6 @@
 
 html[data-motion="on"] .quick-actions[open] {
   animation: quick-actions-enter var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
-.quick-actions::backdrop {
-  background: var(--backdrop);
 }
 
 .quick-actions__panel {
@@ -224,8 +221,8 @@ html[data-motion="on"] .quick-actions[open] {
 
 @keyframes quick-actions-enter {
   from {
-    opacity: 0;
-    transform: translateY(-4px);
+    opacity: var(--surface-from-opacity, 0);
+    transform: var(--surface-from-transform, translateY(-4px));
   }
 
   to {
@@ -262,5 +259,20 @@ html[data-motion="on"] .quick-actions[open] {
   html[data-motion="on"] .quick-actions[open] {
     animation: none;
     transform: none;
+  }
+}
+
+html[data-motion="on"] .quick-actions[open][data-surface-state="closing"] {
+  animation: quick-actions-exit var(--motion-duration-fast) var(--motion-ease-standard) forwards;
+}
+
+@keyframes quick-actions-exit {
+  from {
+    opacity: var(--surface-from-opacity, 1);
+    transform: var(--surface-from-transform, translateY(0));
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
   }
 }

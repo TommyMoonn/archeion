@@ -25,17 +25,19 @@
 
 ## About Archeion
 
-Archeion is my dive into agentic coding workflows. This app was mainly for my personal use, getting to explore agentic coding is a nice bonus to it.
+Archeion is a local-first EPUB library built around the files already on your machine. If you have a folder full of EPUBs sitting around (for some reason, like me) and want a convenient way to read them on your desktop or laptop, this app is for you.
 
-It is a local-first EPUB library that is based on literal files on your system. So if you have a folder lying around that stores all your EPUBs (for some reason) like me, and you have a need to read it on your desktop/laptop then this app is for you. Otherwise, this app is just a nothing burger, that's the one specific use-case of this app lol.
+It's also my personal project for exploring and trying out agentic coding workflows after hating on it for quite a while. It's built primarily for my own use, with experimenting with the tools, techniques, and ideas behind agentic coding being a nice bonus to it.
 
-## Transparency
+That's the one specific problem (if you can even call it one) this app is built to solve. Nothing more complicated than that lol.
 
-I have not read or written a single line of code in here, and all of the documentation on this app are written by LLMs.
+## AI Usage
 
-I want to make it very clear that maintanence on this app will be based on vibes (literally). All the fixes or improvements here has been from just using the app myself; finding out bugs or wanting features that improves my experience.
+I haven't personally written or read a single line of code in this project. All of the code and project documentation are written by LLMs.
 
-Still, all feedback is appreciated if there's any.
+Most fixes and improvements come from using the app myself: finding bugs, noticing rough edges, or wanting features that make my own experience using it better. Therefore, a lot of the decisions are very subjective.
+
+Basically, maintenance is vibes-based. Still, all feedback is appreciated, so feel free to open an issue if you run into something or have an idea. I'll fix things as needed (well, _I_, with asterisks around it, to be precise).
 
 ## Download Archeion
 
@@ -44,7 +46,7 @@ Still, all feedback is appreciated if there's any.
 
 ### Releases
 
-Currently, there's only support for windows systems. No Linux, macOS support yet, i'm too dumb for that right now.
+Currently, there's only support for windows systems. No Linux, macOS support yet, I'm too dumb for that right now.
 
 See the [latest release notes](https://github.com/TommyMoonn/archeion/releases/latest)
 or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
@@ -60,7 +62,7 @@ or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
 
 ## Local-first
 
-An "archive" is literally just a folder on your system, so the books are just the `.epub` files under that folder. Each "archive" contains a `.archeion` folder that stores data such as reading progress, annotations/bookmarks, etc.
+An "archive" is literally just a folder on your system. Your books remain ordinary .epub files, while Archeion stores its own data in a `.archeion/` directory inside that folder such as reading progress, annotations/bookmarks, etc.
 
 `.archeion` file structure:
 
@@ -88,7 +90,11 @@ Your Archive/
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
+- [Maintainer documentation index](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Design guidelines](docs/DESIGN.md)
 - [Development guide](docs/DEVELOPMENT.md)
+- [Testing guide](docs/TESTING.md)
 - [Project scripts](scripts/README.md)
 - [Changelog](CHANGELOG.md)
 

@@ -497,7 +497,7 @@ describe("theme token baseline", () => {
         ["src/styles/components/dialogs.css", /\.dialog\s*{[^}]*background:\s*var\(--surface\);/],
         [
           "src/styles/components/dialogs.css",
-          /\.dialog::backdrop\s*{[^}]*background:\s*var\(--backdrop-strong\);/,
+          /:is\(\.dialog, \.details-drawer, \.quick-actions\)::backdrop\s*{[^}]*background:\s*var\(--backdrop\);/,
         ],
         [
           "src/styles/features/archive.css",
@@ -525,8 +525,8 @@ describe("theme token baseline", () => {
       expect(appVariables.get("--darkening")).toBe(resolved.app.tokens.darkening);
 
       const tokensSource = fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8");
-      expect(tokensSource).toContain(
-        "--backdrop-strong: color-mix(in srgb, var(--darkening) 72%, transparent);",
+      expect(tokensSource).toMatch(
+        /--backdrop:\s*color-mix\(in srgb, var\(--darkening\) [\d.]+%, transparent\);/,
       );
 
       const readerCss = fs.readFileSync(

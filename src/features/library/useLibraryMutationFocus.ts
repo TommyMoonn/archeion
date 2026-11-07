@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type RefObject,
 } from "react";
 
@@ -21,6 +22,18 @@ import {
   type FolderDeletionFocusContext,
 } from "../folders/folderMutationFocus";
 import type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
+
+import {
+  activeTransientSurfaceKind,
+  subscribeTransientSurfaceOwnership,
+} from "../../utils/transientSurfaceOwnership";
+
+function modalSurfacePresent() {
+  const kind = activeTransientSurfaceKind();
+  return (
+    kind === "app-dialog" || kind === "drawer" || kind === "quick-actions" || kind === "settings"
+  );
+}
 
 type BookFocusContext = Readonly<{
   archiveId: string;
@@ -67,12 +80,18 @@ type UseLibraryMutationFocusInput = {
 
 export function useLibraryMutationFocus({
   activeArchiveId,
-  dialogOpen,
+  dialogOpen: requestedDialogOpen,
   fallbackRef,
   folders,
   locationKey,
   visibleBooks,
 }: UseLibraryMutationFocusInput) {
+  const retainedModal = useSyncExternalStore(
+    subscribeTransientSurfaceOwnership,
+    modalSurfacePresent,
+    () => false,
+  );
+  const dialogOpen = requestedDialogOpen || retainedModal;
   const visibleBooksRef = useRef(visibleBooks);
   const activeArchiveIdRef = useRef(activeArchiveId);
   const locationKeyRef = useRef(locationKey);

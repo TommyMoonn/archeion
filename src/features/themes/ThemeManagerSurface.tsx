@@ -1,3 +1,4 @@
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { FilePlus, FolderOpen, RefreshCw } from "lucide-react";
 import { useContext, useMemo, useRef, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
@@ -141,36 +142,38 @@ function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
           layout.noticeHost,
         )}
 
-      {controller.pendingReplacement ? (
-        <Dialog
-          closeOnBackdropClick={false}
-          description="A theme with this ID already exists. Updating theme.json preserves the package's other files."
-          footer={
-            <>
-              <Button onClick={controller.cancelReplacement} size="standard" variant="secondary">
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  void controller.confirmReplacement();
-                }}
-                size="standard"
-                variant="primary"
-              >
-                Update theme
-              </Button>
-            </>
-          }
-          onClose={controller.cancelReplacement}
-          title="Update existing theme?"
-        >
-          {controller.error ? (
-            <p data-tone="error" role="alert">
-              {controller.error}
-            </p>
-          ) : null}
-        </Dialog>
-      ) : null}
+      <SurfacePresence>
+        {controller.pendingReplacement ? (
+          <Dialog
+            closeOnBackdropClick={false}
+            description="A theme with this ID already exists. Updating theme.json preserves the package's other files."
+            footer={
+              <>
+                <Button onClick={controller.cancelReplacement} size="standard" variant="secondary">
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    void controller.confirmReplacement();
+                  }}
+                  size="standard"
+                  variant="primary"
+                >
+                  Update theme
+                </Button>
+              </>
+            }
+            onClose={controller.cancelReplacement}
+            title="Update existing theme?"
+          >
+            {controller.error ? (
+              <p data-tone="error" role="alert">
+                {controller.error}
+              </p>
+            ) : null}
+          </Dialog>
+        ) : null}
+      </SurfacePresence>
 
       {layout.catalogHost &&
         createPortal(

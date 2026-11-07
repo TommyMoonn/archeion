@@ -1,5 +1,8 @@
 # Font preferences validation
 
+> [!IMPORTANT]
+> All of the documentation here are written by LLMs.
+
 ## Automated evidence
 
 Use injected catalogs for component and browser tests. `tests/browser/fixtures/font-catalog.ts`

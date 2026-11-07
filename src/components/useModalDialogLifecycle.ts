@@ -1,4 +1,5 @@
 import {
+  useContext,
   useLayoutEffect,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 
 import {
   useTransientSurfaceOwnership,
+  isTopmostTransientSurface,
   type TransientSurfaceKind,
 } from "../utils/transientSurfaceOwnership";
 import {
@@ -20,6 +22,9 @@ import {
   focusElementIfUsable,
 } from "../utils/focusRestoration";
 import { focusPresentationRuntime } from "../app/inputModality";
+
+import { SurfacePresenceContext } from "./modalPresenceContext";
+import { waitForModalExit } from "./modalExit";
 
 type UseModalDialogLifecycleOptions = {
   closeOnBackdropClick?: boolean | (() => boolean);
@@ -52,6 +57,18 @@ export function useModalDialogLifecycle({
   returnFocusTo,
   surfaceKind = "app-dialog",
 }: UseModalDialogLifecycleOptions): ModalDialogLifecycle {
+  const presence = useContext(SurfacePresenceContext);
+  const register = presence?.register;
+  useLayoutEffect(() => register?.(), [register]);
+  const closing = presence?.present === false;
+  const closingRef = useRef(closing);
+  const interruptedFocusRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    closingRef.current = closing;
+  }, [closing]);
+  const requestClose = () => {
+    if (!closingRef.current) onClose();
+  };
   const pointerStartedOnBackdropRef = useRef(false);
   const restoreFocusFrameRef = useRef<number | null>(null);
   const restoreFocusRef = useRef(true);
@@ -65,7 +82,7 @@ export function useModalDialogLifecycle({
     kind: surfaceKind,
     modal: true,
     onDismiss: (reason) => {
-      if (reason === "escape") onClose();
+      if (reason === "escape") requestClose();
     },
     origin: focusReturnRecord?.candidate ?? null,
   });
@@ -99,13 +116,58 @@ export function useModalDialogLifecycle({
     };
   }, [dialogRef, focusReturnRecord, initialFocusRef, resolveInitialFocus]);
 
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousState = dialog.dataset.surfaceState;
+    const wasClosing = previousState === "closing";
+    if (previousState && wasClosing !== closing) {
+      // Reverse from the displayed pose, including Escape during entry and reopen during exit.
+      const pose = window.getComputedStyle(dialog);
+      const backdrop = window.getComputedStyle(dialog, "::backdrop");
+      dialog.style.setProperty("--backdrop-from-opacity", backdrop.opacity);
+      dialog.style.setProperty("--surface-from-opacity", pose.opacity);
+      dialog.style.setProperty("--surface-from-transform", pose.transform);
+    }
+    dialog.dataset.surfaceState = closing ? "closing" : "open";
+    const panels = [...dialog.children].filter(
+      (child): child is HTMLElement => child instanceof HTMLElement,
+    );
+    for (const panel of panels) panel.inert = closing;
+    if (!closing) {
+      if (wasClosing && isTopmostTransientSurface(dialog))
+        focusElementIfUsable(interruptedFocusRef.current);
+      return;
+    }
+    interruptedFocusRef.current =
+      dialog.contains(document.activeElement) && document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    // Keep the native top layer, but retire action targets before another input can submit.
+    dialog.tabIndex = -1;
+    if (dialog.contains(document.activeElement)) dialog.focus({ preventScroll: true });
+    const block = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    dialog.addEventListener("click", block, true);
+    dialog.addEventListener("submit", block, true);
+    const cancel = waitForModalExit(dialog, () => presence?.complete());
+    return () => {
+      cancel();
+      dialog.removeEventListener("click", block, true);
+      dialog.removeEventListener("submit", block, true);
+      for (const panel of panels) panel.inert = false;
+    };
+  }, [closing, dialogRef, presence]);
+
   return {
     suppressFocusRestoration: () => {
       restoreFocusRef.current = false;
     },
     onCancel: (event) => {
       event.preventDefault();
-      onClose();
+      requestClose();
     },
     onClick: (event) => {
       if (
@@ -115,7 +177,7 @@ export function useModalDialogLifecycle({
         pointerStartedOnBackdropRef.current &&
         event.target === event.currentTarget
       ) {
-        onClose();
+        requestClose();
       }
       pointerStartedOnBackdropRef.current = false;
     },

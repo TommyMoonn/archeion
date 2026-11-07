@@ -1,3 +1,4 @@
+import { SurfacePresenceContext } from "./modalPresenceContext";
 import { useCallback, useContext, useId, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { DialogShellContext, type DialogShellOwner } from "./DialogShellContext";
@@ -89,21 +90,23 @@ function StandaloneDialog({
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
     >
-      <DialogShellContext value={null}>
-        <DialogPanel
-          {...{
-            children,
-            description,
-            feedback,
-            feedbackSize,
-            feedbackPlacement,
-            footer,
-            title,
-            titleId,
-            descriptionId,
-          }}
-        />
-      </DialogShellContext>
+      <SurfacePresenceContext value={null}>
+        <DialogShellContext value={null}>
+          <DialogPanel
+            {...{
+              children,
+              description,
+              feedback,
+              feedbackSize,
+              feedbackPlacement,
+              footer,
+              title,
+              titleId,
+              descriptionId,
+            }}
+          />
+        </DialogShellContext>
+      </SurfacePresenceContext>
     </dialog>
   );
 }

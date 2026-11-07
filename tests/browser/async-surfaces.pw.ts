@@ -13,6 +13,100 @@ const chunks = {
   details: "BookDetailsDrawer",
 };
 
+for (const surface of ["metadata", "cover"]) {
+  for (const width of [1280, 390]) {
+    test(`${surface}: dense form fades completely on workspace dismissal at ${width}px`, async ({
+      page,
+    }, info) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`${fixture}?surface=${surface}&motion=on`);
+      await page.getByRole("button", { name: "Open action" }).click();
+      await expect(page.locator(".dialog-skeleton")).toHaveCount(0);
+      const samples = await page.locator(".dialog").evaluate((dialog) => {
+        dialog.getAnimations({ subtree: true }).forEach((a) => a.finish());
+        (window as unknown as { closeAsyncSurface: () => void }).closeAsyncSurface();
+        const animations = dialog.getAnimations({ subtree: true });
+        const panel = animations.find((a) => (a as CSSAnimation).animationName === "dialog-exit")!;
+        const backdrop = animations.find(
+          (a) => (a as CSSAnimation).animationName === "surface-backdrop-exit",
+        )!;
+        panel.pause();
+        backdrop.pause();
+        const duration = Number(panel.effect!.getTiming().duration);
+        const frames = [0, 0.5, 1].map((fraction) => {
+          panel.currentTime = fraction * duration;
+          backdrop.currentTime = fraction * duration;
+          return {
+            bounds: dialog.getBoundingClientRect().toJSON(),
+            opacity: Number(getComputedStyle(dialog).opacity),
+            scrim: Number(getComputedStyle(dialog, "::backdrop").opacity),
+            inert: (dialog.firstElementChild as HTMLElement).inert,
+            modal: dialog.matches(":modal"),
+          };
+        });
+        panel.finish();
+        backdrop.finish();
+        return { duration, frames };
+      });
+      await info.attach("dense-form-closing.json", {
+        body: JSON.stringify(samples, null, 2),
+        contentType: "application/json",
+      });
+      expect(samples.duration).toBe(120);
+      expect(samples.frames.at(-1)!.opacity).toBeLessThanOrEqual(0.05);
+      expect(samples.frames.at(-1)!.scrim).toBeLessThanOrEqual(0.05);
+      for (const frame of samples.frames) {
+        expect(frame.bounds).toEqual(samples.frames[0].bounds);
+        expect(frame.inert && frame.modal).toBe(true);
+      }
+      await expect(page.locator("dialog[open]")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Open action" })).toBeFocused();
+    });
+  }
+}
+
+for (const surface of ["add", "rename", "metadata", "cover", "details"]) {
+  test(`${surface}: native backdrop uses the shared dim without blur`, async ({ page }, info) => {
+    await page.goto(`${fixture}?surface=${surface}&motion=on`);
+    await page.getByRole("button", { name: "Open action" }).click();
+    await expect(page.locator(".dialog-skeleton")).toHaveCount(0);
+    const style = await page
+      .locator("dialog[open]")
+      .last()
+      .evaluate((dialog) => {
+        dialog.getAnimations({ subtree: true }).forEach((a) => a.finish());
+        const backdrop = getComputedStyle(dialog, "::backdrop");
+        const probe = document.createElement("div");
+        probe.style.background = "var(--backdrop)";
+        document.body.append(probe);
+        const sharedColor = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return {
+          color: backdrop.backgroundColor,
+          sharedColor,
+          blur: backdrop.backdropFilter,
+          opacity: backdrop.opacity,
+          owner: dialog.getAttribute("data-backdrop-owner"),
+          modal: dialog.matches(":modal"),
+        };
+      });
+    await info.attach("backdrop.json", {
+      body: JSON.stringify(style),
+      contentType: "application/json",
+    });
+    expect(style.color).toBe(style.sharedColor);
+    expect(style.blur).toBe("none");
+    expect(style.opacity).toBe("1");
+    expect(style.owner).toBe("true");
+    expect(style.modal).toBe(true);
+    await page.keyboard.press("Escape");
+    // Cover and metadata return to Details through the existing route owner.
+    if (surface === "cover" || surface === "metadata") await page.keyboard.press("Escape");
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Open action" })).toBeFocused();
+  });
+}
+
 for (const surface of ["rename", "add", "metadata", "cover"] as const) {
   test(`${surface}: readiness preserves the focused loading dismissal action`, async ({ page }) => {
     let release!: () => void;

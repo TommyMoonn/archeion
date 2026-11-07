@@ -194,14 +194,14 @@ export function LibraryEpubIssuesView({
               description={
                 state.error?.message ?? "EPUB diagnostics could not be refreshed. Try again."
               }
-              icon={<FileWarning size={42} strokeWidth={1.5} />}
+              icon={<FileWarning strokeWidth={1.5} />}
               title="EPUB Issues unavailable"
             />
           </div>
         ) : affectedBooks.length === 0 ? (
           <EmptyState
             description="No current Reader-relevant EPUB problems were found."
-            icon={<FileCheck2 size={42} strokeWidth={1.5} />}
+            icon={<FileCheck2 strokeWidth={1.5} />}
             title="No EPUB issues"
           />
         ) : (
