@@ -119,7 +119,7 @@ test("generated search and native clipboard expose usable reference content", as
     if (topic.route === "reference/annotation-export") {
       const code = markdown.match(/```json\n([\s\S]*?)\n```/)![1];
       expect(JSON.parse(code)).toMatchObject({ schema: "archeion.annotation-export", version: 1 });
-      expect(markdown).toContain("<http://127.0.0.1:4173/docs/ANNOTATION_EXPORT_FORMAT.md>");
+      expect(markdown).toContain("<http://127.0.0.1:4173/docs/annotation-export-format.md>");
       await page.getByRole("button", { name: "Copy code", exact: true }).press("Enter");
       await expect(page.locator("[data-doc-copy-status]")).toHaveText("Code copied.");
       expect(JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(

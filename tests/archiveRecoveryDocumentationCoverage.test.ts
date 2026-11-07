@@ -266,7 +266,7 @@ describe("archive health, recovery, and export documentation", () => {
       expect(text).toContain(term);
     expect(
       [...document.querySelectorAll("[data-doc-article] a[href]")].some(
-        (link) => link.getAttribute("href") === "../../../ANNOTATION_EXPORT_FORMAT.md",
+        (link) => link.getAttribute("href") === "../../../annotation-export-format.md",
       ),
     ).toBe(true);
   });

@@ -1,6 +1,6 @@
-# Visual Foundations
+# Design System
 
-This note records the shared visual contract introduced in Phase 0.4.0.1. Feature styles should consume these roles instead of adding one-off font, icon, control, radius, or elevation values.
+This document defines Archeion's shared visual language and UI integration rules. Feature styles should consume these roles instead of adding one-off font, icon, control, radius, or elevation values.
 
 ## Typography
 
@@ -57,7 +57,7 @@ service over the same native command. Installing or removing Windows fonts requi
 restart. Missing selections survive persistence and use their independent fallback stacks until
 a fresh session finds the family again. No theme package, archive, or font picker imports or
 downloads font files. Metric regressions must be fixed at semantic layout roles, never by matching
-individual user font names. See `docs/FONT_PREFERENCES_VALIDATION.md` for the runtime review matrix.
+individual user font names. See `font-preferences-validation.md` for the runtime review matrix.
 
 Use the named text roles from `tokens.css`:
 
