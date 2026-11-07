@@ -256,13 +256,15 @@ for (const width of [1280, 390]) {
 for (const scale of [1, 1.25, 1.5]) {
   test(`centered modal bounds and text stay proportional at emulated scale ${scale}`, async ({
     browser,
+    baseURL,
   }, info) => {
     const context = await browser.newContext({
+      baseURL,
       deviceScaleFactor: scale,
       viewport: { width: 1000, height: 800 },
     });
     const page = await context.newPage();
-    await page.goto(`http://127.0.0.1:4286${fixture}`);
+    await page.goto(fixture);
     await page.addStyleTag({ content: `.dialog { font-size: ${16 * scale}px; }` });
     const samples = await page.evaluate(() => {
       document.querySelector<HTMLButtonElement>("button")!.focus();

@@ -255,7 +255,13 @@
 .sidebar__nav .nav-item {
   grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
   gap: 9px;
-  padding-inline: 11.5px;
+  padding-inline: calc(
+    (
+        var(--sidebar-collapsed-width) - 2 * var(--library-sidebar-collapsed-inset) -
+          var(--border-width) - var(--icon-slot-standard)
+      ) /
+      2
+  );
 }
 
 .sidebar__nav .nav-item > span {
