@@ -212,7 +212,7 @@ describe("CI workflow contract", () => {
     expect(assetCheck).toBeGreaterThan(build);
     expect(desktopWorkflow).not.toContain("run: npm run verify");
     expect(desktopWorkflow).not.toContain("run: npm run build");
-    expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
+    expect(tauriConfig.build.beforeBuildCommand).toBe("pnpm run build");
   });
 
   it("keeps unsigned manual packaging explicit and separate from signed release staging", () => {

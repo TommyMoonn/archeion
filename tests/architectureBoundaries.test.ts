@@ -364,6 +364,6 @@ describe("frontend architecture boundaries", () => {
     expect(packageJson.scripts["architecture:check"]).toBe("node scripts/check-architecture.mjs");
     expect(packageJson.scripts["architecture:baseline"]).toBeUndefined();
     expect(packageJson.scripts["check:frontend"]).toContain("architecture:check");
-    expect(packageJson.scripts.check).toBe("npm run check:frontend");
+    expect(packageJson.scripts.check).toBe("pnpm run check:frontend");
   });
 });
