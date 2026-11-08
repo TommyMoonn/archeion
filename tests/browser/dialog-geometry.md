@@ -28,8 +28,8 @@ Folder forms use the example placeholder `e.g. Fiction`. Filename and folder inp
 Build the fixture, then run its scoped browser suite:
 
 ```powershell
-npx vite build --config tests/browser/dialog-geometry-build.config.ts
-npx playwright test --config tests/browser/dialog-geometry.config.ts
+pnpm exec vite build --config tests/browser/dialog-geometry-build.config.ts
+pnpm exec playwright test --config tests/browser/dialog-geometry.config.ts
 ```
 
 The fixture uses production dialog components and CSS, synthetic books, a valid generated image
@@ -62,7 +62,7 @@ preview server separately and run with the existing external-server convention:
 node node_modules/vite/bin/vite.js preview --config tests/browser/dialog-geometry-build.config.ts --host 127.0.0.1 --port 4282 --strictPort
 # In a second terminal:
 $env:ARCHEION_UI_EXTERNAL_SERVER = '1'
-npx playwright test --config tests/browser/dialog-geometry.config.ts
+pnpm exec playwright test --config tests/browser/dialog-geometry.config.ts
 ```
 
 ## Baseline evidence and limits

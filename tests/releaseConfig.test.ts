@@ -23,10 +23,6 @@ type PackageJson = {
   version: string;
 };
 
-type PackageLock = {
-  packages: Record<string, { name?: string; version?: string }>;
-};
-
 function cargoLockPackageVersion(source: string, packageName: string): string | undefined {
   const packageBlock = source.match(
     new RegExp(
@@ -64,7 +60,6 @@ type TauriConfig = {
 
 describe("release configuration", () => {
   const packageJson = readJson<PackageJson>("package.json");
-  const packageLock = readJson<PackageLock>("package-lock.json");
   const tauriConfig = readJson<TauriConfig>("src-tauri/tauri.conf.json");
   const cargoToml = fs.readFileSync(path.join(projectRoot, "src-tauri/Cargo.toml"), "utf8");
   const cargoLock = fs.readFileSync(path.join(projectRoot, "src-tauri/Cargo.lock"), "utf8");
@@ -72,7 +67,6 @@ describe("release configuration", () => {
   it("keeps release versions aligned", () => {
     const expectedVersion = packageJson.version;
 
-    expect(packageLock.packages[""].version).toBe(expectedVersion);
     expect(cargoPackageField(cargoToml, "version")).toBe(expectedVersion);
     expect(cargoLockPackageVersion(cargoLock, "archeion")).toBe(expectedVersion);
     expect(tauriConfig.version).toBe(expectedVersion);

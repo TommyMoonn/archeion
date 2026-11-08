@@ -60,21 +60,18 @@ function scenario(options: Scenario = {}) {
   temporaryRoots.push(root);
   fs.writeFileSync(
     path.join(root, "package.json"),
-    JSON.stringify({ version: options.currentVersion ?? "1.5.5" }),
+    JSON.stringify({ version: options.currentVersion ?? "1.5.5", packageManager: "pnpm@10.33.0" }),
   );
   if (options.realValidation) {
     fs.mkdirSync(path.join(root, "src-tauri"));
     fs.mkdirSync(path.join(root, "release-notes"));
     fs.writeFileSync(
-      path.join(root, "package-lock.json"),
-      JSON.stringify({
-        version: options.realValidation === "partial" ? "1.5.4" : "1.5.5",
-        packages: { "": { version: options.realValidation === "partial" ? "1.5.4" : "1.5.5" } },
-      }),
+      path.join(root, "pnpm-lock.yaml"),
+      "lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .: {}\n",
     );
     fs.writeFileSync(
       path.join(root, "src-tauri", "Cargo.toml"),
-      '[package]\nname = "archeion"\nversion = "1.5.5"\n',
+      `[package]\nname = "archeion"\nversion = "${options.realValidation === "partial" ? "1.5.4" : "1.5.5"}"\n`,
     );
     fs.writeFileSync(
       path.join(root, "src-tauri", "Cargo.lock"),
@@ -251,7 +248,7 @@ describe("release-candidate workflow", () => {
           "-NoProfile",
           "-NonInteractive",
           "-Command",
-          `$ErrorActionPreference = 'Stop'\nfunction npm { Write-Output ('BUILD ' + ($args -join ' ')); $global:LASTEXITCODE = ${buildExit} }\n${script}`,
+          `$ErrorActionPreference = 'Stop'\nfunction pnpm { Write-Output ('BUILD ' + ($args -join ' ')); $global:LASTEXITCODE = ${buildExit} }\n${script}`,
         ],
         { encoding: "utf8", windowsHide: true, env: environment },
       );
@@ -262,6 +259,9 @@ describe("release-candidate workflow", () => {
         expect(output).toContain("Both updater signing secrets are required");
       } else {
         expect(result.status).toBe(buildExit);
+        expect(result.stdout).toContain(
+          "BUILD run tauri:build:windows --ci --target x86_64-pc-windows-msvc",
+        );
         expect(result.stdout).toContain("--config src-tauri/tauri.release.conf.json");
       }
       expect(output).not.toContain("fixture key");

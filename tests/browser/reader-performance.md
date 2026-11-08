@@ -5,9 +5,9 @@ This opt-in local protocol uses the existing app and synthetic EPUB harness with
 ## Portable instrumentation checks and Chromium baseline
 
 ```powershell
-npm run test:browser -- tests/browser/reader-performance.pw.ts --workers=1
+pnpm run test:browser tests/browser/reader-performance.pw.ts --workers=1
 $env:ARCHEION_READER_PERFORMANCE = '1'
-npm run test:browser -- tests/browser/reader-performance.pw.ts --grep 'baseline repetitions' --workers=1
+pnpm run test:browser tests/browser/reader-performance.pw.ts --grep 'baseline repetitions' --workers=1
 Remove-Item Env:ARCHEION_READER_PERFORMANCE
 ```
 
@@ -17,14 +17,14 @@ The opt-in experiment runs one warm-up followed by five measured synthetic `long
 
 Use a disposable test archive containing generated synthetic EPUBs, with an isolated app configuration/WebView2 user data folder using the existing Windows runtime smoke conventions. Do not open the personal archive for synthetic tests. For legitimately obtained audit books, keep files outside Git and use only the aliases below. Do not export screenshots, DOM, URLs, book prose or raw timeline traces. No fixture or profiling entry point is added to production assets.
 
-1. Create ignored `.scratch/reader-profile.conf.json` with a unique `identifier` such as `com.archeion.readerprofile.r20261012`, a distinct `productName` and `mainBinaryName`, and `plugins.updater.endpoints: []`, following `scripts/run-windows-runtime-smoke.mjs`. Use that override with `npm run tauri:build -- --no-bundle --config .scratch/reader-profile.conf.json`, or `npm run tauri:dev -- --config .scratch/reader-profile.conf.json`. This isolates the test app identity and disables updater checks for profiling. Use only the disposable archive in that app. Record the app executable SHA-256, app version, collector Git SHA and exact EPUB SHA-256. Generate and validate synthetic ZIPs with `node --experimental-strip-types tests/fixtures/reader/generate.mjs`; they appear under `.scratch/reader-fixtures/`. Use `Get-FileHash -Algorithm SHA256` for the selected executable and EPUB. Do not copy private books into test fixtures.
+1. Create ignored `.scratch/reader-profile.conf.json` with a unique `identifier` such as `com.archeion.readerprofile.r20261012`, a distinct `productName` and `mainBinaryName`, and `plugins.updater.endpoints: []`, following `scripts/run-windows-runtime-smoke.mjs`. Use that override with `pnpm run tauri:build --no-bundle --config .scratch/reader-profile.conf.json`, or `pnpm run tauri:dev --config .scratch/reader-profile.conf.json`. This isolates the test app identity and disables updater checks for profiling. Use only the disposable archive in that app. Record the app executable SHA-256, app version, collector Git SHA and exact EPUB SHA-256. Generate and validate synthetic ZIPs with `node --experimental-strip-types tests/fixtures/reader/generate.mjs`; they appear under `.scratch/reader-fixtures/`. Use `Get-FileHash -Algorithm SHA256` for the selected executable and EPUB. Do not copy private books into test fixtures.
 2. Start only the selected test app with a session-scoped debugging port. [Microsoft documents this WebView2 debugging variable](https://learn.microsoft.com/en-us/microsoft-edge/webview2/how-to/debug-visual-studio-code). In a dedicated PowerShell terminal:
 
    ```powershell
    $previousArguments = $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
    try {
      $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9223'
-     npm run tauri:dev -- --config .scratch/reader-profile.conf.json
+     pnpm run tauri:dev --config .scratch/reader-profile.conf.json
    } finally {
      $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $previousArguments
    }

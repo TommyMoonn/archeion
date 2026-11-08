@@ -15,12 +15,12 @@ The image height mutations model delayed **sizing**, not delayed network deliver
 
 ## Regenerate and verify
 
-From the repository root, after `npm ci`:
+From the repository root, after `pnpm install --frozen-lockfile`:
 
 ```powershell
 node --experimental-strip-types tests/fixtures/reader/generate.mjs
-npm run test -- tests/fixtures/reader/readerFixtures.test.ts
-npm run test:browser -- tests/browser/reader-epub-fixtures.pw.ts
+pnpm run test tests/fixtures/reader/readerFixtures.test.ts
+pnpm run test:browser tests/browser/reader-epub-fixtures.pw.ts
 ```
 
 The generator validates and writes six `.epub` files to ignored `.scratch/reader-fixtures/`. Node 22.13+ supports the explicit type-stripping flag. Browser tests regenerate the same inputs in memory using the existing Vite and Playwright conventions; checked-in binary copies are unnecessary.
@@ -31,7 +31,7 @@ The chosen verification level checks ZIP headers/CRC, strict XML parsing, contai
 
 ## Inspect in the real renderer
 
-Run `npm run dev -- --host 127.0.0.1`, then open:
+Run `pnpm run dev --host 127.0.0.1`, then open:
 
 ```text
 /tests/browser/fixtures/reader-epub.html?fixture=short-cover&flow=continuous

@@ -96,38 +96,38 @@ describe("CI workflow contract", () => {
     const staticChecks = jobLines("frontend-static").join("\n");
 
     expect(staticChecks).toContain(
-      "- name: Check architecture\n        run: npm run architecture:check",
+      "- name: Check architecture\n        run: pnpm run architecture:check",
     );
-    expect(staticChecks).toContain("- name: Check formatting\n        run: npm run fmt");
-    expect(staticChecks).toContain("- name: Lint frontend\n        run: npm run lint");
-    expect(staticChecks).toContain("- name: Typecheck frontend\n        run: npm run typecheck");
-    expect(jobLines("frontend-tests")).toContain("        run: npm run test");
-    expect(jobLines("frontend-build")).toContain("        run: npm run build");
-    expect(jobLines("frontend-build")).toContain("        run: npm run test:inter-assets");
+    expect(staticChecks).toContain("- name: Check formatting\n        run: pnpm run fmt");
+    expect(staticChecks).toContain("- name: Lint frontend\n        run: pnpm run lint");
+    expect(staticChecks).toContain("- name: Typecheck frontend\n        run: pnpm run typecheck");
+    expect(jobLines("frontend-tests")).toContain("        run: pnpm run test");
+    expect(jobLines("frontend-build")).toContain("        run: pnpm run build");
+    expect(jobLines("frontend-build")).toContain("        run: pnpm run test:inter-assets");
     const browserContracts = jobLines("browser-contracts");
     expect(browserContracts).toContain("    runs-on: ubuntu-latest");
     expect(browserContracts).toContain(
-      "        run: npx playwright install --with-deps chromium --only-shell",
+      "        run: pnpm exec playwright install --with-deps chromium --only-shell",
     );
     expect(browserContracts).toContain(
-      "        run: npm run test:browser -- --shard=${{ matrix.shard }}/2",
+      "        run: pnpm run test:browser --shard=${{ matrix.shard }}/2",
     );
     expect(browserContracts).toContain(
       "          name: browser-contract-failure-${{ matrix.shard }}",
     );
     const windowsRuntime = jobLines("windows-runtime");
     expect(windowsRuntime).toContain("    runs-on: windows-2022");
-    expect(windowsRuntime).toContain("        run: npm run test:runtime:windows");
+    expect(windowsRuntime).toContain("        run: pnpm run test:runtime:windows");
     expect(windowsRuntime).toContain("          name: windows-runtime-smoke-failure");
     expect(requiredJobIds).toContain("windows-runtime");
     const windowsUpdater = jobLines("windows-updater");
     expect(windowsUpdater).toContain("    runs-on: windows-2022");
-    expect(windowsUpdater).toContain("        run: npm run test:updater:windows");
+    expect(windowsUpdater).toContain("        run: pnpm run test:updater:windows");
     expect(windowsUpdater).toContain("          name: windows-updater-smoke");
     expect(windowsUpdater.join("\n")).not.toContain("secrets.");
     expect(requiredJobIds).toContain("windows-updater");
     expect(jobLines("release-tooling")).toContain(
-      "        run: npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts",
+      "        run: pnpm run test tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts",
     );
   });
 
@@ -156,10 +156,10 @@ describe("CI workflow contract", () => {
   it("runs production async chunk contracts separately from the source-served browser shards", () => {
     const browserContracts = jobLines("browser-contracts").join("\n");
     expect(browserContracts).toContain(
-      "npx vite build --config tests/browser/async-surfaces-build.config.ts",
+      "pnpm exec vite build --config tests/browser/async-surfaces-build.config.ts",
     );
     expect(browserContracts).toContain(
-      "npx playwright test --config tests/browser/async-surfaces.config.ts",
+      "pnpm exec playwright test --config tests/browser/async-surfaces.config.ts",
     );
     expect(browserContracts).toContain("if: matrix.shard == 1");
     expect(browserContracts).toContain("name: async-surface-contract-failure");
@@ -203,16 +203,16 @@ describe("CI workflow contract", () => {
   });
 
   it("lets Tauri build the manual installer frontend once and checks its assets afterward", () => {
-    const preflight = desktopWorkflow.indexOf("run: npm run check:all");
-    const build = desktopWorkflow.indexOf("run: npm run tauri:build:windows");
-    const assetCheck = desktopWorkflow.indexOf("run: npm run test:inter-assets");
+    const preflight = desktopWorkflow.indexOf("run: pnpm run check:all");
+    const build = desktopWorkflow.indexOf("run: pnpm run tauri:build:windows");
+    const assetCheck = desktopWorkflow.indexOf("run: pnpm run test:inter-assets");
 
     expect(preflight).toBeGreaterThanOrEqual(0);
     expect(build).toBeGreaterThan(preflight);
     expect(assetCheck).toBeGreaterThan(build);
-    expect(desktopWorkflow).not.toContain("run: npm run verify");
-    expect(desktopWorkflow).not.toContain("run: npm run build");
-    expect(tauriConfig.build.beforeBuildCommand).toBe("npm run build");
+    expect(desktopWorkflow).not.toContain("run: pnpm run verify");
+    expect(desktopWorkflow).not.toContain("run: pnpm run build");
+    expect(tauriConfig.build.beforeBuildCommand).toBe("pnpm run build");
   });
 
   it("keeps unsigned manual packaging explicit and separate from signed release staging", () => {

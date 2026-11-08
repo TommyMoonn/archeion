@@ -19,7 +19,7 @@ host. The Windows review below covers actual rendering.
   row visibility, case-insensitive search, application reset, Reader persistence and missing-family
   fallback through reload. Existing font picker suites cover pending catalogs, empty matches,
   unavailable rows, RTL, forced colors, and enlarged text.
-- `npm run test:runtime:windows`: disposable application identity/profile and archive, real native
+- `pnpm run test:runtime:windows`: disposable application identity/profile and archive, real native
   catalog, installed-family Library screenshots at 900×600 and maximized window sizes, real
   secondary-WebView propagation, and missing application/Reader selections through application
   restart. Evidence is written to `test-results/runtime-smoke/`. Unavailable sample categories are

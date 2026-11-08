@@ -13,7 +13,7 @@ Archeion development currently targets Windows and requires:
 
 - Node.js 22.13 or newer. `.node-version` selects the major version for
   development and CI. `package.json` records the minimum supported version.
-- npm with the committed `package-lock.json`.
+- pnpm 10.33.0, pinned by `packageManager` in `package.json`.
 - Rust and Cargo. `rust-toolchain.toml` pins the development and normal CI
   toolchain to Rust 1.97.1. `src-tauri/Cargo.toml` declares Rust 1.90 as the
   minimum supported Rust version (MSRV). CI checks the MSRV separately.
@@ -25,24 +25,26 @@ Archeion development currently targets Windows and requires:
 ```powershell
 git clone https://github.com/TommyMoonn/archeion.git
 cd archeion
-npm ci
+corepack enable
+corepack pnpm --version
+pnpm install --frozen-lockfile
 ```
 
-Use `npm ci` for a clean checkout. It installs the versions recorded in
-`package-lock.json`.
+Use `pnpm install --frozen-lockfile` for a clean checkout. It installs the versions recorded in
+`pnpm-lock.yaml`.
 
 ## Run Archeion
 
 Start the Tauri desktop application:
 
 ```powershell
-npm run tauri:dev
+pnpm run tauri:dev
 ```
 
 Run only the Vite frontend when you do not need desktop APIs:
 
 ```powershell
-npm run dev
+pnpm run dev
 ```
 
 ## Build installers locally
@@ -50,13 +52,13 @@ npm run dev
 Build both supported Windows installer formats:
 
 ```powershell
-npm run tauri:build:windows
+pnpm run tauri:build:windows
 ```
 
 Stage the validated installers and generate `SHA256SUMS.txt`:
 
 ```powershell
-npm run release:stage
+pnpm run release:stage
 ```
 
 These commands build and stage local installers. They do not create a tag or
@@ -86,7 +88,7 @@ but this bounded install and uninstall smoke does not exercise it.
 
 ## Use repository utilities
 
-The npm aliases for change packaging, cleanup, and repository exports are
+The pnpm aliases for change packaging, cleanup, and repository exports are
 documented in [Project scripts](../scripts/README.md). Use that guide for
 command flags and safety behavior.
 

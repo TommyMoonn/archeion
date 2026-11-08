@@ -17,14 +17,14 @@ format.
 1. Start from current `main` on a release-preparation branch. Choose a new,
    stable `X.Y.Z` version greater than the current application version. Check
    that neither `vX.Y.Z` nor a GitHub Release with that tag already exists.
-2. Update all five application-version sources together:
+2. Update all four application-version sources together:
 
    ```powershell
-   npm ci
-   npm run version:set -- X.Y.Z
+   pnpm install --frozen-lockfile
+   pnpm run version:set X.Y.Z
    ```
 
-   The command updates `package.json`, `package-lock.json`,
+   The command updates `package.json`,
    `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and
    `src-tauri/tauri.conf.json`. It does not create a changelog entry, release
    note, tag, or release.
@@ -49,14 +49,17 @@ Run from a clean clone with the toolchains in the
 [development guide](DEVELOPMENT.md):
 
 ```powershell
-npm ci
-npm run release:check -- --tag vX.Y.Z
-npm run verify
+pnpm install --frozen-lockfile
+pnpm run release:check --tag vX.Y.Z
+pnpm run verify
 git diff --check
 ```
 
-`release:check` validates the five aligned version sources, the expected tag,
+`release:check` validates the four aligned version sources, the expected tag,
 the dated changelog section and comparison link, and the tracked release note.
+It also checks the pnpm version pin and manifest/lockfile consistency with an
+offline frozen lockfile check. `pnpm-lock.yaml` has no application version and
+is not changed by `version:set`.
 Review the resulting diff, open a PR, and wait for the protected-branch checks
 and review requirements. Do not bypass the main ruleset. An ordinary
 `workflow_dispatch` Windows installer build is separate from release
@@ -80,7 +83,7 @@ repository, build directory, and synchronized log or artifact folder. For
 example, replace the drive/path below with the approved secure storage location:
 
 ```powershell
-npm run tauri -- signer generate --write-keys D:/Secure/Archeion/updater.key
+pnpm run tauri signer generate --write-keys D:/Secure/Archeion/updater.key
 ```
 
 Enter a non-empty password at the interactive prompt. Do not pass it on the
@@ -109,7 +112,7 @@ generation disabled and need no production signing secrets. An explicitly
 trusted release-candidate build can opt into the release overlay:
 
 ```powershell
-npm run tauri:build:windows -- --config src-tauri/tauri.release.conf.json
+pnpm run tauri:build:windows --config src-tauri/tauri.release.conf.json
 ```
 
 That build requires the two signing environment variables above. Scope them
@@ -166,7 +169,7 @@ before building or installing anything; it does not elevate itself:
 
 ```powershell
 cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
-npm run test:updater:windows
+pnpm run test:updater:windows
 ```
 
 The harness builds synthetic `1.6.0` and `1.6.1` releases with one ephemeral

@@ -5,15 +5,15 @@ Phase `1.8.0.5` owns `UX-01`, `UX-02` and `UX-03`. These tests use the real App,
 ## Run
 
 ```powershell
-npm run test:browser:typecheck
-npx playwright test --config tests/browser/navigation-handoffs.config.ts
+pnpm run test:browser:typecheck
+pnpm exec playwright test --config tests/browser/navigation-handoffs.config.ts
 ```
 
 For the known cold Vite fixture-acquisition stall, follow the prepared-server procedure in [ui-stability.md](ui-stability.md). Keep that server running, confirm the synthetic Library loads, then run:
 
 ```powershell
 $env:ARCHEION_UI_EXTERNAL_SERVER = '1'
-npx playwright test --config tests/browser/navigation-handoffs.config.ts
+pnpm exec playwright test --config tests/browser/navigation-handoffs.config.ts
 Remove-Item Env:ARCHEION_UI_EXTERNAL_SERVER
 ```
 
@@ -56,4 +56,4 @@ Native book dialogs and Quick Actions also retire during an archive handoff. The
 
 Follow-up 2 also ran a disposable real-IPC Windows Back recording with a synthetic EPUB. It acquired 97 external client images with 21 foreground gaps. The inspected transition went directly from Reader to Library, and no retired waiting frame was sampled. This does not establish the native held-destination path or full theme/motion matrix.
 
-The evidence ZIP retains the isolated runner, external recording, exact failed file-origin harness attempt and successful embedded-frontend logs. Native delayed-save/rapid-Back captures, mixed-DPI displays, physical keyboard input, screen-reader narration and performance signoff remain obligations. Do not infer them from Chromium geometry or a fast-path runtime recording. The broader disposable `npm run test:runtime:windows` covers other real IPC, EPUB and secondary-window regressions, not this phase's full native frame matrix.
+The evidence ZIP retains the isolated runner, external recording, exact failed file-origin harness attempt and successful embedded-frontend logs. Native delayed-save/rapid-Back captures, mixed-DPI displays, physical keyboard input, screen-reader narration and performance signoff remain obligations. Do not infer them from Chromium geometry or a fast-path runtime recording. The broader disposable `pnpm run test:runtime:windows` covers other real IPC, EPUB and secondary-window regressions, not this phase's full native frame matrix.

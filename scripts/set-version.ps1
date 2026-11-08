@@ -63,15 +63,12 @@ function Set-FirstRegexValue {
     )
 }
 
-foreach ($command in @("npm", "cargo")) {
-    if ($null -eq (Get-Command $command -ErrorAction SilentlyContinue)) {
-        throw "Required command is not available: $command"
-    }
+if ($null -eq (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    throw "Required command is not available: cargo"
 }
 
 $paths = [ordered]@{
     Package = Join-Path $ProjectRoot "package.json"
-    PackageLock = Join-Path $ProjectRoot "package-lock.json"
     CargoToml = Join-Path $ProjectRoot "src-tauri/Cargo.toml"
     CargoLock = Join-Path $ProjectRoot "src-tauri/Cargo.lock"
     TauriConfig = Join-Path $ProjectRoot "src-tauri/tauri.conf.json"
@@ -85,7 +82,7 @@ foreach ($path in $paths.Values) {
 
 $backups = @{}
 foreach ($entry in $paths.GetEnumerator()) {
-    $backups[$entry.Key] = Get-Content -Raw -LiteralPath $entry.Value
+    $backups[$entry.Key] = [System.IO.File]::ReadAllBytes($entry.Value)
 }
 
 $utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
@@ -99,11 +96,14 @@ Write-CliHeading "Updating Archeion to $Version"
 
 Push-Location $ProjectRoot
 try {
-    Write-CliStep -Current 1 -Total 4 -Message "Updating npm metadata"
-    & npm version $Version --no-git-tag-version --allow-same-version | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw "npm failed to update package.json and package-lock.json."
-    }
+    Write-CliStep -Current 1 -Total 4 -Message "Updating package metadata"
+    $packageJson = Get-Content -Raw -LiteralPath $paths.Package
+    $updatedPackageJson = Set-FirstRegexValue `
+        -Source $packageJson `
+        -Pattern $tauriVersionPattern `
+        -Value $Version `
+        -Description "package.json version"
+    [System.IO.File]::WriteAllText($paths.Package, $updatedPackageJson, $utf8WithoutBom)
 
     Write-CliStep -Current 2 -Total 4 -Message "Updating Cargo metadata"
     $cargoToml = Get-Content -Raw -LiteralPath $paths.CargoToml
@@ -152,7 +152,7 @@ catch {
 
     try {
         foreach ($entry in $paths.GetEnumerator()) {
-            [System.IO.File]::WriteAllText($entry.Value, [string]$backups[$entry.Key], $utf8WithoutBom)
+            [System.IO.File]::WriteAllBytes($entry.Value, $backups[$entry.Key])
         }
     }
     catch {

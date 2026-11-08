@@ -425,7 +425,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = await syncDocumentationNavigation(defaultProjectRoot, { check });
     if (check && result.changedPaths.length > 0) {
       console.error(
-        `Documentation navigation drift:\n${result.changedPaths.join("\n")}\nRun npm run docs:sync and commit the generated HTML.`,
+        `Documentation navigation drift:\n${result.changedPaths.join("\n")}\nRun pnpm run docs:sync and commit the generated HTML.`,
       );
       process.exitCode = 1;
     } else {

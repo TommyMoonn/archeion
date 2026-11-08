@@ -31,10 +31,10 @@ Validate every historical note or the current application release note:
 
 ```sh
 node scripts/release-notes.mjs validate --all
-npm run release:check
+pnpm run release:check
 ```
 
-`release:check` also validates the five application-version sources and the
+`release:check` also validates the four application-version sources and the
 dated technical changelog entry. To obtain the metadata-free GitHub Release
 body, use `node scripts/release-notes.mjs read --version X.Y.Z --body`. The
 plain `read --version X.Y.Z` and `read --all` forms emit JSON containing
@@ -47,13 +47,13 @@ the metadata header as part of a release description.
 version for same-day releases. Dates take precedence so a later maintenance
 release appears above an earlier release with a higher version.
 
-`npm run docs:changelog:sync` projects these validated notes into
+`pnpm run docs:changelog:sync` projects these validated notes into
 `docs/documentation/assets/docs-changelog-data.json`. Its `schemaVersion: 1`
 entries contain `version`, `date`, repository-relative `sourcePath`, and `changes`
 with LF line endings. This committed file is generated documentation input, not
-another prose source; edit the versioned note and regenerate it. `npm run
+another prose source; edit the versioned note and regenerate it. `pnpm run
 docs:changelog:check` reports missing/stale data without writing, and is included
-in `docs:check`. `npm run docs:sync` then generates the static Changelog timeline,
+in `docs:check`. `pnpm run docs:sync` then generates the static Changelog timeline,
 navigation, and section search index. `docs:check` checks all generated output
 without writing. Do not edit release prose in the generated HTML.
 

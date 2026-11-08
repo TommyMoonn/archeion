@@ -36,10 +36,7 @@ $semVerPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\
 function Read-JsonFile {
     param(
         [Parameter(Mandatory)]
-        [string]$Path,
-
-        [Parameter()]
-        [switch]$AsHashtable
+        [string]$Path
     )
 
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
@@ -47,10 +44,6 @@ function Read-JsonFile {
     }
 
     $source = Get-Content -Raw -LiteralPath $Path
-
-    if ($AsHashtable) {
-        return $source | ConvertFrom-Json -AsHashtable
-    }
 
     return $source | ConvertFrom-Json
 }
@@ -93,35 +86,52 @@ function Get-CargoLockPackageVersion {
 }
 
 $packagePath = Join-Path $ProjectRoot "package.json"
-$packageLockPath = Join-Path $ProjectRoot "package-lock.json"
 $cargoTomlPath = Join-Path $ProjectRoot "src-tauri/Cargo.toml"
 $cargoLockPath = Join-Path $ProjectRoot "src-tauri/Cargo.lock"
 $tauriConfigPath = Join-Path $ProjectRoot "src-tauri/tauri.conf.json"
 $changelogPath = Join-Path $ProjectRoot "CHANGELOG.md"
 
 $packageJson = Read-JsonFile -Path $packagePath
-$packageLock = Read-JsonFile -Path $packageLockPath -AsHashtable
 $tauriConfig = Read-JsonFile -Path $tauriConfigPath
 $cargoToml = Get-Content -Raw -LiteralPath $cargoTomlPath
 $cargoLock = Get-Content -Raw -LiteralPath $cargoLockPath
 
-$packageLockPackages = $packageLock["packages"]
-if ($null -eq $packageLockPackages) {
-    throw "package-lock.json does not contain the packages map."
+if ($packageJson.packageManager -cne "pnpm@10.33.0") {
+    throw "package.json must pin packageManager to pnpm@10.33.0."
+}
+if (Test-Path -LiteralPath (Join-Path $ProjectRoot "package-lock.json")) {
+    throw "package-lock.json is obsolete; pnpm-lock.yaml must be the only JavaScript lockfile."
+}
+if ($packageJson.PSObject.Properties.Name -contains "overrides") {
+    throw "Root npm overrides are obsolete; use pnpm.overrides."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot "pnpm-lock.yaml") -PathType Leaf)) {
+    throw "Required release file does not exist: pnpm-lock.yaml"
 }
 
-$packageLockRoot = $packageLockPackages[""]
-if ($null -eq $packageLockRoot) {
-    throw "package-lock.json does not contain the root package entry."
+# pnpm may normalize even a frozen lockfile. Validate disposable copies to preserve source bytes.
+$validationRoot = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+[void][System.IO.Directory]::CreateDirectory($validationRoot)
+Push-Location $validationRoot
+try {
+    Copy-Item -LiteralPath $packagePath -Destination (Join-Path $validationRoot "package.json")
+    Copy-Item -LiteralPath (Join-Path $ProjectRoot "pnpm-lock.yaml") -Destination (Join-Path $validationRoot "pnpm-lock.yaml")
+    $pnpmVersion = & pnpm --version
+    if ($LASTEXITCODE -ne 0 -or "$pnpmVersion".Trim() -cne "10.33.0") {
+        throw "Release validation requires pnpm 10.33.0."
+    }
+    & pnpm install --lockfile-only --offline --ignore-scripts --frozen-lockfile | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "pnpm rejected package.json and pnpm-lock.yaml consistency."
+    }
 }
-
-if ([string]$packageLock["version"] -ne [string]$packageLockRoot["version"]) {
-    throw "package-lock.json top-level version does not match the root package version."
+finally {
+    Pop-Location
+    Remove-Item -LiteralPath $validationRoot -Recurse -Force
 }
 
 $versions = [ordered]@{
     "package.json" = [string]$packageJson.version
-    "package-lock.json" = [string]$packageLockRoot["version"]
     "src-tauri/Cargo.toml" = Get-CargoPackageVersion -Source $cargoToml
     "src-tauri/Cargo.lock" = Get-CargoLockPackageVersion -Source $cargoLock
     "src-tauri/tauri.conf.json" = [string]$tauriConfig.version

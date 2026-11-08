@@ -48,6 +48,7 @@ function createFixture({
       {
         name: "archeion",
         private: true,
+        packageManager: "pnpm@10.33.0",
         version,
       },
       null,
@@ -55,23 +56,8 @@ function createFixture({
     )}\n`,
   );
   fs.writeFileSync(
-    path.join(root, "package-lock.json"),
-    `${JSON.stringify(
-      {
-        name: "archeion",
-        version,
-        lockfileVersion: 3,
-        requires: true,
-        packages: {
-          "": {
-            name: "archeion",
-            version,
-          },
-        },
-      },
-      null,
-      2,
-    )}\n`,
+    path.join(root, "pnpm-lock.yaml"),
+    "lockfileVersion: '9.0'\nsettings:\n  autoInstallPeers: true\n  excludeLinksFromLockfile: false\nimporters:\n  .: {}\n",
   );
   fs.writeFileSync(
     path.join(root, "src-tauri", "Cargo.toml"),
@@ -221,9 +207,6 @@ function readVersions(root: string) {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as {
     version: string;
   };
-  const packageLock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8")) as {
-    packages: Record<string, { version: string }>;
-  };
   const cargoToml = fs.readFileSync(path.join(root, "src-tauri", "Cargo.toml"), "utf8");
   const cargoLock = fs.readFileSync(path.join(root, "src-tauri", "Cargo.lock"), "utf8");
   const tauriConfig = JSON.parse(
@@ -232,7 +215,6 @@ function readVersions(root: string) {
 
   return {
     packageJson: packageJson.version,
-    packageLock: packageLock.packages[""].version,
     cargoToml: cargoToml.match(/^version\s*=\s*"([^"]+)"/m)?.[1],
     cargoLock: cargoLock.match(
       /^\[\[package\]\]\s*\r?\nname\s*=\s*"archeion"\s*\r?\nversion\s*=\s*"([^"]+)"/m,
@@ -282,7 +264,7 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       expect(verified.status, combinedOutput(verified)).toBe(0);
     },
   );
-  it("validates package-lock files with the empty root package key", () => {
+  it("validates the pnpm contract without treating its lockfile as an application version", () => {
     const root = createFixture();
     const result = runPowerShell("check-release.ps1", [
       "--project",
@@ -298,18 +280,27 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
     expect(result.status).toBe(0);
   });
 
-  it("rejects a package-lock top-level version that differs from its root package", () => {
+  it.each([
+    "missing lockfile",
+    "stale importer",
+    "wrong pin",
+    "legacy lockfile",
+    "legacy override",
+  ])("rejects %s before release validation succeeds", (variant) => {
     const root = createFixture();
-    const lockPath = path.join(root, "package-lock.json");
-    const lock = JSON.parse(fs.readFileSync(lockPath, "utf8")) as { version: string };
-    lock.version = "0.2.9";
-    fs.writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
-
+    if (variant === "missing lockfile") fs.unlinkSync(path.join(root, "pnpm-lock.yaml"));
+    if (variant === "legacy lockfile") fs.writeFileSync(path.join(root, "package-lock.json"), "{}");
+    if (["stale importer", "wrong pin", "legacy override"].includes(variant)) {
+      const file = path.join(root, "package.json");
+      const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (variant === "stale importer") manifest.dependencies = { react: "^19.0.0" };
+      if (variant === "wrong pin") manifest.packageManager = "pnpm@10.32.0";
+      if (variant === "legacy override") manifest.overrides = {};
+      fs.writeFileSync(file, JSON.stringify(manifest));
+    }
     const result = runPowerShell("check-release.ps1", ["--project", root]);
-    expect(result.status).not.toBe(0);
-    expect(combinedOutput(result)).toContain(
-      "package-lock.json top-level version does not match the root package version.",
-    );
+    expect(result.status, combinedOutput(result)).not.toBe(0);
+    expect(combinedOutput(result)).not.toContain("Release configuration is valid");
   });
 
   it("keeps legacy PowerShell flags compatible", () => {
@@ -803,7 +794,7 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       const output = combinedOutput(result);
       expectFragmentsInOrder(output, [
         "Updating Archeion to 0.4.0-beta.1",
-        "[1/4] Updating npm metadata",
+        "[1/4] Updating package metadata",
         "[2/4] Updating Cargo metadata",
         "[3/4] Updating Tauri configuration",
         "[4/4] Validating release metadata",
@@ -814,7 +805,6 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
       expect(result.status).toBe(0);
       expect(readVersions(root)).toEqual({
         packageJson: "0.4.0-beta.1",
-        packageLock: "0.4.0-beta.1",
         cargoToml: "0.4.0-beta.1",
         cargoLock: "0.4.0-beta.1",
         tauriConfig: "0.4.0-beta.1",
@@ -823,21 +813,36 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
     releaseProcessTimeout,
   );
 
+  it("supports same-version updates without changing the pnpm lockfile or creating Git state", () => {
+    const root = createFixture();
+    const lockPath = path.join(root, "pnpm-lock.yaml");
+    const before = fs.readFileSync(lockPath);
+    const result = runPowerShell("set-version.ps1", ["0.3.0", "--project", root]);
+    expect(result.status, combinedOutput(result)).toBe(0);
+    expect(Object.values(readVersions(root))).toEqual(Array(4).fill("0.3.0"));
+    expect(fs.readFileSync(lockPath)).toEqual(before);
+    expect(fs.existsSync(path.join(root, ".git"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "package-lock.json"))).toBe(false);
+  });
+
   it(
     "restores every version file and reports rollback after validation fails",
     () => {
       const root = createFixture({ invalidCargoMetadata: true });
       const versionPaths = [
         "package.json",
-        "package-lock.json",
         "src-tauri/Cargo.toml",
         "src-tauri/Cargo.lock",
         "src-tauri/tauri.conf.json",
       ];
+      for (const relativePath of versionPaths) {
+        const file = path.join(root, relativePath);
+        fs.writeFileSync(file, "\ufeff" + fs.readFileSync(file, "utf8").replace(/\n/g, "\r\n"));
+      }
       const before = new Map(
         versionPaths.map((relativePath) => [
           relativePath,
-          fs.readFileSync(path.join(root, relativePath), "utf8"),
+          fs.readFileSync(path.join(root, relativePath)),
         ]),
       );
 
@@ -849,9 +854,7 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
         "Version update failed. Original version files were restored.",
       );
       for (const relativePath of versionPaths) {
-        expect(fs.readFileSync(path.join(root, relativePath), "utf8")).toBe(
-          before.get(relativePath),
-        );
+        expect(fs.readFileSync(path.join(root, relativePath))).toEqual(before.get(relativePath));
       }
     },
     releaseProcessTimeout,

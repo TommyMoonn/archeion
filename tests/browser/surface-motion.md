@@ -6,10 +6,10 @@ it is not a large Library performance workload. The async-surfaces fixture exerc
 Add EPUB, Rename, Metadata, Cover and Details routes, including their lazy shells.
 
 ```powershell
-npx vite build --config tests/browser/modal-lifetime-build.config.ts
-npx playwright test --config tests/browser/modal-lifetime.config.ts --trace on
-npx vite build --config tests/browser/async-surfaces-build.config.ts
-npx playwright test --config tests/browser/async-surfaces.config.ts
+pnpm exec vite build --config tests/browser/modal-lifetime-build.config.ts
+pnpm exec playwright test --config tests/browser/modal-lifetime.config.ts --trace on
+pnpm exec vite build --config tests/browser/async-surfaces-build.config.ts
+pnpm exec playwright test --config tests/browser/async-surfaces.config.ts
 ```
 
 Use host permissions on Windows if the restricted runner cannot terminate its preview server.
