@@ -102,7 +102,7 @@ export function detectReleaseCandidate({ projectRoot, commit, repository, run = 
   checked(
     "pwsh",
     ["-NoProfile", "-File", path.join(scriptRoot, "check-release.ps1"), "--project", projectRoot],
-    "Five-source release version validation",
+    "Release metadata validation",
   );
 
   const currentVersion = JSON.parse(
