@@ -20,6 +20,8 @@ describe("diagnostic coverage workflow", () => {
     expect(workflow).toContain("  schedule:");
     expect(workflow).toMatch(/ {2}pull_request:\r?\n {4}paths:/);
     expect(workflow).not.toContain("  push:");
+    expect(workflow).toContain("      - pnpm-lock.yaml");
+    expect(workflow).not.toContain("package-lock.json");
     expect(workflow).toMatch(/permissions:\r?\n {2}contents: read/);
     expect(ci).not.toContain("coverage-diagnostics");
     expect(ci).not.toContain("test:coverage:");

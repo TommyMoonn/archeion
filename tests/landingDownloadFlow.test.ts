@@ -49,7 +49,7 @@ describe("landing Get Started and navigation flow", () => {
     expect(downloadMarkup).toContain("Build from source");
     expect(downloadMarkup).toContain("Developer");
     expect(downloadMarkup).toContain("git clone https://github.com/TommyMoonn/archeion.git");
-    expect(downloadMarkup).toContain("npm run tauri:dev");
+    expect(downloadMarkup).toContain("pnpm run tauri:dev");
     expect(downloadMarkup).toContain("docs/DEVELOPMENT.md");
     expect(downloadMarkup).not.toMatch(/terminal-card|data-copy-command|data-copy-status/);
     expect(landingCss).not.toMatch(/\.terminal-card|\.get-started__rings/);

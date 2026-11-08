@@ -42,16 +42,16 @@ Initial default Vitest discovery included old tests under `.scratch`; subsequent
 ## Reproduce
 
 ```powershell
-npx vitest run --exclude '**/.scratch/**' --maxWorkers=4
-npx eslint src tests --ignore-pattern '**/.scratch/**'
-npm run typecheck
-npm run test:browser:typecheck
-npm run architecture:check
-npm run build
-npx vite build --config tests/browser/modal-lifetime-build.config.ts
-npx playwright test --config tests/browser/modal-lifetime.config.ts
-npx vite build --config tests/browser/async-surfaces-build.config.ts
-npx playwright test --config tests/browser/async-surfaces.config.ts
+pnpm exec vitest run --exclude '**/.scratch/**' --maxWorkers=4
+pnpm exec eslint src tests --ignore-pattern '**/.scratch/**'
+pnpm run typecheck
+pnpm run test:browser:typecheck
+pnpm run architecture:check
+pnpm run build
+pnpm exec vite build --config tests/browser/modal-lifetime-build.config.ts
+pnpm exec playwright test --config tests/browser/modal-lifetime.config.ts
+pnpm exec vite build --config tests/browser/async-surfaces-build.config.ts
+pnpm exec playwright test --config tests/browser/async-surfaces.config.ts
 ```
 
 On this Windows environment, use host permissions for temporary Git/installer tests and Playwright server teardown. Browser videos and closing screenshots are written to `test-results/modal-lifetime/`; a delivery snapshot is retained with local phase evidence under `.project/v1.8.0/1.8.0.16/`.

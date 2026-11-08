@@ -101,7 +101,7 @@ export async function syncDocumentationChangelogPage(
   const notesBefore = JSON.stringify(readAllReleaseNotes(projectRoot));
   if ((await syncDocumentationChangelog(projectRoot)).changed)
     throw new Error(
-      "Changelog data is stale. Run npm run docs:changelog:sync before generating the timeline.",
+      "Changelog data is stale. Run pnpm run docs:changelog:sync before generating the timeline.",
     );
   const dataFile = path.join(projectRoot, dataPath);
   const target = path.join(projectRoot, pagePath);
@@ -157,7 +157,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = await syncDocumentationChangelogPage(root ?? defaultProjectRoot, { check });
     if (check && result.changed) {
       console.error(
-        "Documentation changelog timeline drift. Run npm run docs:sync and commit the generated HTML.",
+        "Documentation changelog timeline drift. Run pnpm run docs:sync and commit the generated HTML.",
       );
       process.exitCode = 1;
     } else

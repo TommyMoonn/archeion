@@ -60,7 +60,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = await syncDocumentationChangelog(root ?? defaultProjectRoot, { check });
     if (check && result.changed) {
       console.error(
-        "Documentation changelog data drift. Run npm run docs:changelog:sync and commit the generated data.",
+        "Documentation changelog data drift. Run pnpm run docs:changelog:sync and commit the generated data.",
       );
       process.exitCode = 1;
     } else {

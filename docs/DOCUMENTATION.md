@@ -31,15 +31,15 @@ The article's `h1` and prose remain in its HTML file.
 5. Regenerate the site data and check for drift:
 
    ```powershell
-   npm run docs:sync
-   npm run docs:check
+   pnpm run docs:sync
+   pnpm run docs:check
    ```
 
 Commit the registry, authored HTML, and generated assets together. Run the
 existing focused page checks after changing routes or article structure:
 
 ```powershell
-npm run test -- tests/documentationNavigation.test.ts tests/documentationArticles.test.ts tests/libraryReaderDocumentationCoverage.test.ts
+pnpm run test tests/documentationNavigation.test.ts tests/documentationArticles.test.ts tests/libraryReaderDocumentationCoverage.test.ts
 ```
 
 The sync command generates the marked `docs-header`, `docs-navigation`,
@@ -93,15 +93,15 @@ Explain each alias in the review.
 To regenerate or check the index directly:
 
 ```powershell
-npm run docs:search:sync
-npm run docs:search:check
+pnpm run docs:search:sync
+pnpm run docs:search:check
 ```
 
 `docs:sync` and `docs:check` already include these commands. The focused
 existing tests are:
 
 ```powershell
-npm run test -- tests/documentationSearchIndex.test.ts tests/documentationSearchAnnouncements.test.ts
+pnpm run test tests/documentationSearchIndex.test.ts tests/documentationSearchAnnouncements.test.ts
 ```
 
 The search dialog is generated from the navigation script's template. Its
@@ -137,9 +137,9 @@ does not write files. It reports missing or stale data, including added or
 removed releases.
 
 ```powershell
-npm run docs:changelog:sync
-npm run docs:changelog:check
-npm run test -- tests/releaseNotes.test.ts tests/documentationChangelogData.test.ts
+pnpm run docs:changelog:sync
+pnpm run docs:changelog:check
+pnpm run test tests/releaseNotes.test.ts tests/documentationChangelogData.test.ts
 ```
 
 `scripts/sync-documentation-changelog-page.mjs` renders the validated data into
@@ -212,8 +212,8 @@ control and invalidates pending feedback. Leaving the page also clears it.
 Run the existing focused checks after changing article serialization:
 
 ```powershell
-npm run test -- tests/documentationCopy.test.ts
-npm run test:browser -- tests/browser/documentation-copy.pw.ts
+pnpm run test tests/documentationCopy.test.ts
+pnpm run test:browser tests/browser/documentation-copy.pw.ts
 ```
 
 See [the testing guide](TESTING.md) for the other validation commands.

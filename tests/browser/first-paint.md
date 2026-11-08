@@ -1,6 +1,6 @@
 # First-paint appearance checks
 
-Run `npm run test:browser -- --config tests/browser/first-paint.config.ts`.
+Run `pnpm run test:browser --config tests/browser/first-paint.config.ts`.
 Set `ARCHEION_UI_FILMSTRIP=1` to retain timestamped Chromium compositor samples.
 
 The suite uses real `App`, `AppPreferencesStore`, `ThemeCatalog`, and `AppearanceRuntime`, with synthetic native IPC and a synthetic read-only native prepaint response. It does not seed a second persisted theme choice. The tests hold the app module to inspect pre-JavaScript document paint, then observe through deliberately delayed settings/catalog hydration. They assert the selected canvas, not gray or eventual correctness alone.
@@ -21,7 +21,7 @@ On cold process launch the custom presentation cache is empty. The existing hidd
 
 If automatic Vite readiness fails:
 
-1. Start `npx vite --host 127.0.0.1 --port 4184 --strictPort` separately.
+1. Start `pnpm exec vite --host 127.0.0.1 --port 4184 --strictPort` separately.
 2. Open `/tests/browser/fixtures/ui-stability.html?theme=light&count=0` and wait for Library. This prepares module compilation, not subsequent browser-context state.
 3. Set `$env:ARCHEION_BROWSER_PORT='4184'`, `$env:ARCHEION_UI_EXTERNAL_SERVER='1'`, and optionally `$env:ARCHEION_UI_FILMSTRIP='1'`, then run the suite.
 

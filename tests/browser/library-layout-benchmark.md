@@ -21,7 +21,7 @@ The `.benchmark.ts` filename keeps this comparison outside the default
 benchmark cases explicitly.
 
 ```powershell
-npm run test:browser:typecheck
+pnpm run test:browser:typecheck
 node node_modules/@playwright/test/cli.js test --config tests/browser/library-layout-benchmark.config.ts
 ```
 

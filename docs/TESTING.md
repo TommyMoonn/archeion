@@ -3,14 +3,14 @@
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
-Use `npm run verify` before preparing a pull request or release. It runs the
+Use `pnpm run verify` before preparing a pull request or release. It runs the
 repository's local frontend and Rust checks, builds the frontend, and verifies
 bundled Inter assets.
 
 ## Run the full local verification
 
 ```powershell
-npm run verify
+pnpm run verify
 ```
 
 The command runs these checks:
@@ -21,7 +21,7 @@ The command runs these checks:
 - Rust formatting, Clippy, and Cargo tests.
 - The production frontend build and bundled Inter asset verification.
 
-`npm run verify` does not run the separate Chromium browser suite, Windows
+`pnpm run verify` does not run the separate Chromium browser suite, Windows
 runtime smoke, Windows updater smoke, Linux font catalog portability check, or
 Rust MSRV check. CI runs those as separate `CI Gate` dependencies. The
 release-tooling tests are part of the local Vitest suite and also run in a
@@ -31,25 +31,25 @@ dedicated Windows CI job.
 
 Use the narrowest command that covers the change:
 
-| Area                               | Command                           |
-| ---------------------------------- | --------------------------------- |
-| Formatting                         | `npm run fmt`                     |
-| Lint                               | `npm run lint`                    |
-| TypeScript                         | `npm run typecheck`               |
-| Frontend tests                     | `npm run test`                    |
-| Rust formatting, Clippy, and tests | `npm run check:rust`              |
-| Rust tests only                    | `npm run rust:test`               |
-| Frontend build                     | `npm run build`                   |
-| Shared Inter asset copies          | `npm run test:inter-assets`       |
-| Tauri command parity               | `npm run ipc:check`               |
-| Frontend architecture boundaries   | `npm run architecture:check`      |
-| Settings mutation contract         | `npm run settings:contract:check` |
-| Generated documentation            | `npm run docs:check`              |
+| Area                               | Command                            |
+| ---------------------------------- | ---------------------------------- |
+| Formatting                         | `pnpm run fmt`                     |
+| Lint                               | `pnpm run lint`                    |
+| TypeScript                         | `pnpm run typecheck`               |
+| Frontend tests                     | `pnpm run test`                    |
+| Rust formatting, Clippy, and tests | `pnpm run check:rust`              |
+| Rust tests only                    | `pnpm run rust:test`               |
+| Frontend build                     | `pnpm run build`                   |
+| Shared Inter asset copies          | `pnpm run test:inter-assets`       |
+| Tauri command parity               | `pnpm run ipc:check`               |
+| Frontend architecture boundaries   | `pnpm run architecture:check`      |
+| Settings mutation contract         | `pnpm run settings:contract:check` |
+| Generated documentation            | `pnpm run docs:check`              |
 
 Run one frontend test file with:
 
 ```powershell
-npm run test -- tests/example.test.ts
+pnpm run test tests/example.test.ts
 ```
 
 The frontend suite uses Vitest. Its DOM tests use `happy-dom`. The browser suite
@@ -59,7 +59,7 @@ The frontend suite also checks byte parity for physical assets shared by the
 desktop app and public site. `src-tauri/icons/128x128.png` is the canonical
 128-pixel icon for the frontend and site copies. The frontend Latin Atkinson and
 Literata font files are canonical for the site's four matching font copies.
-Run `npm run test -- tests/sharedAssetParity.test.ts` to check these copies.
+Run `pnpm run test tests/sharedAssetParity.test.ts` to check these copies.
 Resized platform icons, the favicon, and distinct site imagery are not parity
 targets.
 
@@ -75,16 +75,16 @@ changes. The relevant frontend suites include:
 - `src/features/settings/settingsArchiveMaintenanceClient.test.ts`
 - `src/features/archive/archiveWatcher.test.ts`
 
-Run the relevant subset with `npm run test --` followed by the selected file
+Run the relevant subset with `pnpm run test --` followed by the selected file
 paths. Native scanner tests live in `src-tauri/src/commands/scanner.rs` and run
-with `npm run rust:test`.
+with `pnpm run rust:test`.
 
 Commands that apply automatic formatting or lint fixes:
 
 ```powershell
-npm run fmt:fix
-npm run lint:fix
-npm run rust:fmt:fix
+pnpm run fmt:fix
+pnpm run lint:fix
+pnpm run rust:fmt:fix
 ```
 
 ## Run the Chromium browser suite
@@ -97,11 +97,11 @@ components. It does not launch Tauri.
 Install the pinned Chromium headless shell once, then run the suite:
 
 ```powershell
-npm run test:browser:install
-npm run test:browser
+pnpm run test:browser:install
+pnpm run test:browser
 ```
 
-`npm run test:browser` runs the browser-test TypeScript check before Playwright.
+`pnpm run test:browser` runs the browser-test TypeScript check before Playwright.
 CI runs the suite in two shards as a required `CI Gate` dependency. The first
 shard also builds and runs the separate async-surface browser contracts.
 
@@ -128,7 +128,7 @@ On Windows, install the Tauri WebDriver bridge and run the smoke:
 
 ```powershell
 cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
-npm run test:runtime:windows
+pnpm run test:runtime:windows
 ```
 
 The runner downloads the Microsoft Edge WebDriver version that matches the
@@ -156,19 +156,19 @@ then run:
 
 ```powershell
 cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
-npm run test:updater:windows
+pnpm run test:updater:windows
 ```
 
 CI runs the updater smoke as a required `CI Gate` dependency.
 
 ## Understand release-tooling tests
 
-Release-tooling integration tests invoke PowerShell, npm, and Cargo against
+Release-tooling integration tests invoke PowerShell, pnpm, and Cargo against
 temporary fixtures. They do not modify the project's version files. Run them
 with:
 
 ```powershell
-npm run test -- tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts
+pnpm run test tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts
 ```
 
 CI runs these tests in a separate required Windows validation job.
@@ -178,10 +178,10 @@ CI runs these tests in a separate required Windows validation job.
 Coverage reports show which code ran. They are diagnostic and do not set a
 merge threshold. The normal `CI Gate` does not depend on coverage percentages.
 
-Generate the frontend report after `npm ci`:
+Generate the frontend report after `pnpm install --frozen-lockfile`:
 
 ```powershell
-npm run test:coverage:frontend
+pnpm run test:coverage:frontend
 ```
 
 The command writes an HTML report to `coverage/frontend/index.html` and LCOV data
@@ -193,7 +193,7 @@ toolchain and the coverage utility:
 ```powershell
 rustup component add llvm-tools-preview
 cargo install cargo-llvm-cov --version 0.9.0 --locked
-npm run test:coverage:rust
+pnpm run test:coverage:rust
 ```
 
 The Rust command runs Cargo tests with instrumentation. It writes

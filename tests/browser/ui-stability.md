@@ -7,15 +7,15 @@ These workloads observe the accepted 1.7.0 implementation before phases 1.8.0.3 
 Use the installed, locked dependencies. The existing Playwright configuration starts Vite on port 4173:
 
 ```powershell
-npm run test:browser:typecheck
-npm run test:browser -- --config tests/browser/ui-stability.config.ts
+pnpm run test:browser:typecheck
+pnpm run test:browser --config tests/browser/ui-stability.config.ts
 ```
 
 Capture a timestamped filmstrip for route, main palette and Reader palette transitions:
 
 ```powershell
 $env:ARCHEION_UI_FILMSTRIP = '1'
-npm run test:browser -- --config tests/browser/ui-stability.config.ts --grep 'real app|first-paint|Reader entry'
+pnpm run test:browser --config tests/browser/ui-stability.config.ts --grep 'real app|first-paint|Reader entry'
 Remove-Item Env:ARCHEION_UI_FILMSTRIP
 ```
 
@@ -81,7 +81,7 @@ At each **actual** Windows display scaling of 100%, 125% and 150%, run:
 $env:ARCHEION_UI_STABILITY_NATIVE = '1'
 $env:ARCHEION_UI_NATIVE_SCALE = '100' # repeat with actual OS scale 125, then 150
 $env:ARCHEION_UI_NATIVE_COUNTS = '50,500,3000'
-npm run test:runtime:windows
+pnpm run test:runtime:windows
 Remove-Item Env:ARCHEION_UI_STABILITY_NATIVE, Env:ARCHEION_UI_NATIVE_SCALE, Env:ARCHEION_UI_NATIVE_COUNTS
 ```
 

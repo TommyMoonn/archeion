@@ -34,7 +34,7 @@ Read the implementation, its tests, and the documentation for the area. Trace th
 
 Check every affected call site, fixture, configuration file, and export. For bug fixes, correct the shared implementation instead of patching individual callers.
 
-Use the Node version selected by `.node-version` and the Rust toolchain in `rust-toolchain.toml`. Use `npm ci` for a clean install. Keep `package-lock.json` in sync through npm commands instead of editing it by hand.
+Use the Node version selected by `.node-version` and the Rust toolchain in `rust-toolchain.toml`. Use `pnpm install --frozen-lockfile` for a clean install. Keep `pnpm-lock.yaml` in sync through pnpm commands instead of editing it by hand.
 
 ## Where code lives
 
@@ -67,9 +67,9 @@ Give each Tauri command typed inputs and results. Keep command handlers focused 
 
 Use the existing command clients in `src/storage/tauri/` and the clients owned by the relevant feature or store. Keep raw `invoke` calls out of presentation components.
 
-When you add or change a command, update its TypeScript client and types, register it in `src-tauri/src/lib.rs`, and run `npm run ipc:check`.
+When you add or change a command, update its TypeScript client and types, register it in `src-tauri/src/lib.rs`, and run `pnpm run ipc:check`.
 
-Keep settings mutations aligned across `src/types/appSettings.ts`, the Rust settings types, and `tests/fixtures/app-settings-mutations/v4.json`. Run `npm run settings:contract:check` after changing that contract.
+Keep settings mutations aligned across `src/types/appSettings.ts`, the Rust settings types, and `tests/fixtures/app-settings-mutations/v4.json`. Run `pnpm run settings:contract:check` after changing that contract.
 
 Follow the dependency directions in `scripts/check-architecture.mjs`. Keep shared components independent of feature domains, and keep stores and storage independent of React. Add a cross-feature dependency only when the design needs it. Record intentional exceptions in `scripts/feature-domain-baseline.json` with a reason.
 
@@ -111,11 +111,11 @@ Use Vitest for frontend tests, Playwright for browser behavior, and Cargo tests 
 
 Filesystem tests must use temporary directories and disposable archives. Never point a test at a real library. Check that failed or cancelled operations leave existing data intact. For archive lifecycle changes, cover rapid archive switches, overlapping scans, maintenance, and cross-window updates where relevant. For import and writeback changes, cover failure cleanup, rollback, backup preservation, and cancellation.
 
-Use `npm run test -- <test-file>` for focused Vitest tests and `npm run test:browser` for browser tests. For Rust changes, run `npm run rust:test`, `npm run rust:fmt`, and `npm run rust:clippy`.
+Use `pnpm run test <test-file>` for focused Vitest tests and `pnpm run test:browser` for browser tests. For Rust changes, run `pnpm run rust:test`, `pnpm run rust:fmt`, and `pnpm run rust:clippy`.
 
-Run `npm run architecture:check` for dependency-boundary changes, `npm run ipc:check` for Tauri command changes, and `npm run settings:contract:check` for settings mutation changes. Run `npm run test:runtime:windows` or `npm run test:updater:windows` for the corresponding Windows behavior. Run `npm run test:inter-assets` when changing shared icon or font copies.
+Run `pnpm run architecture:check` for dependency-boundary changes, `pnpm run ipc:check` for Tauri command changes, and `pnpm run settings:contract:check` for settings mutation changes. Run `pnpm run test:runtime:windows` or `pnpm run test:updater:windows` for the corresponding Windows behavior. Run `pnpm run test:inter-assets` when changing shared icon or font copies.
 
-Run `npm run verify` before a release or when a full validation pass is requested.
+Run `pnpm run verify` before a release or when a full validation pass is requested.
 
 ## Keep documentation useful
 
@@ -123,15 +123,15 @@ The guide index is `docs/README.md`. Keep setup, architecture, design, testing, 
 
 Update user documentation when a supported workflow changes. Keep architecture documentation for decisions and constraints that are hard to recover from the source. Do not document every component, method, or implementation detail.
 
-The public documentation site uses source articles and `docs/documentation/page-registry.json`. Edit those sources, then run `npm run docs:sync` and `npm run docs:check`. Do not edit generated navigation, search, or release-history output by hand.
+The public documentation site uses source articles and `docs/documentation/page-registry.json`. Edit those sources, then run `pnpm run docs:sync` and `pnpm run docs:check`. Do not edit generated navigation, search, or release-history output by hand.
 
 Update `docs/README.md` when you add, remove, or move an engineering guide.
 
 ## Planning and work artifacts
 
-Use `.planning/` for implementation plans, research notes, review reports, temporary handoffs, and generated evidence. Reuse its existing subdirectories when they fit the work.
+Use `.plans/` for implementation plans, research notes, review reports, temporary handoffs, and generated evidence. Reuse its existing subdirectories when they fit the work.
 
-Use `.project/` for local project material such as audits, dictionary source files, and theme packs. `.dev/` contains local development helpers. Use `.scratch/` for disposable experiments and `.agent-work/` for temporary work artifacts.
+Use `.project/` for local project material such as audits, dictionary source files. Use `.scratch/` for disposable experiments and `.agent-work/` for temporary work artifacts.
 
 ## Git and handoff
 

@@ -7,7 +7,7 @@ The harness renders the original synthetic ZIP inputs from `tests/fixtures/reade
 From the repository root with the locked dependencies and Playwright Chromium installed:
 
 ```powershell
-npm run test:browser -- tests/browser/reader-epub-fixtures.pw.ts tests/browser/reader-runtime.pw.ts
+pnpm run test:browser tests/browser/reader-epub-fixtures.pw.ts tests/browser/reader-runtime.pw.ts
 ```
 
 The normal suite covers fixture integrity/loading, nonzero-spine resume, CFI navigation, mode switching, stale-open supersession, rejected EPUB open and recovery, iframe wheel input, PageDown/PageUp, native scrollbar drag, effective repeated reversal, true EOF, Paged centering/turning and fixed-layout composition/links. Historical defect tests are skipped by default.
@@ -16,14 +16,14 @@ Opt into diagnostic reproductions:
 
 ```powershell
 $env:ARCHEION_READER_DIAGNOSTICS = "1"
-npm run test:browser -- tests/browser/reader-runtime.pw.ts --grep "historical" --workers=1
+pnpm run test:browser tests/browser/reader-runtime.pw.ts --grep "historical" --workers=1
 Remove-Item Env:ARCHEION_READER_DIAGNOSTICS
 ```
 
 On POSIX shells:
 
 ```sh
-ARCHEION_READER_DIAGNOSTICS=1 npm run test:browser -- tests/browser/reader-runtime.pw.ts --grep historical --workers=1
+ARCHEION_READER_DIAGNOSTICS=1 pnpm run test:browser tests/browser/reader-runtime.pw.ts --grep historical --workers=1
 ```
 
 Each opt-in test checks setup before declaring an expected failure on the intended correctness assertion. A broken setup fails normally. A contract that unexpectedly passes also fails, prompting removal of the expected-failure annotation in its owning fix. Existing defects are never asserted to be desired behavior or made permanent normal-suite expectations.
@@ -63,7 +63,7 @@ The `stock` profile is the default and uses no Archeion overrides. `archeion` im
 
 ## Continuous wheel ownership
 
-Run `npm run test:browser -- tests/browser/reader-wheel.pw.ts tests/browser/reader-performance.pw.ts`. The wheel suite compares trusted automated input over iframe body, text, an illustration and a parent-scroller gutter. `legacyWheelForwarding: true` reproduces the removed synchronous pixel-wheel path only in this test surface. Production has no corresponding flag or fallback. Each A/B checks a 95px delta and a fractional forward/reverse sequence, recording numeric event cancellation, effective movement, observed latency, frame intervals and dispatch durations. Integer rounding in the historical `scrollTop` path allows at most half a pixel per fractional input. The sequence models high-resolution input; it does not measure physical touchpad momentum or establish a native performance budget.
+Run `pnpm run test:browser tests/browser/reader-wheel.pw.ts tests/browser/reader-performance.pw.ts`. The wheel suite compares trusted automated input over iframe body, text, an illustration and a parent-scroller gutter. `legacyWheelForwarding: true` reproduces the removed synchronous pixel-wheel path only in this test surface. Production has no corresponding flag or fallback. Each A/B checks a 95px delta and a fractional forward/reverse sequence, recording numeric event cancellation, effective movement, observed latency, frame intervals and dispatch durations. Integer rounding in the historical `scrollTop` path allows at most half a pixel per fractional input. The sequence models high-resolution input; it does not measure physical touchpad momentum or establish a native performance budget.
 
 Nested scroll areas and focused textareas retain their own native input, including contained overscroll at their bottom edge. Modifier, horizontal and active-selection gestures remain uncancelled. `showWheelOverlay()` lazily mounts production ReaderSidePanel/ReaderSideSurfaceLayer, ReaderFootnotePopover and ReaderIllustrationViewer components over the actual EPUB. Tests cover scrollable Search/Annotations-shaped content, backdrop input, footnote bottom-edge containment and the viewer's loaded/zoom and loading states, then verify book movement resumes after closing. These test surfaces do not include Search/Annotations domain data or the full Reader shell. Existing component tests cover content actions and Paged input arbitration.
 
@@ -107,7 +107,7 @@ The stock anchoring and stock short-cover diagnostics remain opt-in. Archeion pr
 
 ## Continuous prepend position ownership
 
-Run the scoped regressions with `npm run test:browser -- tests/browser/reader-prepend.pw.ts tests/browser/reader-runtime.pw.ts`. These use the installed `epubjs@0.3.93` with real synthetic EPUB iframes. The retained private adapter has an exact-version unit guard. Production leaves `check()` unchanged; mounted-view `counter()` handling and section request lifetime are contained in the Continuous integration owner. A vendor version change requires rerunning and reviewing these behavioral contracts.
+Run the scoped regressions with `pnpm run test:browser tests/browser/reader-prepend.pw.ts tests/browser/reader-runtime.pw.ts`. These use the installed `epubjs@0.3.93` with real synthetic EPUB iframes. The retained private adapter has an exact-version unit guard. Production leaves `check()` unchanged; mounted-view `counter()` handling and section request lifetime are contained in the Continuous integration owner. A vendor version change requires rerunning and reviewing these behavioral contracts.
 
 The Continuous outer `.epub-container` sets `overflow-anchor: none` before first display, through the rendition's public `attached` event. epub.js owns initial prepend compensation through `counter()`; mounted-view resizes use the visible-passage reconciliation described below. Its numeric offset increase is required to retain the same visible passage; restoring the old numeric offset would move reading backward. No `activeChecks` gate controls late reconciliation. Publication `html`, `body`, iframe styles, Paged and fixed-layout surfaces receive no anchoring override. The session owns subscriptions and guards awaited view showing after retirement.
 
@@ -120,7 +120,7 @@ Initial prepends use vendor compensation. Once a view mounts, its later resize d
 ## Late section resizing
 
 ```powershell
-npm run test:browser -- tests/browser/reader-late-resize.pw.ts tests/browser/reader-prepend.pw.ts
+pnpm run test:browser tests/browser/reader-late-resize.pw.ts tests/browser/reader-prepend.pw.ts
 ```
 
 The late-resize suite changes actual mounted EPUB image/section geometry after initial checks settle. It covers prior-section growth/shrink, movement inside the visible section, measured section-height changes below the passage, a formerly prepended view becoming visible, simultaneous changes, failed images, selected font changes and CSS zoom at 100%, 125% and 200%. A shrinking-tail case preserves the passage while the queued following section restores the available scroll range. Assertions compare the same authored passage's screen Y within 2 CSS px and check range-CFI text/highlight identity after repeated resizing. `cfi(id, true)` selects the authored text node to create a full range CFI; `textAtCfi()` resolves it through the real Book, and `highlight()` uses rendition annotations.
@@ -130,7 +130,7 @@ Mounted-view `RESIZED` signals reuse epub.js measurement. No new ResizeObservers
 ## First-section and boundary readiness
 
 ```powershell
-npm run test:browser -- tests/browser/reader-boundaries.pw.ts tests/browser/reader-runtime.pw.ts
+pnpm run test:browser tests/browser/reader-boundaries.pw.ts tests/browser/reader-runtime.pw.ts
 ```
 
 Initial `displayed`, media completion and measured resizes request a reconciliation even when no scroll event can occur. A passive outer scroll listener also requests reconciliation near either measured preload edge, independently of the vendor's one-event `ignore` branch. The existing manager queue serializes the work. Notifications coalesce per frame with at most one reconciliation queued or running; queued work reads current geometry and actual spine neighbors before invoking the unchanged vendor check. No per-wheel checks or periodic polling are installed. The vendor preload distance controls preparation, and real beginning/end boundaries cause no new section requests.

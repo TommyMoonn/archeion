@@ -25,10 +25,10 @@ Every command supports `-h` / `--help`.
 | `verify-windows-release.ps1`  | Verify staged Windows installers and SHA-256 checksums.          | `.\scripts\verify-windows-release.ps1`                  |
 | `smoke-windows-installer.ps1` | Silently install and uninstall the staged per-user NSIS bundle.  | `.\scripts\smoke-windows-installer.ps1`                 |
 
-## npm aliases
+## pnpm aliases
 
 Run these aliases from the repository root. They call the PowerShell scripts
-listed above. Add `--` before script arguments so npm passes them through.
+listed above. Pass script arguments directly after the script name.
 
 | Alias                 | Purpose                                              |
 | --------------------- | ---------------------------------------------------- |
@@ -47,10 +47,10 @@ listed above. Add `--` before script arguments so npm passes them through.
 Examples:
 
 ```powershell
-npm run changes:peek
-npm run changes:package -- --name "task-name"
-npm run clean:all -- --dry-run
-npm run zip:workspace
+pnpm run changes:peek
+pnpm run changes:package --name "task-name"
+pnpm run clean:all --dry-run
+pnpm run zip:workspace
 ```
 
 Compatibility entry points:
@@ -201,7 +201,10 @@ set-version.ps1 VERSION
 ```
 
 The version remains positional because it is the command's primary operand.
-The update is presented as four permanent steps: npm metadata, Cargo metadata,
+The command updates `package.json`, `src-tauri/Cargo.toml`,
+`src-tauri/Cargo.lock`, and `src-tauri/tauri.conf.json`. It leaves
+`pnpm-lock.yaml` unchanged and accepts the current version.
+The update is presented as four permanent steps: package metadata, Cargo metadata,
 Tauri configuration, and release validation. If any update or validation step
 fails, every original version file is restored before the script reports that
 rollback succeeded. A rollback failure is surfaced instead of being reported as
@@ -305,28 +308,28 @@ uses the local wall-clock filename `archeion-repo(yyMMddHHmm).zip` or
 modes refuse to replace an existing ZIP, and `--output` must point outside the
 repository.
 
-## npm aliases
+## pnpm aliases
 
 For the complete preparation and automatic publication procedure, use the
 [release operator guide](../docs/RELEASING.md). These aliases are command
 references, not a manual tagging procedure.
 
 ```powershell
-npm run version:check
-npm run version:set -- X.Y.Z
-npm run release:check -- --tag vX.Y.Z
-npm run release:stage
-npm run changes:review -- --files
-npm run changes:package -- --name "phase-1.3.0.16"
-npm run changes:apply -- --dry-run
-npm run changes:restore -- --dry-run
-npm run clean
-npm run clean:all -- --dry-run
-npm run zip:repo
-npm run zip:workspace
+pnpm run version:check
+pnpm run version:set X.Y.Z
+pnpm run release:check --tag vX.Y.Z
+pnpm run release:stage
+pnpm run changes:review --files
+pnpm run changes:package --name "phase-1.3.0.16"
+pnpm run changes:apply --dry-run
+pnpm run changes:restore --dry-run
+pnpm run clean
+pnpm run clean:all --dry-run
+pnpm run zip:repo
+pnpm run zip:workspace
 ```
 
-Arguments after npm's `--` are forwarded to the underlying script.
+Arguments after the script name are forwarded to the underlying script.
 
 ## Compatibility
 

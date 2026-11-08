@@ -7,8 +7,8 @@ The production components own corners and empty-state presentation. `--radius-co
 ## Repeatable checks
 
 ```powershell
-npx vite build --config tests/browser/visual-refinement-build.config.ts
-npx playwright test --config tests/browser/visual-refinement.config.ts --grep 'restrained corners|production collection|contextual destinations|UX-15|first-paint palette|filter no-results'
+pnpm exec vite build --config tests/browser/visual-refinement-build.config.ts
+pnpm exec playwright test --config tests/browser/visual-refinement.config.ts --grep 'restrained corners|production collection|contextual destinations|UX-15|first-paint palette|filter no-results'
 ```
 
 The disposable production fixture build avoids development-server module acquisition stalls and exposes real lazy chunks. It does not change the application release build. For a persistent preview server, start the configured preview on port 4291 and set `ARCHEION_UI_EXTERNAL_SERVER=1`. Set `ARCHEION_UI_FILMSTRIP=1` to retain timestamped compositor frames. Copy results from `test-results/visual-refinement` into the local phase evidence directory before rerunning.

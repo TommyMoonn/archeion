@@ -35,7 +35,7 @@ if (!fs.existsSync(sourceRoot)) {
 }
 
 if (!fs.existsSync(outputRoot)) {
-  fail("dist does not exist; run npm run build first");
+  fail("dist does not exist; run pnpm run build first");
 }
 
 const sourceAssets = manifest.assets.map((asset) => {

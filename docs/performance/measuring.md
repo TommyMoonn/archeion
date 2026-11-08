@@ -38,7 +38,7 @@ filter and sort, folders, and series.
 
 ```powershell
 $env:ARCHEION_PERF_EVIDENCE = "1"
-npm test -- src/features/library/libraryPerformanceEvidence.test.ts --reporter=dot
+pnpm run test src/features/library/libraryPerformanceEvidence.test.ts --reporter=dot
 Remove-Item Env:ARCHEION_PERF_EVIDENCE
 ```
 
