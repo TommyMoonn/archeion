@@ -111,6 +111,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "5.0.5",
+    "@xmldom/xmldom": "0.9.12",
     "ajv": "^8.20.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
@@ -127,7 +128,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@xmldom/xmldom": "0.9.10"
+      "@xmldom/xmldom": "0.9.12"
     },
     "onlyBuiltDependencies": [
       "core-js",
