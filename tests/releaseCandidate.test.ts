@@ -154,6 +154,18 @@ afterEach(() => {
 });
 
 describe("release-candidate workflow", () => {
+  it.each([
+    ["detect-candidate", "Detect release candidate"],
+    ["publish-release", "Publish exact-SHA release"],
+  ])("sets up pinned pnpm before metadata validation in %s", (jobId, validationStep) => {
+    const job = releaseJob(jobId);
+    const setup = releaseStep(jobId, "Set up pnpm");
+    expect(setup).toContain("uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061");
+    expect(setup).toContain("run_install: false");
+    expect(job.indexOf("uses: actions/checkout@")).toBeLessThan(job.indexOf(setup));
+    expect(job.indexOf(setup)).toBeLessThan(job.indexOf(releaseStep(jobId, validationStep)));
+  });
+
   it("scopes both signing secrets exclusively to the trusted candidate build step", () => {
     const build = releaseJob("build-windows");
     const signing = releaseStep("build-windows", "Build NSIS and MSI installers");
