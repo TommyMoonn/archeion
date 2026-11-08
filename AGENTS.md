@@ -131,7 +131,7 @@ Update `docs/README.md` when you add, remove, or move an engineering guide.
 
 Use `.planning/` for implementation plans, research notes, review reports, temporary handoffs, and generated evidence. Reuse its existing subdirectories when they fit the work.
 
-Use `.project/` for local project material such as audits, dictionary source files, and theme packs. `.dev/` contains local development helpers. Use `.scratch/` for disposable experiments and `.agent-work/` for temporary agent-specific work.
+Use `.project/` for local project material such as audits, dictionary source files, and theme packs. `.dev/` contains local development helpers. Use `.scratch/` for disposable experiments and `.agent-work/` for temporary work artifacts.
 
 ## Git and handoff
 
