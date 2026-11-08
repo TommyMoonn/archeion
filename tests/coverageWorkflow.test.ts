@@ -33,7 +33,7 @@ describe("diagnostic coverage workflow", () => {
       "vitest run --coverage --maxWorkers=4",
     );
     expect(packageJson.scripts["test:coverage:rust"]).toContain("scripts/coverage-rust.ps1");
-    expect(workflow).toContain("run: npm run test:coverage:frontend");
+    expect(workflow).toContain("run: pnpm run test:coverage:frontend");
     expect(workflow).toContain("run: ./scripts/coverage-rust.ps1");
     expect(workflow).toContain("components: llvm-tools-preview");
     expect(workflow).toContain("cargo install cargo-llvm-cov --version 0.9.0 --locked");

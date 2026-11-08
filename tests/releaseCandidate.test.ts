@@ -251,7 +251,7 @@ describe("release-candidate workflow", () => {
           "-NoProfile",
           "-NonInteractive",
           "-Command",
-          `$ErrorActionPreference = 'Stop'\nfunction npm { Write-Output ('BUILD ' + ($args -join ' ')); $global:LASTEXITCODE = ${buildExit} }\n${script}`,
+          `$ErrorActionPreference = 'Stop'\nfunction pnpm { Write-Output ('BUILD ' + ($args -join ' ')); $global:LASTEXITCODE = ${buildExit} }\n${script}`,
         ],
         { encoding: "utf8", windowsHide: true, env: environment },
       );
@@ -262,6 +262,9 @@ describe("release-candidate workflow", () => {
         expect(output).toContain("Both updater signing secrets are required");
       } else {
         expect(result.status).toBe(buildExit);
+        expect(result.stdout).toContain(
+          "BUILD run tauri:build:windows --ci --target x86_64-pc-windows-msvc",
+        );
         expect(result.stdout).toContain("--config src-tauri/tauri.release.conf.json");
       }
       expect(output).not.toContain("fixture key");
