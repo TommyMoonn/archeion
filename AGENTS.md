@@ -2,37 +2,33 @@
 
 Archeion is a local-first desktop app for managing EPUB archives and reading books. The interface runs in a React and TypeScript webview hosted by Tauri 2. Rust handles filesystem access, durable data, background work, and desktop integration.
 
-An archive is a folder chosen by the user. EPUB files stay in that folder, alongside an `.archeion/` directory for library metadata, reading progress, annotations, scanner data, covers, and backups.
+An archive is a user-selected folder. EPUB files stay in that folder, alongside an `.archeion/` directory for library metadata, reading progress, annotations, scanner data, covers, and backups.
 
 ## Engineering philosophy
 
-Build the simplest solution that fully solves the problem. Understand what the user needs, question assumptions, and look for the approach that removes the most complexity.
+Build the simplest solution that fully solves the problem. Challenge assumptions and remove unnecessary complexity.
 
-Use YAGNI: You Aren't Gonna Need It. Before adding code, ask whether the behavior needs to exist, whether the codebase already has a helper or established pattern, and whether the language, standard library, platform, or an installed dependency already provides it. Do not add a dependency for a small helper. Add custom code only when those options fall short.
+Follow YAGNI (You Aren't Gonna Need It). Before adding code, ask whether the behavior is needed and whether an existing pattern, standard library, platform capability, or installed dependency can handle it. Avoid new dependencies for trivial helpers and abstractions for hypothetical needs.
 
-Prefer deletion and reuse over new wrappers, factories, interfaces with one implementation, configuration for values that do not vary, and scaffolding for hypothetical future work. Keep the shortest diff that covers the whole change. A short diff that misses callers or edge cases is still a bad change.
+Prefer deletion and reuse over unnecessary wrappers, factories, single-use interfaces, configuration for values that never vary, and speculative scaffolding. Look for designs that remove moving parts, make invalid states unrepresentable, or eliminate classes of failure. Favor readable code and simple failure modes. Keep changes focused without overlooking callers or edge cases.
 
-Look for design ideas that remove a moving part, make invalid states unrepresentable, or eliminate an entire class of failure. Challenge the first implementation when a simpler design meets the goal. Prefer clear code over clever code that takes longer to understand. When two solutions are close, choose the one with simpler failure modes and correct edge-case behavior.
-
-Do not trade away input validation, data-loss protection, error handling, security, accessibility, or behavior the user explicitly requested.
+Never sacrifice correctness, input validation, data integrity, error handling, security, accessibility, or requested behavior for simplicity.
 
 ## Protect user data
 
-The user's EPUB files and `.archeion/` data are part of their library. Treat them as user-owned content.
+Treat EPUB files and `.archeion/` data as user-owned content.
 
 Preserve existing on-disk formats. Add an explicit migration when a persisted format must change. Use the existing atomic-write, backup, import transaction, and EPUB writeback paths for durable changes. Failed or cancelled operations must leave existing files and archive state consistent.
 
 EPUBs, dictionary packages, and imported archives are untrusted input. Validate archive paths and file contents in Rust, even when the frontend has already checked them.
 
-Library and reading data stay on the user's machine. The app uses the network for dictionary catalog refreshes and package downloads, and for update checks and downloads. Do not add cloud sync, account requirements, or uploads of library content unless the task asks for them.
+Library and reading data stay on the user's machine. The app uses the network to refresh dictionary catalogs, download dictionary packages, and check for or download updates. Do not add cloud sync, account requirements, or uploads of library content unless the task asks for them.
 
 Archeion currently targets Windows. Check the native implementation and CI before extending platform support or making cross-platform claims.
 
 ## Before changing code
 
-Read the implementation, its tests, and the documentation for the area. Trace the affected flow across the frontend, state, storage, Tauri command, and Rust implementation.
-
-Check every affected call site, fixture, configuration file, and export. For bug fixes, correct the shared implementation instead of patching individual callers.
+Read the relevant implementation, tests, and documentation before editing. Trace affected call sites and cross-layer contracts when applicable. Fix bugs at their source rather than patching individual callers.
 
 Use the Node version selected by `.node-version` and the Rust toolchain in `rust-toolchain.toml`. Use `pnpm install --frozen-lockfile` for a clean install. Keep `pnpm-lock.yaml` in sync through pnpm commands instead of editing it by hand.
 
@@ -53,7 +49,7 @@ Use the Node version selected by `.node-version` and the Rust toolchain in `rust
 
 `LibraryStorage` defines archive and book operations. `TauriArchiveLibraryStorage` implements that contract for the desktop app. Library and Reader archive operations go through this storage layer.
 
-`ArchiveScanSession` coordinates the Library's scan lifecycle. `ArchiveMutationCoordinator` applies scan results and archive changes to the current Library snapshot. Preserve cancellation and archive-generation checks so work started for an old archive cannot update the active one. Settings rescan and metadata repair must reconcile through the active Library scan owner.
+`ArchiveScanSession` coordinates the Library scan lifecycle. `ArchiveMutationCoordinator` applies scan results and archive changes to the current Library snapshot. Preserve cancellation and archive-generation checks so work started for a previous archive cannot update the active one. Rescans from Settings and metadata repairs must reconcile through the active Library scan owner.
 
 `AppPreferencesStore` owns application preferences. `ThemeRepository` manages installed custom theme packages, while `src/themes/` resolves the selected appearance and publishes it to the interface.
 
@@ -91,7 +87,7 @@ Read `docs/DESIGN.md` before changing the interface, themes, typography, layout,
 
 Use existing components and semantic theme tokens. Check light, dark, and custom themes when changing colors or appearance. Keep feature-specific behavior in its owning feature.
 
-Handle the loading, empty, error, success, and cancellation states that an operation can reach. Keep dimensions stable when content changes. Preserve accessible names, keyboard access, visible focus, appropriate hit areas, and reduced-motion support.
+Handle applicable loading, empty, error, success, and cancellation states. Keep dimensions stable when content changes. Preserve accessible names, keyboard access, visible focus, appropriate hit areas, and reduced-motion support.
 
 ## Keep the app responsive
 
@@ -99,21 +95,19 @@ Keep expensive parsing, indexing, and filesystem work out of React render paths.
 
 Prefer targeted scans when a full Library reconciliation is unnecessary. Avoid repeated polling and unbounded background work. Keep reader interaction responsive while scans, EPUB parsing, and file operations run.
 
-Make event handlers safe against repeated activation when an operation can mutate files or start background work.
+Guard actions that mutate files or start background work against repeated activation.
 
 ## Test behavior that can break
 
-Test behavior that can regress. For a bug fix, reproduce the failure in a focused test when practical. Extend an existing test or fixture when it already covers the behavior. Add a new test when no suitable case exists.
+For bug fixes, reproduce failures in a focused test when practical. Reuse existing cases or fixtures before adding new tests. Test at the lowest layer that proves the behavior; avoid duplicate assertions and tests of trivial implementation details.
 
-Test at the lowest layer that can prove the behavior. Do not repeat the same assertion in a helper, component, and end-to-end test. Skip tests for trivial expressions, static copy, type-system guarantees, mock-call mirrors, and callback wiring that does not prove user-visible behavior.
+Use Vitest for frontend tests, Playwright for browser behavior, and Cargo tests for Rust. Prefer explicit events or conditions over fixed sleeps. Bound necessary polling with timeouts.
 
-Use Vitest for frontend tests, Playwright for browser behavior, and Cargo tests for Rust. Keep tests deterministic. Wait for explicit events or conditions instead of fixed sleeps and polling loops.
+Use temporary directories and disposable archives for filesystem tests, never a real library. Verify that failed or cancelled operations leave existing data intact. For archive lifecycle changes, cover rapid archive switches, overlapping scans, maintenance, and cross-window updates where relevant. For imports and writebacks, cover failure cleanup, rollback, backup preservation, and cancellation.
 
-Filesystem tests must use temporary directories and disposable archives. Never point a test at a real library. Check that failed or cancelled operations leave existing data intact. For archive lifecycle changes, cover rapid archive switches, overlapping scans, maintenance, and cross-window updates where relevant. For import and writeback changes, cover failure cleanup, rollback, backup preservation, and cancellation.
+Prefer focused verification: `pnpm run test <test-file>` for Vitest and `pnpm run test:browser` for browser behavior. For Rust changes, run relevant Rust tests and formatting/lint checks (`pnpm run rust:test`, `pnpm run rust:fmt`, and `pnpm run rust:clippy`) as appropriate to the scope.
 
-Use `pnpm run test <test-file>` for focused Vitest tests and `pnpm run test:browser` for browser tests. For Rust changes, run `pnpm run rust:test`, `pnpm run rust:fmt`, and `pnpm run rust:clippy`.
-
-Run `pnpm run architecture:check` for dependency-boundary changes, `pnpm run ipc:check` for Tauri command changes, and `pnpm run settings:contract:check` for settings mutation changes. Run `pnpm run test:runtime:windows` or `pnpm run test:updater:windows` for the corresponding Windows behavior. Run `pnpm run test:inter-assets` when changing shared icon or font copies.
+Run `pnpm run architecture:check` for dependency-boundary changes, `pnpm run test:runtime:windows` or `pnpm run test:updater:windows` for corresponding Windows behavior, and `pnpm run test:inter-assets` for changes to shared icon or font copies.
 
 Run `pnpm run verify` before a release or when a full validation pass is requested.
 
@@ -129,14 +123,11 @@ Update `docs/README.md` when you add, remove, or move an engineering guide.
 
 ## Planning and work artifacts
 
-Use `.plans/` for implementation plans, research notes, review reports, temporary handoffs, and generated evidence. Reuse its existing subdirectories when they fit the work.
-
-Use `.project/` for local project material such as audits, dictionary source files. Use `.scratch/` for disposable experiments and `.agent-work/` for temporary work artifacts.
+Keep plans, research, reviews, handoffs, and evidence in `.plans/`. Use `.project/` for project reference material, `.scratch/` for disposable experiments, and `.agent-work/` for temporary agent output. Reuse existing subdirectories.
 
 ## Git and handoff
 
-Before editing, check `git status --short` and inspect the existing diff. Preserve work you did not create.
-
-Do not reset, clean, stash, rebase, amend, or overwrite existing user changes without permission. Do not commit, push, or open a pull request unless the user asks.
-
-Before handing off, inspect the final diff and `git status`. Run the checks that cover the changed behavior. Report what changed and the exact checks you ran, including anything you could not run.
+- Review the working tree before editing. Preserve unrelated changes and never discard user work without permission.
+- Follow the requested Git workflow. Commit, push, or create a PR only when directly requested or authorized by an explicitly invoked workflow.
+- Use concise Conventional Commit subjects for commits and titles for PRs. Scopes are optional, e.g., `fix(reader): preserve progress when switching archives`. PR descriptions should explain the problem, solution, and validation.
+- Before handoff, review the final diff, run relevant checks, and report results and anything unverified.
