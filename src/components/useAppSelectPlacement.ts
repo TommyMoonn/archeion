@@ -13,6 +13,7 @@ type UseAppSelectPlacementOptions = {
   contentRevision: string;
   menuRef: RefObject<HTMLDivElement | null>;
   maxMenuHeight?: number;
+  minMenuWidth?: number;
   open: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   triggerRef: RefObject<HTMLButtonElement | null>;
@@ -59,6 +60,7 @@ export function useAppSelectPlacement({
   contentRevision,
   menuRef,
   maxMenuHeight,
+  minMenuWidth,
   open,
   scrollRef,
   triggerRef,
@@ -86,8 +88,11 @@ export function useAppSelectPlacement({
         Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
         coordinateSpace.scaleY;
       const intendedMenuWidth =
-        Math.max(APP_SELECT_MIN_WIDTH, triggerRect.width / coordinateSpace.scaleX) *
-        coordinateSpace.scaleX;
+        Math.max(
+          APP_SELECT_MIN_WIDTH,
+          minMenuWidth ?? 0,
+          triggerRect.width / coordinateSpace.scaleX,
+        ) * coordinateSpace.scaleX;
       const viewportPlacement = calculateAppSelectPlacement({
         intendedMenuHeight,
         intendedMenuWidth,
@@ -134,7 +139,7 @@ export function useAppSelectPlacement({
       visualViewport?.removeEventListener("resize", scheduleMeasurement);
       visualViewport?.removeEventListener("scroll", scheduleMeasurement);
     };
-  }, [contentRevision, maxMenuHeight, menuRef, open, triggerRef]);
+  }, [contentRevision, maxMenuHeight, menuRef, minMenuWidth, open, triggerRef]);
 
   useLayoutEffect(() => {
     if (!open || !placement || !activeOptionId) return;

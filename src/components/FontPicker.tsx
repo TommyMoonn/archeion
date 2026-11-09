@@ -39,7 +39,14 @@ type FontRow<TValue extends string> = {
   selection: FontPickerSelection<TValue>;
 };
 
+type FontPickerSession = {
+  activeByKeyboard: boolean;
+  activeKey: string | null;
+  query: string;
+};
+
 const MENU_HEIGHT = 360;
+const MENU_MIN_WIDTH = 224;
 
 function selectionKey(selection: FontPickerSelection<string>): string {
   return selection.kind === "pinned"
@@ -68,7 +75,7 @@ export function FontPicker<TValue extends string>({
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [session, setSession] = useState<{ query: string; activeKey: string | null } | null>(null);
+  const [session, setSession] = useState<FontPickerSession | null>(null);
   const [previousDisabled, setPreviousDisabled] = useState(disabled);
   if (previousDisabled !== disabled) {
     setPreviousDisabled(disabled);
@@ -131,6 +138,7 @@ export function FontPicker<TValue extends string>({
     contentRevision: JSON.stringify(visibleRows.map((row) => [row.key, row.label, row.disabled])),
     maxMenuHeight: MENU_HEIGHT,
     menuRef,
+    minMenuWidth: MENU_MIN_WIDTH,
     open: isOpen,
     scrollRef: listRef,
     triggerRef: buttonRef,
@@ -173,7 +181,14 @@ export function FontPicker<TValue extends string>({
         direction,
       );
       if (next >= 0)
-        setSession((current) => current && { ...current, activeKey: visibleRows[next].key });
+        setSession(
+          (current) =>
+            current && {
+              ...current,
+              activeByKeyboard: true,
+              activeKey: visibleRows[next].key,
+            },
+        );
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (activeIndex >= 0) choose(visibleRows[activeIndex]);
@@ -203,11 +218,13 @@ export function FontPicker<TValue extends string>({
         className="app-select__trigger"
         disabled={disabled}
         id={`${controlId}-button`}
-        onClick={() => setSession(isOpen ? null : { query: "", activeKey: null })}
+        onClick={() =>
+          setSession(isOpen ? null : { activeByKeyboard: false, query: "", activeKey: null })
+        }
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault();
-            setSession({ query: "", activeKey: null });
+            setSession({ activeByKeyboard: false, query: "", activeKey: null });
           }
         }}
         ref={buttonRef}
@@ -236,24 +253,28 @@ export function FontPicker<TValue extends string>({
               : { visibility: "hidden" }
           }
         >
-          <Input
-            aria-activedescendant={activeOptionId}
-            aria-autocomplete="list"
-            aria-controls={listId}
-            aria-expanded="true"
-            autoComplete="off"
-            className="font-picker__search"
-            label={`Search fonts for ${ariaLabel}`}
-            onChange={(event) => setSession({ query: event.target.value, activeKey: null })}
-            onKeyDown={navigate}
-            placeholder="Search fonts…"
-            ref={inputRef}
-            role="combobox"
-            size="standard"
-            spellCheck={false}
-            type="search"
-            value={session.query}
-          />
+          <div className="font-picker__header">
+            <Input
+              aria-activedescendant={activeOptionId}
+              aria-autocomplete="list"
+              aria-controls={listId}
+              aria-expanded="true"
+              autoComplete="off"
+              className="font-picker__search"
+              label={`Search fonts for ${ariaLabel}`}
+              onChange={(event) =>
+                setSession({ activeByKeyboard: false, query: event.target.value, activeKey: null })
+              }
+              onKeyDown={navigate}
+              placeholder="Search fonts…"
+              ref={inputRef}
+              role="combobox"
+              size="standard"
+              spellCheck={false}
+              type="search"
+              value={session.query}
+            />
+          </div>
           <div
             aria-label={ariaLabel}
             className="font-picker__list"
@@ -268,13 +289,23 @@ export function FontPicker<TValue extends string>({
                 aria-selected={row.key === selectedKey}
                 className="app-select__option"
                 data-active={index === activeIndex || undefined}
+                data-keyboard-active={
+                  session.activeByKeyboard && index === activeIndex ? "true" : undefined
+                }
                 disabled={row.disabled}
                 id={optionId(index)}
                 key={row.key}
                 onClick={() => choose(row)}
                 onMouseEnter={() => {
                   if (!row.disabled)
-                    setSession((current) => current && { ...current, activeKey: row.key });
+                    setSession(
+                      (current) =>
+                        current && {
+                          ...current,
+                          activeByKeyboard: false,
+                          activeKey: row.key,
+                        },
+                    );
                 }}
                 onPointerDown={(event) => event.preventDefault()}
                 role="option"

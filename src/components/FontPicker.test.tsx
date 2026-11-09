@@ -127,6 +127,7 @@ describe("FontPicker", () => {
     expect(active()).toBe(options()[0]);
     key("ArrowDown");
     expect(active()).toBe(options()[1]);
+    expect(options()[1].getAttribute("data-keyboard-active")).toBe("true");
     expect(document.activeElement).toBe(search());
     expect(options()[0].getAttribute("aria-selected")).toBe("true");
     expect(options()[1].getAttribute("aria-selected")).toBe("false");
@@ -134,6 +135,20 @@ describe("FontPicker", () => {
     key("ArrowUp");
     expect(active()).toBe(options().at(-1));
     expect(props.onChange).not.toHaveBeenCalled();
+  });
+
+  it("separates pointer-active rows from keyboard focus indicators", () => {
+    open();
+    expect(options()[0].hasAttribute("data-keyboard-active")).toBe(false);
+    key("ArrowDown");
+    expect(options()[1].getAttribute("data-keyboard-active")).toBe("true");
+
+    act(() => {
+      options()[2].dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    });
+
+    expect(active()).toBe(options()[2]);
+    expect(options()[2].hasAttribute("data-keyboard-active")).toBe(false);
   });
 
   it("selects a pinned option on Enter immediately, closes and restores the trigger", () => {

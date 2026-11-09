@@ -203,6 +203,7 @@ for (const scenario of [
     await fontTrigger(page, "Interface").focus();
     await page.keyboard.press("Enter");
     await fontSearch(page, "Interface").fill("Long family");
+    await page.keyboard.press("ArrowDown");
     await expect(fontSearch(page, "Interface")).toBeFocused();
     const popover = page.locator(".font-picker__popover");
     const box = (await popover.boundingBox())!;
@@ -219,16 +220,18 @@ for (const scenario of [
     if (scenario.forced) {
       expect(
         await page
-          .getByRole("option")
+          .locator('[role="option"][data-keyboard-active="true"]')
           .evaluate((option) => parseFloat(getComputedStyle(option).outlineWidth)),
       ).toBeGreaterThanOrEqual(2);
-      const colors = await page.getByRole("option").evaluate((option) => ({
-        label: getComputedStyle(option.firstElementChild!).color,
-        row: getComputedStyle(option).color,
-        background: getComputedStyle(option).backgroundColor,
-        marker: getComputedStyle(option.querySelector(".icon-slot")!).color,
-        markerAdjustment: getComputedStyle(option.querySelector(".icon-slot")!).forcedColorAdjust,
-      }));
+      const colors = await page
+        .locator('[role="option"][data-keyboard-active="true"]')
+        .evaluate((option) => ({
+          label: getComputedStyle(option.firstElementChild!).color,
+          row: getComputedStyle(option).color,
+          background: getComputedStyle(option).backgroundColor,
+          marker: getComputedStyle(option.querySelector(".icon-slot")!).color,
+          markerAdjustment: getComputedStyle(option.querySelector(".icon-slot")!).forcedColorAdjust,
+        }));
       expect(colors.label, JSON.stringify(colors)).toBe(colors.row);
       expect(colors.marker).toBe(colors.row);
       expect(colors.markerAdjustment).toBe("none");
@@ -255,9 +258,10 @@ test("font rows and keyboard indicators retain contrast in both built-in appeara
     await openAppearance(page, query);
     await fontTrigger(page, "Interface").focus();
     await page.keyboard.press("Enter");
+    await page.keyboard.press("ArrowDown");
     const colors = await page.evaluate(() => {
       const popover = document.querySelector(".font-picker__popover")!;
-      const active = document.querySelector('[role="option"][data-active="true"]')!;
+      const active = document.querySelector('[role="option"][data-keyboard-active="true"]')!;
       const normal = document.querySelector('[role="option"]:not([data-active])')!;
       const content = document.querySelector(".settings-window")!;
       const description = document.querySelector(

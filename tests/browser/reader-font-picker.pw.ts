@@ -43,9 +43,17 @@ test("Reader picker searches presets and installed families, updates the same pu
   page,
 }, testInfo) => {
   const errors: string[] = [];
+  // The EPUB sandbox intentionally blocks scripts in its srcdoc frame; Chromium logs that as an error.
+  const expectedSandboxNotice =
+    /^Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set\.$/;
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    if (["error", "warning"].includes(message.type())) errors.push(message.text());
+    if (
+      ["error", "warning"].includes(message.type()) &&
+      !expectedSandboxNotice.test(message.text())
+    ) {
+      errors.push(message.text());
+    }
   });
   await openReader(page);
   const publication = page.frameLocator("#publication iframe").locator("p").first();
@@ -173,7 +181,7 @@ for (const scenario of [
     enlarge: true,
   },
 ] as const) {
-  test(`Reader picker wraps long labels and retains keyboard access in ${scenario.name}`, async ({
+  test(`Reader picker truncates long labels on one line and retains keyboard access in ${scenario.name}`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
@@ -221,8 +229,10 @@ for (const scenario of [
     await trigger(page).focus();
     await page.keyboard.press("Enter");
     await search(page).fill("Long family");
-    const row = page.getByRole("option");
+    await page.keyboard.press("ArrowDown");
+    const row = page.locator('[role="option"][data-keyboard-active="true"]');
     const box = (await page.locator(".font-picker__popover").boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(224);
     expect(box.x).toBeGreaterThanOrEqual(7);
     expect(box.x + box.width).toBeLessThanOrEqual(scenario.width - 7);
     expect(box.y).toBeGreaterThanOrEqual(7);
@@ -257,12 +267,20 @@ for (const scenario of [
       contentType: "application/json",
     });
     expect(geometry.cornersVisible, JSON.stringify(geometry)).toBe(true);
-    expect(
-      await row.evaluate(
-        (element) =>
-          element.firstElementChild!.scrollWidth <= element.firstElementChild!.clientWidth,
-      ),
-    ).toBe(true);
+    const labelMetrics = await row.evaluate((element) => {
+      const label = element.firstElementChild! as HTMLElement;
+      const style = getComputedStyle(label);
+      return {
+        clientWidth: label.clientWidth,
+        scrollWidth: label.scrollWidth,
+        whiteSpace: style.whiteSpace,
+        textOverflow: style.textOverflow,
+      };
+    });
+    expect(labelMetrics.scrollWidth).toBeGreaterThan(labelMetrics.clientWidth);
+    expect(labelMetrics.whiteSpace).toBe("nowrap");
+    expect(labelMetrics.textOverflow).toBe("ellipsis");
+    await expect(row).toHaveAccessibleName(/^Long family name with multilingual/);
     const colors = await row.evaluate((element) => {
       const menuBackground = getComputedStyle(
         element.closest(".font-picker__popover")!,
