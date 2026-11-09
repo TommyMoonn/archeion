@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-test.setTimeout(120_000);
-
 for (const placement of ["top", "side"] as const) {
   test(`${placement} reading progress remains unobstructed after an update notice`, async ({
     page,
@@ -137,7 +135,12 @@ for (const view of ["grid", "list"] as const) {
           Math.min(...samples.map((sample) => sample.top)),
       ).toBeLessThan(1);
       expect(await main.evaluate((element) => document.activeElement === element)).toBe(true);
-      await page.getByRole("button", { name: "Later", exact: true }).click();
+      const dismiss = page.getByRole("button", {
+        name: "Dismiss update notice",
+        exact: true,
+      });
+      await expect(dismiss).toBeVisible();
+      await dismiss.click({ timeout: 5_000 });
       const after = await main.evaluate(async (element) => {
         const samples = [];
         for (let i = 0; i < 16; i++) {
@@ -219,7 +222,7 @@ for (const input of ["wheel", "keyboard"] as const) {
 }
 
 for (const motion of ["app-off", "system-off"] as const) {
-  test(`${motion}: narrow long notice has one layout change and reachable actions`, async ({
+  test(`${motion}: narrow long notice stays out of Library layout and keeps actions reachable`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 360, height: 640 });
@@ -243,8 +246,13 @@ for (const motion of ["app-off", "system-off"] as const) {
     await page.getByRole("main").evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
-    await page.getByRole("button", { name: "Last Library action" }).click();
-    await page.getByRole("button", { name: "Later", exact: true }).click();
+    const dismiss = page.getByRole("button", {
+      name: "Dismiss update notice",
+      exact: true,
+    });
+    await expect(dismiss).toBeVisible();
+    await dismiss.click({ timeout: 5_000 });
     await expect(toast).toHaveCount(0);
+    await page.getByRole("button", { name: "Last Library action" }).click();
   });
 }

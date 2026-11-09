@@ -23,7 +23,7 @@ export type AppThemePreset = "system" | "dark" | "light";
 /** In-memory publication provenance. This is not persisted in settings.json. */
 export type AppPreferencesPublication = Readonly<
   | { kind: "initialization"; generation: number }
-  | { kind: "commit" | "synchronization"; appThemeChanged: boolean }
+  | { kind: "optimistic" | "commit" | "synchronization"; appThemeChanged: boolean }
 >;
 
 export type RememberedNavigationState = {

@@ -1885,6 +1885,41 @@ describe("font availability across application sessions", () => {
 });
 
 describe("app preference write coalescing", () => {
+  it("publishes theme changes as optimistic until the native write commits", async () => {
+    vi.useFakeTimers();
+    const native = createDesktopSettingsHarness();
+    const gate = deferred<void>();
+    const window = native.createWindow(gate.promise);
+    const store = new AppPreferencesStore(window.persistence);
+
+    try {
+      await store.initialize();
+      const pending = store.update({ appTheme: { kind: "builtin", id: "light" } });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(store.getAppearancePublication()).toEqual({
+        kind: "optimistic",
+        appThemeChanged: true,
+      });
+
+      await vi.advanceTimersByTimeAsync(250);
+      expect(window.mutateDesktop).toHaveBeenCalledOnce();
+      expect(store.getAppearancePublication()).toEqual({
+        kind: "optimistic",
+        appThemeChanged: true,
+      });
+
+      gate.resolve();
+      await pending;
+      expect(store.getAppearancePublication()).toEqual({
+        kind: "commit",
+        appThemeChanged: true,
+      });
+    } finally {
+      gate.resolve();
+      vi.useRealTimers();
+    }
+  });
+
   it("persists rapid desktop updates as one trailing latest-value write", async () => {
     vi.useFakeTimers();
     let snapshot = nativeSnapshot();

@@ -930,6 +930,12 @@ export class AppPreferencesStore {
         if (!attempt.isSuperseded() && completed) {
           this.setPreferences(
             preserveEquivalentPreferenceAreas(this.preferences, completed.preferences),
+            {
+              kind: "commit",
+              appThemeChanged: attempt.value.intents.some(
+                ({ mutation }) => mutation.area === "appTheme",
+              ),
+            },
           );
         }
       },
@@ -994,8 +1000,8 @@ export class AppPreferencesStore {
     const mutations = createAppSettingsMutations(this.preferences, next);
     this.mutationRevision += 1;
     this.setPreferences(next, {
-      kind: "commit",
-      appThemeChanged: changes.appTheme !== undefined,
+      kind: "optimistic",
+      appThemeChanged: !preferenceAreaEqual(this.preferences.appTheme, next.appTheme),
     });
     return this.persist(next, mutations, this.mutationRevision);
   }
@@ -1112,6 +1118,10 @@ export class AppPreferencesStore {
     if (!this.persistence.isDesktop()) {
       try {
         this.persistence.saveBrowserFallback(preferences);
+        this.setPreferences(this.preferences, {
+          kind: "commit",
+          appThemeChanged: mutations.some((mutation) => mutation.area === "appTheme"),
+        });
         this.setPersistenceStatus({ status: "saved" });
         return Promise.resolve(preferences);
       } catch (error) {
@@ -1225,10 +1235,15 @@ export class AppPreferencesStore {
     );
     const appThemeChanged =
       !this.hasDesktopSnapshot || !preferenceAreaEqual(this.preferences.appTheme, next.appTheme);
+    const nextPublication =
+      publication ??
+      (this.desktopMutationIntents.has("appTheme")
+        ? { kind: "optimistic" as const, appThemeChanged }
+        : { kind: "synchronization" as const, appThemeChanged });
     this.desktopRevision = snapshot.revision;
     this.desktopPersistedPreferences = snapshot.preferences;
     this.hasDesktopSnapshot = true;
-    this.setPreferences(next, publication ?? { kind: "synchronization", appThemeChanged });
+    this.setPreferences(next, nextPublication);
   }
 
   private recordDesktopMutationIntents(mutations: AppSettingsMutation[]): DesktopMutationIntent[] {

@@ -18,7 +18,7 @@ html {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   color: var(--text);
-  background: var(--surface-raised);
+  background: var(--canvas);
   box-shadow: var(--shadow-popover);
 }
 
