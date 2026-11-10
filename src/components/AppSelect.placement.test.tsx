@@ -35,6 +35,7 @@ const initialOptions: Array<AppSelectOption<string>> = [
 let activeRoot: Root | null = null;
 let geometryReads = 0;
 let triggerBounds = rect(280, 350, 120, 36);
+let menuNaturalWidth = 188;
 
 function renderSelect(options = initialOptions, panel?: HTMLElement, value = "title") {
   const container = panel ?? document.createElement("div");
@@ -65,7 +66,8 @@ beforeEach(() => {
     if (this.classList.contains("reader-side-panel")) return rect(120, 40, 380, 360);
     if (this.classList.contains("app-select__menu")) {
       const scale = this.closest<HTMLElement>("[style*='scale(0.5)']") ? 0.5 : 1;
-      return rect(280, 194, 188 * scale, 82 * scale);
+      const width = this.style.width === "max-content" ? menuNaturalWidth : 188;
+      return rect(280, 194, width * scale, 82 * scale);
     }
     if (this.classList.contains("app-select__option")) {
       const menu = this.parentElement as HTMLElement;
@@ -92,6 +94,7 @@ afterEach(() => {
   document.body.innerHTML = "";
   geometryReads = 0;
   triggerBounds = rect(280, 350, 120, 36);
+  menuNaturalWidth = 188;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -110,6 +113,22 @@ describe("AppSelect anchored placement", () => {
     expect(menu.style.width).toBe("188px");
     expect(menu.style.maxHeight).toBe("336px");
     expect(menu.style.visibility).toBe("visible");
+  });
+
+  it("widens the menu to fit long option labels before applying viewport bounds", () => {
+    menuNaturalWidth = 276;
+    triggerBounds = rect(100, 100, 120, 36);
+    const container = renderSelect([
+      { label: "Cascadia Mono, Segoe UI Mono, Consolas", value: "mono" },
+      { label: "Inter", value: "inter" },
+    ]);
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+
+    act(() => trigger.click());
+
+    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    expect(menu.style.width).toBe("276px");
+    expect(menu.style.left).toBe("100px");
   });
 
   it("positions Reader theme and Typeface menus in a backdrop-filter containing block", () => {

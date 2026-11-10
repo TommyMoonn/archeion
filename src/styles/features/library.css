@@ -657,8 +657,9 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   background: var(--surface-raised);
 }
 
-.book-menu__popover {
-  width: 150px;
+.book-menu__popover .menu-item__label {
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 
 .book-list {

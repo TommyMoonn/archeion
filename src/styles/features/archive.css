@@ -358,9 +358,9 @@ html[data-motion="on"]
 
 .archive-row__title,
 .archive-row__path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .archive-row__title {
@@ -583,12 +583,12 @@ html[data-motion="on"]
 
 .archive-create-form__label-block span,
 .archive-create-form__row-description {
-  overflow: hidden;
+  min-width: 0;
   color: var(--muted);
   font-size: var(--type-caption);
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .archive-create-form .form-required {
@@ -621,15 +621,16 @@ html[data-motion="on"]
 }
 
 .archive-create-form__path {
-  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 0 2px;
   color: var(--muted);
   font-size: var(--type-caption);
   line-height: 1.45;
   text-align: start;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .archive-create-form__status {

@@ -219,10 +219,10 @@
 }
 
 .archive-switcher__trigger-label {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .archive-switcher__menu {
@@ -230,7 +230,9 @@
   z-index: 5;
   bottom: calc(100% + 7px);
   inset-inline-start: 0;
-  width: 214px;
+  width: max-content;
+  min-width: min(214px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
 }
 
 .archive-switcher__current {

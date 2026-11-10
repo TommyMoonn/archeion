@@ -78,21 +78,33 @@ export function useAppSelectPlacement({
 
     const measure = () => {
       const triggerRect = trigger.getBoundingClientRect();
-      const menuRect = menu.getBoundingClientRect();
       const coordinateSpace = getAppSelectFixedCoordinateSpace(menu);
-      const borderHeight = Math.max(
-        0,
-        menuRect.height / coordinateSpace.scaleY - menu.clientHeight,
-      );
-      const intendedMenuHeight =
-        Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
-        coordinateSpace.scaleY;
-      const intendedMenuWidth =
-        Math.max(
-          APP_SELECT_MIN_WIDTH,
-          minMenuWidth ?? 0,
-          triggerRect.width / coordinateSpace.scaleX,
-        ) * coordinateSpace.scaleX;
+
+      // Re-measure at intrinsic width instead of inheriting a previous placement's
+      // inline width. This lets long labels widen the menu before it is viewport-clamped.
+      const previousWidth = menu.style.width;
+      let intendedMenuHeight: number;
+      let intendedMenuWidth: number;
+      try {
+        menu.style.width = "max-content";
+        const contentRect = menu.getBoundingClientRect();
+        const borderHeight = Math.max(
+          0,
+          contentRect.height / coordinateSpace.scaleY - menu.clientHeight,
+        );
+        intendedMenuHeight =
+          Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
+          coordinateSpace.scaleY;
+        intendedMenuWidth =
+          Math.max(
+            APP_SELECT_MIN_WIDTH,
+            minMenuWidth ?? 0,
+            triggerRect.width / coordinateSpace.scaleX,
+            contentRect.width / coordinateSpace.scaleX,
+          ) * coordinateSpace.scaleX;
+      } finally {
+        menu.style.width = previousWidth;
+      }
       const viewportPlacement = calculateAppSelectPlacement({
         intendedMenuHeight,
         intendedMenuWidth,

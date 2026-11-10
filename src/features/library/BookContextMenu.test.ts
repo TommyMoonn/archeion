@@ -27,6 +27,14 @@ describe("book context menu placement", () => {
     expect(styles).not.toContain(".book-row[data-selection-mode] .book-menu {");
   });
 
+  it("sizes book action menus to their labels instead of wrapping mono-font actions", () => {
+    const label = cssBlock(".book-menu__popover .menu-item__label");
+
+    expect(styles).not.toMatch(/\.book-menu__popover\s*\{[^}]*width\s*:/s);
+    expect(label).toContain("overflow-wrap: normal;");
+    expect(label).toContain("white-space: nowrap;");
+  });
+
   it("anchors row actions to the trailing edge while preserving physical cover placement", () => {
     const baseMenu = cssBlock(".book-menu");
     const rowMenu = cssBlock(".book-menu--row");

@@ -113,6 +113,40 @@ test("real Settings controls apply both roles, persist, search, and reset with o
   expect(errors).toEqual([]);
 });
 
+test("Settings selectors keep their width while font metrics and the catalog resolve", async ({
+  page,
+}) => {
+  await openAppearance(page, "?pending");
+
+  const selectors = page.locator(".settings-row__control .app-select");
+  await expect(selectors).toHaveCount(4);
+  const readWidths = () =>
+    selectors.evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().width),
+    );
+  const initialWidths = await readWidths();
+  expect(initialWidths).toEqual([240, 240, 240, 240]);
+
+  const transitionProperties = await selectors
+    .locator(".app-select__trigger")
+    .evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).transitionProperty),
+    );
+  expect(transitionProperties.every((property) => !property.split(",").includes("width"))).toBe(
+    true,
+  );
+
+  await page.evaluate(() => document.documentElement.style.setProperty("--font-ui", "monospace"));
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  expect(await readWidths()).toEqual(initialWidths);
+
+  await page.evaluate(() => window.applicationFontSettingsFixture.releaseCatalog());
+  await expect(fontTrigger(page, "Interface")).not.toHaveAttribute("aria-busy", "true");
+  expect(await readWidths()).toEqual(initialWidths);
+});
+
 test("pending catalog does not mislabel a saved family and unavailable choices remain preserved", async ({
   page,
 }, testInfo) => {

@@ -10,6 +10,8 @@
 .font-picker__popover {
   display: flex;
   flex-direction: column;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 16px));
   overflow: hidden;
   padding: 0;
 }
