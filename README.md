@@ -27,9 +27,9 @@
 
 Archeion is a local-first EPUB library built around the files already on your machine. If you have a folder full of EPUBs sitting around (for some reason, like me) and want a convenient way to read them on your desktop or laptop, this app is for you.
 
-It's also my personal project for exploring and trying out agentic coding workflows after hating on it for quite a while. It's built primarily for my own use, with experimenting with the tools, techniques, and ideas behind agentic coding being a nice bonus to it.
-
 That's the one specific problem (if you can even call it one) this app is built to solve. Nothing more complicated than that lol.
+
+It's also my personal project for exploring and trying out agentic coding workflows after hating on it for quite a while. It's built primarily for my own use, with experimenting with the tools, techniques, and ideas behind agentic coding being a nice bonus to it.
 
 ## AI Usage
 
@@ -90,7 +90,7 @@ Your Archive/
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
-- [Maintainer documentation index](docs/README.md)
+- [Devlopment documentation index](docs/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Design guidelines](docs/DESIGN.md)
 - [Development guide](docs/DEVELOPMENT.md)
