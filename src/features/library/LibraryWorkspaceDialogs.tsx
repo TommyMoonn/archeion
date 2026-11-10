@@ -313,6 +313,7 @@ function LibraryWorkspaceDialogContent({
       <AsyncDialogShell
         loadingContent={loadingContent}
         key={`${dialog.type}:${dialog.book.id}`}
+        className="dialog--move-epub"
         title="Move EPUB file"
         actionLabel="Move"
         actionIcon={<MoveRight aria-hidden="true" />}

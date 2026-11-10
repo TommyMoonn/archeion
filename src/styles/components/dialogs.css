@@ -20,7 +20,7 @@ html[data-motion="on"] .dialog[open] {
   animation: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
 }
 
-html[data-motion="on"] .dialog--add-epub[open] {
+html[data-motion="on"] :is(.dialog--add-epub, .dialog--move-epub)[open] {
   animation-name: dialog-presence-fade-enter;
 }
 
