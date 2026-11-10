@@ -18,7 +18,7 @@
 
 .font-picker__header {
   flex-shrink: 0;
-  padding: 4px 8px;
+  padding: 4px;
   border-block-end: var(--border-width) solid color-mix(in srgb, var(--line) 60%, transparent);
 }
 
@@ -48,7 +48,8 @@
 
 .font-picker__list {
   min-block-size: 0;
-  padding-inline-start: 8px;
+  padding-inline: 4px;
+  padding-block-end: 4px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -73,8 +74,7 @@
 }
 
 .font-picker__empty {
-  padding: 8px 10px;
-  padding-inline-start: 16px;
+  padding: 8px 12px;
   color: var(--muted);
   font-size: var(--type-meta);
 }

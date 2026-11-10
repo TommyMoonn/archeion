@@ -172,11 +172,12 @@ test("Tab and outside pointer dismiss without a selection or focus theft", async
   await expect(page.getByTestId("selection-count")).toHaveText("0");
 });
 
-test("uses a quiet search header aligned with option labels and separates pointer hover from keyboard focus", async ({
+test("uses a quiet search header aligned with option labels and balanced row insets", async ({
   page,
 }) => {
   await page.goto(fixture);
   await trigger(page).click();
+  await search(page).fill("Default choice");
 
   const layout = await page.evaluate(() => {
     const menu = document.querySelector<HTMLElement>(".font-picker__popover")!;
@@ -185,6 +186,9 @@ test("uses a quiet search header aligned with option labels and separates pointe
     const input = searchShell.querySelector<HTMLInputElement>("input")!;
     const list = menu.querySelector<HTMLElement>(".font-picker__list")!;
     const label = list.querySelector<HTMLElement>('[role="option"] > span:first-child')!;
+    const row = list.querySelector<HTMLElement>('[role="option"]')!;
+    const triggerLabel = document.querySelector<HTMLElement>(".font-picker .app-select__value")!;
+    const listStyle = getComputedStyle(list);
     const inputStyle = getComputedStyle(input);
     const headerStyle = getComputedStyle(header);
     const searchStyle = getComputedStyle(searchShell);
@@ -199,6 +203,10 @@ test("uses a quiet search header aligned with option labels and separates pointe
       menuWidth: menu.getBoundingClientRect().width,
       searchTextStart: input.getBoundingClientRect().left + parseFloat(inputStyle.paddingLeft),
       optionTextStart: label.getBoundingClientRect().left,
+      triggerTextStart: triggerLabel.getBoundingClientRect().left,
+      listPaddingStart: parseFloat(listStyle.paddingInlineStart),
+      listPaddingEnd: parseFloat(listStyle.paddingInlineEnd),
+      rowBottomGap: list.getBoundingClientRect().bottom - row.getBoundingClientRect().bottom,
       scrollbarEdgeGap: menu.getBoundingClientRect().right - list.getBoundingClientRect().right,
     };
   });
@@ -211,7 +219,16 @@ test("uses a quiet search header aligned with option labels and separates pointe
   expect(layout.searchBorderWidth).toBe(0);
   expect(layout.searchBackground).toBe("rgba(0, 0, 0, 0)");
   expect(Math.abs(layout.searchTextStart - layout.optionTextStart)).toBeLessThanOrEqual(1);
+  expect(Math.abs(layout.optionTextStart - layout.triggerTextStart)).toBeLessThanOrEqual(1);
+  expect(layout.listPaddingStart).toBe(4);
+  expect(layout.listPaddingEnd).toBe(layout.listPaddingStart);
+  expect(layout.rowBottomGap).toBe(layout.listPaddingStart);
   expect(layout.scrollbarEdgeGap).toBeLessThanOrEqual(2);
+});
+
+test("separates pointer hover from keyboard focus", async ({ page }) => {
+  await page.goto(fixture);
+  await trigger(page).click();
 
   const hovered = page.getByRole("option", { name: "Alpha Serif", exact: true });
   await hovered.hover();
