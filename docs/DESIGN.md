@@ -140,6 +140,9 @@ Comfortable density is the default. Compact density reduces spacing and selected
 | `--control-height-prominent` | `40px` | Prominent buttons and controls |
 | `--border-width`             | `1px`  | Standard structural border     |
 
+Dialog buttons use the standard `36px` control height and meta text scale. This keeps modal
+actions aligned with selectors and Settings actions without changing buttons elsewhere.
+
 ### Corners
 
 | Token              | Value   | Use                                                   |

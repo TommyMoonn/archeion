@@ -182,11 +182,22 @@ html[data-motion="on"]
 }
 
 .dialog__footer {
+  align-self: center;
   display: flex;
   justify-content: flex-end;
   gap: 9px;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+/* Dialog actions use the standard control scale, not the app-wide prominent default. */
+.dialog .button {
+  --button-height: var(--control-height-standard);
+  --button-padding-inline: 14px;
+
+  gap: 8px;
+  font-size: var(--type-meta);
+  line-height: var(--type-meta-line-height);
 }
 
 .dialog__description:last-child {
