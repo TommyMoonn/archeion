@@ -1592,9 +1592,9 @@ html[data-motion="on"] .details-drawer[open] {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--line);
-  border-radius: var(--radius-menu);
+  border-radius: var(--radius-control);
   color: var(--text);
-  background: var(--surface-raised);
+  background: var(--canvas-deep);
   font: inherit;
   font-size: var(--type-meta);
 }
@@ -1623,14 +1623,26 @@ html[data-motion="on"] .details-drawer[open] {
   overflow-wrap: anywhere;
 }
 
+.metadata-writeback__field input,
+.metadata-writeback__field textarea {
+  outline: 0;
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.metadata-writeback__field input:focus,
+.metadata-writeback__field textarea:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
 :root[data-focus-presentation="keyboard-navigation"] .metadata-writeback__field input:focus-visible,
 :root[data-focus-presentation="keyboard-navigation"]
   .metadata-writeback__field
   textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 .metadata-writeback__field--wide {

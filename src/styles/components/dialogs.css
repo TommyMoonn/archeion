@@ -11,7 +11,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-dialog);
   color: var(--text);
-  background: var(--surface);
+  background: var(--surface-main);
   box-shadow: var(--shadow-dialog);
   overflow: hidden;
 }
@@ -281,7 +281,7 @@ html[data-motion="on"]
   justify-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--surface);
+  background: var(--surface-main);
 }
 
 .dialog__footer > .button--ghost:first-child {
