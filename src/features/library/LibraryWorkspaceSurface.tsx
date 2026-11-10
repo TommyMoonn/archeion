@@ -104,7 +104,13 @@ type LibraryWorkspaceSurfaceProps = {
   showContinueReading: boolean;
   sidebarProps: Omit<
     ComponentProps<typeof LibrarySidebar>,
-    "collapsed" | "expandedContentRef" | "navigationRef"
+    | "collapsed"
+    | "expandedContentRef"
+    | "navigationRef"
+    | "resizable"
+    | "width"
+    | "onWidthChange"
+    | "onWidthCommit"
   >;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
   view: LibraryView;
@@ -217,6 +223,10 @@ export function LibraryWorkspaceSurface({
             {...sidebarProps}
             collapsed={sidebarState.collapsed}
             expandedContentRef={expandedSidebarContentRef}
+            resizable={sidebarState.collapseAvailable}
+            width={sidebarState.width}
+            onWidthChange={sidebarState.setWidth}
+            onWidthCommit={sidebarState.commitWidth}
             navigationRef={sidebarNavigationRef}
           />
         </>

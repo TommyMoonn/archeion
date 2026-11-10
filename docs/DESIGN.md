@@ -121,7 +121,9 @@ Font metric differences are handled through semantic layout roles. Styles do not
 ### Application shell
 
 - The main Tauri window has a minimum size of `900 × 600`.
-- The Library sidebar uses the shared `--sidebar-width` and `--sidebar-collapsed-width` values. The titlebar and sidebar body derive their collapse width from the same shared value.
+- The Library sidebar defaults to `248px` on wider desktop windows and `220px` at viewport widths up to `820px`. It can be resized between `200px` and `360px`, and a custom expanded width is saved locally for the next launch. The resize handle supports pointer and keyboard input; `Home` and `End` select the width limits.
+- The sidebar collapse width remains `56px` and is independent of its saved expanded width. The titlebar and sidebar body share the same animated shell geometry.
+- Resizing is unavailable in the constrained top-navigation layout.
 - Hidden sidebar labels cannot receive keyboard focus. Accessible names, tooltips, and the archive switcher remain available.
 - The Library workspace fills its area without an outer rounded card, border, shadow, or frame-colored gutter.
 - Navigation and workspace sit side by side, separated by one subtle divider. Their colors may match because the layout and divider define the two areas.
@@ -235,7 +237,7 @@ Use the shared duration vocabulary:
 The application uses these motion patterns:
 
 - On intentional entry, the Library collection may rise by `8px` and fade in once. Data updates, filtering, sorting, and other state changes do not replay the entrance or remount the collection.
-- The sidebar and titlebar use the same `150ms` width interpolation during collapse and expansion. Their widths do not animate independently, and the Library subtree is not transformed.
+- The Library shell interpolates its sidebar grid track over `150ms` during collapse and expansion. The expanded track uses the saved width; the collapsed track remains `56px`. The Library subtree is not transformed.
 - Dialogs expand from the center at approximately `0.97` scale with a small opacity change. The exit fades without additional movement.
 - The backdrop follows the dialog or drawer lifecycle and fades once. It does not blur the application.
 - The Library details drawer remains opaque and travels from the right edge. It overlays the collection without changing its layout.

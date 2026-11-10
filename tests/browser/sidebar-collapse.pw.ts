@@ -621,3 +621,78 @@ for (const viewportWidth of [1280, 800]) {
     await owner.dispose();
   });
 }
+
+test("sidebar width can be resized with pointer and keyboard and persists", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(fixture);
+  await expect(page.locator(".book-grid")).toBeVisible();
+
+  const sidebar = page.locator(".sidebar");
+  const shell = page.locator(".app-shell");
+  const handle = page.getByRole("separator", { name: "Resize sidebar" });
+
+  await expect(handle).toHaveAttribute("aria-valuemin", "200");
+  await expect(handle).toHaveAttribute("aria-valuemax", "360");
+  await expect(handle).toHaveAttribute("aria-valuenow", "248");
+  await expect(sidebar).toHaveJSProperty("offsetWidth", 248);
+
+  await handle.hover();
+  const lineTokenColor = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--line)";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  const detachedIndicatorContent = await handle.evaluate(
+    (element) => getComputedStyle(element, "::after").content,
+  );
+  await expect(sidebar).toHaveCSS("border-inline-end-color", lineTokenColor);
+  expect(detachedIndicatorContent).toBe("none");
+
+  const bounds = await handle.boundingBox();
+  expect(bounds).not.toBeNull();
+  const startX = bounds!.x + bounds!.width / 2;
+  const startY = bounds!.y + Math.min(100, bounds!.height / 2);
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + 64, startY, { steps: 8 });
+  await expect(sidebar).toHaveCSS("border-inline-end-color", lineTokenColor);
+  await page.mouse.up();
+
+  await expect(handle).toHaveAttribute("aria-valuenow", "312");
+  await expect(sidebar).toHaveJSProperty("offsetWidth", 312);
+  await expect(shell).toHaveCSS("grid-template-columns", "312px 968px");
+
+  await handle.focus();
+  await page.keyboard.press("Home");
+  await expect(handle).toHaveAttribute("aria-valuenow", "200");
+  await expect(sidebar).toHaveJSProperty("offsetWidth", 200);
+
+  await page.keyboard.press("End");
+  await expect(handle).toHaveAttribute("aria-valuenow", "360");
+  await expect(sidebar).toHaveJSProperty("offsetWidth", 360);
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(handle).toHaveAttribute("aria-valuenow", "352");
+  // The app router replaces the fixture entry URL with `/`. Re-enter the
+  // instrumented fixture to exercise persistence across a real document reload.
+  await page.goto(fixture);
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await expect(page.getByRole("separator", { name: "Resize sidebar" })).toHaveAttribute(
+    "aria-valuenow",
+    "352",
+  );
+
+  await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
+  await expect(page.getByRole("separator", { name: "Resize sidebar" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
+  await expect(page.getByRole("separator", { name: "Resize sidebar" })).toHaveAttribute(
+    "aria-valuenow",
+    "352",
+  );
+
+  await page.setViewportSize({ width: 560, height: 900 });
+  await expect(page.getByRole("separator", { name: "Resize sidebar" })).toHaveCount(0);
+});

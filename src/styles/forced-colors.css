@@ -110,6 +110,11 @@
     border-color: CanvasText;
   }
 
+  .sidebar__resize-handle::after {
+    background: Highlight;
+    opacity: 1;
+  }
+
   .window-titlebar__navigation-plane::after {
     background: CanvasText;
   }

@@ -26,7 +26,10 @@ import {
   useCallback,
   useId,
   useMemo,
+  useRef,
   useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactElement,
   type RefObject,
 } from "react";
@@ -57,6 +60,11 @@ import {
 } from "../folders/folderBrowserReadModel";
 import { folderSortOptions } from "../folders/folderSortOptions";
 import { ARCHIVE_ROOT_DESTINATION } from "../filesystem/archiveImport";
+import {
+  LIBRARY_SIDEBAR_DEFAULT_WIDTH,
+  LIBRARY_SIDEBAR_MAX_WIDTH,
+  LIBRARY_SIDEBAR_MIN_WIDTH,
+} from "./useLibrarySidebarState";
 
 const smartViewIcons: Record<LibrarySmartView, LucideIcon> = {
   unread: BookOpenText,
@@ -111,6 +119,10 @@ type LibrarySidebarProps = {
   settingsAriaKeyShortcuts?: string;
   canRevealFolders?: boolean;
   activeImportDropTargetId?: string | null;
+  resizable?: boolean;
+  width?: number;
+  onWidthChange?: (width: number) => void;
+  onWidthCommit?: (width: number) => void;
 };
 
 export const LibrarySidebar = memo(function LibrarySidebar({
@@ -140,10 +152,22 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   settingsAriaKeyShortcuts,
   canRevealFolders = false,
   activeImportDropTargetId,
+  resizable = false,
+  width = LIBRARY_SIDEBAR_DEFAULT_WIDTH,
+  onWidthChange,
+  onWidthCommit,
 }: LibrarySidebarProps) {
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
   const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const resizePointerRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startWidth: number;
+    rtl: boolean;
+  } | null>(null);
+  const resizeWidthRef = useRef(width);
   const smartViewsContentId = useId();
   const activeSmartView = librarySmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
@@ -160,6 +184,68 @@ export const LibrarySidebar = memo(function LibrarySidebar({
     () => new Map(sortedFolderEntries.map((entry, index) => [entry.folder.id, index])),
     [sortedFolderEntries],
   );
+
+  const updateResizeWidth = (nextWidth: number) => {
+    const clamped = Math.round(
+      Math.min(LIBRARY_SIDEBAR_MAX_WIDTH, Math.max(LIBRARY_SIDEBAR_MIN_WIDTH, nextWidth)),
+    );
+    resizeWidthRef.current = clamped;
+    onWidthChange?.(clamped);
+  };
+
+  const handleResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || !onWidthChange) return;
+    event.preventDefault();
+    if (!event.currentTarget.parentElement) return;
+    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+    resizePointerRef.current = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startWidth: width,
+      rtl,
+    };
+    resizeWidthRef.current = width;
+    setResizing(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointer = resizePointerRef.current;
+    if (!pointer || pointer.pointerId !== event.pointerId) return;
+    updateResizeWidth(
+      pointer.startWidth + (pointer.rtl ? -1 : 1) * (event.clientX - pointer.startClientX),
+    );
+  };
+
+  const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const pointer = resizePointerRef.current;
+    if (!pointer || pointer.pointerId !== event.pointerId) return;
+    resizePointerRef.current = null;
+    setResizing(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    onWidthCommit?.(resizeWidthRef.current);
+  };
+
+  const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!onWidthChange) return;
+    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+    const step = event.shiftKey ? 24 : 8;
+    let nextWidth: number | null = null;
+    if (event.key === "Home") nextWidth = LIBRARY_SIDEBAR_MIN_WIDTH;
+    else if (event.key === "End") nextWidth = LIBRARY_SIDEBAR_MAX_WIDTH;
+    else if (event.key === "ArrowRight") nextWidth = width + (rtl ? -step : step);
+    else if (event.key === "ArrowLeft") nextWidth = width + (rtl ? step : -step);
+    if (nextWidth === null) return;
+    event.preventDefault();
+    updateResizeWidth(nextWidth);
+    onWidthCommit?.(
+      Math.round(
+        Math.min(LIBRARY_SIDEBAR_MAX_WIDTH, Math.max(LIBRARY_SIDEBAR_MIN_WIDTH, nextWidth)),
+      ),
+    );
+  };
 
   const manageArchives = useCallback(() => {
     closeArchiveSwitcher({ restoreFocus: true });
@@ -429,6 +515,28 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <Settings aria-hidden="true" />
         </IconButton>
       </div>
+      {resizable && !isCollapsed ? (
+        <Tooltip content="Drag to resize sidebar" placement="right">
+          <div
+            aria-label="Resize sidebar"
+            aria-orientation="vertical"
+            aria-valuemax={LIBRARY_SIDEBAR_MAX_WIDTH}
+            aria-valuemin={LIBRARY_SIDEBAR_MIN_WIDTH}
+            aria-valuenow={width}
+            aria-valuetext={`${width} pixels`}
+            className="sidebar__resize-handle"
+            data-resizing={resizing || undefined}
+            role="separator"
+            tabIndex={0}
+            onKeyDown={handleResizeKeyDown}
+            onLostPointerCapture={finishResize}
+            onPointerCancel={finishResize}
+            onPointerDown={handleResizePointerDown}
+            onPointerMove={handleResizePointerMove}
+            onPointerUp={finishResize}
+          />
+        </Tooltip>
+      ) : null}
     </aside>
   );
 });
