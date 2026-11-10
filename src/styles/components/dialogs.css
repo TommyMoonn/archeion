@@ -20,6 +20,10 @@ html[data-motion="on"] .dialog[open] {
   animation: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
 }
 
+html[data-motion="on"] .dialog--add-epub[open] {
+  animation-name: dialog-presence-fade-enter;
+}
+
 /* One dimming treatment and timing owner for all native application surfaces. */
 :is(.dialog, .details-drawer, .quick-actions)::backdrop {
   background: var(--backdrop);
@@ -319,5 +323,14 @@ html[data-motion="on"] .dialog[open][data-surface-state="closing"] {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes dialog-presence-fade-enter {
+  from {
+    opacity: var(--surface-from-opacity, 0.92);
+  }
+  to {
+    opacity: 1;
   }
 }

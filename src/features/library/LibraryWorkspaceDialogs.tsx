@@ -183,6 +183,7 @@ function LibraryWorkspaceDialogContent({
       <AsyncDialogShell
         loadingContent={loadingContent}
         key={dialog.type}
+        className="dialog--add-epub"
         title="Add EPUB files"
         actionLabel="Add EPUB"
         actionIcon={<Plus aria-hidden="true" />}
