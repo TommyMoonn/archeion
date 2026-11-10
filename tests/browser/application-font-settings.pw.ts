@@ -119,13 +119,14 @@ test("Settings selectors keep their width while font metrics and the catalog res
   await openAppearance(page, "?pending");
 
   const selectors = page.locator(".settings-row__control .app-select");
-  await expect(selectors).toHaveCount(4);
+  // Appearance contains App themes and both font pickers. Reader theme is in Reader settings.
+  await expect(selectors).toHaveCount(3);
   const readWidths = () =>
     selectors.evaluateAll((elements) =>
       elements.map((element) => element.getBoundingClientRect().width),
     );
   const initialWidths = await readWidths();
-  expect(initialWidths).toEqual([240, 240, 240, 240]);
+  expect(initialWidths).toEqual([240, 240, 240]);
 
   const transitionProperties = await selectors
     .locator(".app-select__trigger")
@@ -142,8 +143,30 @@ test("Settings selectors keep their width while font metrics and the catalog res
   });
   expect(await readWidths()).toEqual(initialWidths);
 
+  const interfacePicker = page.locator(".font-picker").first();
+  const interfaceTrigger = interfacePicker.locator(".app-select__trigger");
+  const triggerWidth = await interfaceTrigger.evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  await interfaceTrigger.click();
+  const popover = interfacePicker.locator(".font-picker__popover");
+  await expect(popover).toBeVisible();
+  const initialPopoverWidth = await popover.evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  expect(initialPopoverWidth).toBe(triggerWidth);
+
   await page.evaluate(() => window.applicationFontSettingsFixture.releaseCatalog());
   await expect(fontTrigger(page, "Interface")).not.toHaveAttribute("aria-busy", "true");
+  await expect
+    .poll(() => popover.evaluate((element) => element.getBoundingClientRect().width))
+    .toBe(initialPopoverWidth);
+  expect(
+    await popover
+      .getByRole("option", { name: longFamily, exact: true })
+      .locator("span")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
   expect(await readWidths()).toEqual(initialWidths);
 });
 

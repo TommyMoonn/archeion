@@ -142,6 +142,7 @@ export function FontPicker<TValue extends string>({
     open: isOpen,
     scrollRef: listRef,
     triggerRef: buttonRef,
+    widthStrategy: "trigger",
   });
 
   const readyToFocus = isOpen && menuPlacement !== null;

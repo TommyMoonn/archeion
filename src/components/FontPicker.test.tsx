@@ -49,6 +49,20 @@ function query(value: string) {
   });
 }
 
+function bounds(width: number, height: number): DOMRect {
+  return {
+    bottom: height,
+    height,
+    left: 0,
+    right: width,
+    top: 0,
+    width,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
 beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
@@ -95,6 +109,39 @@ describe("FontPicker", () => {
     act(() => options()[0].click());
     expect(props.onChange).toHaveBeenCalledWith({ kind: "pinned", value: "default" });
   });
+  it("keeps the open popover trigger-sized while the installed-font catalog resolves", () => {
+    let naturalMenuWidth = 224;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains("app-select__trigger")) return bounds(240, 36);
+      if (this.classList.contains("app-select__menu")) {
+        const width =
+          this.style.width === "max-content"
+            ? naturalMenuWidth
+            : Number.parseFloat(this.style.width) || 0;
+        return bounds(width, 120);
+      }
+      return bounds(0, 0);
+    });
+
+    render({ catalogLoading: true, installedFamilies: [] });
+    open();
+
+    const menu = container.querySelector<HTMLElement>(".font-picker__popover")!;
+    expect(menu.style.width).toBe("240px");
+
+    naturalMenuWidth = 420;
+    render({
+      catalogLoading: false,
+      installedFamilies: [
+        "Long family name with multilingual 日本語 Ελληνικά and extended unbroken characters ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+      ],
+    });
+
+    expect(menu.style.width).toBe("240px");
+  });
+
   it("opens with a named search field focused and pinned rows before sorted installed families", () => {
     open();
     expect(document.activeElement).toBe(search());

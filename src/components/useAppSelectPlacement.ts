@@ -2,6 +2,7 @@ import { useLayoutEffect, useState, type RefObject } from "react";
 
 import {
   APP_SELECT_MIN_WIDTH,
+  APP_SELECT_VIEWPORT_MARGIN,
   calculateAppSelectPlacement,
   convertAppSelectPlacementToFixedCoordinateSpace,
   getAppSelectFixedCoordinateSpace,
@@ -17,6 +18,7 @@ type UseAppSelectPlacementOptions = {
   open: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  widthStrategy?: "content" | "trigger";
 };
 
 function samePlacement(current: AppSelectPlacement | null, next: AppSelectPlacement): boolean {
@@ -64,6 +66,7 @@ export function useAppSelectPlacement({
   open,
   scrollRef,
   triggerRef,
+  widthStrategy = "content",
 }: UseAppSelectPlacementOptions): AppSelectPlacement | null {
   const [placement, setPlacement] = useState<AppSelectPlacement | null>(null);
 
@@ -80,28 +83,36 @@ export function useAppSelectPlacement({
       const triggerRect = trigger.getBoundingClientRect();
       const coordinateSpace = getAppSelectFixedCoordinateSpace(menu);
 
-      // Re-measure at intrinsic width instead of inheriting a previous placement's
-      // inline width. This lets long labels widen the menu before it is viewport-clamped.
+      // Content-sized menus measure intrinsic width before viewport clamping.
+      // Trigger-sized menus retain the trigger width as their catalog changes.
       const previousWidth = menu.style.width;
       let intendedMenuHeight: number;
       let intendedMenuWidth: number;
+      const viewport = currentViewport();
       try {
-        menu.style.width = "max-content";
-        const contentRect = menu.getBoundingClientRect();
+        const minWidth = Math.max(APP_SELECT_MIN_WIDTH, minMenuWidth ?? 0) * coordinateSpace.scaleX;
+        intendedMenuWidth = Math.max(triggerRect.width, minWidth);
+
+        if (widthStrategy === "content") {
+          menu.style.width = "max-content";
+          const contentRect = menu.getBoundingClientRect();
+          intendedMenuWidth = Math.max(intendedMenuWidth, contentRect.width);
+        }
+
+        // Measure height at the width that will actually be rendered. This matters
+        // for trigger-sized menus whose option labels wrap after catalog updates.
+        const availableWidth = Math.max(0, viewport.width - APP_SELECT_VIEWPORT_MARGIN * 2);
+        intendedMenuWidth = Math.min(intendedMenuWidth, availableWidth);
+        menu.style.width = `${intendedMenuWidth / coordinateSpace.scaleX}px`;
+
+        const measuredRect = menu.getBoundingClientRect();
         const borderHeight = Math.max(
           0,
-          contentRect.height / coordinateSpace.scaleY - menu.clientHeight,
+          measuredRect.height / coordinateSpace.scaleY - menu.clientHeight,
         );
         intendedMenuHeight =
           Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
           coordinateSpace.scaleY;
-        intendedMenuWidth =
-          Math.max(
-            APP_SELECT_MIN_WIDTH,
-            minMenuWidth ?? 0,
-            triggerRect.width / coordinateSpace.scaleX,
-            contentRect.width / coordinateSpace.scaleX,
-          ) * coordinateSpace.scaleX;
       } finally {
         menu.style.width = previousWidth;
       }
@@ -109,7 +120,7 @@ export function useAppSelectPlacement({
         intendedMenuHeight,
         intendedMenuWidth,
         trigger: triggerRect,
-        viewport: currentViewport(),
+        viewport,
       });
       const next = convertAppSelectPlacementToFixedCoordinateSpace(
         viewportPlacement,
@@ -151,7 +162,7 @@ export function useAppSelectPlacement({
       visualViewport?.removeEventListener("resize", scheduleMeasurement);
       visualViewport?.removeEventListener("scroll", scheduleMeasurement);
     };
-  }, [contentRevision, maxMenuHeight, menuRef, minMenuWidth, open, triggerRef]);
+  }, [contentRevision, maxMenuHeight, menuRef, minMenuWidth, open, triggerRef, widthStrategy]);
 
   useLayoutEffect(() => {
     if (!open || !placement || !activeOptionId) return;
