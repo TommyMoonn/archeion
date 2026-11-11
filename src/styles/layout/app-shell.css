@@ -1,4 +1,4 @@
-/* Only the outer shell width interpolates; navigation geometry stays fixed. */
+/* The shell width drives both the sidebar edge and the navigation highlight. */
 @property --library-sidebar-current-width {
   syntax: "<length>";
   inherits: true;
@@ -293,6 +293,14 @@
 }
 
 .sidebar__nav .nav-item {
+  /* Derive the highlight width from the same interpolated shell width so it
+     travels with the sidebar instead of snapping at the collapsed-state switch. */
+  width: calc(
+    var(--library-sidebar-current-width) - 2 * var(--library-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+  max-width: 100%;
+  min-width: 0;
   grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
   gap: 9px;
   padding-inline: calc(
@@ -307,6 +315,25 @@
 .sidebar__nav .nav-item > span {
   width: max-content;
   white-space: nowrap;
+}
+
+/* Keep collapsed navigation controls within the rail instead of allowing the
+   hidden max-content labels to widen their grid items beyond the sidebar edge. */
+.sidebar[data-collapsed="true"] .sidebar__nav .nav-item {
+  justify-self: start;
+  /* Keep the icon centered in the collapsed rail's fixed leading track while
+     the item background follows the sidebar's independently interpolated width. */
+  grid-template-columns: calc(
+    var(--sidebar-collapsed-width) - 2 * var(--library-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+  justify-content: start;
+  gap: 0;
+  padding-inline: 0;
+}
+
+.sidebar[data-collapsed="true"] .sidebar__nav .nav-item > span {
+  display: none;
 }
 
 /* Reveal from available room, not from elapsed shell-travel time. */
@@ -507,6 +534,8 @@ html[data-density="compact"] .nav-item {
 
   .sidebar__nav .nav-item {
     flex: 1 0 auto;
+    width: auto;
+    max-width: none;
   }
 
   .sidebar__section {

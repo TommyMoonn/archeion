@@ -12,13 +12,12 @@ async function frames(
 ) {
   const observation = page.evaluate(
     async ({ reverse, activation, duration, reverseRange }) => {
-      const sidebar = document.querySelector(".sidebar")!;
-      const titlebar = document.querySelector(".library-titlebar-composition")!;
       const card = document.querySelector("[data-reader-book-id]")!;
       const image = card.querySelector("img");
       const url = image?.getAttribute("src");
-      const expanded = document.querySelector(".sidebar__expanded-content");
-      const toggle = titlebar.querySelector<HTMLButtonElement>("button")!;
+      const toggle = document
+        .querySelector<HTMLElement>(".library-titlebar-composition")!
+        .querySelector<HTMLButtonElement>("button")!;
       const initialY = card.getBoundingClientRect().y;
       const initialSelected = card.getAttribute("data-selected");
       const initialScrollTop = document.querySelector(".page-shell")!.scrollTop;
@@ -37,12 +36,25 @@ async function frames(
       let turn: { before: number; after: number } | null = null;
       do {
         await new Promise(requestAnimationFrame);
-        const width = sidebar.getBoundingClientRect().width;
+        const currentSidebar = document.querySelector<HTMLElement>(".sidebar")!;
+        const currentTitlebar = document.querySelector<HTMLElement>(
+          ".library-titlebar-composition",
+        )!;
+        const currentNav = currentSidebar.querySelector<HTMLElement>(".sidebar__nav")!;
+        const currentExpanded = currentSidebar.querySelector<HTMLElement>(
+          ".sidebar__expanded-content",
+        );
+        const sidebarRect = currentSidebar.getBoundingClientRect();
+        const navRect = currentNav.getBoundingClientRect();
+        const width = sidebarRect.width;
         if (reverse && !reversed && width > reverseRange[0] && width < reverseRange[1]) {
           const before = width;
           toggle.click();
           await Promise.resolve();
-          turn = { before, after: sidebar.getBoundingClientRect().width };
+          turn = {
+            before,
+            after: document.querySelector(".sidebar")!.getBoundingClientRect().width,
+          };
           reversed = true;
           await new Promise(requestAnimationFrame);
         }
@@ -63,23 +75,43 @@ async function frames(
           initialSelected,
           selected: card.getAttribute("data-selected"),
           initialScrollTop,
-          collapsed: sidebar.getAttribute("data-collapsed") === "true",
-          body: sidebar.getBoundingClientRect().right,
-          nav: [...document.querySelectorAll<HTMLElement>(".sidebar__nav .nav-item")].map((row) => {
+          collapsed: currentSidebar.getAttribute("data-collapsed") === "true",
+          body: sidebarRect.right,
+          sidebarLeft: sidebarRect.left,
+          sidebarRight: sidebarRect.right,
+          direction: getComputedStyle(currentSidebar).direction,
+          navBounds: { left: navRect.left, right: navRect.right },
+          nav: [...currentNav.querySelectorAll<HTMLElement>(".nav-item")].map((row) => {
+            const rowRect = row.getBoundingClientRect();
             const icon = row.querySelector("svg")!.getBoundingClientRect();
             const label = row.querySelector<HTMLElement>("span")!;
             const rect = label.getBoundingClientRect();
             const range = document.createRange();
             range.selectNodeContents(label);
+            const style = getComputedStyle(row);
+            const iconTrack = parseFloat(style.gridTemplateColumns);
+            const expectedIconCenter =
+              style.direction === "rtl"
+                ? rowRect.right - parseFloat(style.paddingRight) - iconTrack / 2
+                : rowRect.left + parseFloat(style.paddingLeft) + iconTrack / 2;
             return {
               name: row.getAttribute("aria-label"),
-              width: row.getBoundingClientRect().width,
+              left: rowRect.left,
+              right: rowRect.right,
+              width: rowRect.width,
               iconCenter: icon.x + icon.width / 2,
-              height: row.getBoundingClientRect().height,
-              paddingLeft: getComputedStyle(row).paddingLeft,
-              paddingRight: getComputedStyle(row).paddingRight,
-              gap: getComputedStyle(row).columnGap,
-              iconTrack: parseFloat(getComputedStyle(row).gridTemplateColumns),
+              expectedIconCenter,
+              height: rowRect.height,
+              paddingLeft: style.paddingLeft,
+              paddingRight: style.paddingRight,
+              gap: style.columnGap,
+              iconTrack,
+              borderRadii: [
+                style.borderTopLeftRadius,
+                style.borderTopRightRadius,
+                style.borderBottomRightRadius,
+                style.borderBottomLeftRadius,
+              ],
               labelOpacity: Number(getComputedStyle(label).opacity),
               labelVisibility: getComputedStyle(label).visibility,
               textRight: range.getBoundingClientRect().right,
@@ -89,25 +121,27 @@ async function frames(
               textWidth: range.getBoundingClientRect().width,
             };
           }),
-          title: titlebar.getBoundingClientRect().right,
+          title: currentTitlebar.getBoundingClientRect().right,
           y: card.getBoundingClientRect().y,
           retained: card.isConnected && image?.getAttribute("src") === url,
           scrollTop: document.querySelector(".page-shell")!.scrollTop,
           label: Boolean(label),
-          opacity: expanded?.isConnected ? Number(getComputedStyle(expanded).opacity) : 0,
-          inert: expanded?.hasAttribute("inert") ?? false,
+          opacity: currentExpanded ? Number(getComputedStyle(currentExpanded).opacity) : 0,
+          inert: currentExpanded?.hasAttribute("inert") ?? false,
           labelWidth: label?.getBoundingClientRect().width ?? 0,
           wordmarkTextWidth: wordmarkText.getBoundingClientRect().width,
           wordmarkRight: wordmarkText.getBoundingClientRect().right,
           wordmarkOpacity: label ? Number(getComputedStyle(label).opacity) : 0,
           wordmarkVisibility: label ? getComputedStyle(label).visibility : "hidden",
           hiddenFocus: Boolean(
-            expanded?.contains(document.activeElement) &&
-            getComputedStyle(expanded).visibility === "hidden",
+            currentExpanded?.contains(document.activeElement) &&
+            getComputedStyle(currentExpanded).visibility === "hidden",
           ),
           labelDisplay: label ? getComputedStyle(label).display : "none",
           labelClip: label ? getComputedStyle(label).clipPath : "none",
-          expandedVisibility: expanded ? getComputedStyle(expanded).visibility : "hidden",
+          expandedVisibility: currentExpanded
+            ? getComputedStyle(currentExpanded).visibility
+            : "hidden",
         });
       } while (
         performance.now() - start < duration ||
@@ -141,14 +175,42 @@ function expectStableNavigation(trace: Awaited<ReturnType<typeof frames>>) {
     expect(frame.labelClip).toBe("none");
     expect(frame.nav.map((row) => row.name)).toEqual(["Library", "Series", "Favorites", "Folders"]);
     for (const row of frame.nav) {
-      // 0.1 CSS px permits subpixel rounding, not a visible terminal or mid-flight shift.
-      expect(Math.abs(row.iconCenter - 27.5)).toBeLessThan(0.1);
-      expect(row.iconTrack).toBe(20);
-      expect(row.paddingLeft).toBe("11.5px");
-      expect(row.paddingRight).toBe("11.5px");
-      expect(row.gap).toBe("9px");
+      expect(
+        Math.abs(row.iconCenter - row.expectedIconCenter),
+        `Icon must be centered in the leading grid track: ${JSON.stringify({
+          direction: frame.direction,
+          collapsed: frame.collapsed,
+          sidebar: [frame.sidebarLeft, frame.sidebarRight],
+          nav: [frame.navBounds.left, frame.navBounds.right],
+          row: [row.left, row.right],
+          iconCenter: row.iconCenter,
+          expectedIconCenter: row.expectedIconCenter,
+          padding: [row.paddingLeft, row.paddingRight],
+          iconTrack: row.iconTrack,
+        })}`,
+      ).toBeLessThan(0.1);
+      expect(row.iconTrack).toBe(frame.collapsed ? 43 : 20);
       expect(row.height).toBe(trace[0].nav[0].height);
       expect(row.labelClip).toBe("none");
+      expect(row.left).toBeCloseTo(frame.navBounds.left, 1);
+      expect(frame.navBounds.left - frame.sidebarLeft).toBeCloseTo(6, 1);
+      // The nav highlight tracks the inherited, animated shell width at every
+      // sampled frame. The 13px difference is the two 6px insets plus border.
+      expect(row.width).toBeCloseTo(frame.body - 13, 1);
+      if (frame.collapsed) {
+        expect(row.paddingLeft).toBe("0px");
+        expect(row.paddingRight).toBe("0px");
+        expect(row.gap).toBe("0px");
+        expect(row.labelDisplay).toBe("none");
+        expect(new Set(row.borderRadii).size).toBe(1);
+        if (Math.abs(frame.body - 56) < 0.1) {
+          expect(row.right).toBeCloseTo(frame.navBounds.right, 1);
+        }
+      } else {
+        expect(row.paddingLeft).toBe("11.5px");
+        expect(row.paddingRight).toBe("11.5px");
+        expect(row.gap).toBe("9px");
+      }
       if (row.labelVisibility === "visible" && row.labelOpacity > 0) {
         expect(row.textRight).toBeLessThanOrEqual(frame.body + 0.1);
       }
@@ -332,6 +394,14 @@ for (const scale of [1, 1.25, 1.5]) {
       .getByRole("button", { name: "Library", exact: true })
       .hover();
     await expect(page.getByRole("tooltip", { name: "Library", exact: true })).toBeVisible();
+    const sidebarGeometry = await page.locator(".sidebar").evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, direction: getComputedStyle(node).direction };
+    });
+    const expectedLeadingIconCenter =
+      sidebarGeometry.direction === "rtl"
+        ? sidebarGeometry.right - 27.5
+        : sidebarGeometry.left + 27.5;
     for (const selector of [
       ".library-titlebar-composition button",
       ".archive-switcher summary > .icon-slot",
@@ -340,7 +410,7 @@ for (const scale of [1, 1.25, 1.5]) {
         const rect = node.getBoundingClientRect();
         return rect.x + rect.width / 2;
       });
-      expect(center).toBeCloseTo(27.5, 1);
+      expect(center).toBeCloseTo(expectedLeadingIconCenter, 1);
     }
     const iconCenters = await page.locator(".sidebar__nav .nav-item > svg").evaluateAll((nodes) =>
       nodes.map((node) => {
@@ -348,7 +418,7 @@ for (const scale of [1, 1.25, 1.5]) {
         return rect.x + rect.width / 2;
       }),
     );
-    for (const center of iconCenters) expect(center).toBeCloseTo(27.5, 1);
+    for (const center of iconCenters) expect(center).toBeCloseTo(expectedLeadingIconCenter, 1);
     await page.getByLabel("Current archive:", { exact: false }).click();
     await expect(page.getByRole("button", { name: "Manage archives", exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -432,19 +502,20 @@ for (const variant of ["list", "compact", "list-compact"] as const) {
   });
 }
 
-test("rapid pointer and keyboard toggles retain fixed navigation geometry", async ({
+test("rapid pointer and keyboard toggles keep navigation highlights synchronized", async ({
   page,
 }, testInfo) => {
   await page.goto(fixture);
   await expect(page.locator(".book-grid")).toBeVisible();
   const traces = [];
+  const tracePath = testInfo.outputPath("rapid-first-frames.json");
   for (let index = 0; index < 6; index++) {
     const trace = await frames(page, false, index % 2 === 0 ? "pointer" : "keyboard", 0);
+    traces.push(trace);
+    await writeFile(tracePath, JSON.stringify(traces, null, 2));
     expectStableNavigation(trace);
     expect(trace[0].collapsed).toBe(index % 2 === 0);
-    traces.push(trace);
   }
-  await writeFile(testInfo.outputPath("rapid-first-frames.json"), JSON.stringify(traces, null, 2));
 });
 
 for (const scenario of [
@@ -490,6 +561,9 @@ test("record actual overlapping reveal as a natural browser filmstrip", async ({
         target.focus({ preventScroll: true });
         return {
           time: performance.now(),
+          sidebarLeft: sidebar.getBoundingClientRect().left,
+          sidebarRight: sidebar.getBoundingClientRect().right,
+          direction: getComputedStyle(sidebar).direction,
           width: sidebar.getBoundingClientRect().width,
           titleWidth: document
             .querySelector(".library-titlebar-composition")!
@@ -507,13 +581,23 @@ test("record actual overlapping reveal as a natural browser filmstrip", async ({
             visibility: getComputedStyle(node).visibility,
           })),
           centers: [...document.querySelectorAll(".sidebar__nav .nav-item > svg")].map((node) => {
-            const r = node.getBoundingClientRect();
-            return r.x + r.width / 2;
+            const icon = node.getBoundingClientRect();
+            const row = node.parentElement!;
+            const rowRect = row.getBoundingClientRect();
+            const style = getComputedStyle(row);
+            const track = parseFloat(style.gridTemplateColumns);
+            const expected =
+              style.direction === "rtl"
+                ? rowRect.right - parseFloat(style.paddingRight) - track / 2
+                : rowRect.left + parseFloat(style.paddingLeft) + track / 2;
+            return { actual: icon.x + icon.width / 2, expected };
           }),
         };
       });
       expect(Math.abs(pose.width - pose.titleWidth)).toBeLessThan(0.1);
-      expect(pose.centers.every((center) => Math.abs(center - 27.5) < 0.1)).toBe(true);
+      expect(pose.centers.every((center) => Math.abs(center.actual - center.expected) < 0.1)).toBe(
+        true,
+      );
       expect(pose.focusAccepted).toBe(
         pose.expandedVisibility === "visible" && pose.expandedOpacity > 0 && !pose.inert,
       );
@@ -589,6 +673,9 @@ for (const viewportWidth of [1280, 800]) {
       const sidebar = document.querySelector(".sidebar")!;
       const expanded = document.querySelector(".sidebar__expanded-content")!;
       return {
+        sidebarLeft: sidebar.getBoundingClientRect().left,
+        sidebarRight: sidebar.getBoundingClientRect().right,
+        direction: getComputedStyle(sidebar).direction,
         width: sidebar.getBoundingClientRect().width,
         titleWidth: document.querySelector(".library-titlebar-composition")!.getBoundingClientRect()
           .width,
@@ -603,8 +690,16 @@ for (const viewportWidth of [1280, 800]) {
           visibility: getComputedStyle(node).visibility,
         })),
         centers: [...document.querySelectorAll(".sidebar__nav .nav-item > svg")].map((node) => {
-          const r = node.getBoundingClientRect();
-          return r.x + r.width / 2;
+          const icon = node.getBoundingClientRect();
+          const row = node.parentElement!;
+          const rowRect = row.getBoundingClientRect();
+          const style = getComputedStyle(row);
+          const track = parseFloat(style.gridTemplateColumns);
+          const expected =
+            style.direction === "rtl"
+              ? rowRect.right - parseFloat(style.paddingRight) - track / 2
+              : rowRect.left + parseFloat(style.paddingLeft) + track / 2;
+          return { actual: icon.x + icon.width / 2, expected };
         }),
       };
     });
@@ -615,7 +710,9 @@ for (const viewportWidth of [1280, 800]) {
       true,
     );
     expect(pose.sectionOpacity).toBeGreaterThan(0);
-    expect(pose.centers.every((center) => center === 27.5)).toBe(true);
+    expect(pose.centers.every((center) => Math.abs(center.actual - center.expected) < 0.1)).toBe(
+      true,
+    );
     await writeFile(testInfo.outputPath("intermediate-pose.json"), JSON.stringify(pose, null, 2));
     await owner.evaluate((animation) => animation.finish());
     await owner.dispose();
