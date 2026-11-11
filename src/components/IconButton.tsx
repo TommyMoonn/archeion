@@ -34,7 +34,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   const reasonId = useId();
   const hasAccessibleDisabledReason = Boolean(disabled && disabledReason);
   const ownedTooltipAvailable = useOwnedTooltipAvailable();
-  const tooltipText = hasAccessibleDisabledReason ? disabledReason : tooltip;
+  const tooltipText = hasAccessibleDisabledReason ? disabledReason : (tooltip ?? title ?? label);
   const usesOwnedDisabledDescription = Boolean(
     ownedTooltipAvailable && hasAccessibleDisabledReason && tooltipText,
   );

@@ -23,6 +23,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: ReactNode;
   ref?: Ref<HTMLButtonElement>;
   size?: ControlSize;
+  tooltip?: string;
   variant?: ButtonVariant;
 };
 
@@ -38,6 +39,7 @@ export function Button({
   ref,
   size = "prominent",
   title,
+  tooltip,
   type = "button",
   variant = "primary",
   ...props
@@ -66,7 +68,7 @@ export function Button({
       disabled={busy || (disabled && !hasExplainedDisabledState)}
       onClick={handleClick}
       ref={ref}
-      title={hasExplainedDisabledState ? undefined : title}
+      title={hasExplainedDisabledState || tooltip || title ? undefined : title}
       type={type}
       {...props}
     >
@@ -79,8 +81,9 @@ export function Button({
       <span className="button__label">{children}</span>
     </button>
   );
+  const tooltipText = hasExplainedDisabledState ? (disabledReason ?? "") : (tooltip ?? title ?? "");
   const control = ownedTooltipAvailable ? (
-    <Tooltip content={hasExplainedDisabledState ? (disabledReason ?? "") : ""}>{button}</Tooltip>
+    <Tooltip content={tooltipText}>{button}</Tooltip>
   ) : (
     button
   );

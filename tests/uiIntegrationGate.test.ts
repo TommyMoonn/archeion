@@ -104,7 +104,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
       .replace(/\(\s+/g, "(")
       .replace(/\s+\)/g, ")");
     const globalFocusableSelector =
-      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), main[tabindex="-1"])';
     const pageTurnFocus = cssBlock(".epub-viewer__click-zone:focus-visible", readerSource);
     const previousFocus = cssBlock(
       ".epub-viewer__click-zone--previous:focus-visible",

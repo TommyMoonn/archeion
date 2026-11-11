@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FontPicker, type FontPickerProps } from "./FontPicker";
+import { TooltipProvider } from "./Tooltip";
 import { registerTransientSurface } from "../utils/transientSurfaceOwnership";
 
 let root: Root;
@@ -18,7 +19,13 @@ const pinned = Object.freeze([
 
 function render(overrides: Partial<FontPickerProps> = {}) {
   props = { ...props, ...overrides };
-  act(() => root.render(<FontPicker {...props} />));
+  act(() =>
+    root.render(
+      <TooltipProvider>
+        <FontPicker {...props} />
+      </TooltipProvider>,
+    ),
+  );
 }
 
 function trigger() {
@@ -84,6 +91,17 @@ afterEach(() => {
 });
 
 describe("FontPicker", () => {
+  it("uses the styled tooltip for a truncated selected font name instead of a native title", () => {
+    render({ value: { kind: "system", family: "A very long installed font family name" } });
+
+    expect(trigger().getAttribute("title")).toBeNull();
+    const descriptionId = trigger().getAttribute("aria-describedby");
+    expect(descriptionId).toBeTruthy();
+    expect(document.getElementById(descriptionId!)?.textContent).toBe(
+      "A very long installed font family name (Unavailable)",
+    );
+  });
+
   it("keeps a saved name neutral while the catalog is loading and leaves pinned choices usable", () => {
     render({
       catalogLoading: true,

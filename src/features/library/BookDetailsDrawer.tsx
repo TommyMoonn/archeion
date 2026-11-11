@@ -103,6 +103,7 @@ export function BookDetailsDrawerContent({
                 className="details-clear-progress"
                 label="Clear reading progress"
                 onClick={() => onClearProgress(book)}
+                tooltip="Clear reading progress"
               >
                 <Eraser aria-hidden="true" />
               </IconButton>

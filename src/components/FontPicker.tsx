@@ -5,6 +5,7 @@ import { focusElementIfUsable } from "../utils/focusRestoration";
 import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 import type { ControlSize } from "./Button";
 import { Input } from "./Input";
+import { Tooltip } from "./Tooltip";
 import { getNextEnabledIndex } from "./listboxNavigation";
 import { useAppSelectPlacement } from "./useAppSelectPlacement";
 
@@ -210,33 +211,34 @@ export function FontPicker<TValue extends string>({
       }}
       ref={rootRef}
     >
-      <button
-        aria-busy={catalogLoading || undefined}
-        aria-controls={isOpen ? listId : undefined}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        aria-label={`${ariaLabel}: ${selectedLabel}`}
-        className="app-select__trigger"
-        disabled={disabled}
-        id={`${controlId}-button`}
-        onClick={() =>
-          setSession(isOpen ? null : { activeByKeyboard: false, query: "", activeKey: null })
-        }
-        onKeyDown={(event) => {
-          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            setSession({ activeByKeyboard: false, query: "", activeKey: null });
+      <Tooltip content={selectedLabel} onlyWhenTruncated=".app-select__value">
+        <button
+          aria-busy={catalogLoading || undefined}
+          aria-controls={isOpen ? listId : undefined}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label={`${ariaLabel}: ${selectedLabel}`}
+          className="app-select__trigger"
+          disabled={disabled}
+          id={`${controlId}-button`}
+          onClick={() =>
+            setSession(isOpen ? null : { activeByKeyboard: false, query: "", activeKey: null })
           }
-        }}
-        ref={buttonRef}
-        title={selectedLabel}
-        type="button"
-      >
-        <span className="app-select__value">{selectedLabel}</span>
-        <span aria-hidden="true" className="icon-slot icon-slot--compact">
-          <ChevronDown />
-        </span>
-      </button>
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              setSession({ activeByKeyboard: false, query: "", activeKey: null });
+            }
+          }}
+          ref={buttonRef}
+          type="button"
+        >
+          <span className="app-select__value">{selectedLabel}</span>
+          <span aria-hidden="true" className="icon-slot icon-slot--compact">
+            <ChevronDown />
+          </span>
+        </button>
+      </Tooltip>
       {isOpen ? (
         <div
           className="app-select__menu font-picker__popover"

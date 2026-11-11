@@ -63,6 +63,7 @@ export function BookDetailsDrawerFrame({
               className="details-favorite-button"
               label={`Favorite ${title}`}
               onClick={() => onToggleFavorite(book)}
+              tooltip={`Favorite ${title}`}
             >
               <Heart aria-hidden="true" fill={book.isFavorite ? "currentColor" : "none"} />
             </IconButton>
@@ -70,6 +71,7 @@ export function BookDetailsDrawerFrame({
               autoFocus={initialFocus === "close"}
               label="Close book details"
               onClick={onClose}
+              tooltip="Close book details"
             >
               <X aria-hidden="true" />
             </IconButton>

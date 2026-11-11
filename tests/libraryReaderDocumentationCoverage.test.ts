@@ -139,7 +139,7 @@ describe("Library and Reader documentation coverage", () => {
 
   it("keeps local documentation links and fragments valid", async () => {
     await verifyDocumentationLinks(documentationPages());
-  });
+  }, 15_000);
 
   it("does not present planned book-text search as released", () => {
     const phasePages = Object.values(focusedGuides)

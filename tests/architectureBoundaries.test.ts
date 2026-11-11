@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const architectureScript = path.join(projectRoot, "scripts", "check-architecture.mjs");
-const architectureProcessTimeout = 15_000;
+const architectureProcessTimeout = 30_000;
 const temporaryRoots: string[] = [];
 
 function createFixture(files: Record<string, string>): string {

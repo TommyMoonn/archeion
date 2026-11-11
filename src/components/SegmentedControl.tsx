@@ -1,6 +1,7 @@
 import { type KeyboardEvent, type ReactNode, useRef } from "react";
 import { focusPresentationRuntime } from "../app/inputModality";
 import type { ControlSize } from "./Button";
+import { Tooltip } from "./Tooltip";
 
 export type SegmentedControlOption<TValue extends string> = {
   disabled?: boolean;
@@ -101,7 +102,7 @@ export function SegmentedControl<TValue extends string>({
       {options.map((option, index) => {
         const selected = option.value === value;
 
-        return (
+        const optionButton = (
           <button
             aria-checked={selected}
             aria-label={iconOnly ? option.label : undefined}
@@ -123,6 +124,14 @@ export function SegmentedControl<TValue extends string>({
             ) : null}
             {iconOnly ? null : <span>{option.label}</span>}
           </button>
+        );
+
+        return iconOnly ? (
+          <Tooltip content={option.label} key={option.value}>
+            {optionButton}
+          </Tooltip>
+        ) : (
+          optionButton
         );
       })}
     </div>
