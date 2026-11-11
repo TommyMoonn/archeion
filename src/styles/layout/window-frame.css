@@ -206,6 +206,20 @@
   cursor: pointer;
 }
 
+.window-titlebar__icon {
+  display: grid;
+  width: var(--icon-slot-standard);
+  height: var(--icon-slot-standard);
+  place-items: center;
+}
+
+.window-titlebar__icon > svg {
+  display: block;
+  width: var(--icon-glyph-standard);
+  height: var(--icon-glyph-standard);
+  stroke-width: 1.7;
+}
+
 .window-titlebar__controls button:hover {
   color: var(--text-strong);
   background: var(--surface-shell-hover);

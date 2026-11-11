@@ -605,7 +605,7 @@ test("record actual overlapping reveal as a natural browser filmstrip", async ({
         path: testInfo.outputPath(`${direction}-${index}.png`),
         clip: { x: 0, y: 0, width: 260, height: 420 },
       });
-      evidence.push({ direction, index, ...pose });
+      evidence.push({ transitionDirection: direction, index, ...pose });
     }
     const natural = await trace;
     expectMotion(natural, direction === "collapse");
