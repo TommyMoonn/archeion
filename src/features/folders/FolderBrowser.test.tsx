@@ -108,7 +108,10 @@ describe("FolderBrowser", () => {
       'class="collection-content folder-browser__content" data-surface-state="empty"',
     );
     expect(markup).toContain("No folders yet");
-    expect(markup).toContain("Add folder");
+    expect(markup).toContain("button--standard folder-browser__add-button");
+    expect(markup.match(/Add folder/g)).toHaveLength(1);
+    const emptyStateMarkup = markup.slice(markup.indexOf('class="empty-state"'));
+    expect(emptyStateMarkup).not.toContain("Add folder");
   });
 
   it("disables native autofill on the folder search field", () => {

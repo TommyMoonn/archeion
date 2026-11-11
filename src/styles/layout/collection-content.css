@@ -47,6 +47,10 @@
   padding-block: var(--collection-content-offset) 0;
 }
 
+.library-content--books:not([data-surface-state="results"]) {
+  padding-top: 0;
+}
+
 .collection-content__state {
   display: grid;
   place-items: center;

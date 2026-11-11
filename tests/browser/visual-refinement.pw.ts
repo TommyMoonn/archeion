@@ -72,6 +72,7 @@ for (const theme of ["light", "dark", "custom"]) {
       await page.evaluate(() => {
         document.documentElement.style.fontSize = "24px";
       });
+      const emptyStateCenters: number[] = [];
       for (const [destination, title, glyph] of [
         ["Library", "No EPUB files found", "book-open-text"],
         ["Favorites", "No favorites yet", "heart"],
@@ -87,8 +88,17 @@ for (const theme of ["light", "dark", "custom"]) {
         await expect(empty.locator(`svg.lucide-${glyph}`)).toBeVisible();
         await expect(empty.locator(".empty-state__icon svg")).toHaveCSS("width", "32px");
         expect(await empty.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+        emptyStateCenters.push(
+          await empty.evaluate((node) => {
+            const bounds = node.getBoundingClientRect();
+            return bounds.top + bounds.height / 2;
+          }),
+        );
         await page.screenshot({ path: info.outputPath(`${destination}.png`) });
       }
+      expect(Math.max(...emptyStateCenters) - Math.min(...emptyStateCenters)).toBeLessThanOrEqual(
+        1,
+      );
       await page
         .getByRole("navigation", { name: "Library navigation" })
         .getByRole("button", { name: "Folders", exact: true })
