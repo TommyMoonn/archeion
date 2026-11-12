@@ -353,6 +353,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const hasFilters = hasActiveLibraryFilters(filters);
   const {
     continuePreview,
+    resumeBooks,
     currentFolder,
     effectiveSort,
     filterOptions,
@@ -927,6 +928,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             <BookDetailsPanel
               details={pinnedDetailsProps}
               emptyLibrary={books?.length === 0}
+              resumeBooks={resumeBooks}
+              onContinue={readBook}
+              onInspect={openBookDetails}
               selectionCount={selectionMode ? selectedBookIds.size : 0}
               width={detailsWidth}
               onWidthChange={setDetailsWidthDraft}

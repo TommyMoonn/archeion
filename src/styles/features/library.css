@@ -928,8 +928,77 @@ html[data-motion="on"] .details-drawer[open] {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: clamp(32px, 15vh, 120px) 24px 24px;
+  padding: 76px 24px 24px;
   text-align: center;
+}
+
+.book-details-panel__empty > svg {
+  margin-block-end: 16px;
+  color: var(--muted);
+}
+
+.book-details-panel__hint {
+  color: var(--muted);
+  font-size: var(--type-body-supporting);
+  line-height: var(--type-body-supporting-line-height);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.book-details-panel__reading-status {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+}
+
+.book-details-panel__last-opened {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: var(--type-body-supporting);
+  line-height: var(--type-body-supporting-line-height);
+  text-align: center;
+}
+
+.book-details-panel__last-opened > svg {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-block-start: 2px;
+}
+
+.book-details-panel__hint {
+  margin: 20px 0 0;
+}
+
+.book-details-panel__description p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.book-details-panel__other-books {
+  margin-block-start: 24px;
+}
+
+.book-details-panel__other-books h3 {
+  margin: 0 0 12px;
+  font-size: var(--type-body);
+  line-height: var(--type-body-line-height);
+  font-weight: var(--font-weight-semibold);
+}
+
+.book-details-panel__reading-list {
+  display: grid;
+  gap: 8px;
+}
+
+.book-details-panel__reading-list .continue-book {
+  width: 100%;
 }
 
 .book-details-panel__empty h2 {

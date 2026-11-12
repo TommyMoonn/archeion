@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import {
   buttonWithText,
   clickBook,
@@ -101,9 +102,9 @@ describe("optional pinned Library details", () => {
     await pinBook(session.container);
     const panel = session.container.querySelector(".book-details-panel");
     act(() => load.publishBooks([selectionBook("b", "Beta")]));
-    expect(panel?.textContent).toContain("Select a book");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Book details");
     expect(panel?.textContent).toContain(
-      "View its description, reading progress, and metadata here.",
+      "Select a book to see its description, reading progress, and metadata.",
     );
     expect(panel?.querySelector('[aria-label="Unpin book details"]')).not.toBeNull();
     act(() => load.publishBooks([]));
@@ -128,8 +129,173 @@ describe("optional pinned Library details", () => {
     );
     act(() => buttonWithText(session.container, "Clear").click());
     expect(session.container.querySelector(".book-details-panel h2")?.textContent).toBe(
-      "Select a book",
+      "Book details",
     );
+  });
+
+  it("restores a last-read suggestion without inspecting or selecting it, then resumes it", async () => {
+    installDockMedia();
+    await appPreferencesStore.update({ showContinueReading: true });
+    await appPreferencesStore.updateLibrary({ detailsPinned: true });
+    const books = [
+      {
+        ...selectionBook("older", "Older"),
+        lastOpenedAt: "2026-07-01T00:00:00Z",
+        progressPercent: 30,
+      },
+      {
+        ...selectionBook("resume", "Resume me"),
+        lastOpenedAt: "2026-07-02T00:00:00Z",
+        progressCfi: "saved-position",
+      },
+      {
+        ...selectionBook("missing", "Missing"),
+        lastOpenedAt: "2026-07-03T00:00:00Z",
+        progressPercent: 40,
+        isFileMissing: true,
+      },
+      {
+        ...selectionBook("done", "Finished"),
+        lastOpenedAt: "2026-07-04T00:00:00Z",
+        progressPercent: 100,
+      },
+      { ...selectionBook("invalid", "Invalid date"), lastOpenedAt: "invalid", progressPercent: 40 },
+    ];
+    const onRoute = vi.fn();
+    const session = await renderLibraryPage(
+      createStorage({ books }),
+      "/",
+      undefined,
+      undefined,
+      onRoute,
+    );
+    suite.trackRoot(session.root);
+    const panel = session.container.querySelector(".book-details-panel");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Resume me");
+    expect(panel?.textContent).toContain("Last read");
+    expect(panel?.textContent).not.toContain("% read");
+    expect(
+      session.container.querySelectorAll('[data-inspected="true"], [data-selected]'),
+    ).toHaveLength(0);
+    expect(panel?.querySelector('[aria-label="Favorite book"]')?.hasAttribute("disabled")).toBe(
+      true,
+    );
+    const resume = await waitForButtonWithText(session.container, "Continue reading");
+    await act(async () => resume.click());
+    expect(onRoute.mock.lastCall?.[0].pathname).toBe("/reader/resume");
+  });
+
+  it("updates the suggestion from snapshots and lets explicit inspection and bulk selection take precedence", async () => {
+    installDockMedia();
+    await appPreferencesStore.update({ showContinueReading: true });
+    await appPreferencesStore.updateLibrary({ detailsPinned: true });
+    const older = {
+      ...selectionBook("a", "Alpha"),
+      lastOpenedAt: "2026-07-01T00:00:00Z",
+      progressPercent: 25,
+    };
+    const recent = {
+      ...selectionBook("b", "Beta"),
+      lastOpenedAt: "2026-07-02T00:00:00Z",
+      progressPercent: 42,
+    };
+    const load = createBooksLoadController();
+    load.publishBooks([older, recent]);
+    const session = await renderLibraryPage(createStorage(load));
+    suite.trackRoot(session.root);
+    const panel = session.container.querySelector(".book-details-panel");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Beta");
+    expect(panel?.textContent).toContain("42% read");
+    act(() => load.publishBooks([older]));
+    expect(panel?.querySelector("h2")?.textContent).toBe("Alpha");
+    act(() => load.publishBooks([older, recent]));
+    await act(async () => {
+      await import("./BookDetailsDrawer");
+      clickBook(session.container, "Alpha");
+    });
+    expect(panel?.textContent).not.toContain("Last read");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Alpha");
+    act(() => clickBook(session.container, "Beta", { ctrlKey: true }));
+    act(() => clickBook(session.container, "Alpha"));
+    expect(panel?.querySelector("h2")?.textContent).toBe("2 books selected");
+    expect(panel?.textContent).not.toContain("Last read");
+    act(() => buttonWithText(session.container, "Clear").click());
+    expect(panel?.textContent).toContain("Last read");
+    act(() => load.publishBooks([]));
+    expect(panel?.querySelector("h2")?.textContent).toBe("Book details");
+  });
+
+  it("keeps the pinned preview independent of the collection's Continue Reading preference", async () => {
+    installDockMedia();
+    await appPreferencesStore.update({ showContinueReading: false });
+    await appPreferencesStore.updateLibrary({ detailsPinned: true });
+    const session = await renderLibraryPage(
+      createStorage({
+        books: [
+          {
+            ...selectionBook("a", "Alpha"),
+            lastOpenedAt: "2026-07-01T00:00:00Z",
+            progressPercent: 25,
+          },
+        ],
+      }),
+    );
+    suite.trackRoot(session.root);
+    const panel = session.container.querySelector(".book-details-panel");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Alpha");
+    expect(panel?.textContent).toContain("Last read");
+    expect(session.container.querySelector(".continue-reading")).toBeNull();
+    await act(async () => appPreferencesStore.update({ showContinueReading: true }));
+    expect(panel?.textContent).toContain("Last read");
+    expect(session.container.querySelector(".continue-reading")).not.toBeNull();
+    await act(async () => appPreferencesStore.update({ showContinueReading: false }));
+    expect(panel?.textContent).toContain("Last read");
+    expect(session.container.querySelector(".continue-reading")).toBeNull();
+  });
+
+  it("shows a bounded reading list and opens full details explicitly", async () => {
+    installDockMedia();
+    await appPreferencesStore.update({ showContinueReading: false });
+    await appPreferencesStore.updateLibrary({ detailsPinned: true });
+    const books = Array.from({ length: 6 }, (_, index) => ({
+      ...selectionBook(`book-${index}`, `Book ${index}`),
+      lastOpenedAt: `2026-07-0${index + 1}T00:00:00Z`,
+      progressCfi: "saved-position",
+      sourceMetadata: { creator: "An author", description: "A book description." },
+    }));
+    const onRoute = vi.fn();
+    const session = await renderLibraryPage(
+      createStorage({ books }),
+      "/",
+      undefined,
+      undefined,
+      onRoute,
+    );
+    suite.trackRoot(session.root);
+    const panel = session.container.querySelector(".book-details-panel");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Book 5");
+    expect(panel?.textContent).toContain("A book description.");
+    expect(panel?.textContent).toContain("Last opened");
+    expect(panel?.textContent).toContain("An author");
+    const rows = panel?.querySelectorAll<HTMLButtonElement>(".continue-book");
+    expect(rows?.length).toBe(3);
+    expect(rows?.[0]?.textContent).toContain("Book 4");
+    expect(rows?.[2]?.textContent).toContain("Book 2");
+    expect(panel?.querySelector(".continue-book__progress")).toBeNull();
+    const details = await waitForButtonWithText(session.container, "View book details");
+    await act(async () => {
+      await import("./BookDetailsDrawer");
+      details.click();
+    });
+    expect(panel?.textContent).not.toContain("Last read");
+    expect(panel?.textContent).not.toContain("Also in progress");
+    expect(panel?.querySelector("h2")?.textContent).toBe("Book 5");
+    expect(
+      session.container
+        .querySelector('[data-reader-book-id="book-5"]')
+        ?.getAttribute("data-inspected"),
+    ).toBe("true");
+    expect(onRoute.mock.lastCall?.[0].pathname).toBe("/");
   });
 
   it("falls back to the drawer on narrow windows and restores the pinned book on widening", async () => {

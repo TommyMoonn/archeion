@@ -17,6 +17,71 @@ async function openPinned(page: Page, appearance = "dark") {
 }
 
 for (const appearance of ["dark", "light", "custom"]) {
+  test(`last-read preview fits the minimum panel width in ${appearance} appearance`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${fixture}&theme=${appearance}&covers=artwork`);
+    await expect(page.locator(".book-card__select").first()).toBeVisible();
+    await page.evaluate(() => window.uiStabilityFixture.suggestLastRead());
+    const panel = page.locator(panelSelector);
+    await expect(panel.getByText("Last read", { exact: true })).toBeVisible();
+    await expect(panel.getByText("42% read", { exact: true })).toBeVisible();
+    await expect(page.locator(".continue-reading")).toHaveCount(0);
+    await expect(panel.getByRole("heading", { name: "Also in progress" })).toBeVisible();
+    await expect(panel.locator(".continue-book")).toHaveCount(1);
+    const lastOpened = panel.locator(".book-details-panel__last-opened");
+    await expect(lastOpened).toContainText("Last opened");
+    await expect(lastOpened).toHaveCSS("border-top-width", "0px");
+    await expect(lastOpened).toHaveCSS("border-bottom-width", "0px");
+    await expect(page.locator('[data-inspected="true"], [data-selected]')).toHaveCount(0);
+    await expect(panel.getByRole("button", { name: "Favorite book", exact: true })).toBeDisabled();
+    const handle = panel.getByRole("separator", { name: "Resize book details" });
+    await handle.focus();
+    await page.keyboard.press("Home");
+    await expect(panel).toHaveCSS("width", "280px");
+    await page.evaluate(() => (document.documentElement.style.fontSize = "150%"));
+    // Keep the viewport above the rem-based docking threshold with enlarged text.
+    await page.setViewportSize({ width: 1920, height: 900 });
+    const resume = panel.getByRole("button", { name: "Continue reading", exact: true });
+    await resume.focus();
+    await expect(resume).toBeFocused();
+    await expect(resume).toBeInViewport();
+    expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: test.info().outputPath(`last-read-${appearance}.png`) });
+    const suggestionCover = await panel.locator(".details-cover").boundingBox();
+    await panel.getByRole("button", { name: "View book details", exact: true }).click();
+    await expect(panel.getByText("Last read", { exact: true })).toHaveCount(0);
+    const inspectedCover = await panel.locator(".details-cover").boundingBox();
+    expect(suggestionCover).not.toBeNull();
+    expect(inspectedCover).toEqual(suggestionCover);
+    await resume.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".epub-container iframe").first()).toBeVisible();
+  });
+
+  test(`another in-progress book resumes from the panel in ${appearance} appearance`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${fixture}&theme=${appearance}`);
+    await expect(page.locator(".book-card__select").first()).toBeVisible();
+    await page.evaluate(() => window.uiStabilityFixture.suggestLastRead());
+    const row = page.locator(`${panelSelector} .continue-book`);
+    const bookId = await row.getAttribute("data-reader-book-id");
+    await row.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(new RegExp(`/reader/${encodeURIComponent(bookId ?? "")}$`));
+    await expect(page.locator(".epub-container iframe").first()).toBeVisible();
+    await page.getByRole("button", { name: /Back to Library/ }).click();
+    const panel = page.locator(panelSelector);
+    await expect(panel.getByText("Last read", { exact: true })).toBeVisible();
+    await expect(panel.locator("h2")).toHaveText("Book 0001");
+    await expect(page.locator(".continue-reading")).toHaveCount(0);
+  });
+
   test(`pinned details keep the collection usable in ${appearance} appearance`, async ({
     page,
   }) => {
@@ -134,7 +199,7 @@ test("pin and resized width survive reload, Reader navigation, and archive switc
   await page.evaluate((url) => history.replaceState(history.state, "", url), fixture);
   await page.reload();
   await expect(panel).toBeVisible();
-  await expect(panel.getByRole("heading")).toHaveText("Select a book");
+  await expect(panel.getByRole("heading")).toHaveText("Book details");
   await expect(handle).toHaveAttribute("aria-valuenow", "368");
   await expect(panel).toHaveCSS("width", "368px");
   await page.locator(".book-card__select").first().click();
@@ -147,7 +212,7 @@ test("pin and resized width survive reload, Reader navigation, and archive switc
   await expect.poll(() => page.evaluate(() => window.uiStabilityState?.().archive)).toBe("b");
   await expect(panel).toBeVisible();
   await expect(handle).toHaveAttribute("aria-valuenow", "368");
-  await expect(panel.getByRole("heading")).toHaveText("Select a book");
+  await expect(panel.getByRole("heading")).toHaveText("Book details");
 });
 
 test("pointer resizing and width limits work in the pinned panel and slide-over", async ({
@@ -216,7 +281,7 @@ test("removed books show a stable empty panel and its controls stay keyboard acc
   const unpin = panel.getByRole("button", { name: "Unpin book details", exact: true });
   const unpinBefore = await unpin.boundingBox();
   await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(0));
-  await expect(panel.getByRole("heading", { name: "Select a book" })).toBeVisible();
+  await expect(panel.getByRole("heading", { name: "Book details" })).toBeVisible();
   expect(await unpin.boundingBox()).toEqual(unpinBefore);
   await expect(panel).toContainText("Book details appear here after you add and select a book.");
   expect(await panel.boundingBox()).toEqual(before);
@@ -239,7 +304,7 @@ test("bulk selection shows a summary and clearing it shows the selection prompt"
   const panel = page.locator(panelSelector);
   await expect(panel.getByRole("heading")).toHaveText("2 books selected");
   await page.getByRole("button", { name: "Clear", exact: true }).click();
-  await expect(panel.getByRole("heading")).toHaveText("Select a book");
+  await expect(panel.getByRole("heading")).toHaveText("Book details");
 });
 
 test("unpinning restores a modal drawer and nested editors return focus to the pinned action", async ({

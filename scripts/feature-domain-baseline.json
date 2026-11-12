@@ -114,8 +114,9 @@
     {
       "from": "library",
       "to": "reading",
-      "reason": "Library filters and index derive stored reading progress.",
+      "reason": "Library filters, index, and last-read suggestions derive stored reading progress through the shared reading-status rules.",
       "files": [
+        ["libraryDerivedState.ts", "readingProgress.ts"],
         ["libraryFilters.ts", "readingProgress.ts"],
         ["libraryIndex.ts", "readingProgress.ts"]
       ]
