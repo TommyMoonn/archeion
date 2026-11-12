@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,6 +12,23 @@ function entries(folders: readonly Folder[], counts = new Map<string, number>())
 }
 
 describe("FolderBrowser", () => {
+  it("keeps folder controls within the shared collection width and preserves both view options", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/folders.css"), "utf8");
+
+    expect(styles).toMatch(
+      /\.folder-browser\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*1440px;/s,
+    );
+    expect(styles).toMatch(
+      /\.folder-browser__controls\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
+    );
+    expect(styles).toMatch(
+      /\.folder-browser__controls \.library-controls__display\s*\{[^}]*flex-wrap:\s*wrap;[^}]*max-width:\s*100%;/s,
+    );
+    expect(styles).toMatch(
+      /\.folder-browser__controls \.segmented-control\s*\{[^}]*flex:\s*0 0 auto;/s,
+    );
+  });
+
   it("uses the shared accessible icon-only collection view control", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
@@ -30,6 +49,7 @@ describe("FolderBrowser", () => {
     expect(markup).toContain('aria-label="Cards"');
     expect(markup).toContain('aria-label="List"');
     expect(markup.indexOf('aria-label="Cards"')).toBeLessThan(markup.indexOf('aria-label="List"'));
+    expect(markup.match(/role="radio"/g)).toHaveLength(2);
     expect(markup).not.toContain("folder-view-toggle");
   });
 

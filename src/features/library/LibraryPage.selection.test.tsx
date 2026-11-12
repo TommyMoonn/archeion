@@ -54,9 +54,7 @@ describe("LibraryPage selection and bulk workflows", () => {
     const header = session.container.querySelector<HTMLElement>(".library-header");
     expect(header?.dataset.selectionMode).toBe("true");
     expect(
-      header
-        ?.querySelector(".library-header__primary-row")
-        ?.querySelector(".library-header__selection-row .library-selection-bar"),
+      header?.querySelector(".library-header__selection-row .library-selection-bar"),
     ).not.toBeNull();
     expect(header?.querySelector(".library-header__title")?.getAttribute("aria-hidden")).toBe(
       "true",
@@ -99,11 +97,6 @@ describe("LibraryPage selection and bulk workflows", () => {
 
     const header = session.container.querySelector<HTMLElement>(".library-header");
     expect(header?.dataset.selectionMode).toBe("true");
-    expect(
-      header
-        ?.querySelector(".library-header__selection-row")
-        ?.parentElement?.classList.contains("library-header__primary-row"),
-    ).toBe(true);
     expect(header?.querySelector(".library-header__title")?.getAttribute("aria-hidden")).toBe(
       "true",
     );
@@ -525,6 +518,58 @@ describe("LibraryPage selection and bulk workflows", () => {
     expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
       "1 selected outside this view.",
     );
+  });
+
+  it("clears selection when switching top-level tabs and hides the strip on unsupported tabs", async () => {
+    const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    await act(async () => {
+      clickBook(session.container, "Alpha", { ctrlKey: true });
+    });
+    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
+      "1 selected",
+    );
+
+    await act(async () => {
+      session.container.querySelector<HTMLButtonElement>('button[aria-label="Favorites"]')?.click();
+      await Promise.resolve();
+    });
+    expect(
+      session.container
+        .querySelector('button[aria-label="Favorites"]')
+        ?.getAttribute("aria-current"),
+    ).toBe("page");
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+
+    await act(async () => {
+      session.container.querySelector<HTMLButtonElement>('button[aria-label="Folders"]')?.click();
+      await Promise.resolve();
+    });
+    expect(
+      session.container.querySelector('button[aria-label="Folders"]')?.getAttribute("aria-current"),
+    ).toBe("page");
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+
+    await act(async () => {
+      session.container.querySelector<HTMLButtonElement>('button[aria-label="Series"]')?.click();
+      await Promise.resolve();
+    });
+    expect(
+      session.container.querySelector('button[aria-label="Series"]')?.getAttribute("aria-current"),
+    ).toBe("page");
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+
+    await act(async () => {
+      session.container.querySelector<HTMLButtonElement>('button[aria-label="Library"]')?.click();
+      await Promise.resolve();
+    });
+    expect(
+      session.container.querySelector('button[aria-label="Library"]')?.getAttribute("aria-current"),
+    ).toBe("page");
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+    expect(session.container.querySelectorAll('.book-card[data-selected="true"]')).toHaveLength(0);
   });
 
   it("clears selection when the active archive changes", async () => {

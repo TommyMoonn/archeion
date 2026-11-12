@@ -59,6 +59,7 @@ import { useLibraryFeedback } from "./useLibraryFeedback";
 import { useLibrarySelection } from "./useLibrarySelection";
 import {
   libraryLocationKey,
+  libraryNavigationTabKey,
   useLibraryWorkspaceNavigation,
   useLibraryWorkspaceNavigationLifecycle,
 } from "./useLibraryWorkspaceNavigation";
@@ -225,14 +226,27 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     selectionMode,
     toggleBook: toggleBookSelection,
   } = useLibrarySelection(books);
+  const selectionReturnFocusRef = useRef<HTMLElement | null>(null);
+  const selectionBarExitButtonRef = useRef<HTMLButtonElement>(null);
+  const resetSelectionForNavigation = useCallback(() => {
+    exitSelectionMode();
+    selectionReturnFocusRef.current = null;
+  }, [exitSelectionMode]);
   const { actions: dialogActions, dialog } = useLibraryWorkspaceDialogs();
   const smartViewPreferences = libraryPreferences.smartViews;
   const navigation = useLibraryWorkspaceNavigation({
     activeArchiveId: activeArchive.id,
-    beforeArchiveSwitch: exitSelectionMode,
+    beforeNavigation: resetSelectionForNavigation,
     folders,
     smartViewPreferences,
   });
+  const selectionTabKeyRef = useRef(libraryNavigationTabKey(navigation.location));
+  useLayoutEffect(() => {
+    const nextTabKey = libraryNavigationTabKey(navigation.location);
+    if (selectionTabKeyRef.current === nextTabKey) return;
+    selectionTabKeyRef.current = nextTabKey;
+    resetSelectionForNavigation();
+  }, [navigation.location, resetSelectionForNavigation]);
   const {
     changeLocation: navigateToLocation,
     openBookSearch,
@@ -379,8 +393,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     if (nextFilters !== filters) changeFilters(nextFilters);
   }, [activeArchive.id, booksLoadState, changeFilters, filterOptions, filters]);
 
-  const selectionReturnFocusRef = useRef<HTMLElement | null>(null);
-  const selectionBarExitButtonRef = useRef<HTMLButtonElement>(null);
   const leaveSelectionMode = useCallback(() => {
     exitSelectionMode();
     const returnFocus = selectionReturnFocusRef.current;

@@ -181,13 +181,6 @@ export function LibraryWorkspaceSurface({
   );
   const surfaceKey = `${focusOwnershipKey}:${view}`;
   const bookCollectionRootRef = useRef<HTMLDivElement>(null);
-  const hasCollectionToolbar = !(
-    location.type === "folders" ||
-    location.type === "series" ||
-    location.type === "series-detail" ||
-    location.type === "duplicates" ||
-    location.type === "epub-issues"
-  );
   const bookSurfaceActive =
     !isLibraryIntegrityLocation(location) &&
     location.type !== "folders" &&
@@ -240,9 +233,6 @@ export function LibraryWorkspaceSurface({
       }
       sidebarCollapsed={sidebarState.collapsed}
     >
-      {selectionBarProps && !hasCollectionToolbar ? (
-        <LibrarySelectionBar {...selectionBarProps} />
-      ) : null}
       {location.type === "folders" ? (
         <FolderBrowser {...folderBrowserProps} />
       ) : location.type === "series" ? (
