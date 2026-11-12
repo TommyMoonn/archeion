@@ -387,12 +387,12 @@ html[data-motion="on"] .reader-toolbar__back:active {
 
 .reader-progress__preview[data-placement="top"] {
   top: calc(100% + 0.6rem);
-  left: clamp(3.5rem, var(--reader-progress-preview-position), calc(100% - 3.5rem));
+  left: var(--reader-progress-preview-anchor, var(--reader-progress-preview-position));
   transform: translateX(-50%);
 }
 
 .reader-progress__preview[data-placement="side"] {
-  top: clamp(1.5rem, var(--reader-progress-preview-position), calc(100% - 1.5rem));
+  top: var(--reader-progress-preview-anchor, var(--reader-progress-preview-position));
   inset-inline-start: calc(100% + 0.75rem);
   transform: translateY(-50%);
 }

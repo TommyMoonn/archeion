@@ -250,6 +250,48 @@ describe("ReaderProgressBar", () => {
     expect(progress.querySelector<HTMLElement>(".reader-progress__fill")?.style.width).toBe("32%");
   });
 
+  it.each([
+    { placement: "top" as const, percentage: 4, expectedAnchor: "58px" },
+    { placement: "top" as const, percentage: 96, expectedAnchor: "142px" },
+    { placement: "side" as const, percentage: 4, expectedAnchor: "28px" },
+    { placement: "side" as const, percentage: 96, expectedAnchor: "172px" },
+  ])(
+    "keeps the $placement preview inside the progress bounds at $percentage%",
+    ({ placement, percentage, expectedAnchor }) => {
+      const { progress } = renderProgress({ percentage, placement });
+      mockProgressRect(progress, placement);
+      Object.defineProperty(progress, "clientWidth", { configurable: true, value: 200 });
+      Object.defineProperty(progress, "clientHeight", { configurable: true, value: 200 });
+
+      act(() => progress.focus());
+
+      const preview = progress.querySelector<HTMLElement>(".reader-progress__preview")!;
+      Object.defineProperty(preview, "offsetWidth", { configurable: true, value: 100 });
+      Object.defineProperty(preview, "offsetHeight", { configurable: true, value: 40 });
+
+      act(() => window.dispatchEvent(new Event("resize")));
+
+      expect(preview.style.getPropertyValue("--reader-progress-preview-anchor")).toBe(
+        expectedAnchor,
+      );
+    },
+  );
+
+  it("uses the measured preview anchor for both progress orientations", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/reader.css"), "utf8");
+    const topPreviewRule =
+      styles.match(/\.reader-progress__preview\[data-placement="top"\]\s*\{([^}]*)\}/s)?.[1] ?? "";
+    const sidePreviewRule =
+      styles.match(/\.reader-progress__preview\[data-placement="side"\]\s*\{([^}]*)\}/s)?.[1] ?? "";
+
+    expect(topPreviewRule).toContain(
+      "left: var(--reader-progress-preview-anchor, var(--reader-progress-preview-position))",
+    );
+    expect(sidePreviewRule).toContain(
+      "top: var(--reader-progress-preview-anchor, var(--reader-progress-preview-position))",
+    );
+  });
+
   it("maps side hover preview and handle through the vertical axis without navigating", () => {
     const { onSeek, progress } = renderProgress({ placement: "side" });
     mockProgressRect(progress, "side");

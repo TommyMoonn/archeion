@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,6 +24,7 @@ type ReaderProgressBarProps = {
 };
 
 const READER_PROGRESS_KEYBOARD_STEP = 1;
+const READER_PROGRESS_PREVIEW_EDGE_INSET = 8;
 
 function clampPercentage(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -45,6 +47,8 @@ export function ReaderProgressBar({
   resolveSeekPreview,
   seekable = false,
 }: ReaderProgressBarProps) {
+  const progressElementRef = useRef<HTMLDivElement>(null);
+  const previewElementRef = useRef<HTMLSpanElement>(null);
   const activePointerRef = useRef<number | null>(null);
   const hoverPointerRef = useRef(false);
   const focusPreviewRef = useRef<ReaderProgressPreview | null>(null);
@@ -58,6 +62,7 @@ export function ReaderProgressBar({
   } | null>(null);
   const [preview, setPreviewState] = useState<ReaderProgressPreview | null>(null);
   const currentPercentage = clampPercentage(percentage);
+  const visiblePreview = seekable ? preview : null;
   const currentPreview = useMemo(
     () =>
       seekable
@@ -109,6 +114,43 @@ export function ReaderProgressBar({
     },
     [currentPercentage, placement],
   );
+
+  const measurePreviewAnchor = useCallback(() => {
+    const progressElement = progressElementRef.current;
+    const previewElement = previewElementRef.current;
+    if (!visiblePreview || !progressElement || !previewElement) return;
+
+    const isVertical = placement === "side";
+    const trackSize = isVertical ? progressElement.clientHeight : progressElement.clientWidth;
+    const previewSize = isVertical ? previewElement.offsetHeight : previewElement.offsetWidth;
+    if (trackSize <= 0 || previewSize <= 0) {
+      previewElement.style.removeProperty("--reader-progress-preview-anchor");
+      return;
+    }
+
+    const midpoint = trackSize / 2;
+    const minimum = Math.min(previewSize / 2 + READER_PROGRESS_PREVIEW_EDGE_INSET, midpoint);
+    const maximum = Math.max(
+      trackSize - previewSize / 2 - READER_PROGRESS_PREVIEW_EDGE_INSET,
+      midpoint,
+    );
+    const requested = (trackSize * visiblePreview.percentage) / 100;
+    const nextAnchor = Math.round(Math.min(Math.max(requested, minimum), maximum) * 100) / 100;
+
+    previewElement.style.setProperty("--reader-progress-preview-anchor", `${nextAnchor}px`);
+  }, [placement, visiblePreview]);
+
+  useLayoutEffect(() => {
+    const previewElement = previewElementRef.current;
+    if (!visiblePreview || !previewElement) return;
+
+    measurePreviewAnchor();
+    window.addEventListener("resize", measurePreviewAnchor);
+    return () => {
+      window.removeEventListener("resize", measurePreviewAnchor);
+      previewElement.style.removeProperty("--reader-progress-preview-anchor");
+    };
+  }, [measurePreviewAnchor, visiblePreview]);
 
   const cancelPointerPreview = useCallback(() => {
     if (previewFrameRef.current !== null) window.cancelAnimationFrame(previewFrameRef.current);
@@ -295,16 +337,14 @@ export function ReaderProgressBar({
     [cancelPointerPreview, commitSeek, currentPercentage, onSeek, placement, seekable, setPreview],
   );
 
-  const visiblePreview = seekable ? preview : null;
   const valueText = currentPreview
     ? previewLabel(currentPreview)
     : `${Math.round(currentPercentage)}%`;
-  const previewStyle = visiblePreview
+  const previewPositionStyle = visiblePreview
     ? ({
         "--reader-progress-preview-position": `${visiblePreview.percentage}%`,
       } as CSSProperties)
     : undefined;
-
   return (
     <div
       aria-label="Reading progress"
@@ -315,6 +355,7 @@ export function ReaderProgressBar({
       aria-valuetext={seekable ? valueText : undefined}
       className="reader-progress"
       data-placement={placement}
+      ref={progressElementRef}
       data-reader-ignore-shortcuts={seekable ? "" : undefined}
       data-seekable={seekable ? "" : undefined}
       onBlur={seekable ? handleBlur : undefined}
@@ -346,13 +387,14 @@ export function ReaderProgressBar({
             aria-hidden="true"
             className="reader-progress__handle"
             data-placement={placement}
-            style={previewStyle}
+            style={previewPositionStyle}
           />
           <span
             aria-hidden="true"
             className="reader-progress__preview"
             data-placement={placement}
-            style={previewStyle}
+            ref={previewElementRef}
+            style={previewPositionStyle}
           >
             <strong>{Math.round(visiblePreview.percentage)}%</strong>
             {visiblePreview.chapterLabel ? <span>{visiblePreview.chapterLabel}</span> : null}

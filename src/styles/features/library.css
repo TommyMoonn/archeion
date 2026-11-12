@@ -885,7 +885,7 @@ html[data-motion="on"] .details-drawer[open] {
   border-inline-start: 1px solid var(--line);
 }
 
-.book-details-resize-handle:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .book-details-resize-handle:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
