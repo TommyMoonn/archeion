@@ -12,7 +12,7 @@ function entries(folders: readonly Folder[], counts = new Map<string, number>())
 }
 
 describe("FolderBrowser", () => {
-  it("keeps folder controls within the shared collection width and preserves both view options", () => {
+  it("keeps folder sort and view controls aligned on one row within the shared collection width", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/features/folders.css"), "utf8");
 
     expect(styles).toMatch(
@@ -22,7 +22,7 @@ describe("FolderBrowser", () => {
       /\.folder-browser__controls\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
     );
     expect(styles).toMatch(
-      /\.folder-browser__controls \.library-controls__display\s*\{[^}]*flex-wrap:\s*wrap;[^}]*max-width:\s*100%;/s,
+      /\.folder-browser__controls \.library-controls__display\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*max-width:\s*100%;/s,
     );
     expect(styles).toMatch(
       /\.folder-browser__controls \.segmented-control\s*\{[^}]*flex:\s*0 0 auto;/s,

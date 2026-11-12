@@ -171,7 +171,7 @@ html[data-motion="on"] .folder-tree__children {
 
 .folder-browser__controls .library-controls__display {
   flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
   max-width: 100%;
   justify-content: flex-end;
