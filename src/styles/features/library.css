@@ -845,6 +845,19 @@ html[data-motion="on"] .details-drawer[open] {
     auto;
 }
 
+.app-shell[data-details-pinned="true"] > .page-shell::-webkit-scrollbar {
+  width: 6px;
+}
+
+.app-shell[data-details-pinned="true"] > .page-shell::-webkit-scrollbar-thumb {
+  border: 0;
+  background: var(--line-subtle);
+}
+
+.app-shell[data-details-pinned="true"] > .page-shell::-webkit-scrollbar-thumb:hover {
+  background: var(--line-strong);
+}
+
 .book-details-panel {
   position: relative;
   min-width: 0;
@@ -879,6 +892,25 @@ html[data-motion="on"] .details-drawer[open] {
 
 .book-details-panel .details-drawer__body {
   padding: 22px 20px;
+}
+
+.book-details-panel__controls {
+  position: absolute;
+  z-index: 2;
+  inset-block-start: 14px;
+  inset-inline: 12px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.book-details-panel__controls .icon-button {
+  pointer-events: auto;
+  background: var(--surface-main);
+}
+
+.book-details-panel .details-cover {
+  max-width: calc(100% - 64px);
 }
 
 .book-details-panel,

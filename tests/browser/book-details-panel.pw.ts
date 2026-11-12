@@ -7,9 +7,13 @@ async function openPinned(page: Page, appearance = "dark") {
   await page.goto(`${fixture}&theme=${appearance}`);
   await page.locator(".book-card__select").first().click();
   await expect(page.locator("dialog.details-drawer")).toBeVisible();
+  await expect(page.locator("dialog.details-drawer .details-drawer__header")).toContainText(
+    "Book details",
+  );
   await page.getByRole("button", { name: "Pin book details", exact: true }).click();
   await expect(page.locator(panelSelector)).toBeVisible();
   await expect(page.locator("dialog.details-drawer")).toHaveCount(0);
+  await expect(page.locator(`${panelSelector} .details-drawer__header`)).toHaveCount(0);
 }
 
 for (const appearance of ["dark", "light", "custom"]) {
@@ -33,7 +37,18 @@ for (const appearance of ["dark", "light", "custom"]) {
         overflow: document.documentElement.scrollWidth > innerWidth,
       };
     });
-    expect(bounds.mainRight).toBeLessThanOrEqual(bounds.panelLeft);
+    expect(bounds.mainRight).toBe(bounds.panelLeft);
+    const scrollbar = await page.locator(".page-shell").evaluate((element) => {
+      const thumb = getComputedStyle(element, "::-webkit-scrollbar-thumb");
+      return {
+        width: getComputedStyle(element, "::-webkit-scrollbar").width,
+        border: thumb.borderInlineEndWidth,
+        radius: Number.parseFloat(thumb.borderStartEndRadius),
+      };
+    });
+    expect(scrollbar.width).toBe("6px");
+    expect(scrollbar.border).toBe("0px");
+    expect(scrollbar.radius).toBeGreaterThan(0);
     expect(bounds.panelRight).toBe(bounds.width);
     expect(bounds.overflow).toBe(false);
     expect(
@@ -86,6 +101,10 @@ test("narrow windows use the slide-over and preserve the pin choice on widening"
   await expect(page.locator(panelSelector)).toHaveCount(0);
   await expect(page.locator("dialog.details-drawer")).toBeVisible();
   await expect(page.locator("dialog.details-drawer h2")).toHaveText(title);
+  await expect(page.locator("dialog.details-drawer .details-drawer__header")).toBeVisible();
+  await expect(
+    page.locator("dialog.details-drawer").getByRole("button", { name: "Start from beginning" }),
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.locator(panelSelector)).toBeVisible();
   await expect(page.locator("dialog.details-drawer")).toHaveCount(0);
@@ -194,8 +213,11 @@ test("removed books show a stable empty panel and its controls stay keyboard acc
   await openPinned(page);
   const panel = page.locator(panelSelector);
   const before = await panel.boundingBox();
+  const unpin = panel.getByRole("button", { name: "Unpin book details", exact: true });
+  const unpinBefore = await unpin.boundingBox();
   await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(0));
   await expect(panel.getByRole("heading", { name: "Select a book" })).toBeVisible();
+  expect(await unpin.boundingBox()).toEqual(unpinBefore);
   await expect(panel).toContainText("Book details appear here after you add and select a book.");
   expect(await panel.boundingBox()).toEqual(before);
   await panel.getByRole("button", { name: "Unpin book details" }).focus();

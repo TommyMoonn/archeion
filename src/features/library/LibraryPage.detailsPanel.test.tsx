@@ -50,6 +50,7 @@ describe("optional pinned Library details", () => {
     expect(session.container.querySelector(".book-details-panel")).toBeNull();
     await pinBook(session.container);
     expect(session.container.querySelector("dialog.details-drawer")).toBeNull();
+    expect(session.container.querySelector(".book-details-panel header")).toBeNull();
     expect(session.container.querySelector(".book-details-panel h2")?.textContent).toBe("Alpha");
     act(() => clickBook(session.container, "Beta"));
     expect(session.container.querySelector(".book-details-panel h2")?.textContent).toBe("Beta");
@@ -91,7 +92,7 @@ describe("optional pinned Library details", () => {
     expect(session.container.querySelector("dialog.details-drawer h2")?.textContent).toBe("Alpha");
   });
 
-  it("keeps the panel and header when its book disappears, including an empty archive", async () => {
+  it("keeps the panel and unpin control when its book disappears, including an empty archive", async () => {
     installDockMedia();
     const load = createBooksLoadController();
     load.publishBooks([selectionBook("a", "Alpha"), selectionBook("b", "Beta")]);

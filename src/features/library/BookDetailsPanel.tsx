@@ -39,27 +39,25 @@ export function BookDetailsPanel({
         onWidthCommit={onWidthCommit}
       />
       <div className="details-drawer__panel">
-        <header className="details-drawer__header">
-          <p>Book details</p>
-          <div className="details-drawer__header-actions">
-            {details && !summary ? (
-              <IconButton
-                className="details-favorite-button"
-                label={`Favorite ${bookTitle(details.book)}`}
-                aria-pressed={details.book.isFavorite}
-                onClick={() => details.onToggleFavorite(details.book)}
-              >
-                <Heart
-                  aria-hidden="true"
-                  fill={details.book.isFavorite ? "currentColor" : "none"}
-                />
-              </IconButton>
-            ) : null}
-            <IconButton label="Unpin book details" aria-pressed="true" onClick={onUnpin}>
-              <PinOff aria-hidden="true" />
-            </IconButton>
-          </div>
-        </header>
+        <div className="book-details-panel__controls">
+          <IconButton
+            className="details-favorite-button"
+            label={details && !summary ? `Favorite ${bookTitle(details.book)}` : "Favorite book"}
+            disabled={!details || summary}
+            aria-pressed={details && !summary ? details.book.isFavorite : false}
+            onClick={() => {
+              if (details && !summary) details.onToggleFavorite(details.book);
+            }}
+          >
+            <Heart
+              aria-hidden="true"
+              fill={details && !summary && details.book.isFavorite ? "currentColor" : "none"}
+            />
+          </IconButton>
+          <IconButton label="Unpin book details" aria-pressed="true" onClick={onUnpin}>
+            <PinOff aria-hidden="true" />
+          </IconButton>
+        </div>
         {details && !summary ? (
           <BookDetailsContent {...details} initialFocus="none" />
         ) : (
