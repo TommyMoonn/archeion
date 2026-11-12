@@ -87,9 +87,18 @@ export function AppSelect<TValue extends string>({
   const isOpen = previousDisabled === disabled && open && !disabled;
   const activeOptionId =
     isOpen && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined;
-  const contentRevision = options
-    .map((option) => `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`)
-    .join("\u0001");
+  const contentRevision = useMemo(
+    () =>
+      isOpen
+        ? options
+            .map(
+              (option) =>
+                `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`,
+            )
+            .join("\u0001")
+        : "",
+    [isOpen, options],
+  );
   const menuPlacement = useAppSelectPlacement({
     activeOptionId,
     contentRevision,

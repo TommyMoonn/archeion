@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
 import { LibraryToolbar } from "./LibraryToolbar";
+import { LibraryFilterPopover } from "./LibraryFilterPopover";
 import type { LibrarySelectionBarProps } from "./LibrarySelectionBar";
 
 (
@@ -121,6 +122,40 @@ function renderInteractiveToolbar({
 let activeRoot: Root | null = null;
 
 describe("LibraryToolbar", () => {
+  it("reuses metadata options across unrelated rerenders and refreshes selected values", () => {
+    const container = document.createElement("div");
+    activeRoot = createRoot(container);
+    const filters = createDefaultLibraryFilters();
+    const options = { languages: ["en"], publishers: [], series: ["Star Saga"], subjects: [] };
+    const deriveSeries = vi.spyOn(options.series, "filter");
+    const render = (currentFilters = filters) =>
+      act(() =>
+        activeRoot?.render(
+          <LibraryFilterPopover
+            filters={currentFilters}
+            options={options}
+            onClear={() => {}}
+            onChange={() => {}}
+          />,
+        ),
+      );
+
+    render();
+    expect(deriveSeries).toHaveBeenCalledTimes(1);
+    render();
+    render();
+    expect(deriveSeries).toHaveBeenCalledTimes(1);
+
+    render({ ...filters, series: ["Star Saga"] });
+    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Add series filter"]');
+    expect(trigger?.disabled).toBe(true);
+    expect(deriveSeries).toHaveBeenCalledTimes(2);
+
+    render();
+    act(() => trigger?.click());
+    expect(container.querySelector('[role="listbox"]')?.textContent).toContain("Star Saga");
+    deriveSeries.mockRestore();
+  });
   it("morphs the title and primary actions while keeping collection controls available", () => {
     const session = renderInteractiveToolbar({
       selectionBarProps: createSelectionBarProps(),

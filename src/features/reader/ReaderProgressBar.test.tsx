@@ -3,20 +3,41 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { act } from "react";
+import { act, Profiler } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReaderProgressBar } from "./ReaderProgressBar";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+const frames = new Map<number, FrameRequestCallback>();
+let nextFrame = 0;
+
+beforeEach(() => {
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.spyOn(window, "cancelAnimationFrame").mockImplementation((frame) => {
+    frames.delete(frame);
+  });
+});
+
+function flushFrame() {
+  act(() => {
+    const callbacks = [...frames.values()];
+    frames.clear();
+    callbacks.forEach((callback) => callback(0));
+  });
+}
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
   container?.remove();
   root = null;
   container = null;
+  frames.clear();
   vi.restoreAllMocks();
 });
 
@@ -24,6 +45,7 @@ function renderProgress(overrides: Partial<React.ComponentProps<typeof ReaderPro
   container = document.body.appendChild(document.createElement("div"));
   root = createRoot(container);
   const onSeek = vi.fn().mockResolvedValue(true);
+  const onRender = vi.fn();
   const resolveSeekPreview = vi.fn((percentage: number) => ({
     chapterLabel: percentage >= 50 ? "Chapter Two" : "Chapter One",
     percentage,
@@ -39,11 +61,18 @@ function renderProgress(overrides: Partial<React.ComponentProps<typeof ReaderPro
   };
   const rerender = (changes: Partial<typeof props> = {}) => {
     Object.assign(props, changes);
-    act(() => root?.render(<ReaderProgressBar {...props} />));
+    act(() =>
+      root?.render(
+        <Profiler id="progress" onRender={onRender}>
+          <ReaderProgressBar {...props} />
+        </Profiler>,
+      ),
+    );
   };
   rerender();
 
   return {
+    onRender,
     onSeek,
     progress: container.querySelector<HTMLElement>(".reader-progress")!,
     rerender,
@@ -93,6 +122,67 @@ function previewPosition(progress: HTMLElement, selector: string) {
 }
 
 describe("ReaderProgressBar", () => {
+  it("measures and resolves only the latest pointer move per frame", () => {
+    const { progress, resolveSeekPreview } = renderProgress();
+    const measure = mockProgressRect(progress);
+    resolveSeekPreview.mockClear();
+    act(() => {
+      for (const clientX of [20, 80, 160]) {
+        progress.dispatchEvent(pointerEvent("pointermove", { clientX, pointerId: 1 }));
+      }
+    });
+    expect(measure).not.toHaveBeenCalled();
+    expect(resolveSeekPreview).not.toHaveBeenCalled();
+    flushFrame();
+    expect(measure).toHaveBeenCalledOnce();
+    expect(resolveSeekPreview).toHaveBeenCalledExactlyOnceWith(80);
+    expect(previewPosition(progress, ".reader-progress__handle")).toBe("80%");
+  });
+
+  it("does not render another preview when the resolved position is unchanged", () => {
+    const { progress, onRender } = renderProgress();
+    mockProgressRect(progress);
+    act(() => progress.dispatchEvent(pointerEvent("pointermove", { clientX: 80, pointerId: 1 })));
+    flushFrame();
+    onRender.mockClear();
+    act(() => progress.dispatchEvent(pointerEvent("pointermove", { clientX: 80, pointerId: 1 })));
+    flushFrame();
+    expect(onRender).not.toHaveBeenCalled();
+    expect(previewPosition(progress, ".reader-progress__handle")).toBe("40%");
+  });
+
+  it("commits the release position immediately and cancels an older queued drag preview", () => {
+    const { onSeek, progress } = renderProgress();
+    mockProgressRect(progress);
+    act(() => {
+      progress.dispatchEvent(pointerEvent("pointerdown", { button: 0, clientX: 20, pointerId: 1 }));
+      progress.dispatchEvent(pointerEvent("pointermove", { clientX: 80, pointerId: 1 }));
+      progress.dispatchEvent(pointerEvent("pointerup", { clientX: 160, pointerId: 1 }));
+    });
+    expect(onSeek).toHaveBeenCalledExactlyOnceWith(80);
+    expect(previewPosition(progress, ".reader-progress__handle")).toBe("80%");
+    flushFrame();
+    expect(previewPosition(progress, ".reader-progress__handle")).toBe("80%");
+  });
+
+  it.each(["leave", "disable", "unmount"])("cancels queued hover work on %s", (reason) => {
+    const { progress, rerender, resolveSeekPreview } = renderProgress();
+    const measure = mockProgressRect(progress);
+    resolveSeekPreview.mockClear();
+    act(() => progress.dispatchEvent(pointerEvent("pointermove", { clientX: 80, pointerId: 1 })));
+    if (reason === "leave")
+      act(() => progress.dispatchEvent(pointerEvent("pointerout", { pointerId: 1 })));
+    else if (reason === "disable") rerender({ seekable: false });
+    else {
+      act(() => root?.unmount());
+      root = null;
+    }
+    flushFrame();
+    expect(measure).not.toHaveBeenCalled();
+    expect(resolveSeekPreview).not.toHaveBeenCalled();
+    expect(progress.querySelector(".reader-progress__preview")).toBeNull();
+  });
+
   it("keeps the progress handle flat without changing its geometry", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/features/reader.css"), "utf8");
     const handleRule = styles.match(/\.reader-progress__handle\s*\{([^}]*)\}/s)?.[1] ?? "";
@@ -149,6 +239,7 @@ describe("ReaderProgressBar", () => {
       progress.dispatchEvent(pointerEvent("pointermove", { clientX: 50, pointerId: 1 }));
     });
 
+    flushFrame();
     expect(onSeek).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("25%");
     expect(container?.textContent).toContain("Chapter One");
@@ -167,6 +258,7 @@ describe("ReaderProgressBar", () => {
       progress.dispatchEvent(pointerEvent("pointermove", { clientY: 120, pointerId: 2 }));
     });
 
+    flushFrame();
     expect(progress.getAttribute("aria-orientation")).toBe("vertical");
     expect(onSeek).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("60%");
@@ -185,6 +277,7 @@ describe("ReaderProgressBar", () => {
     act(() => {
       progress.dispatchEvent(pointerEvent("pointermove", { clientX: 150, pointerId: 3 }));
     });
+    flushFrame();
     expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
 
     act(() => {
@@ -197,6 +290,7 @@ describe("ReaderProgressBar", () => {
       progress.focus();
       progress.dispatchEvent(pointerEvent("pointermove", { clientX: 150, pointerId: 3 }));
     });
+    flushFrame();
     expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
 
     act(() => {
@@ -237,12 +331,14 @@ describe("ReaderProgressBar", () => {
       progress.dispatchEvent(pointerEvent("pointermove", { clientX: 150, pointerId: 5 }));
     });
 
+    flushFrame();
     expect(onSeek).not.toHaveBeenCalled();
     expect(container?.textContent).toContain("75%");
     expect(container?.textContent).toContain("Chapter Two");
     expect(progress.getAttribute("aria-valuenow")).toBe("32");
     expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
     expect(progress.querySelector<HTMLElement>(".reader-progress__fill")?.style.width).toBe("32%");
+    flushFrame();
     expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
 
     await act(async () => {
@@ -273,6 +369,7 @@ describe("ReaderProgressBar", () => {
       });
 
       expect(seek).toHaveBeenCalledExactlyOnceWith(75);
+      flushFrame();
       expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
       expect(progress.getAttribute("aria-valuenow")).toBe("32");
       expect(progress.getAttribute("aria-valuetext")).toBe("32% · Chapter One");
@@ -286,6 +383,7 @@ describe("ReaderProgressBar", () => {
       expect(progress.getAttribute("aria-valuetext")).toBe("72% · Chapter Two");
       const fill = progress.querySelector<HTMLElement>(".reader-progress__fill")!;
       expect(placement === "side" ? fill.style.height : fill.style.width).toBe("72%");
+      flushFrame();
       expect(previewPosition(progress, ".reader-progress__handle")).toBe("75%");
     },
   );

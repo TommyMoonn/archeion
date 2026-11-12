@@ -100,6 +100,27 @@ afterEach(() => {
 });
 
 describe("AppSelect anchored placement", () => {
+  it("builds menu content revisions only while open and reuses them during navigation", () => {
+    const options = initialOptions.map((option) => ({ ...option }));
+    const mapOptions = vi.spyOn(options, "map");
+    const revisionTraversals = () =>
+      mapOptions.mock.results.filter(
+        (result) =>
+          result.type === "return" &&
+          result.value.every((value: unknown) => typeof value === "string"),
+      ).length;
+    const container = renderSelect(options);
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger");
+    expect(mapOptions).not.toHaveBeenCalled();
+
+    act(() => trigger?.click());
+    expect(revisionTraversals()).toBe(1);
+    act(() =>
+      trigger?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    expect(revisionTraversals()).toBe(1);
+    expect(trigger?.getAttribute("aria-activedescendant")).toContain("option-1");
+  });
   it("renders above and horizontally clamps from measured viewport geometry", () => {
     const container = renderSelect();
     const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;

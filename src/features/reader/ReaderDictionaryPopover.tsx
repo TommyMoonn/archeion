@@ -7,7 +7,11 @@ import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import type { DictionaryDefinitionEntry } from "../../types/dictionary";
 import { placeReaderAnchoredPopover, readerViewportRect } from "./readerContentActionAnchor";
-import type { ClientRect, HighlightPaletteAnchor } from "./readerHighlightPaletteAnchor";
+import {
+  clientRectsEqual,
+  type ClientRect,
+  type HighlightPaletteAnchor,
+} from "./readerHighlightPaletteAnchor";
 import { trapReaderPopoverFocus } from "./readerPopoverFocus";
 import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 import type { ReaderDictionaryLookupState } from "./useReaderDictionaryLookup";
@@ -108,14 +112,29 @@ export function ReaderDictionaryPopover({
     const measure = () => {
       const bounds = popover.getBoundingClientRect();
       if ([bounds.height, bounds.width].every(Number.isFinite)) {
-        setSize({ height: bounds.height, width: bounds.width });
+        setSize((current) =>
+          current.height === bounds.height && current.width === bounds.width
+            ? current
+            : { height: bounds.height, width: bounds.width },
+        );
       }
+    };
+    let pendingFrame: number | null = null;
+    const scheduleMeasure = () => {
+      if (pendingFrame !== null) return;
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = null;
+        measure();
+      });
     };
     measure();
     const observer =
-      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(measure);
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(scheduleMeasure);
     observer?.observe(popover);
-    return () => observer?.disconnect();
+    return () => {
+      if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
+      observer?.disconnect();
+    };
   }, [state]);
 
   useLayoutEffect(() => {
@@ -125,13 +144,24 @@ export function ReaderDictionaryPopover({
         dismiss(false);
         return;
       }
-      setAnchorRect(nextAnchor);
-      setViewportRect(readerViewportRect(viewerRef.current));
+      setAnchorRect((current) => (clientRectsEqual(current, nextAnchor) ? current : nextAnchor));
+      const nextViewport = readerViewportRect(viewerRef.current);
+      setViewportRect((current) =>
+        clientRectsEqual(current, nextViewport) ? current : nextViewport,
+      );
+    };
+    let pendingFrame: number | null = null;
+    const scheduleRefresh = () => {
+      if (pendingFrame !== null) return;
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = null;
+        refresh();
+      });
     };
     const sourceWindow = anchor.document.defaultView;
     refresh();
     const observer =
-      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(refresh);
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(scheduleRefresh);
     if (viewerRef.current) observer?.observe(viewerRef.current);
     let frame = sourceWindow?.frameElement;
     while (frame) {
@@ -139,15 +169,16 @@ export function ReaderDictionaryPopover({
       frame = frame.ownerDocument.defaultView?.frameElement ?? null;
     }
     const onPageHide = () => dismiss(false);
-    window.addEventListener("resize", refresh);
-    document.addEventListener("scroll", refresh, true);
-    anchor.document.addEventListener("scroll", refresh, true);
+    window.addEventListener("resize", scheduleRefresh);
+    document.addEventListener("scroll", scheduleRefresh, true);
+    anchor.document.addEventListener("scroll", scheduleRefresh, true);
     sourceWindow?.addEventListener("pagehide", onPageHide);
     return () => {
+      if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
       observer?.disconnect();
-      window.removeEventListener("resize", refresh);
-      document.removeEventListener("scroll", refresh, true);
-      anchor.document.removeEventListener("scroll", refresh, true);
+      window.removeEventListener("resize", scheduleRefresh);
+      document.removeEventListener("scroll", scheduleRefresh, true);
+      anchor.document.removeEventListener("scroll", scheduleRefresh, true);
       sourceWindow?.removeEventListener("pagehide", onPageHide);
     };
   }, [anchor, dismiss, viewerRef]);

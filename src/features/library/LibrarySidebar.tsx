@@ -24,6 +24,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   memo,
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -168,6 +169,14 @@ export const LibrarySidebar = memo(function LibrarySidebar({
     rtl: boolean;
   } | null>(null);
   const resizeWidthRef = useRef(width);
+  const resizeFrameRef = useRef<number | null>(null);
+  const pendingResizeWidthRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
+    },
+    [],
+  );
   const smartViewsContentId = useId();
   const activeSmartView = librarySmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
@@ -194,7 +203,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   };
 
   const handleResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !onWidthChange) return;
+    if (event.button !== 0 || !onWidthChange || resizePointerRef.current) return;
     event.preventDefault();
     if (!event.currentTarget.parentElement) return;
     const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
@@ -212,14 +221,27 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   const handleResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const pointer = resizePointerRef.current;
     if (!pointer || pointer.pointerId !== event.pointerId) return;
-    updateResizeWidth(
-      pointer.startWidth + (pointer.rtl ? -1 : 1) * (event.clientX - pointer.startClientX),
-    );
+    pendingResizeWidthRef.current =
+      pointer.startWidth + (pointer.rtl ? -1 : 1) * (event.clientX - pointer.startClientX);
+    if (resizeFrameRef.current !== null) return;
+    resizeFrameRef.current = requestAnimationFrame(() => {
+      resizeFrameRef.current = null;
+      const pendingWidth = pendingResizeWidthRef.current;
+      pendingResizeWidthRef.current = null;
+      if (pendingWidth !== null) updateResizeWidth(pendingWidth);
+    });
   };
 
   const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     const pointer = resizePointerRef.current;
     if (!pointer || pointer.pointerId !== event.pointerId) return;
+    if (resizeFrameRef.current !== null) {
+      cancelAnimationFrame(resizeFrameRef.current);
+      resizeFrameRef.current = null;
+    }
+    const pendingWidth = pendingResizeWidthRef.current;
+    pendingResizeWidthRef.current = null;
+    if (pendingWidth !== null) updateResizeWidth(pendingWidth);
     resizePointerRef.current = null;
     setResizing(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {

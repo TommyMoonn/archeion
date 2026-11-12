@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -49,6 +50,12 @@ export function ReaderProgressBar({
   const focusPreviewRef = useRef<ReaderProgressPreview | null>(null);
   const focusOwnsPreviewRef = useRef(false);
   const previewRef = useRef<ReaderProgressPreview | null>(null);
+  const previewFrameRef = useRef<number | null>(null);
+  const pendingPointerRef = useRef<{
+    target: HTMLDivElement;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
   const [preview, setPreviewState] = useState<ReaderProgressPreview | null>(null);
   const currentPercentage = clampPercentage(percentage);
   const currentPreview = useMemo(
@@ -69,6 +76,12 @@ export function ReaderProgressBar({
 
       const normalized = clampPercentage(nextPercentage);
       const nextPreview = resolveSeekPreview?.(normalized) ?? { percentage: normalized };
+      const previous = previewRef.current;
+      if (
+        previous?.percentage === nextPreview.percentage &&
+        previous.chapterLabel === nextPreview.chapterLabel
+      )
+        return previous;
       previewRef.current = nextPreview;
       setPreviewState(nextPreview);
       return nextPreview;
@@ -87,14 +100,41 @@ export function ReaderProgressBar({
   }, [setPreview]);
 
   const percentageFromPointer = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
+    (target: HTMLDivElement, clientX: number, clientY: number) => {
+      const rect = target.getBoundingClientRect();
       const size = placement === "side" ? rect.height : rect.width;
       if (size <= 0) return currentPercentage;
-      const offset = placement === "side" ? event.clientY - rect.top : event.clientX - rect.left;
+      const offset = placement === "side" ? clientY - rect.top : clientX - rect.left;
       return clampPercentage((offset / size) * 100);
     },
     [currentPercentage, placement],
+  );
+
+  const cancelPointerPreview = useCallback(() => {
+    if (previewFrameRef.current !== null) window.cancelAnimationFrame(previewFrameRef.current);
+    previewFrameRef.current = null;
+    pendingPointerRef.current = null;
+  }, []);
+
+  useEffect(() => cancelPointerPreview, [cancelPointerPreview, percentageFromPointer, setPreview]);
+
+  const schedulePointerPreview = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      pendingPointerRef.current = {
+        target: event.currentTarget,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+      if (previewFrameRef.current !== null) return;
+      previewFrameRef.current = window.requestAnimationFrame(() => {
+        previewFrameRef.current = null;
+        const pending = pendingPointerRef.current;
+        pendingPointerRef.current = null;
+        if (pending)
+          setPreview(percentageFromPointer(pending.target, pending.clientX, pending.clientY));
+      });
+    },
+    [percentageFromPointer, setPreview],
   );
 
   const commitSeek = useCallback(
@@ -129,7 +169,8 @@ export function ReaderProgressBar({
     (event: PointerEvent<HTMLDivElement>) => {
       if (!supportsHoverPreview(event.pointerType)) return;
       hoverPointerRef.current = true;
-      if (activePointerRef.current === null) setPreview(percentageFromPointer(event));
+      if (activePointerRef.current === null)
+        setPreview(percentageFromPointer(event.currentTarget, event.clientX, event.clientY));
     },
     [percentageFromPointer, setPreview],
   );
@@ -137,43 +178,50 @@ export function ReaderProgressBar({
   const handlePointerLeave = useCallback(() => {
     hoverPointerRef.current = false;
     if (activePointerRef.current !== null) return;
+    cancelPointerPreview();
     restoreFocusPreview();
-  }, [restoreFocusPreview]);
+  }, [cancelPointerPreview, restoreFocusPreview]);
 
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (!seekable || !onSeek || event.button !== 0) return;
       event.preventDefault();
+      cancelPointerPreview();
       activePointerRef.current = event.pointerId;
       if (supportsHoverPreview(event.pointerType)) hoverPointerRef.current = true;
       if (document.activeElement !== event.currentTarget) {
         event.currentTarget.focus({ preventScroll: true });
       }
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      setPreview(percentageFromPointer(event));
+      setPreview(percentageFromPointer(event.currentTarget, event.clientX, event.clientY));
     },
-    [onSeek, percentageFromPointer, seekable, setPreview],
+    [cancelPointerPreview, onSeek, percentageFromPointer, seekable, setPreview],
   );
 
   const handlePointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (activePointerRef.current === event.pointerId) {
         event.preventDefault();
-        setPreview(percentageFromPointer(event));
+        schedulePointerPreview(event);
         return;
       }
       if (activePointerRef.current !== null || !supportsHoverPreview(event.pointerType)) return;
       hoverPointerRef.current = true;
-      setPreview(percentageFromPointer(event));
+      schedulePointerPreview(event);
     },
-    [percentageFromPointer, setPreview],
+    [schedulePointerPreview],
   );
 
   const handlePointerUp = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (activePointerRef.current !== event.pointerId) return;
       event.preventDefault();
-      const targetPercentage = percentageFromPointer(event);
+      cancelPointerPreview();
+      const targetPercentage = percentageFromPointer(
+        event.currentTarget,
+        event.clientX,
+        event.clientY,
+      );
       activePointerRef.current = null;
       if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
         event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -186,12 +234,13 @@ export function ReaderProgressBar({
       }
       commitSeek(targetPercentage);
     },
-    [commitSeek, percentageFromPointer, restoreFocusPreview, setPreview],
+    [cancelPointerPreview, commitSeek, percentageFromPointer, restoreFocusPreview, setPreview],
   );
 
   const handlePointerCancel = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
       if (activePointerRef.current !== event.pointerId) return;
+      cancelPointerPreview();
       activePointerRef.current = null;
       hoverPointerRef.current = false;
       if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
@@ -199,7 +248,7 @@ export function ReaderProgressBar({
       }
       restoreFocusPreview();
     },
-    [restoreFocusPreview],
+    [cancelPointerPreview, restoreFocusPreview],
   );
 
   const handleKeyDown = useCallback(
@@ -237,12 +286,13 @@ export function ReaderProgressBar({
 
       event.preventDefault();
       event.stopPropagation();
+      cancelPointerPreview();
       focusOwnsPreviewRef.current = true;
       const nextPreview = setPreview(targetPercentage);
       focusPreviewRef.current = nextPreview;
       if (nextPreview) commitSeek(nextPreview.percentage);
     },
-    [commitSeek, currentPercentage, onSeek, placement, seekable, setPreview],
+    [cancelPointerPreview, commitSeek, currentPercentage, onSeek, placement, seekable, setPreview],
   );
 
   const visiblePreview = seekable ? preview : null;
@@ -270,6 +320,7 @@ export function ReaderProgressBar({
       onBlur={seekable ? handleBlur : undefined}
       onFocus={seekable ? handleFocus : undefined}
       onKeyDown={seekable ? handleKeyDown : undefined}
+      onLostPointerCapture={seekable ? handlePointerCancel : undefined}
       onPointerCancel={seekable ? handlePointerCancel : undefined}
       onPointerDown={seekable ? handlePointerDown : undefined}
       onPointerEnter={seekable ? handlePointerEnter : undefined}
