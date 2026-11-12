@@ -380,6 +380,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, [activeArchive.id, booksLoadState, changeFilters, filterOptions, filters]);
 
   const selectionReturnFocusRef = useRef<HTMLElement | null>(null);
+  const selectionBarExitButtonRef = useRef<HTMLButtonElement>(null);
   const leaveSelectionMode = useCallback(() => {
     exitSelectionMode();
     const returnFocus = selectionReturnFocusRef.current;
@@ -399,6 +400,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
     selectionReturnFocusRef.current = currentFocusOrigin() ?? navigation.searchInputRef.current;
     enterSelectionMode();
+    window.requestAnimationFrame(() => selectionBarExitButtonRef.current?.focus());
   }, [enterSelectionMode, leaveSelectionMode, navigation.searchInputRef, selectionMode]);
   const changeBookSelection = useCallback(
     (book: LibrarySnapshotBook, intent: LibrarySelectionIntent) => {
@@ -910,6 +912,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 onExit: leaveSelectionMode,
                 onSelectVisible: () => selectVisible(visibleBooks),
                 selectedCount: selectedBookIds.size,
+                exitButtonRef: selectionBarExitButtonRef,
                 visibleCount: visibleBooks.length,
                 visibleSelectedCount,
               }

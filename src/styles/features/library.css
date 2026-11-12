@@ -41,6 +41,16 @@ html[data-density="compact"] .book-grid {
   text-transform: uppercase;
 }
 
+.library-header__primary-row {
+  position: relative;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 24px;
+  min-width: 0;
+}
+
 .library-header__actions {
   --collection-header-utility-inset: 1px;
   --collection-header-control-height: var(--control-height-standard);
@@ -167,6 +177,21 @@ html[data-density="compact"] .book-grid {
   cursor: pointer;
 }
 
+.library-header__selection-row {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.library-header[data-selection-mode="true"] .library-header__title,
+.library-header[data-selection-mode="true"] .library-header__actions {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .page-shell:has(> .library-selection-bar) {
   padding-top: 12px;
 }
@@ -175,19 +200,23 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   padding-top: 10px;
 }
 
-.library-selection-bar {
+.page-shell > .library-selection-bar {
   position: sticky;
   z-index: 5;
   top: 10px;
+  margin: 0 auto 28px;
+}
+
+.library-selection-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   width: 100%;
   max-width: 1440px;
-  min-height: 44px;
-  padding: 5px 6px 5px 12px;
-  margin: 0 auto 28px;
+  min-height: 52px;
+  padding: 8px 10px 8px 14px;
+  margin: 0;
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-menu);
   background: var(--surface);
@@ -1173,14 +1202,17 @@ html[data-motion="on"] .details-drawer[open] {
     grid-template-columns: 1fr;
   }
 
+  .library-header__primary-row {
+    grid-template-columns: 1fr;
+  }
+
   .library-header__actions {
     grid-row: 2;
     width: 100%;
   }
 
-  .library-header > .library-controls,
   .library-header__control-group {
-    grid-row: 3;
+    grid-row: 2;
   }
 
   .book-row__select {
@@ -1214,12 +1246,15 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 @media (max-width: 560px) {
+  .page-shell > .library-selection-bar {
+    margin-bottom: 36px;
+  }
+
   .library-selection-bar {
     align-items: stretch;
     flex-direction: column;
     gap: 4px;
     padding: 10px;
-    margin-bottom: 36px;
   }
 
   .library-selection-bar__status {

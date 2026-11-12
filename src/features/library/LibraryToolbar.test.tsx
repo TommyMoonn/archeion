@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
 import { LibraryToolbar } from "./LibraryToolbar";
+import type { LibrarySelectionBarProps } from "./LibrarySelectionBar";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -19,6 +20,19 @@ import { LibraryToolbar } from "./LibraryToolbar";
 vi.mock("../archive/RescanArchiveButton", () => ({
   RescanArchiveButton: () => <button aria-label="Rescan archive" type="button" />,
 }));
+
+function createSelectionBarProps(): LibrarySelectionBarProps {
+  return {
+    onAction: vi.fn(),
+    onClear: vi.fn(),
+    onDeselectVisible: vi.fn(),
+    onExit: vi.fn(),
+    onSelectVisible: vi.fn(),
+    selectedCount: 0,
+    visibleCount: 0,
+    visibleSelectedCount: 0,
+  };
+}
 
 function renderToolbar() {
   return renderToStaticMarkup(
@@ -38,6 +52,7 @@ function renderToolbar() {
       onViewChange={vi.fn()}
       query=""
       resultCount={0}
+      selectionBarProps={null}
       selectionMode={false}
       sort="title"
       title="Library"
@@ -53,6 +68,7 @@ function renderInteractiveToolbar({
   onFilterChange = vi.fn(),
   onQueryChange = vi.fn(),
   onToggleSelectionMode = vi.fn(),
+  selectionBarProps = null,
   selectionMode = false,
 }: {
   filters?: LibraryFilterState;
@@ -61,6 +77,7 @@ function renderInteractiveToolbar({
   onFilterChange?: (filters: LibraryFilterState) => void;
   onQueryChange?: (query: string) => void;
   onToggleSelectionMode?: () => void;
+  selectionBarProps?: LibrarySelectionBarProps | null;
   selectionMode?: boolean;
 } = {}) {
   const container = document.createElement("div");
@@ -89,6 +106,7 @@ function renderInteractiveToolbar({
         onViewChange={vi.fn()}
         query="Dune"
         resultCount={1}
+        selectionBarProps={selectionBarProps}
         selectionMode={selectionMode}
         sort="title"
         title="Library"
@@ -103,20 +121,50 @@ function renderInteractiveToolbar({
 let activeRoot: Root | null = null;
 
 describe("LibraryToolbar", () => {
-  it.each([false, true])(
-    "keeps the selection-mode name stable when pressed is %s",
-    (selectionMode) => {
-      const onToggleSelectionMode = vi.fn();
-      const session = renderInteractiveToolbar({ selectionMode, onToggleSelectionMode });
-      activeRoot = session.root;
-      const toggle = session.container.querySelector<HTMLButtonElement>(
-        '[aria-label="Select books"]',
-      );
-      expect(toggle?.getAttribute("aria-pressed")).toBe(String(selectionMode));
-      act(() => toggle?.click());
-      expect(onToggleSelectionMode).toHaveBeenCalledOnce();
-    },
-  );
+  it("morphs the title and primary actions while keeping collection controls available", () => {
+    const session = renderInteractiveToolbar({
+      selectionBarProps: createSelectionBarProps(),
+      selectionMode: true,
+    });
+    activeRoot = session.root;
+
+    const header = session.container.querySelector<HTMLElement>(".library-header");
+    expect(header?.dataset.selectionMode).toBe("true");
+    expect(header?.querySelector(".library-header__title")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(header?.querySelector(".library-header__title h1")?.textContent).toBe("Library");
+    const primaryRow = header?.querySelector(".library-header__primary-row");
+    expect(primaryRow?.querySelector(".library-header__title")).not.toBeNull();
+    expect(primaryRow?.querySelector(".library-header__actions")).not.toBeNull();
+    expect(
+      primaryRow?.querySelector(".library-header__selection-row .library-selection-bar"),
+    ).not.toBeNull();
+    expect(header?.querySelector(".library-header__control-group")?.parentElement).toBe(header);
+    expect(header?.querySelector(".library-header__actions")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(
+      header?.querySelector(".library-header__control-group")?.hasAttribute("aria-hidden"),
+    ).toBe(false);
+    expect(header?.querySelector(".library-controls__filters")).not.toBeNull();
+    expect(header?.querySelector(".library-controls__display")).not.toBeNull();
+    expect(header?.querySelector('button[aria-label="Sort library"]')).not.toBeNull();
+    expect(header?.querySelector('input[name="archeion-library-search"]')).not.toBeNull();
+  });
+
+  it("keeps the selection entry control available before selection mode starts", () => {
+    const onToggleSelectionMode = vi.fn();
+    const session = renderInteractiveToolbar({ onToggleSelectionMode });
+    activeRoot = session.root;
+    const toggle = session.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Select books"]',
+    );
+
+    expect(toggle?.getAttribute("aria-pressed")).toBe("false");
+    act(() => toggle?.click());
+    expect(onToggleSelectionMode).toHaveBeenCalledOnce();
+  });
   afterEach(() => {
     if (activeRoot) {
       act(() => activeRoot?.unmount());
@@ -195,6 +243,26 @@ describe("LibraryToolbar", () => {
     expect(seriesSource).toContain(
       'className="library-header__actions library-header__actions--search-only series-header__actions"',
     );
+  });
+
+  it("overlays the selection bar inside the primary row without adding a header grid row", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
+
+    expect(styles).toMatch(
+      /\.library-header__primary-row\s*\{[^}]*position:\s*relative;[^}]*display:\s*grid;[^}]*grid-column:\s*1 \/ -1;/s,
+    );
+    expect(styles).toMatch(
+      /\.library-header__selection-row\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s,
+    );
+    expect(styles).not.toMatch(/\.library-header__selection-row\s*\{[^}]*grid-row:/s);
+    expect(styles).toMatch(
+      /\.library-header\[data-selection-mode="true"\] \.library-header__title,\s*\.library-header\[data-selection-mode="true"\] \.library-header__actions\s*\{[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/s,
+    );
+    expect(styles).not.toMatch(
+      /\.library-header\[data-selection-mode="true"\] \.library-header__control-group/,
+    );
+    expect(styles).toMatch(/\.library-selection-bar\s*\{[^}]*min-height:\s*52px;/s);
+    expect(styles).toMatch(/\.page-shell > \.library-selection-bar\s*\{[^}]*position:\s*sticky;/s);
   });
 
   it("groups utility actions before a divider and the primary action", () => {

@@ -35,6 +35,101 @@ for (const view of ["grid", "list"] as const) {
   });
 }
 
+for (const width of [1280, 900]) {
+  test(`selection header morphs without moving the collection at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`${fixture}?count=2`, { waitUntil: "domcontentloaded" });
+
+    const header = page.locator(".library-header");
+    const collection = page.locator(".library-content--books");
+    await expect(collection).toHaveAttribute("data-surface-state", "results");
+    await expect(page.locator(".book-grid")).toBeVisible();
+
+    const initialGeometry = await page.evaluate(() => {
+      const collection = document.querySelector(".library-content--books")!;
+      const primaryRow = document.querySelector(".library-header__primary-row")!;
+      const controls = document.querySelector(".library-header__control-group")!;
+      const primaryRowRect = primaryRow.getBoundingClientRect();
+      return {
+        collectionTop: collection.getBoundingClientRect().top,
+        controlsTop: controls.getBoundingClientRect().top,
+        primaryRowTop: primaryRowRect.top,
+        primaryRowHeight: primaryRowRect.height,
+      };
+    });
+    await page.getByRole("button", { name: "Select books", exact: true }).click();
+
+    await expect(header).toHaveAttribute("data-selection-mode", "true");
+    const selectionBar = header.locator(
+      ".library-header__primary-row .library-header__selection-row .library-selection-bar",
+    );
+    await expect(selectionBar).toBeVisible();
+    expect(
+      await header
+        .locator(".library-header__selection-row")
+        .evaluate((node) => node.parentElement?.classList.contains("library-header__primary-row")),
+    ).toBe(true);
+    await expect(header.locator(".library-header__title")).toHaveAttribute("aria-hidden", "true");
+    await expect(header.locator(".library-header__actions")).toHaveAttribute("aria-hidden", "true");
+    await expect(header.locator(".library-header__control-group")).not.toHaveAttribute(
+      "aria-hidden",
+    );
+    await expect(header.locator(".library-controls__filters")).toBeVisible();
+    await expect(header.locator(".library-controls__display")).toBeVisible();
+    await expect(header.getByRole("combobox", { name: "Sort library" })).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const primaryRow = document.querySelector(".library-header__primary-row")!;
+          const primaryRowRect = primaryRow.getBoundingClientRect();
+          return {
+            collectionTop: document
+              .querySelector(".library-content--books")!
+              .getBoundingClientRect().top,
+            controlsTop: document
+              .querySelector(".library-header__control-group")!
+              .getBoundingClientRect().top,
+            primaryRowTop: primaryRowRect.top,
+            primaryRowHeight: primaryRowRect.height,
+          };
+        }),
+      )
+      .toEqual(initialGeometry);
+
+    const [primaryRowBox, selectionBarBox] = await Promise.all([
+      header.locator(".library-header__primary-row").boundingBox(),
+      selectionBar.boundingBox(),
+    ]);
+    expect(primaryRowBox).not.toBeNull();
+    expect(selectionBarBox).not.toBeNull();
+    expect(selectionBarBox!.y).toBeGreaterThanOrEqual(primaryRowBox!.y - 1);
+    expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThanOrEqual(
+      primaryRowBox!.y + primaryRowBox!.height + 1,
+    );
+
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(header).not.toHaveAttribute("data-selection-mode", "true");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const primaryRow = document.querySelector(".library-header__primary-row")!;
+          const primaryRowRect = primaryRow.getBoundingClientRect();
+          return {
+            collectionTop: document
+              .querySelector(".library-content--books")!
+              .getBoundingClientRect().top,
+            controlsTop: document
+              .querySelector(".library-header__control-group")!
+              .getBoundingClientRect().top,
+            primaryRowTop: primaryRowRect.top,
+            primaryRowHeight: primaryRowRect.height,
+          };
+        }),
+      )
+      .toEqual(initialGeometry);
+  });
+}
+
 test("archive, view and Reader handoffs retire ownership with one entrance", async ({ page }) => {
   await page.addInitScript(() => {
     document.addEventListener("animationstart", (event) => {

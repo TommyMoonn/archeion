@@ -25,7 +25,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 
 describe("LibraryPage selection and bulk workflows", () => {
   const suite = setupLibraryPageTestSuite();
-  it("supports Ctrl toggles, rendered-order Shift ranges, and visible-only selection", async () => {
+  it("supports Ctrl toggles and rendered-order Shift ranges with the morphing selection header", async () => {
     const books = [
       selectionBook("delta", "Delta"),
       selectionBook("alpha", "Alpha"),
@@ -51,29 +51,24 @@ describe("LibraryPage selection and bulk workflows", () => {
     );
     expect(session.container.querySelectorAll('.book-card[data-selected="true"]')).toHaveLength(4);
 
-    const search = session.container.querySelector<HTMLInputElement>(
-      'input[name="archeion-library-search"]',
+    const header = session.container.querySelector<HTMLElement>(".library-header");
+    expect(header?.dataset.selectionMode).toBe("true");
+    expect(
+      header
+        ?.querySelector(".library-header__primary-row")
+        ?.querySelector(".library-header__selection-row .library-selection-bar"),
+    ).not.toBeNull();
+    expect(header?.querySelector(".library-header__title")?.getAttribute("aria-hidden")).toBe(
+      "true",
     );
-    await act(async () => {
-      if (search) setInputValue(search, "Charlie");
-      await new Promise((resolve) => window.setTimeout(resolve, 180));
-    });
-
-    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
-      "3 selected outside this view.",
+    expect(header?.querySelector(".library-header__actions")?.getAttribute("aria-hidden")).toBe(
+      "true",
     );
-    await act(async () => {
-      buttonWithText(session.container, "Deselect all").click();
-    });
-    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
-      "3 selected",
-    );
-
-    await act(async () => {
-      if (search) setInputValue(search, "");
-      await new Promise((resolve) => window.setTimeout(resolve, 180));
-    });
-    expect(session.container.querySelectorAll('.book-card[data-selected="true"]')).toHaveLength(3);
+    expect(
+      header?.querySelector(".library-header__control-group")?.hasAttribute("aria-hidden"),
+    ).toBe(false);
+    expect(header?.querySelector(".library-controls__filters")).not.toBeNull();
+    expect(header?.querySelector(".library-controls__display")).not.toBeNull();
 
     await act(async () => {
       buttonWithText(session.container, "Clear").click();
@@ -81,6 +76,61 @@ describe("LibraryPage selection and bulk workflows", () => {
     expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
       "0 selected",
     );
+    expect(session.container.querySelectorAll('.book-card[data-selected="true"]')).toHaveLength(0);
+  });
+
+  it("replaces the title and search actions while preserving filters and the current query", async () => {
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    const search = session.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    )!;
+    await act(async () => {
+      setInputValue(search, "Alpha");
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
+    });
+    expect(session.container.querySelector(".library-result-count")?.textContent).toBe("1 book");
+
+    await act(async () => clickBook(session.container, "Alpha", { ctrlKey: true }));
+
+    const header = session.container.querySelector<HTMLElement>(".library-header");
+    expect(header?.dataset.selectionMode).toBe("true");
+    expect(
+      header
+        ?.querySelector(".library-header__selection-row")
+        ?.parentElement?.classList.contains("library-header__primary-row"),
+    ).toBe(true);
+    expect(header?.querySelector(".library-header__title")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(header?.querySelector(".library-header__actions")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(
+      header?.querySelector(".library-header__control-group")?.hasAttribute("aria-hidden"),
+    ).toBe(false);
+    expect(header?.querySelector(".library-controls__filters")).not.toBeNull();
+    expect(header?.querySelector(".library-controls__display")).not.toBeNull();
+    expect(search.value).toBe("Alpha");
+    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
+      "1 selected",
+    );
+
+    await act(async () => {
+      buttonWithText(session.container, "Done").click();
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+
+    expect(header?.dataset.selectionMode).toBeUndefined();
+    expect(header?.querySelector(".library-header__actions")?.hasAttribute("aria-hidden")).toBe(
+      false,
+    );
+    expect(search.value).toBe("Alpha");
+    expect(session.container.querySelector(".library-result-count")?.textContent).toBe("1 book");
   });
 
   it("applies range and Select all to the complete result across unmounted windows", async () => {
@@ -336,7 +386,14 @@ describe("LibraryPage selection and bulk workflows", () => {
 
     await act(async () => selectButton.click());
     await act(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+    expect(document.activeElement).toBe(buttonWithText(session.container, "Done"));
+
+    act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    });
+    await act(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
     });
 
