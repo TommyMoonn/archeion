@@ -24,17 +24,14 @@ import type { LucideIcon } from "lucide-react";
 import {
   memo,
   useCallback,
-  useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactElement,
   type RefObject,
 } from "react";
 
+import { LibraryPanelResizeHandle } from "./LibraryPanelResizeHandle";
 import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
 import { ActionListButton } from "../../components/MenuItem";
@@ -161,22 +158,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
   const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
-  const [resizing, setResizing] = useState(false);
-  const resizePointerRef = useRef<{
-    pointerId: number;
-    startClientX: number;
-    startWidth: number;
-    rtl: boolean;
-  } | null>(null);
-  const resizeWidthRef = useRef(width);
-  const resizeFrameRef = useRef<number | null>(null);
-  const pendingResizeWidthRef = useRef<number | null>(null);
-  useEffect(
-    () => () => {
-      if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);
-    },
-    [],
-  );
   const smartViewsContentId = useId();
   const activeSmartView = librarySmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
@@ -193,81 +174,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
     () => new Map(sortedFolderEntries.map((entry, index) => [entry.folder.id, index])),
     [sortedFolderEntries],
   );
-
-  const updateResizeWidth = (nextWidth: number) => {
-    const clamped = Math.round(
-      Math.min(LIBRARY_SIDEBAR_MAX_WIDTH, Math.max(LIBRARY_SIDEBAR_MIN_WIDTH, nextWidth)),
-    );
-    resizeWidthRef.current = clamped;
-    onWidthChange?.(clamped);
-  };
-
-  const handleResizePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !onWidthChange || resizePointerRef.current) return;
-    event.preventDefault();
-    if (!event.currentTarget.parentElement) return;
-    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
-    resizePointerRef.current = {
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startWidth: width,
-      rtl,
-    };
-    resizeWidthRef.current = width;
-    setResizing(true);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handleResizePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointer = resizePointerRef.current;
-    if (!pointer || pointer.pointerId !== event.pointerId) return;
-    pendingResizeWidthRef.current =
-      pointer.startWidth + (pointer.rtl ? -1 : 1) * (event.clientX - pointer.startClientX);
-    if (resizeFrameRef.current !== null) return;
-    resizeFrameRef.current = requestAnimationFrame(() => {
-      resizeFrameRef.current = null;
-      const pendingWidth = pendingResizeWidthRef.current;
-      pendingResizeWidthRef.current = null;
-      if (pendingWidth !== null) updateResizeWidth(pendingWidth);
-    });
-  };
-
-  const finishResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointer = resizePointerRef.current;
-    if (!pointer || pointer.pointerId !== event.pointerId) return;
-    if (resizeFrameRef.current !== null) {
-      cancelAnimationFrame(resizeFrameRef.current);
-      resizeFrameRef.current = null;
-    }
-    const pendingWidth = pendingResizeWidthRef.current;
-    pendingResizeWidthRef.current = null;
-    if (pendingWidth !== null) updateResizeWidth(pendingWidth);
-    resizePointerRef.current = null;
-    setResizing(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    onWidthCommit?.(resizeWidthRef.current);
-  };
-
-  const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!onWidthChange) return;
-    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
-    const step = event.shiftKey ? 24 : 8;
-    let nextWidth: number | null = null;
-    if (event.key === "Home") nextWidth = LIBRARY_SIDEBAR_MIN_WIDTH;
-    else if (event.key === "End") nextWidth = LIBRARY_SIDEBAR_MAX_WIDTH;
-    else if (event.key === "ArrowRight") nextWidth = width + (rtl ? -step : step);
-    else if (event.key === "ArrowLeft") nextWidth = width + (rtl ? step : -step);
-    if (nextWidth === null) return;
-    event.preventDefault();
-    updateResizeWidth(nextWidth);
-    onWidthCommit?.(
-      Math.round(
-        Math.min(LIBRARY_SIDEBAR_MAX_WIDTH, Math.max(LIBRARY_SIDEBAR_MIN_WIDTH, nextWidth)),
-      ),
-    );
-  };
 
   const manageArchives = useCallback(() => {
     closeArchiveSwitcher({ restoreFocus: true });
@@ -538,26 +444,17 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         </IconButton>
       </div>
       {resizable && !isCollapsed ? (
-        <Tooltip content="Drag to resize sidebar" placement="right">
-          <div
-            aria-label="Resize sidebar"
-            aria-orientation="vertical"
-            aria-valuemax={LIBRARY_SIDEBAR_MAX_WIDTH}
-            aria-valuemin={LIBRARY_SIDEBAR_MIN_WIDTH}
-            aria-valuenow={width}
-            aria-valuetext={`${width} pixels`}
-            className="sidebar__resize-handle"
-            data-resizing={resizing || undefined}
-            role="separator"
-            tabIndex={0}
-            onKeyDown={handleResizeKeyDown}
-            onLostPointerCapture={finishResize}
-            onPointerCancel={finishResize}
-            onPointerDown={handleResizePointerDown}
-            onPointerMove={handleResizePointerMove}
-            onPointerUp={finishResize}
-          />
-        </Tooltip>
+        <LibraryPanelResizeHandle
+          label="Resize sidebar"
+          tooltip="Drag to resize sidebar"
+          className="sidebar__resize-handle"
+          edge="end"
+          minWidth={LIBRARY_SIDEBAR_MIN_WIDTH}
+          maxWidth={LIBRARY_SIDEBAR_MAX_WIDTH}
+          width={width}
+          onWidthChange={onWidthChange}
+          onWidthCommit={onWidthCommit}
+        />
       ) : null}
     </aside>
   );

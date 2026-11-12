@@ -190,6 +190,13 @@ export function BookDetailsDrawerContent({
           </div>
         )}
 
+        {book.sourceMetadata?.description?.trim() ? (
+          <section className="details-description">
+            <h3>Description</h3>
+            <p>{book.sourceMetadata.description}</p>
+          </section>
+        ) : null}
+
         <dl className="book-metadata book-metadata--compact">
           <div>
             <dt>

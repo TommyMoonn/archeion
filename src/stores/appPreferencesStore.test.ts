@@ -31,6 +31,21 @@ describe("automatic update preference compatibility", () => {
   });
 });
 
+describe("book details layout preferences", () => {
+  it("restores pin and width after reopening and synchronizes another window", async () => {
+    const harness = createDesktopSettingsHarness();
+    const first = new AppPreferencesStore(harness.createWindow().persistence);
+    await first.initialize();
+    const update = first.updateLibrary({ detailsPinned: true, detailsWidth: 400 });
+    await update;
+    const second = new AppPreferencesStore(harness.createWindow().persistence);
+    await second.initialize();
+    expect(second.getSnapshot().library).toMatchObject({ detailsPinned: true, detailsWidth: 400 });
+    await first.updateLibrary({ detailsPinned: false });
+    expect(second.getSnapshot().library).toMatchObject({ detailsPinned: false, detailsWidth: 400 });
+  });
+});
+
 function createPersistence(
   overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
 ) {
@@ -176,6 +191,12 @@ function applyNativeMutation(
   if (mutation.area === "libraryField") {
     const library = structuredClone(snapshot.preferences.library);
     switch (mutation.value.field) {
+      case "detailsPinned":
+        library.detailsPinned = mutation.value.value;
+        break;
+      case "detailsWidth":
+        library.detailsWidth = mutation.value.value;
+        break;
       case "booksCardSize":
         library.collections.books.cardSize = mutation.value.value;
         break;
@@ -1129,6 +1150,8 @@ describe("app preferences", () => {
         shortcuts: {},
       },
       library: {
+        detailsPinned: false,
+        detailsWidth: 336,
         filters: {
           series: ["Star Saga"],
           subjects: ["Space Opera"],

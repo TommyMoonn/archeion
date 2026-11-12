@@ -110,9 +110,11 @@ pub struct LibraryCollectionDisplaySettings {
     pub series: SeriesCollectionDisplaySettings,
 }
 
-#[derive(Clone, Debug, Default, Serialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryDisplaySettings {
+    pub details_pinned: bool,
+    pub details_width: u16,
     pub collections: LibraryCollectionDisplaySettings,
     pub filters: LibraryFilterSettings,
     pub smart_views: LibrarySmartViewSettings,
@@ -455,6 +457,14 @@ fn false_field(object: &Map<String, Value>, key: &str) -> bool {
 
 fn number_field(object: &Map<String, Value>, key: &str) -> Option<f64> {
     object.get(key).and_then(Value::as_f64)
+}
+
+fn normalize_book_details_width(width: Option<f64>) -> u16 {
+    width
+        .filter(|value| value.is_finite())
+        .unwrap_or(336.0)
+        .clamp(280.0, 480.0)
+        .round() as u16
 }
 
 fn normalize_filter_values(values: Option<&Value>) -> Vec<String> {
@@ -1059,6 +1069,12 @@ impl Default for SeriesCollectionDisplaySettings {
     }
 }
 
+impl Default for LibraryDisplaySettings {
+    fn default() -> Self {
+        Self::from_value(None, None)
+    }
+}
+
 impl LibraryDisplaySettings {
     fn from_value(value: Option<&Value>, legacy_book_card_size: Option<&Value>) -> Self {
         let settings = value.and_then(Value::as_object);
@@ -1138,6 +1154,10 @@ impl LibraryDisplaySettings {
                     ),
                 },
             },
+            details_pinned: settings.is_some_and(|value| true_field(value, "detailsPinned")),
+            details_width: normalize_book_details_width(
+                settings.and_then(|value| number_field(value, "detailsWidth")),
+            ),
             filters: normalize_library_filters(
                 settings.and_then(|value| object_field(value, "filters")),
             ),
@@ -1249,6 +1269,8 @@ impl Default for AppPreferences {
     deny_unknown_fields
 )]
 pub enum LibrarySettingsMutation {
+    DetailsPinned(bool),
+    DetailsWidth(f64),
     BooksCardSize(String),
     BooksSortBy(String),
     BooksViewMode(String),
@@ -1273,6 +1295,10 @@ pub enum LibrarySettingsMutation {
 impl LibrarySettingsMutation {
     fn apply(self, settings: &mut LibraryDisplaySettings) {
         match self {
+            Self::DetailsPinned(value) => settings.details_pinned = value,
+            Self::DetailsWidth(value) => {
+                settings.details_width = normalize_book_details_width(Some(value))
+            }
             Self::BooksCardSize(value) => settings.collections.books.card_size = value,
             Self::BooksSortBy(value) => settings.collections.books.sort_by = value,
             Self::BooksViewMode(value) => settings.collections.books.view_mode = value,
@@ -1927,6 +1953,30 @@ mod tests {
     }
 
     #[test]
+    fn book_details_preferences_default_and_normalize_existing_settings() {
+        for (input, pinned, width) in [
+            (serde_json::json!({}), false, 336),
+            (
+                serde_json::json!({ "detailsPinned": true, "detailsWidth": 400.4 }),
+                true,
+                400,
+            ),
+            (
+                serde_json::json!({ "detailsPinned": "true", "detailsWidth": "400" }),
+                false,
+                336,
+            ),
+            (serde_json::json!({ "detailsWidth": -1 }), false, 280),
+            (serde_json::json!({ "detailsWidth": 999 }), false, 480),
+        ] {
+            let settings: super::LibraryDisplaySettings =
+                serde_json::from_value(input).expect("settings should normalize");
+            assert_eq!(settings.details_pinned, pinned);
+            assert_eq!(settings.details_width, width);
+        }
+    }
+
+    #[test]
     fn app_settings_mutations_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value = serde_json::from_str(include_str!(
             "../../../tests/fixtures/app-settings-mutations/v4.json"
@@ -2326,6 +2376,8 @@ mod tests {
                 .collect(),
             },
             library: super::LibraryDisplaySettings {
+                details_pinned: true,
+                details_width: 400,
                 collections: super::LibraryCollectionDisplaySettings {
                     books: super::BookCollectionDisplaySettings {
                         card_size: "large".to_string(),

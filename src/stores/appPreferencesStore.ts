@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 
 import { normalizeKeyboardPreferences } from "../features/commands/commandBindings";
 import { CoalescedWriteQueue } from "../storage/CoalescedWriteQueue";
+import { normalizeBookDetailsWidth } from "../types/libraryDetails";
 import {
   defaultAppPreferences,
   APP_SETTINGS_CHANGED_EVENT,
@@ -205,6 +206,8 @@ function normalizeLibrarySettings(
         ),
       },
     },
+    detailsPinned: settings.detailsPinned === true,
+    detailsWidth: normalizeBookDetailsWidth(settings.detailsWidth),
     filters: normalizeLibraryFilters(settings.filters),
     smartViews: normalizeLibrarySmartViewPreferences(settings.smartViews),
   };
@@ -515,6 +518,14 @@ function createLibrarySettingsMutations(
 ): Extract<AppSettingsMutation, { area: "libraryField" }>[] {
   const candidates: FieldMutationCandidate<LibrarySettingsMutation>[] = [
     {
+      current: persisted.detailsPinned,
+      mutation: { field: "detailsPinned", value: target.detailsPinned },
+    },
+    {
+      current: persisted.detailsWidth,
+      mutation: { field: "detailsWidth", value: target.detailsWidth },
+    },
+    {
       current: persisted.collections.books.cardSize,
       mutation: { field: "booksCardSize", value: target.collections.books.cardSize },
     },
@@ -753,6 +764,10 @@ function applyLibrarySettingsMutation(
   mutation: LibrarySettingsMutation,
 ): LibraryDisplaySettings {
   switch (mutation.field) {
+    case "detailsPinned":
+      return { ...settings, detailsPinned: mutation.value };
+    case "detailsWidth":
+      return { ...settings, detailsWidth: normalizeBookDetailsWidth(mutation.value) };
     case "booksCardSize":
       return updateLibraryCollectionField(settings, "books", "cardSize", mutation.value);
     case "booksSortBy":

@@ -26,6 +26,7 @@ type BookGridProps = {
   canDelete?: boolean;
   canManageFile?: boolean;
   selectedBookIds: ReadonlySet<string>;
+  inspectedBookId?: string;
   selectionMode: boolean;
   returnFocusRequest?: LibraryReturnFocusRequest | null;
   onContextMenuUnavailable?: (reason: string) => void;
@@ -46,6 +47,7 @@ export const BookGrid = memo(function BookGrid({
   canDelete = true,
   canManageFile = false,
   selectedBookIds,
+  inspectedBookId,
   selectionMode,
   returnFocusRequest,
   onContextMenuUnavailable,
@@ -99,6 +101,7 @@ export const BookGrid = memo(function BookGrid({
             canDelete={canDelete}
             canManageFile={canManageFile}
             selected={selectedBookIds.has(book.id)}
+            inspected={inspectedBookId === undefined ? undefined : inspectedBookId === book.id}
             selectionMode={selectionMode}
             collectionIndex={range.start + retainedIndex}
             contextMenuDisabledReason={contextMenuDisabledReason}

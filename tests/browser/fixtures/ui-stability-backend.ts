@@ -78,6 +78,19 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     },
   };
   const preferences: AppPreferences = structuredClone(defaultAppPreferences);
+  const savedDetails: unknown = JSON.parse(
+    sessionStorage.getItem("ui-stability-book-details") ?? "null",
+  );
+  if (
+    savedDetails &&
+    typeof savedDetails === "object" &&
+    "detailsPinned" in savedDetails &&
+    "detailsWidth" in savedDetails
+  ) {
+    preferences.library.detailsPinned = savedDetails.detailsPinned === true;
+    if (typeof savedDetails.detailsWidth === "number")
+      preferences.library.detailsWidth = savedDetails.detailsWidth;
+  }
   preferences.library.collections.books.viewMode = params.get("view") === "list" ? "list" : "grid";
   preferences.automaticallyCheckForUpdates = false;
   preferences.rememberWindowState = false;
@@ -192,6 +205,13 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
             input.mutation as Parameters<typeof applyAppSettingsMutation>[1],
           );
           Object.assign(preferences, next);
+          sessionStorage.setItem(
+            "ui-stability-book-details",
+            JSON.stringify({
+              detailsPinned: preferences.library.detailsPinned,
+              detailsWidth: preferences.library.detailsWidth,
+            }),
+          );
           return { revision: ++revision, preferences };
         }
         case "load_archive_registry":

@@ -41,6 +41,7 @@ type BookListProps = {
   canDelete?: boolean;
   canManageFile?: boolean;
   selectedBookIds: ReadonlySet<string>;
+  inspectedBookId?: string;
   selectionMode: boolean;
   returnFocusRequest?: LibraryReturnFocusRequest | null;
   onContextMenuUnavailable?: (reason: string) => void;
@@ -50,6 +51,7 @@ type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
   book: ReadonlyBook;
   collectionIndex?: number;
   selected: boolean;
+  inspected?: boolean;
   contextMenuDisabledReason?: string;
   onContextMenuUnavailable?: (reason: string) => void;
 };
@@ -68,6 +70,7 @@ function BookRowComponent({
   canDelete = true,
   canManageFile = false,
   selected,
+  inspected,
   selectionMode,
   collectionIndex,
   contextMenuDisabledReason,
@@ -117,13 +120,14 @@ function BookRowComponent({
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
+      data-inspected={inspected || undefined}
       data-selection-mode={selectionMode || undefined}
       onContextMenu={handleContextMenu}
     >
       <button
         aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : undefined}
-        aria-pressed={selectionMode ? selected : undefined}
+        aria-pressed={selectionMode ? selected : inspected}
         className="book-row__select"
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
@@ -196,6 +200,7 @@ const BookRow = memo(
     previous.canDelete === next.canDelete &&
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
+    previous.inspected === next.inspected &&
     previous.selectionMode === next.selectionMode &&
     previous.collectionIndex === next.collectionIndex &&
     previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
@@ -214,6 +219,7 @@ const BookRow = memo(
 export const BookList = memo(function BookList({
   books,
   selectedBookIds,
+  inspectedBookId,
   returnFocusRequest,
   ...rowProps
 }: BookListProps) {
@@ -254,6 +260,7 @@ export const BookList = memo(function BookList({
             book={book}
             key={book.id}
             selected={selectedBookIds.has(book.id)}
+            inspected={inspectedBookId === undefined ? undefined : inspectedBookId === book.id}
             collectionIndex={range.start + retainedIndex}
             contextMenuDisabledReason={contextMenuDisabledReason}
             {...rowProps}

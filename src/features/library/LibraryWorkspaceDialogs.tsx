@@ -50,6 +50,12 @@ import type {
 } from "./useLibraryWorkspaceDialogs";
 
 type LibraryWorkspaceDialogsProps = {
+  detailsDocked?: boolean;
+  detailsPinned?: boolean;
+  onToggleDetailsPinned?: () => void;
+  detailsWidth?: number;
+  onDetailsWidthChange?: (width: number) => void;
+  onDetailsWidthCommit?: (width: number) => void;
   books: readonly LibrarySnapshotBook[] | undefined;
   confirmDestructiveFileActions: boolean;
   dialog: LibraryWorkspaceDialog;
@@ -123,6 +129,12 @@ export function LibraryWorkspaceDialogs(props: LibraryWorkspaceDialogsProps) {
 }
 
 function LibraryWorkspaceDialogContent({
+  detailsDocked,
+  detailsPinned,
+  onToggleDetailsPinned,
+  detailsWidth,
+  onDetailsWidthChange,
+  onDetailsWidthCommit,
   books,
   confirmDestructiveFileActions,
   dialog,
@@ -205,10 +217,16 @@ function LibraryWorkspaceDialogContent({
   }
 
   if (dialog.type === "book-details") {
+    if (detailsDocked) return null;
     const book = findBook(books, dialog.bookId);
     if (!book) return null;
     return (
       <BookDetailsDrawer
+        pinned={detailsPinned}
+        width={detailsWidth}
+        onWidthChange={onDetailsWidthChange}
+        onWidthCommit={onDetailsWidthCommit}
+        onTogglePinned={onToggleDetailsPinned}
         key={book.id}
         book={book}
         initialFocus={dialog.initialFocus}

@@ -10,16 +10,22 @@ const DrawerContent = createAsyncSurface<BookDetailsDrawerProps>(() =>
 export function BookDetailsDrawer(props: BookDetailsDrawerProps) {
   return (
     <BookDetailsDrawerFrame {...props}>
-      <Suspense
-        fallback={
-          <div className="details-drawer__body" aria-busy="true">
-            <h2 id="book-details-title">{bookTitle(props.book)}</h2>
-            <p role="status">Opening book details…</p>
-          </div>
-        }
-      >
-        <DrawerContent {...props} />
-      </Suspense>
+      <BookDetailsContent {...props} />
     </BookDetailsDrawerFrame>
+  );
+}
+
+export function BookDetailsContent(props: BookDetailsDrawerProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="details-drawer__body" aria-busy="true">
+          <h2 id="book-details-title">{bookTitle(props.book)}</h2>
+          <p role="status">Opening book details…</p>
+        </div>
+      }
+    >
+      <DrawerContent {...props} />
+    </Suspense>
   );
 }

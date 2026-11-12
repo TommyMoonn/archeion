@@ -83,6 +83,7 @@ type SharedBookCollectionProps = Omit<
 };
 
 type LibraryWorkspaceSurfaceProps = {
+  detailsPanel?: ReactNode;
   bookCardSize: CollectionCardSize;
   bookFocusFallbackRef: RefObject<HTMLElement | null>;
   books: readonly LibrarySnapshotBook[] | undefined;
@@ -125,6 +126,7 @@ type LibraryWorkspaceSurfaceProps = {
 };
 
 export function LibraryWorkspaceSurface({
+  detailsPanel,
   bookCardSize,
   bookFocusFallbackRef,
   books,
@@ -239,6 +241,7 @@ export function LibraryWorkspaceSurface({
 
   return (
     <PageShell
+      detailsPanel={detailsPanel}
       notice={<UpdateToast />}
       importDropTarget={importDropTarget}
       mainRef={mainRef}
