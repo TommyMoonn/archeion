@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from "react";
 
 export const LIBRARY_SIDEBAR_TOP_LAYOUT_QUERY = "(max-width: 560px)";
 const LIBRARY_SIDEBAR_COLLAPSED_SESSION_KEY = "archeion:library-sidebar-collapsed";
@@ -101,11 +101,18 @@ export function useLibrarySidebarState(): {
   useLayoutEffect(() => {
     document.documentElement.style.setProperty("--library-sidebar-expanded-width", `${width}px`);
   }, [width]);
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    delete root.dataset.librarySidebarWidthReady;
+
     const frame = window.requestAnimationFrame(() => {
-      document.documentElement.dataset.librarySidebarWidthReady = "true";
+      root.dataset.librarySidebarWidthReady = "true";
     });
-    return () => window.cancelAnimationFrame(frame);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      delete root.dataset.librarySidebarWidthReady;
+    };
   }, []);
   const topLayout = useSyncExternalStore(subscribeToTopLayout, topLayoutMatches, () => false);
   const setCollapsed = useCallback((collapsed: boolean) => {

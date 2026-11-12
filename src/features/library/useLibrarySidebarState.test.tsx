@@ -78,6 +78,7 @@ describe("useLibrarySidebarState", () => {
     delete document.documentElement.dataset.librarySidebarWidthReady;
     media?.restore();
     media = null;
+    vi.restoreAllMocks();
   });
 
   it("lets the constrained top layout override a requested desktop rail", () => {
@@ -121,6 +122,40 @@ describe("useLibrarySidebarState", () => {
     const second = renderHarness();
 
     expect(second.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+  });
+
+  it("does not animate a restored collapsed sidebar when the Library route remounts", () => {
+    const installedMedia = installLibrarySidebarMedia(false);
+    media = installedMedia;
+    window.sessionStorage.setItem("archeion:library-sidebar-collapsed", "true");
+
+    let scheduledFrame: FrameRequestCallback | undefined;
+    let nextFrameId = 0;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      scheduledFrame = callback;
+      nextFrameId += 1;
+      return nextFrameId;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+
+    // Simulate the readiness marker left behind by the previous Library mount.
+    document.documentElement.dataset.librarySidebarWidthReady = "true";
+
+    const first = renderHarness();
+
+    expect(first.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBeUndefined();
+
+    act(() => scheduledFrame?.(0));
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBe("true");
+
+    act(() => roots.shift()?.unmount());
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBeUndefined();
+
+    const returned = renderHarness();
+
+    expect(returned.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBeUndefined();
   });
 
   it("restores a collapsed request from the current window session after reload", () => {
