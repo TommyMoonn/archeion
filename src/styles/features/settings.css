@@ -386,6 +386,29 @@ html[data-motion="on"] .settings-status {
   width: min(220px, 28vw);
 }
 
+.settings-slider {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 240px;
+  max-width: 100%;
+}
+
+.settings-slider__value {
+  color: var(--text);
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.settings-row__control .settings-slider input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
 .settings-row__meta code {
   display: block;
   max-width: 100%;
