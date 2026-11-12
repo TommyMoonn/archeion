@@ -1,15 +1,22 @@
-import { BookOpenText, FolderOpen, Heart, History } from "lucide-react";
+import { BookOpenText, FolderOpen, Heart, History, Plus } from "lucide-react";
 import {
   Suspense,
+  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
   type ComponentProps,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 
 import { Button } from "../../components/Button";
+import { ContextMenuSurface, type ContextMenuAction } from "../../components/ContextMenu";
+import {
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "../../components/contextMenuController";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
@@ -200,6 +207,35 @@ export function LibraryWorkspaceSurface({
     suspended: Boolean(returnFocusRequest),
   });
   const effectiveReturnFocusRequest = returnFocusRequest ?? preservedBookFocusRequest;
+  const libraryBackgroundMenu = useContextMenuController();
+  const libraryBackgroundActions = useMemo<ContextMenuAction[]>(
+    () => [
+      {
+        disabled: toolbarProps.isImporting,
+        disabledReason: toolbarProps.isImporting
+          ? "Wait for the current EPUB import to finish."
+          : undefined,
+        icon: <Plus aria-hidden="true" />,
+        id: "add-epub",
+        label: "Add EPUB",
+        onSelect: toolbarProps.onOpenAddEpub,
+      },
+    ],
+    [toolbarProps.isImporting, toolbarProps.onOpenAddEpub],
+  );
+  const handleLibraryBackgroundContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("button, a, input, textarea, select, [role='menu']")
+      ) {
+        return;
+      }
+      openContextMenuFromPointer(libraryBackgroundMenu, event, null);
+    },
+    [libraryBackgroundMenu],
+  );
 
   return (
     <PageShell
@@ -313,6 +349,9 @@ export function LibraryWorkspaceSurface({
             ref={bookCollectionRootRef}
             className="collection-content library-content library-content--books"
             data-surface-state={surfaceState}
+            onContextMenu={
+              location.type === "library" ? handleLibraryBackgroundContextMenu : undefined
+            }
             key={surfaceKey}
           >
             {location.type === "library" &&
@@ -388,6 +427,12 @@ export function LibraryWorkspaceSurface({
       )}
 
       <LibraryFeedbackStack {...feedbackProps} />
+      <ContextMenuSurface
+        actions={libraryBackgroundActions}
+        ariaLabel="Library actions"
+        controller={libraryBackgroundMenu}
+        dismissKey={`${focusOwnershipKey}:${libraryLocationKey(location)}`}
+      />
     </PageShell>
   );
 }

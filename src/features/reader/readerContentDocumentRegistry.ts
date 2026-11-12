@@ -157,6 +157,9 @@ export class ReaderContentDocumentRegistry {
       document,
       sectionHref: this.documents.get(document)?.sectionHref,
     });
+    const onContentContextMenu = (event: MouseEvent) => {
+      if (ownsDocument()) event.preventDefault();
+    };
     const onContentClick = (event: MouseEvent) => {
       if (!ownsDocument()) return;
       if (this.options.onContentClick?.(event, context())) {
@@ -194,6 +197,7 @@ export class ReaderContentDocumentRegistry {
     };
     updateWheel();
     document.addEventListener("keydown", onContentKeyDown, keyOptions);
+    document.addEventListener("contextmenu", onContentContextMenu, true);
     document.addEventListener("click", onContentClick, true);
     document.addEventListener("pointerdown", onContentPointerDown, true);
     document.addEventListener("selectionchange", onSelectionChange);
@@ -208,6 +212,7 @@ export class ReaderContentDocumentRegistry {
       releaseMediaReadiness();
       if (wheelRegistered) document.removeEventListener("wheel", onContentWheel, wheelOptions);
       document.removeEventListener("keydown", onContentKeyDown, keyOptions);
+      document.removeEventListener("contextmenu", onContentContextMenu, true);
       document.removeEventListener("click", onContentClick, true);
       document.removeEventListener("pointerdown", onContentPointerDown, true);
       document.removeEventListener("selectionchange", onSelectionChange);
