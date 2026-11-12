@@ -130,6 +130,45 @@ for (const width of [1280, 900]) {
   });
 }
 
+test("keeps Library empty states static while preserving result entrance motion", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    document.addEventListener("animationstart", (event) => {
+      if (
+        event.animationName === "app-motion-view-content-in" &&
+        (event.target as Element).classList.contains("library-content--books")
+      ) {
+        document.documentElement.dataset.collectionEntrances = String(
+          Number(document.documentElement.dataset.collectionEntrances ?? 0) + 1,
+        );
+      }
+    });
+  });
+
+  await page.goto(`${fixture}?count=0`, { waitUntil: "domcontentloaded" });
+  const root = page.locator(".library-content--books");
+  await expect(root).toHaveAttribute("data-surface-state", "empty");
+  await expect(root.locator(".empty-state")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
+  expect(await root.evaluate((node) => getComputedStyle(node).animationName)).toBe("none");
+  expect(await page.locator("html").getAttribute("data-collection-entrances")).toBeNull();
+
+  await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(2));
+  await expect(root).toHaveAttribute("data-surface-state", "results");
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await expect.poll(() => page.locator("html").getAttribute("data-collection-entrances")).toBe("1");
+  expect(await root.evaluate((node) => getComputedStyle(node).animationName)).toBe(
+    "app-motion-view-content-in",
+  );
+
+  await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(0));
+  await expect(root).toHaveAttribute("data-surface-state", "empty");
+  await expect(root.locator(".empty-state")).toBeVisible();
+  expect(await root.evaluate((node) => getComputedStyle(node).animationName)).toBe("none");
+  expect(await page.locator("html").getAttribute("data-collection-entrances")).toBe("1");
+});
+
 test("archive, view and Reader handoffs retire ownership with one entrance", async ({ page }) => {
   await page.addInitScript(() => {
     document.addEventListener("animationstart", (event) => {
