@@ -15,6 +15,7 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
     margin: string | null;
   };
   const entries: Entry[] = [];
+  const wheels: Array<{ phase: string; delta: number; activeDecodes: number }> = [];
   const files: Array<{ id: string; start: number; end: number | null }> = [];
   const decodes: Array<{ url: string; start: number; end: number | null; failed: boolean }> = [];
   const frames: Array<{
@@ -65,6 +66,10 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
   let lastScroll = 0,
     lastTime = 0,
     raf = 0;
+  const recordWheel = (event: WheelEvent) => {
+    wheels.push({ phase, delta: event.deltaY, activeDecodes });
+  };
+  window.addEventListener("wheel", recordWheel, { capture: true, passive: true });
   const create = URL.createObjectURL.bind(URL),
     revoke = URL.revokeObjectURL.bind(URL);
   URL.createObjectURL = (blob) => {
@@ -77,6 +82,8 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
     urls.delete(url);
     revoke(url);
   };
+  let holdDecodes = false;
+  const heldDecodes = new Map<object, () => void>();
   const decode = HTMLImageElement.prototype.decode;
   HTMLImageElement.prototype.decode = async function () {
     if (!this.src.startsWith("blob:")) return decode.call(this);
@@ -94,7 +101,10 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
     try {
       if (options.decodeDelay)
         await new Promise<void>((resolve, reject) => {
-          timer = setTimeout(resolve, options.decodeDelay);
+          timer = setTimeout(() => {
+            if (holdDecodes) heldDecodes.set(record, resolve);
+            else resolve();
+          }, options.decodeDelay);
           observer = new MutationObserver(() => {
             if (!this.getAttribute("src")) reject(new Error("Retired decode"));
           });
@@ -110,6 +120,7 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
       record.end ??= performance.now();
       clearTimeout(timer);
       observer?.disconnect();
+      heldDecodes.delete(record);
       activeDecodes--;
     }
   };
@@ -219,13 +230,23 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
     phase: (value: string) => {
       phase = value;
     },
+    holdDecodes: () => {
+      holdDecodes = true;
+    },
+    releaseDecodes: () => {
+      holdDecodes = false;
+      for (const resolve of heldDecodes.values()) resolve();
+      heldDecodes.clear();
+    },
     snapshot: () => ({
       entries,
+      wheels,
       files,
       decodes,
       frames,
       activeFiles,
       activeDecodes,
+      heldDecodes: heldDecodes.size,
       peakFiles,
       peakDecodes,
       peakUrls,
@@ -234,6 +255,7 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
     }),
     stop: () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener("wheel", recordWheel, true);
       URL.createObjectURL = create;
       URL.revokeObjectURL = revoke;
       HTMLImageElement.prototype.decode = decode;
@@ -247,6 +269,8 @@ declare global {
     installCoverReadinessProbe?: () => void;
     coverReadinessProbe: {
       phase: (value: string) => void;
+      holdDecodes: () => void;
+      releaseDecodes: () => void;
       snapshot: () => {
         entries: Array<{
           id: string;
@@ -260,6 +284,7 @@ declare global {
           eligible: number | null;
           margin: string | null;
         }>;
+        wheels: Array<{ phase: string; delta: number; activeDecodes: number }>;
         files: Array<{ id: string; start: number; end: number | null }>;
         decodes: Array<{ url: string; start: number; end: number | null; failed: boolean }>;
         frames: Array<{
@@ -273,6 +298,7 @@ declare global {
         }>;
         activeFiles: number;
         activeDecodes: number;
+        heldDecodes: number;
         peakFiles: number;
         peakDecodes: number;
         peakUrls: number;

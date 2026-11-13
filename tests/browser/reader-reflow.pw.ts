@@ -1,47 +1,63 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function settle(page: Page, mode: "continuous" | "paged" = "continuous") {
+async function settle(page: Page, mode: "continuous" | "paged" = "continuous", timeout = 8000) {
   let previous = "";
   let stable = 0;
-  await expect
-    .poll(
-      async () => {
-        const sample = await page.evaluate((flow) => {
-          const scroller = document.querySelector<HTMLElement>(".epub-container")!;
+  let lastSample: unknown;
+  try {
+    await expect
+      .poll(
+        async () => {
+          const sample = await page.evaluate((flow) => {
+            const scroller = document.querySelector<HTMLElement>(".epub-container");
+            const ready = window.readerInteractions.ready();
+            const frameVisible = Boolean(
+              scroller &&
+              [...scroller.querySelectorAll("iframe")].some(
+                (frame) =>
+                  frame.contentDocument?.querySelector("p") &&
+                  getComputedStyle(frame).visibility !== "hidden",
+              ),
+            );
+            const cfi = window.readerInteractions.location();
+            const passage =
+              flow === "paged"
+                ? cfi && window.readerInteractions.passageAt(cfi)
+                : window.readerInteractions.passageIfVisible();
+            return {
+              ready,
+              frameVisible,
+              passage,
+              geometry: scroller && [
+                scroller.scrollTop,
+                scroller.scrollLeft,
+                scroller.scrollHeight,
+                scroller.scrollWidth,
+              ],
+            };
+          }, mode);
+          lastSample = sample;
           if (
-            ![...scroller.querySelectorAll<HTMLIFrameElement>("iframe")].some(
-              (frame) =>
-                frame.contentDocument?.querySelector("p") &&
-                getComputedStyle(frame).visibility !== "hidden",
-            )
-          )
-            return null;
-          const cfi = window.readerInteractions.location();
-          const passage =
-            flow === "paged"
-              ? cfi && window.readerInteractions.passageAt(cfi)
-              : window.readerInteractions.passage();
-          if (!passage) return null;
-          return [
-            scroller.scrollTop,
-            scroller.scrollLeft,
-            scroller.scrollHeight,
-            scroller.scrollWidth,
-            passage,
-          ];
-        }, mode);
-        if (!sample) {
-          stable = 0;
+            !sample.ready ||
+            !sample.frameVisible ||
+            !sample.passage ||
+            ("visible" in sample.passage && !sample.passage.visible)
+          ) {
+            previous = "";
+            stable = 0;
+            return stable;
+          }
+          const signature = JSON.stringify(sample);
+          stable = previous === signature ? stable + 1 : 0;
+          previous = signature;
           return stable;
-        }
-        const signature = JSON.stringify(sample);
-        stable = previous === signature ? stable + 1 : 0;
-        previous = signature;
-        return stable;
-      },
-      { intervals: [100], timeout: 8000 },
-    )
-    .toBeGreaterThanOrEqual(4);
+        },
+        { intervals: [100], timeout },
+      )
+      .toBeGreaterThanOrEqual(4);
+  } catch (cause) {
+    throw new Error(`Reader reflow did not settle: ${JSON.stringify(lastSample)}`, { cause });
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -76,7 +92,6 @@ test("stage reflow restores the visible text CFI across 900 to 1200 to 900 width
     await page.locator("#root").evaluate((root, value) => {
       root.style.width = `${value}px`;
     }, width);
-    await settle(page);
     await settle(page);
     const after = await page.evaluate(
       (cfi) => window.readerInteractions.passageAt(cfi),
@@ -356,4 +371,23 @@ test("near book end shrink and stage growth retain the nearest visible passage a
   await expect
     .poll(() => page.evaluate(() => window.readerInteractions.relocations()))
     .toBeGreaterThan(after.relocations);
+});
+
+test("reflow readiness waits through temporarily missing passage text", async ({ page }) => {
+  await page.evaluate(() => {
+    const query = window.readerInteractions.passageIfVisible;
+    let pending = 2;
+    window.readerInteractions.passageIfVisible = () => (pending-- > 0 ? null : query());
+  });
+  await settle(page);
+  expect(await page.evaluate(() => window.readerInteractions.passageIfVisible())).not.toBeNull();
+});
+
+test("reflow readiness timeout reports the last pending state", async ({ page }) => {
+  await page.evaluate(() => {
+    window.readerInteractions.passageIfVisible = () => null;
+  });
+  await expect(settle(page, "continuous", 500)).rejects.toThrow(
+    /Reader reflow did not settle:.*"ready":true.*"passage":null/,
+  );
 });
