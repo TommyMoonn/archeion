@@ -26,6 +26,45 @@ async function openSurface(page: Page, surface: string, scale = 1) {
   expect(await page.locator("dialog").evaluate((dialog) => dialog.matches(":modal"))).toBe(true);
 }
 
+for (const surface of ["add", "metadata"]) {
+  test(`${surface} dialog actions use the standard control scale`, async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await openSurface(page, surface);
+
+    const actionStyles = await page.locator(".dialog__footer .button").evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const style = getComputedStyle(button);
+        return {
+          height: style.height,
+          minHeight: style.minHeight,
+          fontSize: style.fontSize,
+          lineHeight: style.lineHeight,
+          paddingInlineStart: style.paddingInlineStart,
+        };
+      }),
+    );
+
+    expect(actionStyles.length).toBeGreaterThan(0);
+    for (const style of actionStyles) {
+      expect(style).toMatchObject({
+        height: "36px",
+        minHeight: "36px",
+        fontSize: "13px",
+        paddingInlineStart: "14px",
+      });
+      expect(Number.parseFloat(style.lineHeight)).toBeCloseTo(13 * 1.4, 1);
+    }
+
+    const openerStyles = await page
+      .getByRole("button", { name: "Open dialog", exact: true })
+      .evaluate((button) => {
+        const style = getComputedStyle(button);
+        return { minHeight: style.minHeight, fontSize: style.fontSize };
+      });
+    expect(openerStyles).toEqual({ minHeight: "40px", fontSize: "14px" });
+  });
+}
+
 async function reachableShell(page: Page) {
   const geometry = await bounds(page);
   const viewport = page.viewportSize()!;

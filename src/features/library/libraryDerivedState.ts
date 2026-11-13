@@ -11,10 +11,12 @@ import {
 } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import type { FolderBrowserEntry } from "../folders/folderBrowserReadModel";
+import { bookReadingStatus } from "../reading/readingProgress";
 import {
   getEffectiveLibrarySort,
   getVisibleBooksFromSearchIndex,
   librarySmartViewLabel,
+  sortBooks,
   type LibraryFilterOptions,
   type LibrarySmartViewCounts,
 } from "./libraryFilters";
@@ -38,6 +40,7 @@ type LibraryDerivedState = {
   bookCount: number;
   continueBooks: LibrarySnapshotBook[];
   continuePreview: LibrarySnapshotBook[];
+  resumeBooks: LibrarySnapshotBook[];
   currentFolder: LibrarySnapshotFolder | undefined;
   effectiveSort: LibrarySort;
   favoriteCount: number;
@@ -100,6 +103,21 @@ export function useLibraryDerivedState({
     () => index.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
     [index.continueBooks],
   );
+  const resumeBooks = useMemo(
+    () =>
+      sortBooks(
+        index.books.filter(
+          (book) =>
+            !book.isFileMissing &&
+            book.lastOpenedAt &&
+            Number.isFinite(Date.parse(book.lastOpenedAt)) &&
+            bookReadingStatus(book) !== "completed" &&
+            (Boolean(book.progressCfi) || bookReadingStatus(book) === "in-progress"),
+        ),
+        "recently-opened",
+      ).slice(0, 4),
+    [index.books],
+  );
   const currentFolder =
     location.type === "folder" ? index.folderById.get(location.folderId) : undefined;
   const libraryTitle = isLibraryIntegrityLocation(location)
@@ -116,6 +134,7 @@ export function useLibraryDerivedState({
     bookCount: index.books.length,
     continueBooks: index.continueBooks,
     continuePreview,
+    resumeBooks,
     currentFolder,
     effectiveSort,
     favoriteCount: index.favoriteCount,

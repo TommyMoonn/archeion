@@ -30,7 +30,7 @@ import type {
   ReaderContentDocumentAccess,
   ReaderContentDocumentContext,
 } from "./readerContentDocumentRegistry";
-import type { ClientRect } from "./readerHighlightPaletteAnchor";
+import { clientRectsEqual, type ClientRect } from "./readerHighlightPaletteAnchor";
 import { openExternalUrl } from "../../app/openExternalUrl";
 import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { activeTransientSurfaceElement } from "../../utils/transientSurfaceOwnership";
@@ -642,38 +642,49 @@ export function useEpubContentActionController({
       dismissFootnote(false);
       return;
     }
-    setFootnote({
-      ...current,
-      anchorRect,
-      viewportRect: readerViewportRect(viewerRef.current),
-    });
+    const viewportRect = readerViewportRect(viewerRef.current);
+    if (
+      clientRectsEqual(current.anchorRect, anchorRect) &&
+      clientRectsEqual(current.viewportRect, viewportRect)
+    )
+      return;
+    setFootnote({ ...current, anchorRect, viewportRect });
   }, [dismissFootnote, registry, setFootnote, viewerRef]);
 
+  const footnoteAnchor = footnote?.anchor;
   useLayoutEffect(() => {
-    const current = footnote;
-    if (!current) return;
-    const sourceWindow = current.anchor.document.defaultView;
+    if (!footnoteAnchor) return;
+    let pendingFrame: number | null = null;
+    const scheduleRefresh = () => {
+      if (pendingFrame !== null) return;
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = null;
+        refreshFootnoteAnchor();
+      });
+    };
+    const sourceWindow = footnoteAnchor.document.defaultView;
     const onPageHide = () => dismissFootnote(false);
     const observer =
-      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(refreshFootnoteAnchor);
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(scheduleRefresh);
     if (viewerRef.current) observer?.observe(viewerRef.current);
     let frame = sourceWindow?.frameElement;
     while (frame) {
       observer?.observe(frame);
       frame = frame.ownerDocument.defaultView?.frameElement ?? null;
     }
-    window.addEventListener("resize", refreshFootnoteAnchor);
-    document.addEventListener("scroll", refreshFootnoteAnchor, true);
-    current.anchor.document.addEventListener("scroll", refreshFootnoteAnchor, true);
+    window.addEventListener("resize", scheduleRefresh);
+    document.addEventListener("scroll", scheduleRefresh, true);
+    footnoteAnchor.document.addEventListener("scroll", scheduleRefresh, true);
     sourceWindow?.addEventListener("pagehide", onPageHide);
     return () => {
+      if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
       observer?.disconnect();
-      window.removeEventListener("resize", refreshFootnoteAnchor);
-      document.removeEventListener("scroll", refreshFootnoteAnchor, true);
-      current.anchor.document.removeEventListener("scroll", refreshFootnoteAnchor, true);
+      window.removeEventListener("resize", scheduleRefresh);
+      document.removeEventListener("scroll", scheduleRefresh, true);
+      footnoteAnchor.document.removeEventListener("scroll", scheduleRefresh, true);
       sourceWindow?.removeEventListener("pagehide", onPageHide);
     };
-  }, [dismissFootnote, footnote, refreshFootnoteAnchor, viewerRef]);
+  }, [dismissFootnote, footnoteAnchor, refreshFootnoteAnchor, viewerRef]);
 
   return {
     clearFeedback,

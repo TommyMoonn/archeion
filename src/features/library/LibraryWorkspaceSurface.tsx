@@ -1,15 +1,22 @@
-import { BookOpenText, FolderOpen, Heart, History } from "lucide-react";
+import { BookOpenText, FolderOpen, Heart, History, Plus } from "lucide-react";
 import {
   Suspense,
+  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
   type ComponentProps,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type RefObject,
 } from "react";
 
 import { Button } from "../../components/Button";
+import { ContextMenuSurface, type ContextMenuAction } from "../../components/ContextMenu";
+import {
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "../../components/contextMenuController";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
@@ -76,6 +83,7 @@ type SharedBookCollectionProps = Omit<
 };
 
 type LibraryWorkspaceSurfaceProps = {
+  detailsPanel?: ReactNode;
   bookCardSize: CollectionCardSize;
   bookFocusFallbackRef: RefObject<HTMLElement | null>;
   books: readonly LibrarySnapshotBook[] | undefined;
@@ -104,7 +112,13 @@ type LibraryWorkspaceSurfaceProps = {
   showContinueReading: boolean;
   sidebarProps: Omit<
     ComponentProps<typeof LibrarySidebar>,
-    "collapsed" | "expandedContentRef" | "navigationRef"
+    | "collapsed"
+    | "expandedContentRef"
+    | "navigationRef"
+    | "resizable"
+    | "width"
+    | "onWidthChange"
+    | "onWidthCommit"
   >;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
   view: LibraryView;
@@ -112,6 +126,7 @@ type LibraryWorkspaceSurfaceProps = {
 };
 
 export function LibraryWorkspaceSurface({
+  detailsPanel,
   bookCardSize,
   bookFocusFallbackRef,
   books,
@@ -194,9 +209,39 @@ export function LibraryWorkspaceSurface({
     suspended: Boolean(returnFocusRequest),
   });
   const effectiveReturnFocusRequest = returnFocusRequest ?? preservedBookFocusRequest;
+  const libraryBackgroundMenu = useContextMenuController();
+  const libraryBackgroundActions = useMemo<ContextMenuAction[]>(
+    () => [
+      {
+        disabled: toolbarProps.isImporting,
+        disabledReason: toolbarProps.isImporting
+          ? "Wait for the current EPUB import to finish."
+          : undefined,
+        icon: <Plus aria-hidden="true" />,
+        id: "add-epub",
+        label: "Add EPUB",
+        onSelect: toolbarProps.onOpenAddEpub,
+      },
+    ],
+    [toolbarProps.isImporting, toolbarProps.onOpenAddEpub],
+  );
+  const handleLibraryBackgroundContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("button, a, input, textarea, select, [role='menu']")
+      ) {
+        return;
+      }
+      openContextMenuFromPointer(libraryBackgroundMenu, event, null);
+    },
+    [libraryBackgroundMenu],
+  );
 
   return (
     <PageShell
+      detailsPanel={detailsPanel}
       notice={<UpdateToast />}
       importDropTarget={importDropTarget}
       mainRef={mainRef}
@@ -217,13 +262,16 @@ export function LibraryWorkspaceSurface({
             {...sidebarProps}
             collapsed={sidebarState.collapsed}
             expandedContentRef={expandedSidebarContentRef}
+            resizable={sidebarState.collapseAvailable}
+            width={sidebarState.width}
+            onWidthChange={sidebarState.setWidth}
+            onWidthCommit={sidebarState.commitWidth}
             navigationRef={sidebarNavigationRef}
           />
         </>
       }
       sidebarCollapsed={sidebarState.collapsed}
     >
-      {selectionBarProps ? <LibrarySelectionBar {...selectionBarProps} /> : null}
       {location.type === "folders" ? (
         <FolderBrowser {...folderBrowserProps} />
       ) : location.type === "series" ? (
@@ -298,12 +346,24 @@ export function LibraryWorkspaceSurface({
         </Suspense>
       ) : (
         <>
-          <LibraryToolbar {...toolbarProps} />
+          <LibraryToolbar {...toolbarProps} selectionBarProps={selectionBarProps} />
           <div
             aria-busy={surfaceState === "loading" || undefined}
             ref={bookCollectionRootRef}
             className="collection-content library-content library-content--books"
             data-surface-state={surfaceState}
+            onAnimationEnd={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                event.animationName === "app-motion-view-content-in"
+              ) {
+                // This keyed DOM owner enters once, even when its result state changes.
+                event.currentTarget.dataset.entranceComplete = "true";
+              }
+            }}
+            onContextMenu={
+              location.type === "library" ? handleLibraryBackgroundContextMenu : undefined
+            }
             key={surfaceKey}
           >
             {location.type === "library" &&
@@ -379,6 +439,12 @@ export function LibraryWorkspaceSurface({
       )}
 
       <LibraryFeedbackStack {...feedbackProps} />
+      <ContextMenuSurface
+        actions={libraryBackgroundActions}
+        ariaLabel="Library actions"
+        controller={libraryBackgroundMenu}
+        dismissKey={`${focusOwnershipKey}:${libraryLocationKey(location)}`}
+      />
     </PageShell>
   );
 }

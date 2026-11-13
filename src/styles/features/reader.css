@@ -387,12 +387,12 @@ html[data-motion="on"] .reader-toolbar__back:active {
 
 .reader-progress__preview[data-placement="top"] {
   top: calc(100% + 0.6rem);
-  left: clamp(3.5rem, var(--reader-progress-preview-position), calc(100% - 3.5rem));
+  left: var(--reader-progress-preview-anchor, var(--reader-progress-preview-position));
   transform: translateX(-50%);
 }
 
 .reader-progress__preview[data-placement="side"] {
-  top: clamp(1.5rem, var(--reader-progress-preview-position), calc(100% - 1.5rem));
+  top: var(--reader-progress-preview-anchor, var(--reader-progress-preview-position));
   inset-inline-start: calc(100% + 0.75rem);
   transform: translateY(-50%);
 }
@@ -766,7 +766,6 @@ html[data-motion="on"] .reader-panel-loading span {
   top: calc(100% + 6px);
   inset-inline-end: 0;
   z-index: 5;
-  width: 196px;
 }
 
 .reader-annotations__export-status {
@@ -1805,7 +1804,6 @@ html[data-motion="on"] .reader-search__loading span {
   z-index: 12;
   top: var(--annotation-menu-top, 0);
   right: var(--annotation-menu-right, 0);
-  width: 184px;
   border-color: var(--reader-line);
   color: var(--reader-text);
   background: color-mix(in srgb, var(--reader-bg) 96%, transparent);

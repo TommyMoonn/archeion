@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Book, ReadonlyBook } from "../../types/book";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
+import { TOOLTIP_POINTER_OPEN_DELAY_MS, TooltipProvider } from "../../components/Tooltip";
 
 vi.mock("./BookCover", () => ({
   BookCover: ({ className }: { className?: string }) => <div className={className}>Cover</div>,
@@ -88,7 +89,11 @@ function renderInteractiveDetails(
   activeRoot = createRoot(activeContainer);
 
   act(() => {
-    activeRoot?.render(<BookDetailsDrawer {...drawerProps(renderedBook, onClearProgress)} />);
+    activeRoot?.render(
+      <TooltipProvider>
+        <BookDetailsDrawer {...drawerProps(renderedBook, onClearProgress)} />
+      </TooltipProvider>,
+    );
   });
 
   return activeContainer;
@@ -101,6 +106,7 @@ afterEach(() => {
   activeContainer?.remove();
   activeRoot = null;
   activeContainer = null;
+  vi.useRealTimers();
 });
 
 describe("BookDetailsDrawer", () => {
@@ -110,6 +116,43 @@ describe("BookDetailsDrawer", () => {
     const toggle = container.querySelector('[aria-label="Favorite Volume 01"]');
     expect(toggle?.getAttribute("aria-pressed")).toBe(String(isFavorite));
   });
+  it("provides styled tooltip descriptions for the book details icon actions", () => {
+    const container = renderInteractiveDetails(book, vi.fn());
+
+    for (const [label, expected] of [
+      ["Favorite Volume 01", "Favorite Volume 01"],
+      ["Close book details", "Close book details"],
+      ["Clear reading progress", "Clear reading progress"],
+    ] as const) {
+      const button = container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+      expect(button).not.toBeNull();
+      const descriptionId = button?.getAttribute("aria-describedby");
+      expect(descriptionId).toBeTruthy();
+      expect(document.getElementById(descriptionId!)?.textContent).toBe(expected);
+    }
+  });
+
+  it("shows the clear-progress tooltip inside the details drawer top layer", () => {
+    vi.useFakeTimers();
+    const container = renderInteractiveDetails(book, vi.fn());
+    const dialog = container.querySelector("dialog")!;
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Clear reading progress"]',
+    )!;
+
+    act(() => {
+      const pointerEnter = new Event("pointerover", { bubbles: true });
+      Object.defineProperty(pointerEnter, "pointerType", { value: "mouse" });
+      trigger.dispatchEvent(pointerEnter);
+      vi.advanceTimersByTime(TOOLTIP_POINTER_OPEN_DELAY_MS);
+    });
+
+    const tooltip = document.querySelector<HTMLElement>(".app-tooltip");
+    expect(tooltip?.textContent).toBe("Clear reading progress");
+    expect(tooltip?.parentElement).toBe(dialog);
+    expect(tooltip?.style.visibility).toBe("visible");
+  });
+
   it("renders progress as a compact identity pill instead of a bulky progress block", () => {
     const markup = renderDetails();
 

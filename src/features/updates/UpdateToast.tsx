@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { AlertCircle, Download, ExternalLink, RefreshCw, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { openExternalUrl } from "../../app/openExternalUrl";
 import { Button } from "../../components/Button";
-import { appUpdateClient, type AppUpdateClient } from "./appUpdateClient";
+import { IconButton } from "../../components/IconButton";
+import type { AppUpdateClient } from "./appUpdateClient";
+import { getUpdateToastClient } from "./devUpdateToastPreview";
 import { updateReleaseUrl } from "./updateReleaseUrl";
 import { updateToastView, type UpdateToastView } from "./updateToastView";
 import { useCompletedUpdateNotice } from "./useCompletedUpdateNotice";
@@ -17,7 +20,8 @@ const ACTION_ERRORS: Record<Action, string> = {
 };
 
 /** Library-only observation UI. Unmounting never cancels a native operation. */
-export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateClient }) {
+export function UpdateToast({ client: providedClient }: { client?: AppUpdateClient } = {}) {
+  const client = useMemo(() => providedClient ?? getUpdateToastClient(), [providedClient]);
   const snapshot = useSyncExternalStore(client.subscribe, client.getSnapshot);
   const update = snapshot.update;
   const baseView = updateToastView(update);
@@ -61,7 +65,7 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
       ? localError.message
       : view.message
     : completion.version
-      ? `Archeion was updated to ${completion.version}`
+      ? `Updated to Archeion ${completion.version}`
       : "";
   useEffect(() => {
     if (announcementRef.current) {
@@ -131,6 +135,20 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
   }
 
   const recovery = localError && localError.action !== "link" ? localError.action : view?.recovery;
+  const statusIcon =
+    view?.kind === "downloading" ? (
+      <Download aria-hidden="true" size={16} strokeWidth={1.8} />
+    ) : view?.kind === "installing" ? (
+      <RefreshCw aria-hidden="true" size={16} strokeWidth={1.8} />
+    ) : view?.kind === "error" ? (
+      <AlertCircle aria-hidden="true" size={16} strokeWidth={1.8} />
+    ) : null;
+  const primaryIcon =
+    recovery === "download" || (!recovery && view?.kind === "available") ? (
+      <Download aria-hidden="true" size={14} strokeWidth={1.8} />
+    ) : (
+      <RefreshCw aria-hidden="true" size={14} strokeWidth={1.8} />
+    );
   return (
     <>
       <div
@@ -149,61 +167,103 @@ export function UpdateToast({ client = appUpdateClient }: { client?: AppUpdateCl
           tabIndex={-1}
           {...(!view ? completion.pauseHandlers : {})}
         >
-          <p className="update-toast__message">{message}</p>
-          {(view?.kind === "available" && view.version) || completion.version ? (
-            <a
-              className="update-toast__link"
-              href={updateReleaseUrl(view?.version ?? completion.version!)}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(event) => {
-                event.preventDefault();
-                void actOnUpdate("link");
-              }}
-            >
-              What's new <span aria-hidden="true">↗</span>
-              <span className="sr-only">
-                {" "}
-                for Archeion {view?.version ?? completion.version} (opens in your browser)
+          <div className="update-toast__header">
+            {statusIcon ? (
+              <span
+                aria-hidden="true"
+                className="update-toast__status-icon"
+                data-state={view?.kind}
+              >
+                {statusIcon}
               </span>
-            </a>
-          ) : null}
-          {localError?.action === "link" ? (
-            <p className="update-toast__detail">{localError.message}</p>
-          ) : null}
-          {view?.kind === "downloading" ? (
-            <>
-              <p className="update-toast__detail">
-                {view.percent === null ? "Downloading…" : `Downloading… ${view.percent}%`}
-              </p>
-              <progress
-                aria-label="Update download"
-                max={100}
-                {...(view.percent === null ? {} : { value: view.percent })}
-              />
-            </>
-          ) : null}
-          {view && view.kind !== "downloading" && view.kind !== "installing" ? (
-            <div className="update-toast__actions">
-              <Button
-                size="standard"
-                variant="secondary"
+            ) : null}
+            <div className="update-toast__content">
+              <p className="update-toast__message">{message}</p>
+              {localError?.action === "link" ? (
+                <p className="update-toast__detail update-toast__link-error">
+                  {localError.message}
+                </p>
+              ) : null}
+              {view?.kind === "downloading" ? (
+                <p className="update-toast__detail update-toast__progress-detail">
+                  {view.percent === null ? "Downloading…" : `Downloading… ${view.percent}%`}
+                </p>
+              ) : null}
+            </div>
+            {view && view.kind !== "downloading" && view.kind !== "installing" ? (
+              <IconButton
+                label="Dismiss update notice"
+                size="compact"
+                className="update-toast__dismiss"
                 disabled={busy !== null}
                 onClick={() => void actOnUpdate("defer")}
               >
-                Later
-              </Button>
+                <X aria-hidden="true" strokeWidth={1.8} />
+              </IconButton>
+            ) : completion.version ? (
+              <IconButton
+                label="Dismiss update confirmation"
+                size="compact"
+                className="update-toast__dismiss"
+                onClick={completion.dismiss}
+              >
+                <X aria-hidden="true" strokeWidth={1.8} />
+              </IconButton>
+            ) : null}
+          </div>
+          {view && view.kind !== "downloading" && view.kind !== "installing" ? (
+            <div
+              className={
+                statusIcon
+                  ? "update-toast__actions update-toast__actions--indented"
+                  : "update-toast__actions"
+              }
+            >
               <Button
-                size="standard"
+                size="compact"
                 disabled={busy !== null}
-                busy={busy !== null && busy !== "link"}
-                onClick={() =>
-                  void actOnUpdate(recovery ?? (view.kind === "ready" ? "install" : "download"))
-                }
+                icon={primaryIcon}
+                busy={busy !== null && busy !== "link" && busy !== "defer"}
+                onClick={() => {
+                  const action = recovery ?? (view.kind === "ready" ? "install" : "download");
+                  void actOnUpdate(action);
+                }}
               >
                 {recovery ? "Try again" : view.kind === "ready" ? "Restart now" : "Update now"}
               </Button>
             </div>
+          ) : null}
+          {completion.version ? (
+            <div className="update-toast__actions">
+              <Button
+                className="update-toast__release-button"
+                size="compact"
+                variant="secondary"
+                disabled={busy !== null}
+                onClick={() => void actOnUpdate("link")}
+              >
+                View release notes
+                <ExternalLink aria-hidden="true" size={13} strokeWidth={1.8} />
+              </Button>
+            </div>
+          ) : null}
+          {view?.kind === "downloading" ? (
+            <progress
+              aria-label="Update download"
+              className={
+                statusIcon
+                  ? "update-toast__progress update-toast__progress--indented"
+                  : "update-toast__progress"
+              }
+              max={100}
+              {...(view.percent === null ? {} : { value: view.percent })}
+            />
+          ) : null}
+          {view?.kind === "installing" ? (
+            <progress
+              aria-label="Restarting Archeion"
+              className="update-toast__progress update-toast__progress--indented"
+            />
           ) : null}
         </section>
       ) : null}

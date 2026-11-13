@@ -68,7 +68,9 @@ it("mounts native import chrome immediately and permits dismissal before the chu
   }
   act(() => root.render(<Fixture />));
   act(() => container.querySelector("button")!.click());
-  expect(container.querySelector("dialog[open]")).not.toBeNull();
+  const dialog = container.querySelector("dialog[open]");
+  expect(dialog).not.toBeNull();
+  expect(dialog?.classList.contains("dialog--add-epub")).toBe(true);
   expect(container.querySelector("h2")?.textContent).toBe("Add EPUB files");
   expect(container.querySelector('[role="status"]')?.textContent).toContain("Opening");
   expect(container.querySelectorAll(".dialog__copy button")).toHaveLength(0);

@@ -35,6 +35,143 @@ for (const view of ["grid", "list"] as const) {
   });
 }
 
+for (const width of [1280, 900]) {
+  test(`selection header morphs without moving the collection at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto(`${fixture}?count=2`, { waitUntil: "domcontentloaded" });
+
+    const header = page.locator(".library-header");
+    const collection = page.locator(".library-content--books");
+    await expect(collection).toHaveAttribute("data-surface-state", "results");
+    await expect(page.locator(".book-grid")).toBeVisible();
+
+    await collection.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
+    const initialGeometry = await page.evaluate(() => {
+      const collection = document.querySelector(".library-content--books")!;
+      const primaryRow = document.querySelector(".library-header__primary-row")!;
+      const controls = document.querySelector(".library-header__control-group")!;
+      const primaryRowRect = primaryRow.getBoundingClientRect();
+      return {
+        collectionTop: collection.getBoundingClientRect().top,
+        controlsTop: controls.getBoundingClientRect().top,
+        primaryRowTop: primaryRowRect.top,
+        primaryRowHeight: primaryRowRect.height,
+      };
+    });
+    await page.getByRole("button", { name: "Select books", exact: true }).click();
+
+    await expect(header).toHaveAttribute("data-selection-mode", "true");
+    const selectionBar = header.locator(
+      ".library-header__primary-row .library-header__selection-row .library-selection-bar",
+    );
+    await expect(selectionBar).toBeVisible();
+    expect(
+      await header
+        .locator(".library-header__selection-row")
+        .evaluate((node) => node.parentElement?.classList.contains("library-header__primary-row")),
+    ).toBe(true);
+    await expect(header.locator(".library-header__title")).toHaveAttribute("aria-hidden", "true");
+    await expect(header.locator(".library-header__actions")).toHaveAttribute("aria-hidden", "true");
+    await expect(header.locator(".library-header__control-group")).not.toHaveAttribute(
+      "aria-hidden",
+    );
+    await expect(header.locator(".library-controls__filters")).toBeVisible();
+    await expect(header.locator(".library-controls__display")).toBeVisible();
+    await expect(header.getByRole("combobox", { name: "Sort library" })).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const primaryRow = document.querySelector(".library-header__primary-row")!;
+          const primaryRowRect = primaryRow.getBoundingClientRect();
+          return {
+            collectionTop: document
+              .querySelector(".library-content--books")!
+              .getBoundingClientRect().top,
+            controlsTop: document
+              .querySelector(".library-header__control-group")!
+              .getBoundingClientRect().top,
+            primaryRowTop: primaryRowRect.top,
+            primaryRowHeight: primaryRowRect.height,
+          };
+        }),
+      )
+      .toEqual(initialGeometry);
+
+    const [primaryRowBox, selectionBarBox] = await Promise.all([
+      header.locator(".library-header__primary-row").boundingBox(),
+      selectionBar.boundingBox(),
+    ]);
+    expect(primaryRowBox).not.toBeNull();
+    expect(selectionBarBox).not.toBeNull();
+    expect(selectionBarBox!.y).toBeGreaterThanOrEqual(primaryRowBox!.y - 1);
+    expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThanOrEqual(
+      primaryRowBox!.y + primaryRowBox!.height + 1,
+    );
+
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(header).not.toHaveAttribute("data-selection-mode", "true");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const primaryRow = document.querySelector(".library-header__primary-row")!;
+          const primaryRowRect = primaryRow.getBoundingClientRect();
+          return {
+            collectionTop: document
+              .querySelector(".library-content--books")!
+              .getBoundingClientRect().top,
+            controlsTop: document
+              .querySelector(".library-header__control-group")!
+              .getBoundingClientRect().top,
+            primaryRowTop: primaryRowRect.top,
+            primaryRowHeight: primaryRowRect.height,
+          };
+        }),
+      )
+      .toEqual(initialGeometry);
+  });
+}
+
+test("keeps Library empty states static while preserving result entrance motion", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    document.addEventListener("animationstart", (event) => {
+      if (
+        event.animationName === "app-motion-view-content-in" &&
+        (event.target as Element).classList.contains("library-content--books")
+      ) {
+        document.documentElement.dataset.collectionEntrances = String(
+          Number(document.documentElement.dataset.collectionEntrances ?? 0) + 1,
+        );
+      }
+    });
+  });
+
+  await page.goto(`${fixture}?count=0`, { waitUntil: "domcontentloaded" });
+  const root = page.locator(".library-content--books");
+  await expect(root).toHaveAttribute("data-surface-state", "empty");
+  await expect(root.locator(".empty-state")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
+  expect(await root.evaluate((node) => getComputedStyle(node).animationName)).toBe("none");
+  expect(await page.locator("html").getAttribute("data-collection-entrances")).toBeNull();
+
+  await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(2));
+  await expect(root).toHaveAttribute("data-surface-state", "results");
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await expect.poll(() => page.locator("html").getAttribute("data-collection-entrances")).toBe("1");
+  expect(await root.evaluate((node) => getComputedStyle(node).animationName)).toBe(
+    "app-motion-view-content-in",
+  );
+
+  await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(0));
+  await expect(root).toHaveAttribute("data-surface-state", "empty");
+  await expect(root.locator(".empty-state")).toBeVisible();
+  expect(await root.evaluate((node) => getComputedStyle(node).animationName)).toBe("none");
+  expect(await page.locator("html").getAttribute("data-collection-entrances")).toBe("1");
+});
+
 test("archive, view and Reader handoffs retire ownership with one entrance", async ({ page }) => {
   await page.addInitScript(() => {
     document.addEventListener("animationstart", (event) => {
@@ -123,13 +260,16 @@ for (const view of ["grid", "list"] as const) {
               items: items === node.querySelector(".collection-content__items"),
             })),
           ).toEqual({ root: true, items: true });
-          expect(await measure()).toEqual(baseline);
+          expect(await measure()).toEqual({
+            ...baseline,
+            padding: query ? "0px" : baseline.padding,
+          });
         }
         await page.getByRole("button", { name: "Select books", exact: true }).click();
-        await page.getByRole("button", { name: "Select books", exact: true }).click();
+        await page.getByRole("button", { name: "Done", exact: true }).click();
         await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(0));
         await expect(root).toHaveAttribute("data-surface-state", "empty");
-        expect(await measure()).toEqual(baseline);
+        expect(await measure()).toEqual({ ...baseline, padding: "0px" });
         await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(50));
         await expect(root).toHaveAttribute("data-surface-state", "results");
         expect(

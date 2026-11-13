@@ -1,3 +1,4 @@
+import { ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "../../components/Button";
 import { openExternalUrl } from "../../app/openExternalUrl";
@@ -147,7 +148,7 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
             void run("link");
           }}
         >
-          What's new <span aria-hidden="true">↗</span>
+          What's new <ExternalLink aria-hidden="true" size={13} strokeWidth={1.8} />
           <span className="sr-only">
             {" "}
             for Archeion {update.available.version} (opens in your browser)

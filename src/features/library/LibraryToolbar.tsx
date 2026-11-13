@@ -11,6 +11,7 @@ import { RescanArchiveButton } from "../archive/RescanArchiveButton";
 import type { LibraryFilterState, LibrarySort, LibraryView } from "../../types/library";
 import { LibraryFilterPopover, LibraryFilterTokens } from "./LibraryFilterPopover";
 import type { LibraryFilterOptions } from "./libraryFilters";
+import { LibrarySelectionBar, type LibrarySelectionBarProps } from "./LibrarySelectionBar";
 import { librarySortOptions } from "./librarySortOptions";
 
 type LibraryToolbarProps = {
@@ -31,6 +32,7 @@ type LibraryToolbarProps = {
   resultCount: number;
   searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
+  selectionBarProps?: LibrarySelectionBarProps | null;
   selectionMode: boolean;
   sort: LibrarySort;
   title: string;
@@ -72,70 +74,79 @@ export function LibraryToolbar({
   resultCount,
   searchAriaKeyShortcuts,
   searchInputRef,
+  selectionBarProps,
   selectionMode,
   sort,
   title,
   view,
 }: LibraryToolbarProps) {
   return (
-    <header className="library-header">
-      <div className="library-header__title">
-        <p className="eyebrow">Your collection</p>
-        <h1>{title}</h1>
-      </div>
+    <header className="library-header" data-selection-mode={selectionMode ? "true" : undefined}>
+      <div className="library-header__primary-row">
+        <div aria-hidden={selectionMode || undefined} className="library-header__title">
+          <p className="eyebrow">Your collection</p>
+          <h1>{title}</h1>
+        </div>
 
-      <div className="library-header__actions">
-        <div aria-label="Library search" className="library-search" role="search">
-          <Input
-            aria-keyshortcuts={searchAriaKeyShortcuts}
-            icon={<Search aria-hidden="true" />}
-            autoCapitalize="none"
-            autoComplete="off"
-            autoCorrect="off"
-            label="Search library"
-            name="archeion-library-search"
-            placeholder="Search books"
-            ref={searchInputRef}
-            size="standard"
-            spellCheck={false}
-            value={query}
-            onChange={(event) => onQueryChange(event.currentTarget.value)}
-            type="search"
-          />
-          {query ? (
+        <div aria-hidden={selectionMode || undefined} className="library-header__actions">
+          <div aria-label="Library search" className="library-search" role="search">
+            <Input
+              aria-keyshortcuts={searchAriaKeyShortcuts}
+              icon={<Search aria-hidden="true" />}
+              autoCapitalize="none"
+              autoComplete="off"
+              autoCorrect="off"
+              label="Search library"
+              name="archeion-library-search"
+              placeholder="Search books"
+              ref={searchInputRef}
+              size="standard"
+              spellCheck={false}
+              value={query}
+              onChange={(event) => onQueryChange(event.currentTarget.value)}
+              type="search"
+            />
+            {query ? (
+              <IconButton
+                className="library-search__clear"
+                label="Clear search"
+                onClick={onClearSearch}
+              >
+                <X aria-hidden="true" />
+              </IconButton>
+            ) : null}
+          </div>
+          <div className="library-header__utilities" aria-label="Library utilities" role="group">
             <IconButton
-              className="library-search__clear"
-              label="Clear search"
-              onClick={onClearSearch}
+              aria-pressed={selectionMode}
+              className="library-select-button"
+              label="Select books"
+              onClick={onToggleSelectionMode}
+              tooltip={selectionMode ? "Finish selecting books" : "Select books"}
+              tooltipPlacement="bottom"
             >
-              <X aria-hidden="true" />
+              <SquareCheckBig aria-hidden="true" />
             </IconButton>
-          ) : null}
-        </div>
-        <div className="library-header__utilities" aria-label="Library utilities" role="group">
-          <IconButton
-            aria-pressed={selectionMode}
-            className="library-select-button"
-            label="Select books"
-            onClick={onToggleSelectionMode}
-            tooltip={selectionMode ? "Finish selecting books" : "Select books"}
-            tooltipPlacement="bottom"
+            <RescanArchiveButton isRescanning={isRescanning} onRescan={onRescan} />
+          </div>
+          <span aria-hidden="true" className="library-header__action-divider" />
+          <Button
+            busy={isImporting}
+            className="library-add-button"
+            disabled={isImporting}
+            icon={<Plus aria-hidden="true" strokeWidth={2.25} />}
+            onClick={onOpenAddEpub}
+            size="standard"
           >
-            <SquareCheckBig aria-hidden="true" />
-          </IconButton>
-          <RescanArchiveButton isRescanning={isRescanning} onRescan={onRescan} />
+            Add EPUB
+          </Button>
         </div>
-        <span aria-hidden="true" className="library-header__action-divider" />
-        <Button
-          busy={isImporting}
-          className="library-add-button"
-          disabled={isImporting}
-          icon={<Plus aria-hidden="true" strokeWidth={2.25} />}
-          onClick={onOpenAddEpub}
-          size="standard"
-        >
-          Add EPUB
-        </Button>
+
+        {selectionBarProps ? (
+          <div className="library-header__selection-row">
+            <LibrarySelectionBar {...selectionBarProps} />
+          </div>
+        ) : null}
       </div>
 
       <div className="library-header__control-group">

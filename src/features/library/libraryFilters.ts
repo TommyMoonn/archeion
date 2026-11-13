@@ -354,19 +354,19 @@ function weightedBookFields(
   return fields;
 }
 
-function searchableBookFields(
+function matchingBookSearchScore(
   entry: LibrarySearchIndexEntry,
   query: SearchQuery,
-): SearchTextVariants[] {
-  return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).map(({ field }) => field);
-}
-
-function scoreBookSearchEntry(entry: LibrarySearchIndexEntry, query: SearchQuery): number {
-  if (isEmptySearchQuery(query)) {
-    return 0;
-  }
-
-  return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).reduce(
+): number | null {
+  const fields = weightedBookFields(entry, shouldSearchLowValueMetadata(query));
+  if (
+    !searchFieldsMatchQuery(
+      fields.map(({ field }) => field),
+      query,
+    )
+  )
+    return null;
+  return fields.reduce(
     (score, { field, weight }) => score + scoreSearchField(field, query) * weight,
     0,
   );
@@ -411,12 +411,10 @@ function rankBookSearchIndex(
   query: SearchQuery,
 ): LibrarySearchIndexEntry[] {
   return index
-    .map((entry, indexOrder) => ({
-      entry,
-      indexOrder,
-      score: scoreBookSearchEntry(entry, query),
-    }))
-    .filter(({ entry }) => searchFieldsMatchQuery(searchableBookFields(entry, query), query))
+    .flatMap((entry, indexOrder) => {
+      const score = matchingBookSearchScore(entry, query);
+      return score === null ? [] : [{ entry, indexOrder, score }];
+    })
     .sort((left, right) => right.score - left.score || left.indexOrder - right.indexOrder)
     .map(({ entry }) => entry);
 }
@@ -580,14 +578,10 @@ export function getVisibleBooksFromSearchIndex(
   const collator = getLibrarySortCollator();
 
   return filteredIndex
-    .map((entry, indexOrder) => ({
-      entry,
-      indexOrder,
-      score: scoreBookSearchEntry(entry, searchQuery),
-    }))
-    .filter(({ entry }) =>
-      searchFieldsMatchQuery(searchableBookFields(entry, searchQuery), searchQuery),
-    )
+    .flatMap((entry, indexOrder) => {
+      const score = matchingBookSearchScore(entry, searchQuery);
+      return score === null ? [] : [{ entry, indexOrder, score }];
+    })
     .sort(
       (left, right) =>
         right.score - left.score ||

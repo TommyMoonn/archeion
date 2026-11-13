@@ -229,6 +229,7 @@ describe("About update status", () => {
       link.textContent?.startsWith("Changelog"),
     )!;
     const release = container.querySelector<HTMLAnchorElement>(".about-update a")!;
+    expect(release.querySelector("svg")).not.toBeNull();
     await act(async () => {
       changelog.click();
       release.click();
@@ -352,7 +353,7 @@ describe("Updater completion notice", () => {
       state({ prompt: { ...state().prompt, completedVersion: "1.6.1" } }),
       "library",
     );
-    expect(container.textContent).toContain("Archeion was updated to 1.6.1");
+    expect(container.textContent).toContain("Updated to Archeion 1.6.1");
     expect(backend.acknowledgeCompleted).toHaveBeenCalledWith("1.6.1");
   });
   it.each([null, "1.6.0", "1.6.2"])(
@@ -375,7 +376,7 @@ describe("Updater completion notice", () => {
     await act(async () => {
       render("library");
     });
-    expect(container.textContent).toContain("Archeion was updated to 1.6.1");
+    expect(container.textContent).toContain("Updated to Archeion 1.6.1");
     await act(async () => {
       render("reader");
     });
@@ -407,11 +408,11 @@ describe("Updater completion notice", () => {
       "library",
     );
     const toast = container.querySelector<HTMLElement>(".update-toast")!;
-    const link = toast.querySelector<HTMLAnchorElement>("a")!;
+    const releaseButton = toast.querySelector<HTMLButtonElement>(".update-toast__release-button")!;
     await act(async () => {
       vi.advanceTimersByTime(3000);
       toast.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      link.focus();
+      releaseButton.focus();
       vi.advanceTimersByTime(20000);
     });
     expect(toast.isConnected).toBe(true);
@@ -423,7 +424,7 @@ describe("Updater completion notice", () => {
     });
     expect(toast.isConnected).toBe(true);
     await act(async () => {
-      link.blur();
+      releaseButton.blur();
       vi.advanceTimersByTime(4999);
     });
     expect(toast.isConnected).toBe(true);
@@ -432,19 +433,24 @@ describe("Updater completion notice", () => {
     });
     expect(toast.isConnected).toBe(false);
   });
-  it("uses the shared completed-version release anchor without restart or download controls", async () => {
+  it("uses the shared release-notes button without restart or download actions", async () => {
     const { container } = await fixture(
       state({ prompt: { ...state().prompt, completedVersion: "1.6.1" } }),
       "library",
     );
-    const link = container.querySelector<HTMLAnchorElement>("a")!;
+    const releaseButton = container.querySelector<HTMLButtonElement>(
+      ".update-toast__release-button",
+    )!;
     await act(async () => {
-      link.click();
+      releaseButton.click();
     });
     expect(owners.open).toHaveBeenCalledWith(
       "https://tommymoonn.github.io/archeion/documentation/changelog/#release-1-6-1",
     );
-    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('[aria-label="Dismiss update confirmation"]')).not.toBeNull();
+    expect(container.querySelector(".update-toast__release-button")).not.toBeNull();
+    expect(container.querySelector(".update-toast .button--primary")).toBeNull();
+    expect(container.querySelector(".update-toast a")).toBeNull();
   });
   it("gives actionable updates priority without consuming an unseen completion", async () => {
     const { container, backend, change } = await fixture(
@@ -458,7 +464,7 @@ describe("Updater completion notice", () => {
     expect(container.textContent).toContain("Archeion 1.6.2 is available");
     expect(backend.acknowledgeCompleted).not.toHaveBeenCalled();
     await change({ status: "idle", available: null });
-    expect(container.textContent).toContain("Archeion was updated to 1.6.1");
+    expect(container.textContent).toContain("Updated to Archeion 1.6.1");
     expect(backend.acknowledgeCompleted).toHaveBeenCalledOnce();
   });
   it("does not resurrect an already shown completion after a newer actionable notice", async () => {
@@ -502,7 +508,7 @@ describe("Updater completion notice", () => {
     await act(async () => {
       render("library");
     });
-    expect(container.textContent).toContain("Archeion was updated to 1.6.1");
+    expect(container.textContent).toContain("Updated to Archeion 1.6.1");
     await act(async () => {
       render("reader");
     });

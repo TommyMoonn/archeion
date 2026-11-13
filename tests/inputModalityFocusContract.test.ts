@@ -82,7 +82,7 @@ describe("focus presentation contract", () => {
 
   it("targets each global focusable control directly in standard and forced colors", () => {
     const focusableControls =
-      ':where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
+      ':where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), main[tabindex="-1"])';
     const base = normalizeSelectorWhitespace(read("src/styles/base.css"));
     const forcedColors = normalizeSelectorWhitespace(read("src/styles/forced-colors.css"));
     const gatedCompoundSelector = `:root[data-focus-presentation="keyboard-navigation"] ${focusableControls}:focus-visible`;
@@ -99,7 +99,7 @@ describe("focus presentation contract", () => {
 
   it("gives each composite wrapper singular keyboard focus geometry", () => {
     const globalSelector =
-      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), main[tabindex="-1"]):focus-visible';
     const globalSpecificity = classLikeSpecificityUnits(globalSelector);
     const contracts = [
       {
@@ -138,7 +138,7 @@ describe("focus presentation contract", () => {
     const forcedColors = normalizeSelectorWhitespace(read("src/styles/forced-colors.css"));
     const styleIndex = read("src/styles/index.css");
     const globalSelector =
-      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), main[tabindex="-1"]):focus-visible';
     const wrapperContracts = [
       {
         forcedSelector:
