@@ -131,12 +131,21 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-browser {
+  width: 100%;
+  min-width: 0;
   max-width: 1440px;
   margin: 0 auto;
 }
 
 .folder-browser__header {
+  width: 100%;
+  min-width: 0;
   max-width: none;
+}
+
+.folder-browser__actions {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .folder-browser__title h1 {
@@ -154,7 +163,28 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-browser__controls {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
   max-width: none;
+}
+
+.folder-browser__controls .library-controls__display {
+  flex: 0 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-end;
+}
+
+.folder-browser__controls .folder-sort-select {
+  flex: 0 1 164px;
+  min-width: min(164px, 100%);
+  max-width: 100%;
+}
+
+.folder-browser__controls .segmented-control {
+  flex: 0 0 auto;
 }
 
 .folder-browser__add-button {
@@ -163,6 +193,7 @@ html[data-motion="on"] .folder-tree__children {
 
 .folder-browser__content {
   width: 100%;
+  min-width: 0;
 }
 
 .folder-browser__items--list {

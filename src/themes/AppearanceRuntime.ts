@@ -61,6 +61,8 @@ const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
 const APPEARANCE_LOAD_TIMEOUT_MS = 5_000;
 const CUSTOM_THEME_ERROR =
   "The selected theme could not be loaded. The default theme is active. Choose a theme in Settings or retry in Theme Manager.";
+const APPEARANCE_APPLY_ERROR =
+  "The selected appearance could not be applied. A safe appearance is active. Retry in Settings or Theme Manager.";
 
 export type AppearanceStartupSnapshot = Readonly<{ ready: boolean; error: string | null }>;
 
@@ -336,6 +338,7 @@ export class AppearanceRuntime {
   private readonly handlePreferencesChange = () => {
     if (!this.initialized || this.isRetiredHydration()) return;
     const publication = this.globalPreferences.getAppearancePublication?.();
+    if (publication?.kind === "optimistic") return;
     const newAuthority =
       publication !== undefined &&
       publication !== this.lastPreferencePublication &&
@@ -409,8 +412,10 @@ export class AppearanceRuntime {
     const controller = new AbortController();
     this.resolutionAbort = controller;
     const expected = this.preferences;
+    let failureStage: "theme" | "presentation" = "theme";
     try {
       if (expected.appTheme.kind !== "custom" && this.preparePresentation) {
+        failureStage = "presentation";
         await this.prepareCommittedPresentation(
           this.safeSnapshot(expected).app,
           null,
@@ -420,6 +425,7 @@ export class AppearanceRuntime {
         this.setStartup(true, this.startup.error);
         this.commitCurrentAppearance();
       }
+      failureStage = "theme";
       const resolution = await appearanceDeadline(
         this.catalog.loadSelected(expected),
         controller.signal,
@@ -427,11 +433,9 @@ export class AppearanceRuntime {
       if (revision !== this.resolutionRevision || !samePreferences(this.preferences, expected)) {
         return;
       }
-      await this.prepareCommittedPresentation(
-        this.resolveAppSelection(resolution.app),
-        resolution,
-        controller.signal,
-      );
+      const resolvedApp = this.resolveAppSelection(resolution.app);
+      failureStage = "presentation";
+      await this.prepareCommittedPresentation(resolvedApp, resolution, controller.signal);
       if (revision !== this.resolutionRevision || !samePreferences(this.preferences, expected))
         return;
       this.committedResolution = resolution;
@@ -451,7 +455,10 @@ export class AppearanceRuntime {
       this.failedCatalogRevision = this.catalog.getSnapshot().revision;
       // Fence a timed-out catalog read, including its eventual catalog notification.
       this.resolutionRevision += 1;
-      this.setStartup(true, CUSTOM_THEME_ERROR);
+      this.setStartup(
+        true,
+        failureStage === "presentation" ? APPEARANCE_APPLY_ERROR : CUSTOM_THEME_ERROR,
+      );
       this.commitCurrentAppearance(true);
     }
   }

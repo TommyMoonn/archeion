@@ -1,3 +1,5 @@
+import type { Ref } from "react";
+
 import {
   ArrowRight,
   RefreshCw,
@@ -17,7 +19,7 @@ import { ActionListButton } from "../../components/MenuItem";
 import { Tooltip } from "../../components/Tooltip";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 
-type LibrarySelectionBarProps = {
+export type LibrarySelectionBarProps = {
   onClear: () => void;
   onDeselectVisible: () => void;
   onExit: () => void;
@@ -39,6 +41,7 @@ type LibrarySelectionBarProps = {
   visibleCount: number;
   visibleSelectedCount: number;
   busy?: boolean;
+  exitButtonRef?: Ref<HTMLButtonElement>;
 };
 
 export function LibrarySelectionBar({
@@ -51,6 +54,7 @@ export function LibrarySelectionBar({
   visibleCount,
   visibleSelectedCount,
   busy = false,
+  exitButtonRef,
 }: LibrarySelectionBarProps) {
   const { closeDetails, detailsRef } = useDismissibleDetails();
   const hiddenSelectedCount = selectedCount - visibleSelectedCount;
@@ -214,7 +218,7 @@ export function LibrarySelectionBar({
         >
           Clear
         </Button>
-        <Button disabled={busy} onClick={onExit} size="compact">
+        <Button disabled={busy} onClick={onExit} ref={exitButtonRef} size="compact">
           Done
         </Button>
       </div>

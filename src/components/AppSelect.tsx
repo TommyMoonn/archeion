@@ -1,6 +1,7 @@
 import { ChevronDown, Check } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
 import type { ControlSize } from "./Button";
+import { Tooltip } from "./Tooltip";
 import { useAppSelectPlacement } from "./useAppSelectPlacement";
 import { getNextEnabledIndex } from "./listboxNavigation";
 import { focusElementIfUsable } from "../utils/focusRestoration";
@@ -86,9 +87,18 @@ export function AppSelect<TValue extends string>({
   const isOpen = previousDisabled === disabled && open && !disabled;
   const activeOptionId =
     isOpen && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined;
-  const contentRevision = options
-    .map((option) => `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`)
-    .join("\u0001");
+  const contentRevision = useMemo(
+    () =>
+      isOpen
+        ? options
+            .map(
+              (option) =>
+                `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`,
+            )
+            .join("\u0001")
+        : "",
+    [isOpen, options],
+  );
   const menuPlacement = useAppSelectPlacement({
     activeOptionId,
     contentRevision,
@@ -188,43 +198,49 @@ export function AppSelect<TValue extends string>({
           {label}
         </span>
       ) : null}
-      <button
-        aria-activedescendant={activeOptionId}
-        aria-autocomplete="none"
-        aria-controls={`${controlId}-menu`}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        aria-label={ariaLabel}
-        aria-labelledby={label ? `${controlId}-label ${controlId}-button` : undefined}
-        className="app-select__trigger"
-        disabled={disabled}
-        id={`${controlId}-button`}
-        onClick={() => {
-          if (isOpen) {
-            setOpen(false);
-            return;
-          }
-          openListbox(getSelectedOrFirstEnabledIndex(options, selectedIndex));
-        }}
-        onKeyDown={handleKeyDown}
-        ref={buttonRef}
-        role="combobox"
-        type="button"
+      <Tooltip
+        content={
+          appearance === "icon-only" ? (ariaLabel ?? selectedOption?.label ?? "Select option") : ""
+        }
       >
-        {triggerIcon ? (
-          <span aria-hidden="true" className="app-select__trigger-icon icon-slot">
-            {triggerIcon}
-          </span>
-        ) : null}
-        {appearance === "default" ? (
-          <>
-            <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
-            <span aria-hidden="true" className="icon-slot icon-slot--compact">
-              <ChevronDown />
+        <button
+          aria-activedescendant={activeOptionId}
+          aria-autocomplete="none"
+          aria-controls={`${controlId}-menu`}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          aria-label={ariaLabel}
+          aria-labelledby={label ? `${controlId}-label ${controlId}-button` : undefined}
+          className="app-select__trigger"
+          disabled={disabled}
+          id={`${controlId}-button`}
+          onClick={() => {
+            if (isOpen) {
+              setOpen(false);
+              return;
+            }
+            openListbox(getSelectedOrFirstEnabledIndex(options, selectedIndex));
+          }}
+          onKeyDown={handleKeyDown}
+          ref={buttonRef}
+          role="combobox"
+          type="button"
+        >
+          {triggerIcon ? (
+            <span aria-hidden="true" className="app-select__trigger-icon icon-slot">
+              {triggerIcon}
             </span>
-          </>
-        ) : null}
-      </button>
+          ) : null}
+          {appearance === "default" ? (
+            <>
+              <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
+              <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                <ChevronDown />
+              </span>
+            </>
+          ) : null}
+        </button>
+      </Tooltip>
       {isOpen ? (
         <div
           className="app-select__menu"

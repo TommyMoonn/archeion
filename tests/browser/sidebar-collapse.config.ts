@@ -16,8 +16,10 @@ export default defineConfig({
     process.env.ARCHEION_UI_EXTERNAL_SERVER === "1"
       ? undefined
       : {
+          // Preview serves a disposable production build. Rebuild it for every run so
+          // source CSS and application changes cannot be hidden by a stale .scratch output.
           command:
-            "node node_modules/vite/bin/vite.js preview --config tests/browser/library-layout-build.config.ts --host 127.0.0.1 --port 4287 --strictPort",
+            "node node_modules/vite/bin/vite.js build --config tests/browser/library-layout-build.config.ts && node node_modules/vite/bin/vite.js preview --config tests/browser/library-layout-build.config.ts --host 127.0.0.1 --port 4287 --strictPort",
           cwd: fileURLToPath(new URL("../..", import.meta.url)),
           url: "http://127.0.0.1:4287/tests/browser/fixtures/ui-stability.html",
           reuseExistingServer: false,

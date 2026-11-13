@@ -116,6 +116,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
   const triggerRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const [position, setPosition] = useState<TooltipPosition | null>(null);
+  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const child = Children.only(children) as ReactElement<TooltipTriggerProps>;
   const active = useSyncExternalStore(
     context?.subscribe ?? subscribeToNothing,
@@ -158,6 +159,8 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
   if (!context || !content) return child;
 
   const childProps = child.props;
+  // Native modal dialogs are rendered in the browser top layer. The trigger handlers
+  // select its owning dialog so the tooltip is portaled into that same top-layer surface.
   // cloneElement preserves the child's opaque ref; Tooltip never reads it during render.
   // eslint-disable-next-line react-hooks/refs
   const trigger = cloneElement(child, {
@@ -169,6 +172,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
     onFocus: (event) => {
       childProps.onFocus?.(event);
       triggerRef.current = event.currentTarget;
+      setPortalTarget(event.currentTarget.closest("dialog[open]") ?? document.body);
       if (
         keyboardFocusCanOpenTooltip(event.currentTarget) &&
         tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
@@ -187,6 +191,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
     onPointerEnter: (event) => {
       childProps.onPointerEnter?.(event);
       triggerRef.current = event.currentTarget;
+      setPortalTarget(event.currentTarget.closest("dialog[open]") ?? document.body);
       if (
         pointerCanOpenTooltip(event) &&
         tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
@@ -226,7 +231,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
                 {content}
               </span>
             ),
-            document.body,
+            portalTarget ?? document.body,
           )
         : null}
     </>

@@ -131,6 +131,41 @@ function mountPopover(
 }
 
 describe("ReaderDictionaryPopover", () => {
+  it("batches anchor measurements and cancels queued geometry on unmount", () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((frame) => {
+      frames.delete(frame);
+    });
+    const flushFrame = () =>
+      act(() => {
+        const callbacks = [...frames.values()];
+        frames.clear();
+        callbacks.forEach((callback) => callback(0));
+      });
+    const resolveRect = vi.fn(() => ({ ...RECT }));
+    mountPopover(state("ready"), { anchor: { document, resolveRect } });
+    flushFrame();
+    resolveRect.mockClear();
+    act(() => {
+      document.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("resize"));
+      document.dispatchEvent(new Event("scroll"));
+    });
+    expect(resolveRect).not.toHaveBeenCalled();
+    flushFrame();
+    expect(resolveRect).toHaveBeenCalledOnce();
+    act(() => document.dispatchEvent(new Event("scroll")));
+    act(() => root?.unmount());
+    root = null;
+    flushFrame();
+    expect(resolveRect).toHaveBeenCalledOnce();
+  });
+
   it("constrains its rendered box to a smaller offset Reader viewport", () => {
     const viewport: ClientRect = {
       bottom: 400,

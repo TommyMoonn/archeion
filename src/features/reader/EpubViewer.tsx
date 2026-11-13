@@ -1,3 +1,4 @@
+import { Tooltip } from "../../components/Tooltip";
 import {
   forwardRef,
   memo,
@@ -694,38 +695,42 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     >
       <div ref={containerRef} className="epub-viewer__stage" inert={interactionBlocked} />
       {publicationMode === "paged" ? (
-        <button
-          aria-label="Previous page"
-          inert={interactionBlocked}
-          className="epub-viewer__click-zone epub-viewer__click-zone--previous"
-          onClick={() => handleClickZone("backward")}
-          tabIndex={-1}
-          type="button"
-        >
-          <span
-            aria-hidden="true"
-            className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
+        <Tooltip content="Previous page">
+          <button
+            aria-label="Previous page"
+            inert={interactionBlocked}
+            className="epub-viewer__click-zone epub-viewer__click-zone--previous"
+            onClick={() => handleClickZone("backward")}
+            tabIndex={-1}
+            type="button"
           >
-            <ChevronLeft />
-          </span>
-        </button>
+            <span
+              aria-hidden="true"
+              className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
+            >
+              <ChevronLeft />
+            </span>
+          </button>
+        </Tooltip>
       ) : null}
       {publicationMode === "paged" ? (
-        <button
-          aria-label="Next page"
-          inert={interactionBlocked}
-          className="epub-viewer__click-zone epub-viewer__click-zone--next"
-          onClick={() => handleClickZone("forward")}
-          tabIndex={-1}
-          type="button"
-        >
-          <span
-            aria-hidden="true"
-            className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
+        <Tooltip content="Next page">
+          <button
+            aria-label="Next page"
+            inert={interactionBlocked}
+            className="epub-viewer__click-zone epub-viewer__click-zone--next"
+            onClick={() => handleClickZone("forward")}
+            tabIndex={-1}
+            type="button"
           >
-            <ChevronRight />
-          </span>
-        </button>
+            <span
+              aria-hidden="true"
+              className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
+            >
+              <ChevronRight />
+            </span>
+          </button>
+        </Tooltip>
       ) : null}
       {isLoading && !externalOpeningStatus ? (
         <div className="reader-loading" role="status">

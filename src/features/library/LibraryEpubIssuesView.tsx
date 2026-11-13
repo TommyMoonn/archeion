@@ -1,3 +1,4 @@
+import { Tooltip } from "../../components/Tooltip";
 import {
   BookOpen,
   ChevronDown,
@@ -55,14 +56,16 @@ function EpubIssueBook({
   return (
     <article aria-labelledby={titleId} className="epub-issues-book" data-reader-book-id={book.id}>
       <div className="epub-issues-book__header">
-        <button
-          aria-label={`Open details for ${title}`}
-          className="epub-issues-book__cover-action"
-          onClick={() => onOpenDetails(book)}
-          type="button"
-        >
-          <BookCover book={book} className="book-cover--epub-issue" />
-        </button>
+        <Tooltip content={`Open details for ${title}`}>
+          <button
+            aria-label={`Open details for ${title}`}
+            className="epub-issues-book__cover-action"
+            onClick={() => onOpenDetails(book)}
+            type="button"
+          >
+            <BookCover book={book} className="book-cover--epub-issue" />
+          </button>
+        </Tooltip>
         <div className="epub-issues-book__identity">
           <h2 id={titleId}>
             <button

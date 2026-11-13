@@ -99,6 +99,18 @@ describe("collection content spacing ownership", () => {
     expect(libraryStyles).not.toMatch(/\.book-(?:grid|list)\s*\{[^}]*padding-top:/s);
   });
 
+  it("animates collection results without animating Library empty states", () => {
+    const entrance = cssBlock(
+      collectionContentStyles,
+      'html[data-motion="on"]\n  .library-content--books[data-surface-state="results"]:not([data-entrance-complete]),\nhtml[data-motion="on"] :not(.library-content--books) > .collection-content__items',
+    );
+
+    expect(entrance).toContain("animation: app-motion-view-content-in");
+    expect(collectionContentStyles).not.toContain(
+      'html[data-motion="on"] .library-content--books,',
+    );
+  });
+
   it("uses the same offset for Folder cards and list results", () => {
     expect(folderStyles).toMatch(/\.folder-browser__content\s*\{[^}]*width:\s*100%;/s);
     expect(folderStyles).not.toMatch(/\.folder-browser__items[^{]*\{[^}]*padding-top:/s);

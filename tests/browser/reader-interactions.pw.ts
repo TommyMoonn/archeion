@@ -99,8 +99,8 @@ test("annotations, bookmark CFIs, search emphasis and event hooks survive 42 sec
         return metrics.livingDocuments === metrics.mountedFrames && metrics.retiredListeners === 0;
       })
       .toBe(true);
-    // Five interaction callbacks plus one shared load/error media-readiness callback.
-    expect(metrics.listeners).toBe(metrics.livingDocuments * 6);
+    // Six interaction callbacks, including native context menus, plus media readiness.
+    expect(metrics.listeners).toBe(metrics.livingDocuments * 7);
     expect(metrics.livingDocuments).toBe(metrics.mountedFrames);
     samples.push(metrics);
   }

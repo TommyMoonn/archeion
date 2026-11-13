@@ -440,6 +440,8 @@ describe("EpubViewer navigation lifecycle", () => {
     activeContainer?.remove();
     activeContainer = null;
     resetTransientSurfaceOwnershipForTests();
+    // Keep synchronous requestAnimationFrame stubs from leaking into later lifecycle tests.
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 

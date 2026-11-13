@@ -143,6 +143,20 @@ export function LibraryToggleFixture({ details = false }: { details?: boolean })
                 query=""
                 resultCount={1}
                 selectionMode={selectionMode}
+                selectionBarProps={
+                  selectionMode
+                    ? {
+                        onClear: () => setSelected(false),
+                        onDeselectVisible: () => setSelected(false),
+                        onExit: () => setSelectionMode(false),
+                        onAction: ignore,
+                        onSelectVisible: () => setSelected(true),
+                        selectedCount: Number(selected),
+                        visibleCount: 1,
+                        visibleSelectedCount: Number(selected),
+                      }
+                    : null
+                }
                 sort="title"
                 title="Library"
                 view="grid"

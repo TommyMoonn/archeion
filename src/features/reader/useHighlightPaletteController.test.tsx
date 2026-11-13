@@ -27,12 +27,13 @@ type HarnessProps = {
 function Harness({ onController, onDismiss, registry, viewer }: HarnessProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef(viewer);
   const controller = useHighlightPaletteController({
     containerRef,
     onDismiss,
     paletteRef,
     registry,
-    viewerRef: { current: viewer },
+    viewerRef,
   });
   useLayoutEffect(() => onController(controller), [controller, onController]);
 
@@ -112,6 +113,64 @@ function embeddedPaletteTarget(): {
 }
 
 describe("useHighlightPaletteController", () => {
+  it("batches geometry events, preserves unchanged menu identity, and cancels work when its document is removed", () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((frame) => {
+      frames.delete(frame);
+    });
+    const flushFrame = () =>
+      act(() => {
+        const callbacks = [...frames.values()];
+        frames.clear();
+        callbacks.forEach((callback) => callback(0));
+      });
+    const onDismiss = vi.fn();
+    const harness = renderController(onDismiss);
+    const { document: chapter, target } = embeddedPaletteTarget();
+    const anchor = paletteAnchor(target);
+    const resolveRect = vi.spyOn(anchor, "resolveRect");
+    const anchorRect = anchor.resolveRect();
+    if (!anchorRect) throw new Error("Expected an anchor rectangle");
+    act(() =>
+      harness.latest().open({
+        source: "selection",
+        anchor,
+        anchorRect,
+        selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
+      }),
+    );
+    flushFrame();
+    resolveRect.mockClear();
+    const original = harness.latest().menu;
+    act(() => {
+      chapter.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("resize"));
+      chapter.dispatchEvent(new Event("scroll"));
+    });
+    expect(resolveRect).not.toHaveBeenCalled();
+    flushFrame();
+    expect(resolveRect).toHaveBeenCalledOnce();
+    expect(harness.latest().menu).toBe(original);
+
+    const moved = { ...anchorRect, top: anchorRect.top + 5 };
+    resolveRect.mockReturnValue(moved);
+    act(() => chapter.dispatchEvent(new Event("scroll")));
+    flushFrame();
+    expect(harness.latest().menu?.anchorRect).toEqual(moved);
+
+    act(() => chapter.dispatchEvent(new Event("scroll")));
+    act(() => harness.latest().handleDocumentRemoved(chapter));
+    expect(harness.latest().menu).toBeNull();
+    flushFrame();
+    expect(resolveRect).toHaveBeenCalledTimes(2);
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
   it.each(["highlight", "selection"] as const)(
     "keeps collapse dismissal specific to a %s action owner",
     (source) => {

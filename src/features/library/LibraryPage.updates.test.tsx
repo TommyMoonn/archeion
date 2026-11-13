@@ -68,9 +68,12 @@ describe("Library updater integration", () => {
     const session = await renderLibraryPage(createStorage());
     suite.trackRoot(session.root);
     const notice = session.container.querySelector('[aria-label="Application update"]');
-    expect(notice?.textContent).toContain("Archeion was updated to 1.6.1");
-    expect(notice?.querySelector("a")?.getAttribute("href")).toContain("#release-1-6-1");
-    expect(notice?.querySelector("button")).toBeNull();
+    expect(notice?.textContent).toContain("Updated to Archeion 1.6.1");
+    expect(notice?.querySelector(".update-toast__release-button")?.textContent).toContain(
+      "View release notes",
+    );
+    expect(notice?.querySelector("a")).toBeNull();
+    expect(notice?.querySelector('[aria-label="Dismiss update confirmation"]')).not.toBeNull();
     expect(
       session.container.querySelector('.library-feedback [aria-label="Application update"]'),
     ).toBeNull();

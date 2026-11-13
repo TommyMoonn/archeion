@@ -5,11 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  PERSISTENCE_SAVING_STATUS_DELAY_MS,
-  SETTINGS_STATUS_AUTO_DISMISS_MS,
-  SettingsStatus,
-} from "./SettingsStatus";
+import { SETTINGS_STATUS_AUTO_DISMISS_MS, SettingsStatus } from "./SettingsStatus";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -59,6 +55,25 @@ describe("SettingsStatus", () => {
     expect(markup).toBe("");
   });
 
+  it("suppresses generic Settings saved success messages", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsStatus
+        persistenceStatus={{ status: "idle" }}
+        status={{ message: "Settings saved.", tone: "success" }}
+      />,
+    );
+
+    expect(markup).toBe("");
+  });
+
+  it("keeps successful automatic saves silent while persistence is saving", () => {
+    const markup = renderToStaticMarkup(
+      <SettingsStatus persistenceStatus={{ status: "saving" }} status={null} />,
+    );
+
+    expect(markup).toBe("");
+  });
+
   it("renders nothing when there is no local or persistence status", () => {
     const markup = renderToStaticMarkup(
       <SettingsStatus persistenceStatus={{ status: "idle" }} status={null} />,
@@ -68,7 +83,7 @@ describe("SettingsStatus", () => {
   });
 });
 
-describe("SettingsStatus persistence saving delay", () => {
+describe("SettingsStatus local message behavior", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -93,48 +108,12 @@ describe("SettingsStatus persistence saving delay", () => {
     });
   }
 
-  it("does not render persistence saving before the delay", () => {
-    renderStatus({ persistenceStatus: { status: "saving" }, status: null });
-
-    act(() => {
-      vi.advanceTimersByTime(PERSISTENCE_SAVING_STATUS_DELAY_MS - 1);
-    });
-
-    expect(container.textContent).toBe("");
-  });
-
-  it("renders persistence saving after the delay", () => {
-    renderStatus({ persistenceStatus: { status: "saving" }, status: null });
-
-    act(() => {
-      vi.advanceTimersByTime(PERSISTENCE_SAVING_STATUS_DELAY_MS);
-    });
-
-    expect(container.textContent).toContain("Saving settings.");
-    expect(container.querySelector("[role='status']")).not.toBeNull();
-    expect(container.querySelector("[data-tone='neutral']")).not.toBeNull();
-  });
-
-  it("cancels the saving timer if persistence becomes saved", () => {
-    renderStatus({ persistenceStatus: { status: "saving" }, status: null });
-
-    act(() => {
-      vi.advanceTimersByTime(PERSISTENCE_SAVING_STATUS_DELAY_MS - 1);
-    });
-    renderStatus({ persistenceStatus: { status: "saved" }, status: null });
-    act(() => {
-      vi.advanceTimersByTime(PERSISTENCE_SAVING_STATUS_DELAY_MS);
-    });
-
-    expect(container.textContent).toBe("");
-  });
-
   it("pauses local success dismissal while the message is hovered", () => {
     const onDismiss = vi.fn();
     renderStatus({
       onDismiss,
       persistenceStatus: { status: "idle" },
-      status: { autoDismiss: true, message: "Settings saved.", tone: "success" },
+      status: { autoDismiss: true, message: "Cover cache cleared.", tone: "success" },
     });
     const status = container.querySelector<HTMLElement>(".settings-status")!;
 
@@ -160,7 +139,7 @@ describe("SettingsStatus persistence saving delay", () => {
     renderStatus({
       onDismiss,
       persistenceStatus: { status: "idle" },
-      status: { autoDismiss: true, message: "Settings saved.", tone: "success" },
+      status: { autoDismiss: true, message: "Archive scan complete.", tone: "success" },
     });
     const status = container.querySelector<HTMLElement>(".settings-status")!;
 
@@ -197,18 +176,13 @@ describe("SettingsStatus persistence saving delay", () => {
     expect(container.querySelector<HTMLElement>(".settings-status")?.tabIndex).toBe(-1);
   });
 
-  it("lets local status override persistence saving", () => {
+  it("lets actionable local status override silent persistence saving", () => {
     renderStatus({
       persistenceStatus: { status: "saving" },
       status: { message: "Reader settings reset.", tone: "success" },
     });
 
-    act(() => {
-      vi.advanceTimersByTime(PERSISTENCE_SAVING_STATUS_DELAY_MS);
-    });
-
     expect(container.textContent).toContain("Reader settings reset.");
-    expect(container.textContent).not.toContain("Saving settings.");
     expect(container.querySelector("[role='status']")).not.toBeNull();
     expect(container.querySelector("[data-tone='success']")).not.toBeNull();
   });

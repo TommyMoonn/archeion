@@ -2,7 +2,7 @@
 // @vitest-environment-options {"settings":{"enableIframePageLoading":true}}
 
 import type { Book as EpubBook } from "epubjs";
-import { act, useLayoutEffect } from "react";
+import { act, useLayoutEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -55,11 +55,12 @@ function Harness({
   registry,
   viewer,
 }: HarnessProps) {
+  const viewerRef = useRef(viewer);
   const controller = useEpubContentActionController({
     getContentSession,
     navigateToTarget,
     registry,
-    viewerRef: { current: viewer },
+    viewerRef,
   });
   useLayoutEffect(() => onController(controller), [controller, onController]);
   return controller.footnote ? (
@@ -165,6 +166,67 @@ describe("useEpubContentActionController", () => {
     });
     return { latest: () => latest, navigateToTarget, registry };
   }
+
+  it("batches footnote geometry without resubscribing or releasing content and cancels work on dismissal", async () => {
+    const frames = new Map<number, FrameRequestCallback>();
+    let nextFrame = 0;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.set(++nextFrame, callback);
+      return nextFrame;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((frame) => {
+      frames.delete(frame);
+    });
+    const flushFrame = () =>
+      act(() => {
+        const callbacks = [...frames.values()];
+        frames.clear();
+        callbacks.forEach((callback) => callback(0));
+      });
+    const release = vi.fn();
+    resolveEpubFootnote.mockResolvedValue({
+      kind: "resolved",
+      value: { nodes: [{ text: "A note", type: "text" }], release },
+    } satisfies EpubFootnoteResolution);
+    const harness = renderController({ current: session() });
+    const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+    await act(async () =>
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      }),
+    );
+    flushFrame();
+    const original = harness.latest().footnote;
+    if (!original) throw new Error("Expected a resolved footnote");
+    const resolveRect = vi.spyOn(original.anchor, "resolveRect");
+    const subscribe = vi.spyOn(chapter, "addEventListener");
+    act(() => {
+      chapter.dispatchEvent(new Event("scroll"));
+      window.dispatchEvent(new Event("resize"));
+      chapter.dispatchEvent(new Event("scroll"));
+    });
+    expect(resolveRect).not.toHaveBeenCalled();
+    flushFrame();
+    expect(resolveRect).toHaveBeenCalledOnce();
+    expect(harness.latest().footnote).toBe(original);
+
+    const moved = { ...original.anchorRect, top: original.anchorRect.top + 5 };
+    resolveRect.mockReturnValue(moved);
+    act(() => chapter.dispatchEvent(new Event("scroll")));
+    flushFrame();
+    expect(harness.latest().footnote?.anchorRect).toEqual(moved);
+    expect(subscribe.mock.calls.filter(([type]) => type === "scroll")).toHaveLength(0);
+    expect(release).not.toHaveBeenCalled();
+
+    act(() => chapter.dispatchEvent(new Event("scroll")));
+    act(() => harness.latest().handleDocumentRemoved(chapter));
+    expect(harness.latest().footnote).toBeNull();
+    expect(release).toHaveBeenCalledOnce();
+    flushFrame();
+    expect(resolveRect).toHaveBeenCalledTimes(2);
+    expect(harness.latest().footnote).toBeNull();
+  });
 
   it.each(["not-footnote", "resolved"] as const)(
     "retires pending %s resolution when its source is evicted before any popover exists",

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { focusPresentationRuntime } from "../../../src/app/inputModality";
+import { Button } from "../../../src/components/Button";
 import { TooltipProvider } from "../../../src/components/Tooltip";
 import { AddEpubDialog } from "../../../src/features/filesystem/AddEpubDialog";
 import { MoveToFolderDialog } from "../../../src/features/filesystem/MoveToFolderDialog";
@@ -99,9 +100,9 @@ export function DialogGeometryFixture() {
   const props = { onClose };
   return (
     <TooltipProvider>
-      <button onClick={() => setOpen(true)} type="button">
+      <Button onClick={() => setOpen(true)} size="prominent">
         Open dialog
-      </button>
+      </Button>
       <button type="button">Background action</button>
       {open && surface === "metadata" ? (
         <BookAdvancedMetadataDialog

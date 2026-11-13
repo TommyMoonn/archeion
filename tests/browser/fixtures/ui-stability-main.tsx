@@ -47,6 +47,23 @@ let releaseExitSave: (fail?: boolean) => void = () => {};
 let releaseExitDestination = () => {};
 let commitAcknowledgedExit = () => {};
 window.uiStabilityFixture = {
+  async suggestLastRead() {
+    const storage = await getLibraryStorage();
+    const book = storage.getLibrarySnapshot().books.at(0);
+    if (!book) throw new Error("No fixture book to resume");
+    await storage.updateBook(book.id, {
+      progressPercent: 42,
+      lastOpenedAt: "2026-11-12T10:00:00.000Z",
+    });
+    const otherBook = storage.getLibrarySnapshot().books.at(1);
+    if (otherBook)
+      await storage.updateBook(otherBook.id, {
+        progressPercent: 17,
+        lastOpenedAt: "2026-11-11T10:00:00.000Z",
+      });
+    await appPreferencesStore.update({ showContinueReading: false });
+    await appPreferencesStore.updateLibrary({ detailsPinned: true });
+  },
   async holdReaderExit() {
     const storage = await getLibraryStorage();
     const flush = storage.flushPendingWrites.bind(storage);
@@ -175,6 +192,7 @@ createRoot(document.getElementById("root")!).render(<App />);
 declare global {
   interface Window {
     uiStabilityFixture: {
+      suggestLastRead: () => Promise<void>;
       holdReaderExit: () => Promise<void>;
       exitControl: () => {
         saveStarted: boolean;

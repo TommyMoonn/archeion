@@ -77,7 +77,8 @@ function LibraryFixture({ updates = false }: { updates?: boolean }) {
       updateFixture.client.dispose();
     };
   }, [updateFixture]);
-  const { collapseAvailable, collapsed, setCollapsed } = useLibrarySidebarState();
+  const { collapseAvailable, collapsed, setCollapsed, width, setWidth, commitWidth } =
+    useLibrarySidebarState();
   const [location, setLocation] = useState<LibraryLocation>({ type: "library" });
   const expandedContentRef = useRef<HTMLDivElement>(null);
   const sidebarNavigationRef = useRef<HTMLElement>(null);
@@ -143,6 +144,10 @@ function LibraryFixture({ updates = false }: { updates?: boolean }) {
                     archives={[archive]}
                     collapsed={collapsed}
                     expandedContentRef={expandedContentRef}
+                    resizable={collapseAvailable}
+                    width={width}
+                    onWidthChange={setWidth}
+                    onWidthCommit={commitWidth}
                     navigationRef={sidebarNavigationRef}
                     folderEntries={[]}
                     folderSort="name"
