@@ -27,6 +27,9 @@ const cssSource = collectFiles(stylesRoot, ".css")
   .map((filePath) => fs.readFileSync(filePath, "utf8"))
   .join("\n");
 const appShellSource = read("src/styles/layout/app-shell.css");
+const tokensSource = read("src/styles/tokens.css");
+const buttonsSource = read("src/styles/components/buttons.css");
+const formsSource = read("src/styles/components/forms.css");
 const menuSource = read("src/styles/components/menus.css");
 const settingsSource = read("src/styles/features/settings.css");
 const archiveSource = read("src/styles/features/archive.css");
@@ -48,7 +51,7 @@ function cssBlock(selector: string, source: string): string | undefined {
 }
 
 describe("Phase 0.4.0.6 UI integration gate", () => {
-  it("keeps semantic variables, typography, weights, and static geometry coherent", () => {
+  it("keeps semantic variables, typography, and weights coherent", () => {
     const definitions = new Set(
       [...cssSource.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1] ?? ""),
     );
@@ -60,7 +63,29 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(unresolvedWithoutFallback).toEqual([]);
     expect(cssSource).not.toMatch(/font-size:\s*10px/);
     expect(cssSource).not.toMatch(/font-weight:\s*(?:550|650|800)\b/);
-    expect(cssSource).not.toMatch(/\b\d+\.\d+px\b/);
+  });
+
+  it("preserves documented shared dimensions without banning fractional CSS elsewhere", () => {
+    const tokens = cssBlock(":root", tokensSource);
+    for (const [token, value] of [
+      ["--control-height-compact", "32px"],
+      ["--control-height-standard", "36px"],
+      ["--control-height-prominent", "40px"],
+      ["--border-width", "1px"],
+      ["--sidebar-width", "248px"],
+      ["--sidebar-collapsed-width", "56px"],
+    ]) {
+      expect(tokens).toMatch(new RegExp(`${token}:\\s*${value};`));
+    }
+    expect(cssBlock(".button", buttonsSource)).toContain(
+      "min-height: var(--button-height, var(--control-height-prominent))",
+    );
+    expect(cssBlock(".input-shell", formsSource)).toContain(
+      "min-height: var(--input-height, var(--control-height-prominent))",
+    );
+    expect(cssBlock(".app-shell", appShellSource)).toContain(
+      "grid-template-columns: var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr)",
+    );
   });
 
   it("uses the shared menu contract for the archive switcher and recurring action menus", () => {

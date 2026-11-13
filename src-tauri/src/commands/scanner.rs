@@ -1002,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "development-only scanner measurement"]
+    #[ignore = "development-only scanner benchmark"]
     fn measures_representative_scanner_fixtures() {
         struct MeasurementRun {
             details: super::ScannerMeasurement,

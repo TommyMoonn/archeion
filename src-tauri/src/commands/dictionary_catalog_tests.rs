@@ -140,7 +140,7 @@ fn committed_production_catalog_is_valid_and_non_empty() {
 }
 
 #[test]
-#[ignore = "requires generated Phase 1.3.0.23 production candidate packages"]
+#[ignore = "run by scripts/dictionaries/build_english_catalog_packages.py validate with generated candidate packages"]
 fn generated_english_candidates_install_index_activate_and_lookup() {
     let candidate_dir = PathBuf::from(
         std::env::var_os("ARCHEION_ENGLISH_CANDIDATE_DIR")

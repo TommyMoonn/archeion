@@ -133,6 +133,13 @@ Comfortable density is the default. Compact density reduces spacing and selected
 
 `tokens.css` does not define a repository-wide spacing scale. Components use their established gaps and layout variables. A single area does not add a new global spacing scale.
 
+Fractional CSS lengths are allowed for optical alignment, interpolation, and responsive
+layout. There is no whole-pixel rule across application styles. Preserve the documented
+shared dimensions below and the sidebar endpoints above through their semantic tokens;
+test those declarations and their consuming selectors rather than banning fractional
+values in unrelated styles. Rendered geometry may also be fractional under text scaling
+or Windows display scaling.
+
 ### Shared dimensions
 
 | Token                        | Value  | Use                            |
