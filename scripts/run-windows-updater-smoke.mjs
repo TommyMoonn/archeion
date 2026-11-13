@@ -193,15 +193,9 @@ async function main() {
           upgradeCode,
           endpoint: `${fixture.origin}/manifest/{{bundle_type}}`,
           windows: production.app.windows,
+          family,
+          msiLogPath: path.join(evidenceRoot, "msi-updater.log"),
         });
-        if (family === "msi") {
-          // Log only the MSI fixture, without forwarding MSI switches to NSIS
-          // or changing the production installer context or passive mode.
-          overlay.plugins.updater.windows.installerArgs = [
-            "/L*v",
-            `"${path.join(evidenceRoot, "msi-updater.log")}"`,
-          ];
-        }
         await writeFile(overlayPath, JSON.stringify(overlay));
         await runWindowsCommand(
           process.execPath,

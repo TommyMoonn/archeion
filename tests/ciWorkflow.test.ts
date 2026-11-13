@@ -77,6 +77,24 @@ function runGate(results: Record<string, string>) {
 }
 
 describe("CI workflow contract", () => {
+  it.each(["windows-runtime", "windows-updater"])(
+    "caches and verifies the exact Tauri bridge in %s",
+    (jobId) => {
+      const job = jobLines(jobId).join("\n");
+      expect(workflow).toContain("TAURI_DRIVER_VERSION: 2.0.6");
+      expect(job).toMatch(/uses: actions\/cache@[a-f0-9]{40}/);
+      expect(job).toContain("path: .scratch/runtime-smoke-tools");
+      expect(job).toContain(
+        "key: tauri-driver-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ env.TAURI_DRIVER_VERSION }}",
+      );
+      expect(job).not.toContain("restore-keys:");
+      expect(job).toContain("run: node scripts/ensure-tauri-driver.mjs");
+      expect(job.indexOf("Cache Tauri WebDriver bridge")).toBeLessThan(
+        job.indexOf("run: node scripts/ensure-tauri-driver.mjs"),
+      );
+      expect(job).not.toContain("cache-hit");
+    },
+  );
   it("cancels stale PR runs while giving each main push its own concurrency group", () => {
     expect(workflow).toContain(
       "group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}",
