@@ -4,6 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+import { configDefaults } from "vitest/config";
+
+import vitestConfig from "../vitest.config";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflow = fs.readFileSync(path.join(projectRoot, ".github", "workflows", "ci.yml"), "utf8");
@@ -23,6 +26,9 @@ const tauriConfig = JSON.parse(
   fs.readFileSync(path.join(projectRoot, "src-tauri", "tauri.conf.json"), "utf8"),
 ) as { build: { beforeBuildCommand: string } };
 const lines = workflow.split(/\r?\n/);
+const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8")) as {
+  scripts: { test: string; typecheck: string; build: string };
+};
 
 function jobLines(jobId: string): string[] {
   const start = lines.indexOf(`  ${jobId}:`);
@@ -102,7 +108,7 @@ describe("CI workflow contract", () => {
     expect(staticChecks).toContain("- name: Lint frontend\n        run: pnpm run lint");
     expect(staticChecks).toContain("- name: Typecheck frontend\n        run: pnpm run typecheck");
     expect(jobLines("frontend-tests")).toContain("        run: pnpm run test");
-    expect(jobLines("frontend-build")).toContain("        run: pnpm run build");
+    expect(jobLines("frontend-build")).toContain("        run: pnpm exec vite build");
     expect(jobLines("frontend-build")).toContain("        run: pnpm run test:inter-assets");
     const browserContracts = jobLines("browser-contracts");
     expect(browserContracts).toContain("    runs-on: ubuntu-latest");
@@ -126,9 +132,59 @@ describe("CI workflow contract", () => {
     expect(windowsUpdater).toContain("          name: windows-updater-smoke");
     expect(windowsUpdater.join("\n")).not.toContain("secrets.");
     expect(requiredJobIds).toContain("windows-updater");
-    expect(jobLines("release-tooling")).toContain(
-      "        run: pnpm run test tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts",
+  });
+
+  it("runs release regression tests once through the full Windows Vitest suite", () => {
+    expect(jobLines("frontend-tests")).toContain("    runs-on: windows-latest");
+    expect(jobLines("frontend-tests")).toContain("        run: pnpm run test");
+    expect(packageJson.scripts.test).toBe("vitest run");
+    const include = vitestConfig.test?.include ?? configDefaults.include;
+    const exclude = vitestConfig.test?.exclude ?? configDefaults.exclude;
+    for (const file of ["releaseTooling", "releaseCandidate", "releasePublication"]) {
+      const relativePath = `tests/${file}.test.ts`;
+      expect(fs.existsSync(path.join(projectRoot, relativePath)), relativePath).toBe(true);
+      expect(
+        include.some((pattern) => path.matchesGlob(relativePath, pattern)),
+        relativePath,
+      ).toBe(true);
+      expect(
+        exclude.some((pattern) => path.matchesGlob(relativePath, pattern)),
+        relativePath,
+      ).toBe(false);
+      expect(workflow).not.toContain(relativePath);
+    }
+    expect(lines).not.toContain("  release-tooling:");
+    expect(requiredJobIds).not.toContain("release-tooling");
+    expect(workflow.match(/run: pnpm run test$/gm)).toHaveLength(1);
+  });
+
+  it("typechecks once across static and asset jobs while preserving the local build", () => {
+    const frontendJobs = [...jobLines("frontend-static"), ...jobLines("frontend-build")].join("\n");
+    expect(frontendJobs.match(/run: pnpm run typecheck$/gm)).toHaveLength(1);
+    expect(frontendJobs).not.toMatch(/run: (?:pnpm run build|.*tsc)/);
+    expect(packageJson.scripts.typecheck).toBe("tsc -b");
+    expect(packageJson.scripts.build).toBe("tsc -b && vite build");
+  });
+
+  it.each([
+    "frontend-static",
+    "frontend-tests",
+    "browser-contracts",
+    "frontend-build",
+    "windows-runtime",
+    "windows-updater",
+  ])("uses pnpm setup, frozen installs and the lockfile cache in %s", (jobId) => {
+    const job = jobLines(jobId).join("\n");
+    expect(job).toMatch(/uses: pnpm\/action-setup@[a-f0-9]{40}/);
+    expect(job).toContain("run_install: false");
+    expect(job.indexOf("uses: pnpm/action-setup@")).toBeLessThan(
+      job.indexOf("uses: actions/setup-node@"),
     );
+    expect(job).toMatch(/uses: actions\/setup-node@[a-f0-9]{40}/);
+    expect(job).toContain("node-version-file: .node-version");
+    expect(job).toContain("cache: pnpm\n          cache-dependency-path: pnpm-lock.yaml");
+    expect(job).toContain("run: pnpm install --frozen-lockfile");
+    expect(job).not.toMatch(/\bnpm (?:ci|install|run)\b|cache: npm/);
   });
 
   it("runs both browser shards independently and reserves time for failure evidence", () => {
