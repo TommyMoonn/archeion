@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 
 import { normalizeKeyboardPreferences } from "../features/commands/commandBindings";
 import { CoalescedWriteQueue } from "../storage/CoalescedWriteQueue";
+import { normalizeBookDetailsWidth } from "../types/libraryDetails";
 import {
   defaultAppPreferences,
   APP_SETTINGS_CHANGED_EVENT,
@@ -205,6 +206,8 @@ function normalizeLibrarySettings(
         ),
       },
     },
+    detailsPinned: settings.detailsPinned === true,
+    detailsWidth: normalizeBookDetailsWidth(settings.detailsWidth),
     filters: normalizeLibraryFilters(settings.filters),
     smartViews: normalizeLibrarySmartViewPreferences(settings.smartViews),
   };
@@ -515,6 +518,14 @@ function createLibrarySettingsMutations(
 ): Extract<AppSettingsMutation, { area: "libraryField" }>[] {
   const candidates: FieldMutationCandidate<LibrarySettingsMutation>[] = [
     {
+      current: persisted.detailsPinned,
+      mutation: { field: "detailsPinned", value: target.detailsPinned },
+    },
+    {
+      current: persisted.detailsWidth,
+      mutation: { field: "detailsWidth", value: target.detailsWidth },
+    },
+    {
       current: persisted.collections.books.cardSize,
       mutation: { field: "booksCardSize", value: target.collections.books.cardSize },
     },
@@ -753,6 +764,10 @@ function applyLibrarySettingsMutation(
   mutation: LibrarySettingsMutation,
 ): LibraryDisplaySettings {
   switch (mutation.field) {
+    case "detailsPinned":
+      return { ...settings, detailsPinned: mutation.value };
+    case "detailsWidth":
+      return { ...settings, detailsWidth: normalizeBookDetailsWidth(mutation.value) };
     case "booksCardSize":
       return updateLibraryCollectionField(settings, "books", "cardSize", mutation.value);
     case "booksSortBy":
@@ -930,6 +945,12 @@ export class AppPreferencesStore {
         if (!attempt.isSuperseded() && completed) {
           this.setPreferences(
             preserveEquivalentPreferenceAreas(this.preferences, completed.preferences),
+            {
+              kind: "commit",
+              appThemeChanged: attempt.value.intents.some(
+                ({ mutation }) => mutation.area === "appTheme",
+              ),
+            },
           );
         }
       },
@@ -994,8 +1015,8 @@ export class AppPreferencesStore {
     const mutations = createAppSettingsMutations(this.preferences, next);
     this.mutationRevision += 1;
     this.setPreferences(next, {
-      kind: "commit",
-      appThemeChanged: changes.appTheme !== undefined,
+      kind: "optimistic",
+      appThemeChanged: !preferenceAreaEqual(this.preferences.appTheme, next.appTheme),
     });
     return this.persist(next, mutations, this.mutationRevision);
   }
@@ -1112,6 +1133,10 @@ export class AppPreferencesStore {
     if (!this.persistence.isDesktop()) {
       try {
         this.persistence.saveBrowserFallback(preferences);
+        this.setPreferences(this.preferences, {
+          kind: "commit",
+          appThemeChanged: mutations.some((mutation) => mutation.area === "appTheme"),
+        });
         this.setPersistenceStatus({ status: "saved" });
         return Promise.resolve(preferences);
       } catch (error) {
@@ -1225,10 +1250,15 @@ export class AppPreferencesStore {
     );
     const appThemeChanged =
       !this.hasDesktopSnapshot || !preferenceAreaEqual(this.preferences.appTheme, next.appTheme);
+    const nextPublication =
+      publication ??
+      (this.desktopMutationIntents.has("appTheme")
+        ? { kind: "optimistic" as const, appThemeChanged }
+        : { kind: "synchronization" as const, appThemeChanged });
     this.desktopRevision = snapshot.revision;
     this.desktopPersistedPreferences = snapshot.preferences;
     this.hasDesktopSnapshot = true;
-    this.setPreferences(next, publication ?? { kind: "synchronization", appThemeChanged });
+    this.setPreferences(next, nextPublication);
   }
 
   private recordDesktopMutationIntents(mutations: AppSettingsMutation[]): DesktopMutationIntent[] {

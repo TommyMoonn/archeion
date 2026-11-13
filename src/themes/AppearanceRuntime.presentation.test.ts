@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 
 import { describe, expect, it, vi } from "vitest";
-import { defaultAppPreferences, type AppPreferences } from "../types/appSettings";
+import {
+  defaultAppPreferences,
+  type AppPreferences,
+  type AppPreferencesPublication,
+} from "../types/appSettings";
 import { AppearanceRuntime } from "./AppearanceRuntime";
 import { ThemeCatalog } from "./ThemeCatalog";
 import type { AppearancePresentation } from "./appearancePresentation";
@@ -74,6 +78,68 @@ describe("committed native presentation handoff", () => {
     runtime.applyPreview(resolveBuiltInAppTheme("dark"));
     runtime.clearPreview();
     expect(prepare).toHaveBeenCalledTimes(calls);
+    stop();
+  });
+
+  it("does not prepare a new native appearance until its optimistic preference write commits", async () => {
+    let preferences: AppPreferences = { ...defaultAppPreferences };
+    let publication: AppPreferencesPublication = { kind: "initialization", generation: 1 };
+    let revision = 7;
+    let completeWrite!: () => void;
+    const write = new Promise<void>((resolve) => (completeWrite = resolve));
+    const listeners = new Set<() => void>();
+    const root = document.createElement("html");
+    const prepare = vi.fn(async () => undefined);
+    const source = {
+      getSnapshot: () => preferences,
+      getAppearancePublication: () => publication,
+      getRevisionSnapshot: () => revision,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      update: async (changes: Partial<AppPreferences>) => {
+        preferences = { ...preferences, ...changes };
+        publication = { kind: "optimistic", appThemeChanged: changes.appTheme !== undefined };
+        listeners.forEach((listener) => listener());
+        await write;
+        revision += 1;
+        publication = { kind: "commit", appThemeChanged: changes.appTheme !== undefined };
+        listeners.forEach((listener) => listener());
+        return preferences;
+      },
+    };
+    const runtime = new AppearanceRuntime({
+      globalPreferences: source,
+      getDocumentRoot: () => root,
+      preparePresentation: prepare,
+    });
+    const stop = runtime.start();
+    await settle();
+    const initialCalls = prepare.mock.calls.length;
+
+    const pending = source.update({ appTheme: { kind: "builtin", id: "light" } });
+    await settle();
+    expect(prepare).toHaveBeenCalledTimes(initialCalls);
+
+    completeWrite();
+    await pending;
+    await settle();
+    expect(prepare).toHaveBeenCalledWith(
+      expect.objectContaining({ selection: { kind: "builtin", id: "light" } }),
+    );
+    expect(runtime.getStartupSnapshot().error).toBeNull();
+    stop();
+  });
+
+  it("reports a presentation failure without mislabeling it as a missing theme", async () => {
+    const { runtime } = setup(async () => {
+      throw new Error("Native appearance selection changed before preparation.");
+    });
+    const stop = runtime.start();
+    await settle();
+    expect(runtime.getStartupSnapshot().error).toContain("appearance could not be applied");
+    expect(runtime.getStartupSnapshot().error).not.toContain("theme could not be loaded");
     stop();
   });
 

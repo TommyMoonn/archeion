@@ -22,6 +22,7 @@
   color: var(--muted);
   background: transparent;
   font-size: var(--type-caption);
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),

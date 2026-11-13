@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
+import { TooltipProvider } from "../../components/Tooltip";
 import type { ReaderChapter } from "../../types/reader";
 import { ReaderAnnotationList, type ReaderAnnotationListHandle } from "./ReaderAnnotationList";
 import {
@@ -122,6 +123,21 @@ describe("ReaderAnnotationList", () => {
     expect(target.textContent).toContain("Quoted passage");
     expect(target.textContent).toContain("Remember this");
     expect(target.querySelector('[aria-label="rose highlight"]')).not.toBeNull();
+  });
+
+  it("describes the annotation overflow action with its contextual label", () => {
+    const target = mount(
+      <TooltipProvider>
+        <ReaderAnnotationList {...defaultProps()} />
+      </TooltipProvider>,
+    );
+    const trigger = target.querySelector<HTMLButtonElement>(
+      'button[aria-label="Actions for Opening"]',
+    );
+    const descriptionId = trigger?.getAttribute("aria-describedby");
+
+    expect(descriptionId).toBeTruthy();
+    expect(document.getElementById(descriptionId!)?.textContent).toBe("Actions for Opening");
   });
 
   it("owns loading, error, empty-collection, and filtered-empty presentation", () => {

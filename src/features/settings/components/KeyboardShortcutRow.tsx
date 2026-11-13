@@ -1,6 +1,7 @@
 import { RotateCcw, X } from "lucide-react";
 
 import { IconButton } from "../../../components/IconButton";
+import { Tooltip } from "../../../components/Tooltip";
 import { CompactSettingsRow } from "./SettingsRows";
 
 type KeyboardShortcutRowProps = {
@@ -22,14 +23,16 @@ export function KeyboardShortcutRow({
     <CompactSettingsRow label={label}>
       <div className="keyboard-shortcut-row__controls">
         <div className="keyboard-shortcut-binding-control">
-          <button
-            aria-label={`Change shortcut for ${label}`}
-            className="keyboard-shortcut-binding"
-            onClick={onChange}
-            type="button"
-          >
-            <kbd>{bindingLabel}</kbd>
-          </button>
+          <Tooltip content={`Change shortcut for ${label}`}>
+            <button
+              aria-label={`Change shortcut for ${label}`}
+              className="keyboard-shortcut-binding"
+              onClick={onChange}
+              type="button"
+            >
+              <kbd>{bindingLabel}</kbd>
+            </button>
+          </Tooltip>
           {onClear ? (
             <IconButton
               className="keyboard-shortcut-clear"

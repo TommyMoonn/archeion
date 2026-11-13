@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
+import { TooltipProvider } from "../../../src/components/Tooltip";
 import { ReaderSettingsPanel } from "../../../src/features/reader/ReaderSettingsPanel";
 import { ReaderSideSurfaceLayer } from "../../../src/features/reader/ReaderSideSurfaceLayer";
 import type { ReaderAppearanceController } from "../../../src/features/reader/readerAppearanceController";
@@ -58,5 +59,9 @@ export function mountReaderFontPanel(
       </>
     );
   }
-  root.render(<Panel />);
+  root.render(
+    <TooltipProvider>
+      <Panel />
+    </TooltipProvider>,
+  );
 }

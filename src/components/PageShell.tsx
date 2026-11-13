@@ -13,6 +13,7 @@ type PageShellProps = {
   notice?: ReactNode;
   sidebar: ReactNode;
   sidebarCollapsed?: boolean;
+  detailsPanel?: ReactNode;
 };
 
 export function PageShell({
@@ -22,9 +23,14 @@ export function PageShell({
   notice,
   sidebar,
   sidebarCollapsed = false,
+  detailsPanel,
 }: PageShellProps) {
   return (
-    <div className="app-shell" data-sidebar-collapsed={sidebarCollapsed || undefined}>
+    <div
+      className="app-shell"
+      data-sidebar-collapsed={sidebarCollapsed || undefined}
+      data-details-pinned={detailsPanel ? true : undefined}
+    >
       {sidebar}
       <main
         className="page-shell"
@@ -39,6 +45,7 @@ export function PageShell({
       >
         {children}
       </main>
+      {detailsPanel}
       {notice ? <div className="page-shell-notice">{notice}</div> : null}
     </div>
   );

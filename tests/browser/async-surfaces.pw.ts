@@ -69,7 +69,7 @@ for (const surface of ["add", "rename", "metadata", "cover", "details"]) {
   test(`${surface}: native backdrop uses the shared dim without blur`, async ({ page }, info) => {
     await page.goto(`${fixture}?surface=${surface}&motion=on`);
     await page.getByRole("button", { name: "Open action" }).click();
-    await expect(page.locator(".dialog-skeleton")).toHaveCount(0);
+    await expect(page.locator(".dialog-skeleton, .book-details-loading")).toHaveCount(0);
     const style = await page
       .locator("dialog[open]")
       .last()
@@ -245,7 +245,8 @@ for (const [surface, chunk] of Object.entries(chunks)) {
         true,
       );
       if (surface !== "details") await expect(page.locator(".dialog__copy button")).toHaveCount(0);
-      await expect(page.getByRole("status")).toContainText("Opening");
+      const loadingText = surface === "details" ? "Loading book details" : "Opening";
+      await expect(page.getByRole("status")).toContainText(loadingText);
       await page.keyboard.press("Escape");
       // Metadata/cover return to details using the existing editor navigation owner.
       if (surface === "metadata" || surface === "cover") await page.keyboard.press("Escape");
@@ -253,7 +254,7 @@ for (const [surface, chunk] of Object.entries(chunks)) {
       await expect(page.locator("dialog[open]")).toHaveCount(0);
       await page.getByRole("button", { name: "Open action" }).click();
       await expect(page.locator("dialog[open]")).toHaveCount(1);
-      await expect(page.getByRole("status").filter({ hasText: "Opening" })).toHaveCount(0);
+      await expect(page.getByRole("status").filter({ hasText: loadingText })).toHaveCount(0);
       if (surface === "rename" || surface === "folder" || surface === "folder-rename") {
         // The just-released import can still be pending on the first reopen. A committed ready
         // form establishes a warm module before checking its original field autofocus.

@@ -41,10 +41,7 @@ export function KeyboardShortcutRow({
       command.id as ConfigurableCommandId,
       keyboardBindingsEqual(binding, command.defaultBinding) ? undefined : { binding },
     );
-    return context.updateAppPreferences(
-      { keyboard },
-      { successMessage: `${command.label} shortcut updated.` },
-    );
+    return context.updateAppPreferences({ keyboard });
   }
 
   async function clearShortcut() {
@@ -53,10 +50,7 @@ export function KeyboardShortcutRow({
       command.id as ConfigurableCommandId,
       { disabled: true },
     );
-    await context.updateAppPreferences(
-      { keyboard },
-      { successMessage: `${command.label} shortcut cleared.` },
-    );
+    await context.updateAppPreferences({ keyboard });
   }
 
   async function resetShortcut() {
@@ -65,10 +59,7 @@ export function KeyboardShortcutRow({
       command.id as ConfigurableCommandId,
       undefined,
     );
-    await context.updateAppPreferences(
-      { keyboard },
-      { successMessage: `${command.label} shortcut reset.` },
-    );
+    await context.updateAppPreferences({ keyboard });
   }
 
   return (
@@ -120,12 +111,7 @@ export function ResetKeyboardShortcutsRow({ context }: { context: SettingsContro
     <SettingsActionRow label="Restore default shortcuts">
       <Button
         disabled={!hasOverrides}
-        onClick={() =>
-          void context.updateAppPreferences(
-            { keyboard: { shortcuts: {} } },
-            { successMessage: "Keyboard shortcuts reset." },
-          )
-        }
+        onClick={() => void context.updateAppPreferences({ keyboard: { shortcuts: {} } })}
         variant="secondary"
       >
         Reset all

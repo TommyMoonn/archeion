@@ -298,10 +298,6 @@ export const FolderBrowser = memo(function FolderBrowser({
                 <Button variant="secondary" onClick={() => setQuery("")}>
                   Clear search
                 </Button>
-              ) : canManageFolders && onCreate ? (
-                <Button icon={<FolderPlus aria-hidden="true" />} onClick={onCreate}>
-                  Add folder
-                </Button>
               ) : undefined
             }
             description={

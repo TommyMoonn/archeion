@@ -6,6 +6,8 @@ import type {
 } from "./library";
 
 export type LibraryDisplaySettings = {
+  detailsPinned: boolean;
+  detailsWidth: number;
   collections: LibraryCollectionPreferences;
   filters: LibraryFilterState;
   smartViews: LibrarySmartViewPreferences;

@@ -46,5 +46,6 @@ export function useCompletedUpdateNotice(
     resetKey: version,
     onDismiss: () => setNotice((current) => (current ? { ...current, dismissed: true } : null)),
   });
-  return { version, pauseHandlers };
+  const dismiss = () => setNotice((current) => (current ? { ...current, dismissed: true } : null));
+  return { version, pauseHandlers, dismiss };
 }

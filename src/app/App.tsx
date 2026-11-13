@@ -44,6 +44,7 @@ import { AppUpdateRuntime } from "../features/updates/AppUpdateRuntime";
 import { AppearanceStatus } from "./AppearanceStatus";
 import { UtilityWindowContentBoundary, UtilityWindowFrame } from "./UtilityWindowFrame";
 import { useManagedWindowShellReady } from "./useManagedWindowShellReady";
+import { installBrowserContextMenuPolicy } from "./browserContextMenuPolicy";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -71,6 +72,8 @@ function subscribeToRouteChanges(listener: () => void): () => void {
 }
 
 export function App() {
+  useLayoutEffect(() => installBrowserContextMenuPolicy(document), []);
+
   const { ready } = useSyncExternalStore(
     appearanceRuntime.subscribe,
     appearanceRuntime.getStartupSnapshot,

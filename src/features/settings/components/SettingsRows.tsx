@@ -104,16 +104,23 @@ export function SettingsSliderRow({
   value,
 }: SettingsSliderRowProps) {
   return (
-    <FeatureSettingsRow description={description} label={label} note={`${value}${suffix}`}>
-      <input
-        aria-label={label}
-        max={max}
-        min={min}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-        step={step}
-        type="range"
-        value={value}
-      />
+    <FeatureSettingsRow description={description} label={label}>
+      <div className="settings-slider">
+        <span aria-hidden="true" className="settings-slider__value">
+          {value}
+          {suffix}
+        </span>
+        <input
+          aria-label={label}
+          aria-valuetext={`${value}${suffix}`}
+          max={max}
+          min={min}
+          onChange={(event) => onChange(Number(event.currentTarget.value))}
+          step={step}
+          type="range"
+          value={value}
+        />
+      </div>
     </FeatureSettingsRow>
   );
 }

@@ -164,7 +164,7 @@ export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTrigg
 
     const hasDisabledReason = Boolean(disabled && disabledReason);
     const ownedTooltipAvailable = useOwnedTooltipAvailable();
-    const tooltipText = hasDisabledReason ? disabledReason : tooltip;
+    const tooltipText = hasDisabledReason ? disabledReason : (tooltip ?? title ?? label);
     const usesOwnedDisabledDescription = Boolean(
       ownedTooltipAvailable && hasDisabledReason && tooltipText,
     );

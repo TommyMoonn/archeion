@@ -171,6 +171,97 @@ describe("LibrarySidebar", () => {
       activeRoot = null;
     }
     document.body.innerHTML = "";
+    vi.unstubAllGlobals();
+  });
+
+  it.each(["pointerup", "pointercancel", "lostpointercapture"])(
+    "batches drag updates and flushes the final width on %s",
+    (finishEvent) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let frameId = 0;
+      vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+        frames.set(++frameId, callback);
+        return frameId;
+      });
+      vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+      const onWidthChange = vi.fn();
+      const onWidthCommit = vi.fn();
+      const session = renderInteractiveSidebar(undefined, undefined, undefined, {
+        resizable: true,
+        width: 240,
+        onWidthChange,
+        onWidthCommit,
+      });
+      activeRoot = session.root;
+      const handle = session.container.querySelector<HTMLElement>('[aria-label="Resize sidebar"]');
+      if (!handle) throw new Error("Resize handle was not rendered.");
+      handle.setPointerCapture = vi.fn();
+      handle.hasPointerCapture = () => true;
+      handle.releasePointerCapture = vi.fn();
+      const dispatch = (type: string, clientX: number) =>
+        act(() => {
+          handle.dispatchEvent(
+            new PointerEvent(type, { bubbles: true, button: 0, pointerId: 1, clientX }),
+          );
+        });
+      dispatch("pointerdown", 240);
+      dispatch("pointermove", 248);
+      dispatch("pointermove", 260);
+      expect(onWidthChange).not.toHaveBeenCalled();
+      expect(frames.size).toBe(1);
+      act(() => {
+        const callbacks = [...frames.values()];
+        frames.clear();
+        callbacks.forEach((callback) => callback(0));
+      });
+      expect(onWidthChange.mock.calls).toEqual([[260]]);
+      dispatch("pointermove", 272);
+      dispatch("pointermove", 280);
+      dispatch(finishEvent, 280);
+      expect(onWidthChange.mock.calls).toEqual([[260], [280]]);
+      expect(onWidthCommit).toHaveBeenCalledExactlyOnceWith(280);
+      expect(frames.size).toBe(0);
+      dispatch("lostpointercapture", 280);
+      expect(onWidthCommit).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("cancels a pending resize frame on unmount and preserves immediate keyboard resizing", () => {
+    const schedule = vi.fn(() => 7);
+    const cancel = vi.fn();
+    vi.stubGlobal("requestAnimationFrame", schedule);
+    vi.stubGlobal("cancelAnimationFrame", cancel);
+    const onWidthChange = vi.fn();
+    const onWidthCommit = vi.fn();
+    const session = renderInteractiveSidebar(undefined, undefined, undefined, {
+      resizable: true,
+      width: 240,
+      onWidthChange,
+      onWidthCommit,
+    });
+    activeRoot = session.root;
+    const handle = session.container.querySelector<HTMLElement>('[aria-label="Resize sidebar"]');
+    if (!handle) throw new Error("Resize handle was not rendered.");
+    handle.setPointerCapture = vi.fn();
+    act(() =>
+      handle.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
+    );
+    expect(onWidthChange).toHaveBeenCalledExactlyOnceWith(248);
+    expect(onWidthCommit).toHaveBeenCalledExactlyOnceWith(248);
+    expect(schedule).not.toHaveBeenCalled();
+    act(() => {
+      handle.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1, clientX: 240 }),
+      );
+      handle.dispatchEvent(
+        new PointerEvent("pointermove", { bubbles: true, pointerId: 1, clientX: 260 }),
+      );
+    });
+    expect(schedule).toHaveBeenCalledOnce();
+    act(() => session.root.unmount());
+    activeRoot = null;
+    expect(cancel).toHaveBeenCalledWith(7);
+    expect(onWidthChange).toHaveBeenCalledOnce();
   });
 
   it("names the complementary sidebar and its primary navigation in expanded and collapsed modes", () => {

@@ -26,7 +26,11 @@ export function useLibrarySelection(books: readonly LibrarySnapshotBook[] | unde
     setState(enterLibrarySelectionMode);
   }, []);
   const exitMode = useCallback(() => {
-    setState(exitLibrarySelectionMode());
+    setState((current) =>
+      current.mode || current.selectedBookIds.size > 0 || current.anchorBookId !== undefined
+        ? exitLibrarySelectionMode()
+        : current,
+    );
   }, []);
   const clear = useCallback(() => {
     setState(clearLibrarySelection);

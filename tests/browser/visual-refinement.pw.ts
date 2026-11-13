@@ -72,6 +72,7 @@ for (const theme of ["light", "dark", "custom"]) {
       await page.evaluate(() => {
         document.documentElement.style.fontSize = "24px";
       });
+      const emptyStateCenters: number[] = [];
       for (const [destination, title, glyph] of [
         ["Library", "No EPUB files found", "book-open-text"],
         ["Favorites", "No favorites yet", "heart"],
@@ -87,8 +88,17 @@ for (const theme of ["light", "dark", "custom"]) {
         await expect(empty.locator(`svg.lucide-${glyph}`)).toBeVisible();
         await expect(empty.locator(".empty-state__icon svg")).toHaveCSS("width", "32px");
         expect(await empty.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+        emptyStateCenters.push(
+          await empty.evaluate((node) => {
+            const bounds = node.getBoundingClientRect();
+            return bounds.top + bounds.height / 2;
+          }),
+        );
         await page.screenshot({ path: info.outputPath(`${destination}.png`) });
       }
+      expect(Math.max(...emptyStateCenters) - Math.min(...emptyStateCenters)).toBeLessThanOrEqual(
+        1,
+      );
       await page
         .getByRole("navigation", { name: "Library navigation" })
         .getByRole("button", { name: "Folders", exact: true })
@@ -187,6 +197,67 @@ for (const cache of ["cold", "warm"]) {
     expect(await page.evaluate(() => window.uiStabilityFixture.unexpected)).toEqual([]);
   });
 }
+
+test("Add EPUB entrance fades without shifting its contents", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/browser/fixtures/ui-stability.html?count=0&motion=on");
+  await expect(page.locator(".empty-state")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
+  await page.evaluate(() =>
+    document.documentElement.style.setProperty("--motion-duration-emphasized", "1200ms"),
+  );
+
+  await page.getByRole("button", { name: "Add EPUB", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator(".add-epub-dialog")).toBeVisible();
+
+  const samples = await dialog.evaluate((element) => {
+    const animation = element
+      .getAnimations()
+      .find(
+        (candidate) => (candidate as CSSAnimation).animationName === "dialog-presence-fade-enter",
+      );
+    if (!animation) throw new Error("Add EPUB fade entrance animation was not found.");
+    animation.pause();
+
+    const timing = animation.effect?.getTiming();
+    if (!timing) throw new Error("Add EPUB fade entrance has no timing effect.");
+    const duration = Number(timing.duration);
+    const targets = [
+      element,
+      element.querySelector(".dialog__panel"),
+      element.querySelector("h2"),
+      element.querySelector(".dialog__body"),
+      element.querySelector(".dialog__bottom"),
+    ];
+    const capture = (time: number) => {
+      animation.currentTime = time;
+      const bounds = targets.map((target) => {
+        if (!target) throw new Error("Add EPUB dialog layout target was not found.");
+        const { x, y, width, height } = target.getBoundingClientRect();
+        return { x, y, width, height };
+      });
+      return { bounds, opacity: Number(getComputedStyle(element).opacity) };
+    };
+
+    return {
+      name: (animation as CSSAnimation).animationName,
+      duration,
+      start: capture(0),
+      middle: capture(duration / 2),
+      end: capture(duration),
+    };
+  });
+
+  expect(samples.name).toBe("dialog-presence-fade-enter");
+  expect(samples.duration).toBe(1200);
+  expect(samples.start.bounds).toEqual(samples.middle.bounds);
+  expect(samples.middle.bounds).toEqual(samples.end.bounds);
+  expect(samples.start.opacity).toBeLessThan(samples.end.opacity);
+  expect(samples.end.opacity).toBe(1);
+});
 
 test("filter no-results is text-only and clears back to the collection", async ({ page }) => {
   await page.goto("/tests/browser/fixtures/ui-stability.html?count=2&motion=off");

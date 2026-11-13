@@ -1,4 +1,5 @@
 import { Filter, X } from "lucide-react";
+import { memo, useMemo } from "react";
 
 import { AppSelect, type AppSelectOption } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
@@ -121,14 +122,21 @@ function MetadataFilterSelect({
   onChange: (filters: LibraryFilterState) => void;
   options: string[];
 }) {
-  const availableOptions = options.filter((option) => !filters[filterKey].includes(option));
-  const selectOptions: Array<AppSelectOption<string>> = [
-    {
-      label: availableOptions.length > 0 ? "Any" : "No more options",
-      value: "",
-    },
-    ...availableOptions.map((option) => ({ label: option, value: option })),
-  ];
+  const selectedValues = filters[filterKey];
+  const availableOptions = useMemo(
+    () => options.filter((option) => !selectedValues.includes(option)),
+    [options, selectedValues],
+  );
+  const selectOptions = useMemo<Array<AppSelectOption<string>>>(
+    () => [
+      {
+        label: availableOptions.length > 0 ? "Any" : "No more options",
+        value: "",
+      },
+      ...availableOptions.map((option) => ({ label: option, value: option })),
+    ],
+    [availableOptions],
+  );
 
   return (
     <div className="library-filter-field">
@@ -149,7 +157,7 @@ function MetadataFilterSelect({
   );
 }
 
-export function LibraryFilterPopover({
+export const LibraryFilterPopover = memo(function LibraryFilterPopover({
   filters,
   onChange,
   onClear,
@@ -246,7 +254,7 @@ export function LibraryFilterPopover({
       </div>
     </details>
   );
-}
+});
 
 export function LibraryFilterTokens({
   filters,

@@ -265,21 +265,21 @@ test("completion waits for the first Library visit and pauses for hover and focu
   await expect(notice).toHaveCount(0);
   expect(await page.evaluate(() => window.updateToastFixture!.acknowledgements)).toBe(0);
   await page.getByRole("button", { name: "Return to Library" }).click();
-  await expect(notice).toContainText("Archeion was updated to 1.6.1");
-  await expect(notice.getByRole("button")).toHaveCount(0);
+  await expect(notice).toContainText("Updated to Archeion 1.6.1");
+  await expect(notice.getByRole("button", { name: "Dismiss update confirmation" })).toBeVisible();
   expect(await notice.evaluate((element) => getComputedStyle(element).animationName)).toBe("none");
   expect(await page.evaluate(() => window.updateToastFixture!.acknowledgements)).toBe(1);
   await page.clock.fastForward(3000);
   await notice.hover();
-  const link = notice.getByRole("link", { name: /What's new/ });
-  await link.focus();
+  const releaseNotesButton = notice.getByRole("button", { name: "View release notes" });
+  await releaseNotesButton.focus();
   await page.clock.fastForward(20000);
   await expect(notice).toBeVisible();
   await page.mouse.move(300, 100);
   await page.clock.fastForward(10000);
   await expect(notice).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("completed-update.png") });
-  await link.click();
+  await releaseNotesButton.click();
   await expect(page.locator("html")).toHaveAttribute(
     "data-last-external-url",
     `${changelog}#release-1-6-1`,

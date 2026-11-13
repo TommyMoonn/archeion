@@ -27,6 +27,25 @@ function mountedFrame(): HTMLIFrameElement {
 }
 
 describe("ReaderContentDocumentRegistry", () => {
+  it("suppresses browser context menus in mounted EPUB documents and releases the listener", () => {
+    const registry = new ReaderContentDocumentRegistry();
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    registry.bindRenderedView({ document: chapter }, "chapter.xhtml");
+
+    const activeEvent = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    chapter.body.dispatchEvent(activeEvent);
+    expect(activeEvent.defaultPrevented).toBe(true);
+
+    registry.remove(chapter);
+    const retiredEvent = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    chapter.body.dispatchEvent(retiredEvent);
+    expect(retiredEvent.defaultPrevented).toBe(false);
+
+    frame.remove();
+    registry.retire();
+  });
+
   it("passes section/spine context to legacy classification on first mount, late binding and remount", () => {
     const registry = new ReaderContentDocumentRegistry();
     registry.applyLayout(

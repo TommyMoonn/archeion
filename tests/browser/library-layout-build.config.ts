@@ -1,6 +1,5 @@
 import { defineConfig, mergeConfig } from "vite";
-// Match the repository's extensionless TypeScript config-import convention.
-import base from "../../vite.config";
+import base from "../../vite.config.ts";
 
 // Disposable fixture build, separate from the application's release bundle.
 export default mergeConfig(

@@ -2,6 +2,7 @@ import { useLayoutEffect, useState, type RefObject } from "react";
 
 import {
   APP_SELECT_MIN_WIDTH,
+  APP_SELECT_VIEWPORT_MARGIN,
   calculateAppSelectPlacement,
   convertAppSelectPlacementToFixedCoordinateSpace,
   getAppSelectFixedCoordinateSpace,
@@ -13,9 +14,11 @@ type UseAppSelectPlacementOptions = {
   contentRevision: string;
   menuRef: RefObject<HTMLDivElement | null>;
   maxMenuHeight?: number;
+  minMenuWidth?: number;
   open: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   triggerRef: RefObject<HTMLButtonElement | null>;
+  widthStrategy?: "content" | "trigger";
 };
 
 function samePlacement(current: AppSelectPlacement | null, next: AppSelectPlacement): boolean {
@@ -59,9 +62,11 @@ export function useAppSelectPlacement({
   contentRevision,
   menuRef,
   maxMenuHeight,
+  minMenuWidth,
   open,
   scrollRef,
   triggerRef,
+  widthStrategy = "content",
 }: UseAppSelectPlacementOptions): AppSelectPlacement | null {
   const [placement, setPlacement] = useState<AppSelectPlacement | null>(null);
 
@@ -76,23 +81,46 @@ export function useAppSelectPlacement({
 
     const measure = () => {
       const triggerRect = trigger.getBoundingClientRect();
-      const menuRect = menu.getBoundingClientRect();
       const coordinateSpace = getAppSelectFixedCoordinateSpace(menu);
-      const borderHeight = Math.max(
-        0,
-        menuRect.height / coordinateSpace.scaleY - menu.clientHeight,
-      );
-      const intendedMenuHeight =
-        Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
-        coordinateSpace.scaleY;
-      const intendedMenuWidth =
-        Math.max(APP_SELECT_MIN_WIDTH, triggerRect.width / coordinateSpace.scaleX) *
-        coordinateSpace.scaleX;
+
+      // Content-sized menus measure intrinsic width before viewport clamping.
+      // Trigger-sized menus retain the trigger width as their catalog changes.
+      const previousWidth = menu.style.width;
+      let intendedMenuHeight: number;
+      let intendedMenuWidth: number;
+      const viewport = currentViewport();
+      try {
+        const minWidth = Math.max(APP_SELECT_MIN_WIDTH, minMenuWidth ?? 0) * coordinateSpace.scaleX;
+        intendedMenuWidth = Math.max(triggerRect.width, minWidth);
+
+        if (widthStrategy === "content") {
+          menu.style.width = "max-content";
+          const contentRect = menu.getBoundingClientRect();
+          intendedMenuWidth = Math.max(intendedMenuWidth, contentRect.width);
+        }
+
+        // Measure height at the width that will actually be rendered. This matters
+        // for trigger-sized menus whose option labels wrap after catalog updates.
+        const availableWidth = Math.max(0, viewport.width - APP_SELECT_VIEWPORT_MARGIN * 2);
+        intendedMenuWidth = Math.min(intendedMenuWidth, availableWidth);
+        menu.style.width = `${intendedMenuWidth / coordinateSpace.scaleX}px`;
+
+        const measuredRect = menu.getBoundingClientRect();
+        const borderHeight = Math.max(
+          0,
+          measuredRect.height / coordinateSpace.scaleY - menu.clientHeight,
+        );
+        intendedMenuHeight =
+          Math.min(maxMenuHeight ?? Infinity, menu.scrollHeight + borderHeight) *
+          coordinateSpace.scaleY;
+      } finally {
+        menu.style.width = previousWidth;
+      }
       const viewportPlacement = calculateAppSelectPlacement({
         intendedMenuHeight,
         intendedMenuWidth,
         trigger: triggerRect,
-        viewport: currentViewport(),
+        viewport,
       });
       const next = convertAppSelectPlacementToFixedCoordinateSpace(
         viewportPlacement,
@@ -134,7 +162,7 @@ export function useAppSelectPlacement({
       visualViewport?.removeEventListener("resize", scheduleMeasurement);
       visualViewport?.removeEventListener("scroll", scheduleMeasurement);
     };
-  }, [contentRevision, maxMenuHeight, menuRef, open, triggerRef]);
+  }, [contentRevision, maxMenuHeight, menuRef, minMenuWidth, open, triggerRef, widthStrategy]);
 
   useLayoutEffect(() => {
     if (!open || !placement || !activeOptionId) return;
