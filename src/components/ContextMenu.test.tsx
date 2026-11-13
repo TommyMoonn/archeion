@@ -412,7 +412,7 @@ describe("ContextMenu", () => {
     expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
   });
 
-  it("keeps unexplained disabled triggers native while explained triggers remain discoverable", () => {
+  it("uses accessible trigger labels as tooltips while preserving disabled semantics", () => {
     function TriggerHarness() {
       const controller = useContextMenuController();
       return (
@@ -429,11 +429,7 @@ describe("ContextMenu", () => {
           >
             Explained
           </ContextMenuTrigger>
-          <ContextMenuTrigger
-            controller={controller}
-            label="Enabled trigger"
-            tooltip="Open enabled actions"
-          >
+          <ContextMenuTrigger controller={controller} label="Enabled trigger">
             Enabled
           </ContextMenuTrigger>
         </>
@@ -462,7 +458,9 @@ describe("ContextMenu", () => {
 
     expect(nativeDisabled.disabled).toBe(true);
     expect(nativeDisabled.getAttribute("aria-disabled")).toBeNull();
-    expect(nativeDisabled.getAttribute("aria-describedby")).toBeNull();
+    expect(
+      document.getElementById(nativeDisabled.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("Native disabled");
     expect(explained.disabled).toBe(false);
     expect(explained.getAttribute("aria-disabled")).toBe("true");
     expect(explained.title).toBe("");
@@ -470,7 +468,7 @@ describe("ContextMenu", () => {
       "Wait for the current action.",
     );
     expect(document.getElementById(enabled.getAttribute("aria-describedby")!)?.textContent).toBe(
-      "Open enabled actions",
+      "Enabled trigger",
     );
 
     act(() => {

@@ -88,7 +88,7 @@ async function fixture(initial = snapshot()) {
   });
   const button = (label: string) => {
     const element = Array.from(container.querySelectorAll("button")).find(
-      (element) => element.textContent === label,
+      (element) => element.textContent === label || element.getAttribute("aria-label") === label,
     );
     if (!element) throw new Error(`Missing button ${label}`);
     return element;
@@ -116,19 +116,27 @@ afterEach(() => {
 });
 
 describe("Library update notice", () => {
-  it("announces a failed external link and retains the update decisions", async () => {
+  it("keeps the failed release-notes action available for retry", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     external.open.mockRejectedValue(new Error("Browser unavailable"));
-    const { container, backend } = await fixture();
+    const { container, backend } = await fixture(
+      snapshot({
+        status: "idle",
+        currentVersion: "1.8.0",
+        available: null,
+        prompt: { ...snapshot().prompt, completedVersion: "1.8.0" },
+      }),
+    );
     await act(async () => {
-      container.querySelector<HTMLAnchorElement>(".update-toast a")?.click();
+      container.querySelector<HTMLButtonElement>(".update-toast__release-button")?.click();
     });
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "Archeion could not open that link. Try the link again.",
     );
     expect(container.querySelector(".update-toast__message")?.textContent).toBe(
-      "Archeion 1.6.1 is available",
+      "Updated to Archeion 1.8.0",
     );
+    expect(container.querySelector(".update-toast__release-button")).not.toBeNull();
     expect(backend.download).not.toHaveBeenCalled();
   });
   it("does not let a late failure update a notice unmounted for Reader", async () => {
@@ -162,8 +170,8 @@ describe("Library update notice", () => {
           finish = resolve;
         }),
     );
-    button("Later").focus();
-    await click("Later");
+    button("Dismiss update notice").focus();
+    await click("Dismiss update notice");
     button("Library action").focus();
     await act(async () => {
       finish(
@@ -180,21 +188,27 @@ describe("Library update notice", () => {
     expect(document.activeElement).toBe(button("Library action"));
     expect(container.querySelector(".update-toast")).toBeNull();
   });
-  it("renders exact available copy, a secondary release link, and only two decisions", async () => {
+  it("renders the available notice in two rows with a dismiss control", async () => {
     const { container, backend, click } = await fixture();
+    const toast = container.querySelector<HTMLElement>(".update-toast")!;
     expect(container.querySelector(".update-toast__message")?.textContent).toBe(
       "Archeion 1.6.1 is available",
     );
+    expect(toast.querySelectorAll(":scope > .update-toast__header")).toHaveLength(1);
+    expect(toast.querySelector(".update-toast__header .update-toast__actions")).toBeNull();
+    expect(toast.querySelectorAll(":scope > .update-toast__actions")).toHaveLength(1);
     expect(
       Array.from(container.querySelectorAll(".update-toast button")).map(
-        (button) => button.textContent,
+        (button) => button.getAttribute("aria-label") ?? button.textContent,
       ),
-    ).toEqual(["Later", "Update now"]);
-    const link = container.querySelector<HTMLAnchorElement>(".update-toast a")!;
-    expect(link.href).toBe(
-      "https://tommymoonn.github.io/archeion/documentation/changelog/#release-1-6-1",
-    );
-    expect(link.textContent).toContain("What's new ↗");
+    ).toEqual(["Dismiss update notice", "Update now"]);
+    expect(container.querySelector(".update-toast a")).toBeNull();
+    expect(container.textContent).not.toContain("What's new");
+    expect(toast.querySelectorAll(".update-toast__actions .button--compact")).toHaveLength(1);
+    expect(toast.querySelector(".update-toast__header .update-toast__dismiss svg")).not.toBeNull();
+    expect(
+      toast.querySelector(".update-toast__actions .button--primary .button__icon svg"),
+    ).not.toBeNull();
     expect(container.querySelector("dialog")).toBeNull();
     expect(backend.check).not.toHaveBeenCalled();
     expect(backend.download).not.toHaveBeenCalled();
@@ -223,15 +237,15 @@ describe("Library update notice", () => {
     await change({ status: "available" });
     expect(container.querySelector(".update-toast")).not.toBeNull();
   });
-  it("Later uses native version-bound snooze, does not auto-dismiss, and restores owned focus", async () => {
+  it("dismiss uses native version-bound snooze and restores owned focus", async () => {
     vi.useFakeTimers();
     const { container, button, click, backend } = await fixture();
     act(() => {
       vi.advanceTimersByTime(120_000);
     });
     expect(container.querySelector(".update-toast")).not.toBeNull();
-    button("Later").focus();
-    await click("Later");
+    button("Dismiss update notice").focus();
+    await click("Dismiss update notice");
     expect(backend.defer).toHaveBeenCalledWith("1.6.1");
     expect(container.querySelector(".update-toast")).toBeNull();
     expect(document.activeElement).toBe(container.querySelector("main"));
@@ -249,6 +263,10 @@ describe("Library update notice", () => {
     const { container, change } = await fixture(
       snapshot({ status: "downloading", downloadedBytes: 46, totalBytes: 100 }),
     );
+    const toast = container.querySelector<HTMLElement>(".update-toast")!;
+    expect(
+      toast.querySelectorAll(":scope > .update-toast__header, :scope > progress"),
+    ).toHaveLength(2);
     expect(container.querySelector("progress")?.value).toBe(46);
     expect(container.textContent).toContain("Downloading… 46%");
     const announcement = container.querySelector('[role="status"]')!.textContent;
@@ -256,14 +274,17 @@ describe("Library update notice", () => {
     expect(container.querySelector("progress")?.value).toBe(100);
     expect(container.querySelector('[role="status"]')!.textContent).toBe(announcement);
   });
-  it("ready has only the exact restart sentence, and Later remains native session-only policy across remounts", async () => {
+  it("ready keeps its restart message and native deferral across remounts", async () => {
     const { container, click, backend, render } = await fixture(snapshot({ status: "ready" }));
     expect(container.querySelector(".update-toast__message")?.textContent).toBe(
       "Restart Archeion to finish the update.",
     );
     expect(container.querySelector(".update-toast")?.textContent).not.toContain("1.6.1");
     expect(container.querySelector(".update-toast a")).toBeNull();
-    await click("Later");
+    expect(
+      container.querySelector(".update-toast__actions .button--primary .button__icon svg"),
+    ).not.toBeNull();
+    await click("Dismiss update notice");
     expect(backend.defer).toHaveBeenCalledWith("1.6.1");
     expect(container.querySelector(".update-toast")).toBeNull();
     await act(async () => {
@@ -298,7 +319,7 @@ describe("Library update notice", () => {
       "Restarting Archeion…",
     );
   });
-  it("recovers a native download error with download retry and native Later", async () => {
+  it("recovers a native download error with download retry and dismiss", async () => {
     const { click, backend, container } = await fixture(
       snapshot({
         error: { operation: "download", message: "The update could not be downloaded. Try again." },
@@ -309,13 +330,13 @@ describe("Library update notice", () => {
     expect(backend.download).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("Downloading…");
   });
-  it("download-error Later snoozes the retained candidate", async () => {
+  it("download-error dismiss snoozes the retained candidate", async () => {
     const { click, backend, container } = await fixture(
       snapshot({
         error: { operation: "download", message: "The update could not be downloaded. Try again." },
       }),
     );
-    await click("Later");
+    await click("Dismiss update notice");
     expect(backend.defer).toHaveBeenCalledWith("1.6.1");
     expect(container.querySelector(".update-toast")).toBeNull();
   });
@@ -335,7 +356,7 @@ describe("Library update notice", () => {
     expect(backend.install).not.toHaveBeenCalled();
     expect(backend.download).not.toHaveBeenCalled();
   });
-  it("install-error Later dismisses recovery only, without attempting to snooze nonexistent bytes", async () => {
+  it("install-error dismissal hides recovery without deferring", async () => {
     const { click, backend, container, change } = await fixture(
       snapshot({
         status: "idle",
@@ -346,13 +367,13 @@ describe("Library update notice", () => {
         },
       }),
     );
-    await click("Later");
+    await click("Dismiss update notice");
     expect(container.querySelector(".update-toast")).toBeNull();
     expect(backend.defer).not.toHaveBeenCalled();
     await change({ status: "available", available: snapshot().available, error: null });
     expect(container.textContent).toContain("Archeion 1.6.1 is available");
   });
-  it("keeps retry and Later available when a fresh check after installation failure also fails", async () => {
+  it("keeps retry and dismiss available after a failed recovery check", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { click, backend, container, emit } = await fixture(
       snapshot({
@@ -371,7 +392,7 @@ describe("Library update notice", () => {
     });
     await click("Try again");
     expect(container.textContent).toContain("Updates could not be checked. Try again.");
-    await click("Later");
+    await click("Dismiss update notice");
     expect(container.querySelector(".update-toast")).toBeNull();
     expect(backend.defer).not.toHaveBeenCalled();
     expect(backend.install).not.toHaveBeenCalled();
@@ -423,11 +444,11 @@ describe("Library update notice", () => {
     expect(container.textContent).toContain("Archeion 1.6.1 is available");
     expect(container.textContent).not.toContain("could not");
   });
-  it("failed snooze does not appear successful and offers retry for that action", async () => {
+  it("failed dismissal does not appear successful and can be retried", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { click, backend, container } = await fixture();
     backend.defer.mockRejectedValueOnce(new Error("Disk unavailable"));
-    await click("Later");
+    await click("Dismiss update notice");
     expect(container.textContent).toContain("The update could not be postponed. Try again.");
     await click("Try again");
     expect(backend.defer).toHaveBeenCalledTimes(2);
@@ -483,15 +504,64 @@ describe("Library update notice", () => {
       expect(container.querySelector(".update-toast")).toBeNull();
     },
   );
-  it("opens a version-specific link through the existing external-link owner", async () => {
+  it("opens release notes through the existing external-link owner", async () => {
     external.open.mockResolvedValue();
-    const { container } = await fixture();
+    const { container } = await fixture(
+      snapshot({
+        status: "idle",
+        currentVersion: "1.8.0",
+        available: null,
+        prompt: { ...snapshot().prompt, completedVersion: "1.8.0" },
+      }),
+    );
     await act(async () => {
-      container.querySelector<HTMLAnchorElement>(".update-toast a")?.click();
+      container.querySelector<HTMLButtonElement>(".update-toast__release-button")?.click();
     });
     expect(external.open).toHaveBeenCalledWith(
-      "https://tommymoonn.github.io/archeion/documentation/changelog/#release-1-6-1",
+      "https://tommymoonn.github.io/archeion/documentation/changelog/#release-1-8-0",
     );
+  });
+
+  it("shows a dismissible two-row completion notice without a success icon", async () => {
+    const { container, backend } = await fixture(
+      snapshot({
+        status: "idle",
+        currentVersion: "1.8.0",
+        available: null,
+        prompt: { ...snapshot().prompt, completedVersion: "1.8.0" },
+      }),
+    );
+
+    const toast = container.querySelector<HTMLElement>(".update-toast")!;
+    expect(toast.dataset.state).toBe("completed");
+    expect(toast.querySelector(".update-toast__message")?.textContent).toBe(
+      "Updated to Archeion 1.8.0",
+    );
+    expect(toast.querySelector(".update-toast__release-button")?.textContent).toContain(
+      "View release notes",
+    );
+    expect(toast.querySelector(".update-toast__status-icon")).toBeNull();
+    expect(toast.querySelector(".update-toast__release-button svg")).not.toBeNull();
+    expect(toast.querySelectorAll(":scope > .update-toast__header")).toHaveLength(1);
+    expect(toast.querySelector(".update-toast__header .update-toast__actions")).toBeNull();
+    expect(toast.querySelector(".update-toast__header .update-toast__dismiss")).not.toBeNull();
+    expect(toast.querySelectorAll(":scope > .update-toast__actions")).toHaveLength(1);
+    expect(
+      toast.querySelector(".update-toast__actions .update-toast__release-button"),
+    ).not.toBeNull();
+    const dismiss = toast.querySelector<HTMLButtonElement>(
+      '[aria-label="Dismiss update confirmation"]',
+    );
+    expect(dismiss).not.toBeNull();
+    expect(dismiss?.querySelector("svg")).not.toBeNull();
+    expect(backend.acknowledgeCompleted).toHaveBeenCalledWith("1.8.0");
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Dismiss update confirmation"]')!
+        .click();
+    });
+    expect(container.querySelector(".update-toast")).toBeNull();
   });
   it("ignores late request failure after another candidate replaces the original", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);

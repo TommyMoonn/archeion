@@ -494,7 +494,10 @@ describe("theme token baseline", () => {
           "src/styles/features/settings.css",
           /\.settings-window\s*{[^}]*background:\s*var\(--canvas\);/,
         ],
-        ["src/styles/components/dialogs.css", /\.dialog\s*{[^}]*background:\s*var\(--surface\);/],
+        [
+          "src/styles/components/dialogs.css",
+          /\.dialog\s*{[^}]*background:\s*var\(--surface-main\);/,
+        ],
         [
           "src/styles/components/dialogs.css",
           /:is\(\.dialog, \.details-drawer, \.quick-actions\)::backdrop\s*{[^}]*background:\s*var\(--backdrop\);/,

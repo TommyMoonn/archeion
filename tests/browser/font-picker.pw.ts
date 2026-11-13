@@ -98,6 +98,9 @@ for (const scenario of [
     const box = (await popover.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(7);
     expect(box.x + box.width).toBeLessThanOrEqual(scenario.width - 7);
+    expect(
+      await popover.evaluate((element) => parseFloat((element as HTMLElement).style.width)),
+    ).toBeGreaterThanOrEqual(224);
     expect(box.y).toBeGreaterThanOrEqual(7);
     expect(box.y + box.height).toBeLessThanOrEqual(scenario.height - 7);
     if (scenario.name === "above") await expect(popover).toHaveAttribute("data-placement", "above");
@@ -108,17 +111,22 @@ for (const scenario of [
     const rowMetrics = await row.evaluate((element) => {
       const label = element.firstElementChild! as HTMLElement;
       const input = document.querySelector(".font-picker__search input")!;
+      const labelStyle = getComputedStyle(label);
       return {
         client: label.clientWidth,
         scroll: label.scrollWidth,
         height: element.getBoundingClientRect().height,
-        font: getComputedStyle(label).fontFamily,
+        whiteSpace: labelStyle.whiteSpace,
+        textOverflow: labelStyle.textOverflow,
+        font: labelStyle.fontFamily,
         inputFont: getComputedStyle(input).fontFamily,
       };
     });
     expect(rowMetrics.scroll).toBeLessThanOrEqual(rowMetrics.client);
-    expect(rowMetrics.height).toBeGreaterThan(32);
+    expect(rowMetrics.height).toBeGreaterThan(36);
+    expect(rowMetrics.whiteSpace).toBe("normal");
     expect(rowMetrics.font).toBe(rowMetrics.inputFont);
+    await expect(row).toHaveAccessibleName(/^Long family name with multilingual/);
     await expectActiveVisible(page);
     await page.screenshot({ path: testInfo.outputPath(`${scenario.name}-long-label.png`) });
     await page.keyboard.press("Escape");
@@ -163,6 +171,83 @@ test("Tab and outside pointer dismiss without a selection or focus theft", async
   await expect(page.getByTestId("selection-count")).toHaveText("0");
 });
 
+test("uses a quiet search header aligned with option labels and balanced row insets", async ({
+  page,
+}) => {
+  await page.goto(fixture);
+  await trigger(page).click();
+  await search(page).fill("Default choice");
+
+  const layout = await page.evaluate(() => {
+    const menu = document.querySelector<HTMLElement>(".font-picker__popover")!;
+    const header = menu.querySelector<HTMLElement>(".font-picker__header")!;
+    const searchShell = menu.querySelector<HTMLElement>(".font-picker__search")!;
+    const input = searchShell.querySelector<HTMLInputElement>("input")!;
+    const list = menu.querySelector<HTMLElement>(".font-picker__list")!;
+    const label = list.querySelector<HTMLElement>('[role="option"] > span:first-child')!;
+    const row = list.querySelector<HTMLElement>('[role="option"]')!;
+    const triggerLabel = document.querySelector<HTMLElement>(".font-picker .app-select__value")!;
+    const listStyle = getComputedStyle(list);
+    const inputStyle = getComputedStyle(input);
+    const headerStyle = getComputedStyle(header);
+    const searchStyle = getComputedStyle(searchShell);
+
+    return {
+      headerPaddingTop: parseFloat(headerStyle.paddingTop),
+      dividerWidth: parseFloat(headerStyle.borderBottomWidth),
+      searchBorderWidth: parseFloat(searchStyle.borderTopWidth),
+      searchBackground: searchStyle.backgroundColor,
+      searchHeight: searchShell.getBoundingClientRect().height,
+      searchFontSize: inputStyle.fontSize,
+      menuWidth: menu.getBoundingClientRect().width,
+      searchTextStart: input.getBoundingClientRect().left + parseFloat(inputStyle.paddingLeft),
+      optionTextStart: label.getBoundingClientRect().left,
+      triggerTextStart: triggerLabel.getBoundingClientRect().left,
+      listPaddingStart: parseFloat(listStyle.paddingInlineStart),
+      listPaddingEnd: parseFloat(listStyle.paddingInlineEnd),
+      rowBottomGap: list.getBoundingClientRect().bottom - row.getBoundingClientRect().bottom,
+      scrollbarEdgeGap: menu.getBoundingClientRect().right - list.getBoundingClientRect().right,
+    };
+  });
+
+  expect(layout.headerPaddingTop).toBe(4);
+  expect(layout.searchHeight).toBeLessThanOrEqual(28);
+  expect(layout.searchFontSize).toBe("13px");
+  expect(layout.menuWidth).toBeGreaterThanOrEqual(224);
+  expect(layout.dividerWidth).toBe(1);
+  expect(layout.searchBorderWidth).toBe(0);
+  expect(layout.searchBackground).toBe("rgba(0, 0, 0, 0)");
+  expect(Math.abs(layout.searchTextStart - layout.optionTextStart)).toBeLessThanOrEqual(1);
+  expect(Math.abs(layout.optionTextStart - layout.triggerTextStart)).toBeLessThanOrEqual(1);
+  expect(layout.listPaddingStart).toBe(4);
+  expect(layout.listPaddingEnd).toBe(layout.listPaddingStart);
+  expect(layout.rowBottomGap).toBe(layout.listPaddingStart);
+  expect(layout.scrollbarEdgeGap).toBeLessThanOrEqual(2);
+});
+
+test("separates pointer hover from keyboard focus", async ({ page }) => {
+  await page.goto(fixture);
+  await trigger(page).click();
+
+  const hovered = page.getByRole("option", { name: "Alpha Serif", exact: true });
+  await hovered.hover();
+  await expect(hovered).not.toHaveAttribute("data-keyboard-active", "true");
+  await expect(hovered).toHaveCSS("outline-style", "none");
+  const hoverBackground = await hovered.evaluate((row) => getComputedStyle(row).backgroundColor);
+  const menuBackground = await page
+    .locator(".font-picker__popover")
+    .evaluate((menu) => getComputedStyle(menu).backgroundColor);
+  expect(hoverBackground).not.toBe(menuBackground);
+
+  await search(page).press("ArrowDown");
+  const keyboardActive = page.locator('[role="option"][data-keyboard-active="true"]');
+  await expect(keyboardActive).toHaveCount(1);
+  await expect(keyboardActive).toHaveCSS("outline-style", "solid");
+  expect(
+    await keyboardActive.evaluate((row) => parseFloat(getComputedStyle(row).outlineWidth)),
+  ).toBeGreaterThanOrEqual(2);
+});
+
 test("forced colors retain visible selected and keyboard-active indicators", async ({
   page,
 }, testInfo) => {
@@ -172,7 +257,7 @@ test("forced colors retain visible selected and keyboard-active indicators", asy
   await page.keyboard.press("ArrowDown");
   await expect(search(page)).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  const activeRow = page.locator('[role="option"][data-active="true"]');
+  const activeRow = page.locator('[role="option"][data-keyboard-active="true"]');
   expect(
     await activeRow.evaluate((row) => parseFloat(getComputedStyle(row).outlineWidth)),
   ).toBeGreaterThanOrEqual(2);
@@ -195,9 +280,10 @@ test("rendered row text and keyboard indicator meet contrast against the actual 
 }) => {
   await page.goto(fixture);
   await trigger(page).click();
+  await search(page).press("ArrowDown");
   const colors = await page.evaluate(() => {
     const popover = document.querySelector(".font-picker__popover")!;
-    const active = document.querySelector('[role="option"][data-active="true"]')!;
+    const active = document.querySelector('[role="option"][data-keyboard-active="true"]')!;
     const normal = document.querySelector('[role="option"]:not([data-active])')!;
     return {
       background: getComputedStyle(popover).backgroundColor,

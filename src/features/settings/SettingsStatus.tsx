@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 import { usePausableAutoDismiss } from "../../components/usePausableAutoDismiss";
 import type { AppPreferencesPersistenceStatus } from "../../stores/appPreferencesStore";
 
@@ -11,8 +9,11 @@ export type SettingsLocalStatus = {
   tone: SettingsStatusTone;
 };
 
-export const PERSISTENCE_SAVING_STATUS_DELAY_MS = 500;
 export const SETTINGS_STATUS_AUTO_DISMISS_MS = 2_500;
+
+function isGenericSaveConfirmation(status: SettingsLocalStatus): boolean {
+  return status.tone === "success" && /^settings saved\.?$/i.test(status.message.trim());
+}
 
 type SettingsStatusProps = {
   onDismiss?: () => void;
@@ -55,26 +56,8 @@ function StatusMessage({
   );
 }
 
-function DelayedSavingStatus() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setVisible(true);
-    }, PERSISTENCE_SAVING_STATUS_DELAY_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, []);
-
-  if (!visible) return null;
-
-  return <StatusMessage message="Saving settings." tone="neutral" />;
-}
-
 export function SettingsStatus({ onDismiss, persistenceStatus, status }: SettingsStatusProps) {
-  if (status) {
+  if (status && !isGenericSaveConfirmation(status)) {
     return (
       <StatusMessage
         autoDismiss={status.autoDismiss}
@@ -84,10 +67,6 @@ export function SettingsStatus({ onDismiss, persistenceStatus, status }: Setting
         tone={status.tone}
       />
     );
-  }
-
-  if (persistenceStatus.status === "saving") {
-    return <DelayedSavingStatus />;
   }
 
   if (persistenceStatus.status === "loading") {

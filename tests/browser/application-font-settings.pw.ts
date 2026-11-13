@@ -113,6 +113,63 @@ test("real Settings controls apply both roles, persist, search, and reset with o
   expect(errors).toEqual([]);
 });
 
+test("Settings selectors keep their width while font metrics and the catalog resolve", async ({
+  page,
+}) => {
+  await openAppearance(page, "?pending");
+
+  const selectors = page.locator(".settings-row__control .app-select");
+  // Appearance contains App themes and both font pickers. Reader theme is in Reader settings.
+  await expect(selectors).toHaveCount(3);
+  const readWidths = () =>
+    selectors.evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().width),
+    );
+  const initialWidths = await readWidths();
+  expect(initialWidths).toEqual([240, 240, 240]);
+
+  const transitionProperties = await selectors
+    .locator(".app-select__trigger")
+    .evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).transitionProperty),
+    );
+  expect(transitionProperties.every((property) => !property.split(",").includes("width"))).toBe(
+    true,
+  );
+
+  await page.evaluate(() => document.documentElement.style.setProperty("--font-ui", "monospace"));
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  expect(await readWidths()).toEqual(initialWidths);
+
+  const interfacePicker = page.locator(".font-picker").first();
+  const interfaceTrigger = interfacePicker.locator(".app-select__trigger");
+  const triggerWidth = await interfaceTrigger.evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  await interfaceTrigger.click();
+  const popover = interfacePicker.locator(".font-picker__popover");
+  await expect(popover).toBeVisible();
+  const initialPopoverWidth = await popover.evaluate(
+    (element) => element.getBoundingClientRect().width,
+  );
+  expect(initialPopoverWidth).toBe(triggerWidth);
+
+  await page.evaluate(() => window.applicationFontSettingsFixture.releaseCatalog());
+  await expect(fontTrigger(page, "Interface")).not.toHaveAttribute("aria-busy", "true");
+  await expect
+    .poll(() => popover.evaluate((element) => element.getBoundingClientRect().width))
+    .toBe(initialPopoverWidth);
+  expect(
+    await popover
+      .getByRole("option", { name: longFamily, exact: true })
+      .locator("span")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  expect(await readWidths()).toEqual(initialWidths);
+});
+
 test("pending catalog does not mislabel a saved family and unavailable choices remain preserved", async ({
   page,
 }, testInfo) => {
@@ -199,10 +256,11 @@ for (const scenario of [
         document.documentElement.dir = "rtl";
       });
     await selectFont(page, "Interface", longFamily);
-    await expect(fontTrigger(page, "Interface")).toHaveAttribute("title", longFamily);
+    await expect(fontTrigger(page, "Interface")).toHaveAccessibleDescription(longFamily);
     await fontTrigger(page, "Interface").focus();
     await page.keyboard.press("Enter");
     await fontSearch(page, "Interface").fill("Long family");
+    await page.keyboard.press("ArrowDown");
     await expect(fontSearch(page, "Interface")).toBeFocused();
     const popover = page.locator(".font-picker__popover");
     const box = (await popover.boundingBox())!;
@@ -219,16 +277,18 @@ for (const scenario of [
     if (scenario.forced) {
       expect(
         await page
-          .getByRole("option")
+          .locator('[role="option"][data-keyboard-active="true"]')
           .evaluate((option) => parseFloat(getComputedStyle(option).outlineWidth)),
       ).toBeGreaterThanOrEqual(2);
-      const colors = await page.getByRole("option").evaluate((option) => ({
-        label: getComputedStyle(option.firstElementChild!).color,
-        row: getComputedStyle(option).color,
-        background: getComputedStyle(option).backgroundColor,
-        marker: getComputedStyle(option.querySelector(".icon-slot")!).color,
-        markerAdjustment: getComputedStyle(option.querySelector(".icon-slot")!).forcedColorAdjust,
-      }));
+      const colors = await page
+        .locator('[role="option"][data-keyboard-active="true"]')
+        .evaluate((option) => ({
+          label: getComputedStyle(option.firstElementChild!).color,
+          row: getComputedStyle(option).color,
+          background: getComputedStyle(option).backgroundColor,
+          marker: getComputedStyle(option.querySelector(".icon-slot")!).color,
+          markerAdjustment: getComputedStyle(option.querySelector(".icon-slot")!).forcedColorAdjust,
+        }));
       expect(colors.label, JSON.stringify(colors)).toBe(colors.row);
       expect(colors.marker).toBe(colors.row);
       expect(colors.markerAdjustment).toBe("none");
@@ -255,9 +315,10 @@ test("font rows and keyboard indicators retain contrast in both built-in appeara
     await openAppearance(page, query);
     await fontTrigger(page, "Interface").focus();
     await page.keyboard.press("Enter");
+    await page.keyboard.press("ArrowDown");
     const colors = await page.evaluate(() => {
       const popover = document.querySelector(".font-picker__popover")!;
-      const active = document.querySelector('[role="option"][data-active="true"]')!;
+      const active = document.querySelector('[role="option"][data-keyboard-active="true"]')!;
       const normal = document.querySelector('[role="option"]:not([data-active])')!;
       const content = document.querySelector(".settings-window")!;
       const description = document.querySelector(

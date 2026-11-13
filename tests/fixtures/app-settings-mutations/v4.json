@@ -23,6 +23,8 @@
     ],
     "filesAndMetadataFields": ["keepEpubWritebackBackup", "liveWatcherEnabled", "scanOnStartup"],
     "libraryFields": [
+      "detailsPinned",
+      "detailsWidth",
       "booksCardSize",
       "booksSortBy",
       "booksViewMode",
@@ -740,12 +742,113 @@
           }
         }
       ]
+    },
+    {
+      "name": "book details pin and width persist independently with bounded widths",
+      "steps": [
+        {
+          "mutation": {
+            "area": "libraryField",
+            "value": {
+              "field": "detailsPinned",
+              "value": true
+            }
+          },
+          "expected": {
+            "revision": 1,
+            "preferencesPatch": {
+              "library": {
+                "detailsPinned": true,
+                "detailsWidth": 336
+              }
+            }
+          }
+        },
+        {
+          "mutation": {
+            "area": "libraryField",
+            "value": {
+              "field": "detailsWidth",
+              "value": 391.6
+            }
+          },
+          "expected": {
+            "revision": 2,
+            "preferencesPatch": {
+              "library": {
+                "detailsPinned": true,
+                "detailsWidth": 392
+              }
+            }
+          },
+          "emittedByFrontend": false
+        },
+        {
+          "mutation": {
+            "area": "libraryField",
+            "value": {
+              "field": "detailsWidth",
+              "value": -20
+            }
+          },
+          "expected": {
+            "revision": 3,
+            "preferencesPatch": {
+              "library": {
+                "detailsPinned": true,
+                "detailsWidth": 280
+              }
+            }
+          },
+          "emittedByFrontend": false
+        },
+        {
+          "mutation": {
+            "area": "libraryField",
+            "value": {
+              "field": "detailsWidth",
+              "value": 999
+            }
+          },
+          "expected": {
+            "revision": 4,
+            "preferencesPatch": {
+              "library": {
+                "detailsPinned": true,
+                "detailsWidth": 480
+              }
+            }
+          },
+          "emittedByFrontend": false
+        },
+        {
+          "mutation": {
+            "area": "libraryField",
+            "value": {
+              "field": "detailsPinned",
+              "value": false
+            }
+          },
+          "expected": {
+            "revision": 5,
+            "preferencesPatch": {
+              "library": {
+                "detailsPinned": false,
+                "detailsWidth": 480
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "invalid": [
     {
       "name": "automatic update preference requires a boolean",
-      "mutation": { "area": "automaticallyCheckForUpdates", "value": "false" }
+      "mutation": {
+        "area": "automaticallyCheckForUpdates",
+        "value": "false"
+      }
     },
     {
       "name": "unknown area",
@@ -851,6 +954,56 @@
             "kind": "future",
             "family": "Arial"
           }
+        }
+      }
+    },
+    {
+      "name": "book details rejects detailsPinned \"true\"",
+      "mutation": {
+        "area": "libraryField",
+        "value": {
+          "field": "detailsPinned",
+          "value": "true"
+        }
+      }
+    },
+    {
+      "name": "book details rejects detailsPinned 1",
+      "mutation": {
+        "area": "libraryField",
+        "value": {
+          "field": "detailsPinned",
+          "value": 1
+        }
+      }
+    },
+    {
+      "name": "book details rejects detailsWidth \"400\"",
+      "mutation": {
+        "area": "libraryField",
+        "value": {
+          "field": "detailsWidth",
+          "value": "400"
+        }
+      }
+    },
+    {
+      "name": "book details rejects detailsWidth null",
+      "mutation": {
+        "area": "libraryField",
+        "value": {
+          "field": "detailsWidth",
+          "value": null
+        }
+      }
+    },
+    {
+      "name": "book details rejects detailsWidth true",
+      "mutation": {
+        "area": "libraryField",
+        "value": {
+          "field": "detailsWidth",
+          "value": true
         }
       }
     }

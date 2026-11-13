@@ -1,4 +1,4 @@
-/* Only the outer shell width interpolates; navigation geometry stays fixed. */
+/* The shell width drives both the sidebar edge and the navigation highlight. */
 @property --library-sidebar-current-width {
   syntax: "<length>";
   inherits: true;
@@ -6,7 +6,10 @@
 }
 
 .window-app {
-  --library-sidebar-current-width: var(--sidebar-width);
+  --library-sidebar-current-width: var(--library-sidebar-expanded-width, var(--sidebar-width));
+}
+
+:root[data-library-sidebar-width-ready="true"] .window-app {
   transition: --library-sidebar-current-width var(--motion-duration-standard)
     var(--motion-ease-standard);
 }
@@ -15,6 +18,12 @@
   --library-sidebar-current-width: var(--sidebar-collapsed-width);
   /* Let labels fade before the moving edge could intersect their text. */
   transition-delay: calc(var(--motion-duration-standard) / 5);
+}
+
+.window-app:has(.sidebar__resize-handle:focus),
+.window-app:has(.sidebar__resize-handle[data-resizing="true"]) {
+  transition: none;
+  transition-delay: 0s;
 }
 
 :root {
@@ -34,6 +43,7 @@
 }
 
 .sidebar {
+  position: relative;
   container: library-sidebar / inline-size;
   display: flex;
   flex-direction: column;
@@ -45,6 +55,34 @@
   padding-inline: var(--library-sidebar-collapsed-inset);
   border-inline-end: var(--border-width) solid var(--line-subtle);
   background: var(--surface-sidebar);
+  transition: border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.sidebar:has(.sidebar__resize-handle:hover),
+.sidebar:has(.sidebar__resize-handle[data-resizing="true"]) {
+  border-inline-end-color: var(--line);
+}
+
+.sidebar:has(.sidebar__resize-handle:focus-visible) {
+  border-inline-end-color: var(--focus);
+}
+
+.sidebar__resize-handle {
+  position: absolute;
+  z-index: 8;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 8px;
+  touch-action: none;
+  user-select: none;
+  cursor: col-resize;
+  outline: none;
+}
+
+@media (max-width: 560px) {
+  .sidebar__resize-handle {
+    display: none;
+  }
 }
 
 .sidebar__expanded-content {
@@ -219,10 +257,10 @@
 }
 
 .archive-switcher__trigger-label {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .archive-switcher__menu {
@@ -230,7 +268,9 @@
   z-index: 5;
   bottom: calc(100% + 7px);
   inset-inline-start: 0;
-  width: 214px;
+  width: max-content;
+  min-width: min(214px, calc(100vw - 24px));
+  max-width: min(420px, calc(100vw - 24px));
 }
 
 .archive-switcher__current {
@@ -253,6 +293,14 @@
 }
 
 .sidebar__nav .nav-item {
+  /* Derive the highlight width from the same interpolated shell width so it
+     travels with the sidebar instead of snapping at the collapsed-state switch. */
+  width: calc(
+    var(--library-sidebar-current-width) - 2 * var(--library-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+  max-width: 100%;
+  min-width: 0;
   grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
   gap: 9px;
   padding-inline: calc(
@@ -267,6 +315,25 @@
 .sidebar__nav .nav-item > span {
   width: max-content;
   white-space: nowrap;
+}
+
+/* Keep collapsed navigation controls within the rail instead of allowing the
+   hidden max-content labels to widen their grid items beyond the sidebar edge. */
+.sidebar[data-collapsed="true"] .sidebar__nav .nav-item {
+  justify-self: start;
+  /* Keep the icon centered in the collapsed rail's fixed leading track while
+     the item background follows the sidebar's independently interpolated width. */
+  grid-template-columns: calc(
+    var(--sidebar-collapsed-width) - 2 * var(--library-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+  justify-content: start;
+  gap: 0;
+  padding-inline: 0;
+}
+
+.sidebar[data-collapsed="true"] .sidebar__nav .nav-item > span {
+  display: none;
 }
 
 /* Reveal from available room, not from elapsed shell-travel time. */
@@ -467,6 +534,8 @@ html[data-density="compact"] .nav-item {
 
   .sidebar__nav .nav-item {
     flex: 1 0 auto;
+    width: auto;
+    max-width: none;
   }
 
   .sidebar__section {

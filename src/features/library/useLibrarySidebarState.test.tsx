@@ -27,12 +27,25 @@ function renderHarness() {
       <div
         data-collapse-available={String(state.collapseAvailable)}
         data-collapsed={String(state.collapsed)}
+        data-width={String(state.width)}
       >
         <button type="button" onClick={() => state.setCollapsed(true)}>
           Collapse
         </button>
         <button type="button" onClick={() => state.setCollapsed(false)}>
           Expand
+        </button>
+        <button type="button" onClick={() => state.setWidth(state.width - 100)}>
+          Shrink
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            state.setWidth(state.width + 100);
+            state.commitWidth(state.width + 100);
+          }}
+        >
+          Grow
         </button>
       </div>
     );
@@ -51,6 +64,9 @@ describe("useLibrarySidebarState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.documentElement.style.removeProperty("--library-sidebar-expanded-width");
+    delete document.documentElement.dataset.librarySidebarWidthReady;
   });
 
   afterEach(() => {
@@ -58,8 +74,11 @@ describe("useLibrarySidebarState", () => {
       roots.splice(0).forEach((root) => root.unmount());
     });
     document.body.innerHTML = "";
+    document.documentElement.style.removeProperty("--library-sidebar-expanded-width");
+    delete document.documentElement.dataset.librarySidebarWidthReady;
     media?.restore();
     media = null;
+    vi.restoreAllMocks();
   });
 
   it("lets the constrained top layout override a requested desktop rail", () => {
@@ -105,6 +124,40 @@ describe("useLibrarySidebarState", () => {
     expect(second.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
   });
 
+  it("does not animate a restored collapsed sidebar when the Library route remounts", () => {
+    const installedMedia = installLibrarySidebarMedia(false);
+    media = installedMedia;
+    window.sessionStorage.setItem("archeion:library-sidebar-collapsed", "true");
+
+    let scheduledFrame: FrameRequestCallback | undefined;
+    let nextFrameId = 0;
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      scheduledFrame = callback;
+      nextFrameId += 1;
+      return nextFrameId;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+
+    // Simulate the readiness marker left behind by the previous Library mount.
+    document.documentElement.dataset.librarySidebarWidthReady = "true";
+
+    const first = renderHarness();
+
+    expect(first.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBeUndefined();
+
+    act(() => scheduledFrame?.(0));
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBe("true");
+
+    act(() => roots.shift()?.unmount());
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBeUndefined();
+
+    const returned = renderHarness();
+
+    expect(returned.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+    expect(document.documentElement.dataset.librarySidebarWidthReady).toBeUndefined();
+  });
+
   it("restores a collapsed request from the current window session after reload", () => {
     media = installLibrarySidebarMedia(false);
     window.sessionStorage.setItem("archeion:library-sidebar-collapsed", "true");
@@ -131,4 +184,44 @@ describe("useLibrarySidebarState", () => {
     const second = renderHarness();
     expect(second.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("false");
   });
+});
+
+it("clamps and persists the expanded width without coupling it to collapse state", () => {
+  media = installLibrarySidebarMedia(false);
+  const container = renderHarness();
+  const state = () => container.querySelector<HTMLElement>("[data-width]");
+
+  expect(state()?.dataset.width).toBe("248");
+
+  act(() =>
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "Shrink")
+      ?.click(),
+  );
+  expect(state()?.dataset.width).toBe("200");
+  expect(window.localStorage.getItem("archeion:library-sidebar-width")).toBeNull();
+
+  act(() => {
+    container.querySelectorAll<HTMLButtonElement>("button")[3]?.click();
+  });
+  expect(state()?.dataset.width).toBe("300");
+  expect(window.localStorage.getItem("archeion:library-sidebar-width")).toBe("300");
+});
+
+it("restores and clamps a previously saved sidebar width", () => {
+  media = installLibrarySidebarMedia(false);
+  window.localStorage.setItem("archeion:library-sidebar-width", "999");
+
+  const container = renderHarness();
+
+  expect(container.querySelector<HTMLElement>("[data-width]")?.dataset.width).toBe("360");
+});
+
+it("falls back to the default width for invalid persisted values", () => {
+  media = installLibrarySidebarMedia(false);
+  window.localStorage.setItem("archeion:library-sidebar-width", "not-a-width");
+
+  const container = renderHarness();
+
+  expect(container.querySelector<HTMLElement>("[data-width]")?.dataset.width).toBe("248");
 });

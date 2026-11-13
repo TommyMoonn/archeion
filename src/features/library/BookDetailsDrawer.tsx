@@ -103,6 +103,7 @@ export function BookDetailsDrawerContent({
                 className="details-clear-progress"
                 label="Clear reading progress"
                 onClick={() => onClearProgress(book)}
+                tooltip="Clear reading progress"
               >
                 <Eraser aria-hidden="true" />
               </IconButton>
@@ -188,6 +189,13 @@ export function BookDetailsDrawerContent({
             </div>
           </div>
         )}
+
+        {book.sourceMetadata?.description?.trim() ? (
+          <section className="details-description">
+            <h3>Description</h3>
+            <p>{book.sourceMetadata.description}</p>
+          </section>
+        ) : null}
 
         <dl className="book-metadata book-metadata--compact">
           <div>

@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import type { ArchiveState } from "../../stores/archiveStore";
@@ -50,6 +51,8 @@ import { hasActiveLibraryFilters } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
 import { LibraryWorkspaceDialogs } from "./LibraryWorkspaceDialogs";
 import { LibraryWorkspaceSurface } from "./LibraryWorkspaceSurface";
+import { BookDetailsPanel } from "./BookDetailsPanel";
+import type { BookDetailsDrawerProps } from "./BookDetailsDrawerFrame";
 import type { LibrarySelectionIntent } from "./librarySelection";
 import { pruneUnavailableLibraryMetadataFilters } from "./libraryFilters";
 import { useLibraryBookActions } from "./useLibraryBookActions";
@@ -59,6 +62,7 @@ import { useLibraryFeedback } from "./useLibraryFeedback";
 import { useLibrarySelection } from "./useLibrarySelection";
 import {
   libraryLocationKey,
+  libraryNavigationTabKey,
   useLibraryWorkspaceNavigation,
   useLibraryWorkspaceNavigationLifecycle,
 } from "./useLibraryWorkspaceNavigation";
@@ -76,6 +80,17 @@ import { useLibraryIntegrity } from "./useLibraryIntegrity";
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
 const BOOK_CONTEXT_MENU_UNAVAILABLE_FEEDBACK_ID = "book-context-menu-unavailable";
+
+const DETAILS_DOCK_QUERY = "(min-width: 75rem)";
+function subscribeToDetailsDock(onChange: () => void) {
+  if (typeof window.matchMedia !== "function") return () => undefined;
+  const query = window.matchMedia(DETAILS_DOCK_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+function detailsDockMatches() {
+  return typeof window.matchMedia === "function" && window.matchMedia(DETAILS_DOCK_QUERY).matches;
+}
 
 function locationEmptyState(location: LibraryLocation, libraryTitle: string) {
   if (location.type === "favorites") {
@@ -225,14 +240,53 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     selectionMode,
     toggleBook: toggleBookSelection,
   } = useLibrarySelection(books);
-  const { actions: dialogActions, dialog } = useLibraryWorkspaceDialogs();
+  const selectionReturnFocusRef = useRef<HTMLElement | null>(null);
+  const selectionBarExitButtonRef = useRef<HTMLButtonElement>(null);
+  const resetSelectionForNavigation = useCallback(() => {
+    exitSelectionMode();
+    selectionReturnFocusRef.current = null;
+  }, [exitSelectionMode]);
+  const detailsPinned = libraryPreferences.detailsPinned;
+  const {
+    actions: dialogActions,
+    dialog,
+    inspectedBookId,
+  } = useLibraryWorkspaceDialogs(detailsPinned);
+  const setDetailsPinned = (pinned: boolean) => {
+    void appPreferencesStore
+      .updateLibrary({ detailsPinned: pinned })
+      .catch(() => showLibraryError("Book details preferences could not be saved."));
+  };
+  const [detailsWidthDraft, setDetailsWidthDraft] = useState<number | null>(null);
+  const detailsWidth = detailsWidthDraft ?? libraryPreferences.detailsWidth;
+  const commitDetailsWidth = (width: number) => {
+    void appPreferencesStore
+      .updateLibrary({ detailsWidth: width })
+      .then(() => {
+        setDetailsWidthDraft((draft) => (draft === width ? null : draft));
+      })
+      .catch(() => showLibraryError("Book details preferences could not be saved."));
+  };
+  const detailsDockAvailable = useSyncExternalStore(
+    subscribeToDetailsDock,
+    detailsDockMatches,
+    () => false,
+  );
+  const detailsDocked = detailsPinned && detailsDockAvailable;
   const smartViewPreferences = libraryPreferences.smartViews;
   const navigation = useLibraryWorkspaceNavigation({
     activeArchiveId: activeArchive.id,
-    beforeArchiveSwitch: exitSelectionMode,
+    beforeNavigation: resetSelectionForNavigation,
     folders,
     smartViewPreferences,
   });
+  const selectionTabKeyRef = useRef(libraryNavigationTabKey(navigation.location));
+  useLayoutEffect(() => {
+    const nextTabKey = libraryNavigationTabKey(navigation.location);
+    if (selectionTabKeyRef.current === nextTabKey) return;
+    selectionTabKeyRef.current = nextTabKey;
+    resetSelectionForNavigation();
+  }, [navigation.location, resetSelectionForNavigation]);
   const {
     changeLocation: navigateToLocation,
     openBookSearch,
@@ -299,6 +353,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const hasFilters = hasActiveLibraryFilters(filters);
   const {
     continuePreview,
+    resumeBooks,
     currentFolder,
     effectiveSort,
     filterOptions,
@@ -357,7 +412,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     completeFolderDeletion,
   } = useLibraryMutationFocus({
     activeArchiveId: activeArchive.id,
-    dialogOpen: dialog.type !== "none",
+    dialogOpen: dialog.type !== "none" && !(detailsDocked && dialog.type === "book-details"),
     fallbackRef:
       navigation.location.type === "duplicates"
         ? navigation.pageShellRef
@@ -379,7 +434,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     if (nextFilters !== filters) changeFilters(nextFilters);
   }, [activeArchive.id, booksLoadState, changeFilters, filterOptions, filters]);
 
-  const selectionReturnFocusRef = useRef<HTMLElement | null>(null);
   const leaveSelectionMode = useCallback(() => {
     exitSelectionMode();
     const returnFocus = selectionReturnFocusRef.current;
@@ -399,6 +453,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
     selectionReturnFocusRef.current = currentFocusOrigin() ?? navigation.searchInputRef.current;
     enterSelectionMode();
+    window.requestAnimationFrame(() => selectionBarExitButtonRef.current?.focus());
   }, [enterSelectionMode, leaveSelectionMode, navigation.searchInputRef, selectionMode]);
   const changeBookSelection = useCallback(
     (book: LibrarySnapshotBook, intent: LibrarySelectionIntent) => {
@@ -821,10 +876,74 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const emptyState = locationEmptyState(navigation.location, libraryTitle);
   const currentImportDropDestination = currentFolder?.relativePath ?? ARCHIVE_ROOT_DESTINATION;
+  const detailsBookId = selectionMode
+    ? selectedBookIds.size === 1
+      ? selectedBookIds.values().next().value
+      : null
+    : dialog.type === "book-details"
+      ? dialog.bookId
+      : inspectedBookId;
+  const detailsBook = books?.find((book) => book.id === detailsBookId) ?? null;
+  const detailsFocusOrigin = () => {
+    const bookElement = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-reader-book-id]"),
+    ).find((element) => element.dataset.readerBookId === detailsBookId);
+    return (
+      bookElement?.querySelector<HTMLButtonElement>("button") ??
+      navigation.pageShellRef.current?.querySelector<HTMLInputElement>('input[type="search"]') ??
+      navigation.pageShellRef.current?.querySelector<HTMLButtonElement>("button") ??
+      navigation.pageShellRef.current
+    );
+  };
+  const closePinnedDetails = () => {
+    setDetailsPinned(false);
+    dialogActions.close();
+    detailsFocusOrigin()?.focus({ preventScroll: true });
+  };
+  const pinnedDetailsProps: BookDetailsDrawerProps | null = detailsBook
+    ? {
+        book: detailsBook,
+        canManageFile: true,
+        canRevealFile: true,
+        onClearProgress: dialogActions.openClearProgress,
+        onClose: closePinnedDetails,
+        onDelete: requestDeleteBook,
+        onMoveFile: openMoveBook,
+        onRead: readBook,
+        onReadFromBeginning: readBookFromBeginning,
+        onRenameFile: openRenameBook,
+        onReplaceCover: dialogActions.openBookCover,
+        onRescan: dialogActions.openRescan,
+        onRevealFile: bookActions.revealBookFile,
+        onToggleFavorite: toggleFavorite,
+        onViewMetadata: openBookMetadata,
+      }
+    : null;
 
   return (
     <>
       <LibraryWorkspaceSurface
+        detailsPanel={
+          detailsDocked && !archiveInteractionBlocked ? (
+            <BookDetailsPanel
+              details={pinnedDetailsProps}
+              emptyLibrary={books?.length === 0}
+              resumeBooks={resumeBooks}
+              onContinue={readBook}
+              onInspect={openBookDetails}
+              selectionCount={selectionMode ? selectedBookIds.size : 0}
+              width={detailsWidth}
+              onWidthChange={setDetailsWidthDraft}
+              onWidthCommit={commitDetailsWidth}
+              onUnpin={() => {
+                if (detailsBook) {
+                  setDetailsPinned(false);
+                  dialogActions.openBookDetails(detailsBook, detailsFocusOrigin());
+                } else closePinnedDetails();
+              }}
+            />
+          ) : undefined
+        }
         bookFocusFallbackRef={navigation.searchInputRef}
         books={books}
         bookCollectionProps={{
@@ -840,6 +959,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onToggleFavorite: toggleFavorite,
           onContextMenuUnavailable: announceContextMenuUnavailable,
           selectedBookIds,
+          inspectedBookId: detailsDocked && !selectionMode ? detailsBook?.id : undefined,
           selectionMode,
         }}
         continuePreview={continuePreview}
@@ -910,6 +1030,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 onExit: leaveSelectionMode,
                 onSelectVisible: () => selectVisible(visibleBooks),
                 selectedCount: selectedBookIds.size,
+                exitButtonRef: selectionBarExitButtonRef,
                 visibleCount: visibleBooks.length,
                 visibleSelectedCount,
               }
@@ -997,6 +1118,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
       {!archiveInteractionBlocked && (
         <LibraryWorkspaceDialogs
+          detailsDocked={detailsDocked}
+          detailsPinned={detailsPinned}
+          detailsWidth={detailsWidth}
+          onDetailsWidthChange={setDetailsWidthDraft}
+          onDetailsWidthCommit={commitDetailsWidth}
+          onToggleDetailsPinned={() => setDetailsPinned(!detailsPinned)}
           books={books}
           confirmDestructiveFileActions={confirmDestructiveFileActions}
           dialog={dialog}

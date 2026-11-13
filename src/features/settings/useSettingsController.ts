@@ -327,7 +327,7 @@ export function useSettingsController({
 
   async function persistAppPreferences(
     operation: () => Promise<AppPreferences>,
-    options?: { statusOperation?: number; successMessage?: string | false },
+    options?: { statusOperation?: number },
   ): Promise<boolean> {
     appPreferenceSaveRevisionRef.current += 1;
     const saveRevision = appPreferenceSaveRevisionRef.current;
@@ -339,10 +339,6 @@ export function useSettingsController({
         return true;
       }
 
-      const successMessage = options?.successMessage ?? "Settings saved.";
-      if (successMessage) {
-        publishStatusOperation(statusOperation, successMessage, "success");
-      }
       return true;
     } catch {
       if (appPreferenceSaveRevisionRef.current === saveRevision) {
@@ -356,11 +352,8 @@ export function useSettingsController({
     }
   }
 
-  function updateAppPreferences(
-    changes: AppPreferencesChanges,
-    options?: { successMessage?: string | false },
-  ): Promise<boolean> {
-    return persistAppPreferences(() => appPreferencesStore.update(changes), options);
+  function updateAppPreferences(changes: AppPreferencesChanges): Promise<boolean> {
+    return persistAppPreferences(() => appPreferencesStore.update(changes));
   }
 
   function updateReader(changes: Partial<AppPreferences["reader"]>) {
@@ -397,7 +390,7 @@ export function useSettingsController({
   function updateAppearance(
     changes: Pick<Partial<AppPreferences>, "appTheme" | "readerTheme">,
   ): Promise<boolean> {
-    return updateAppPreferences(changes, { successMessage: "Appearance saved." });
+    return updateAppPreferences(changes);
   }
 
   async function openThemeManager() {
@@ -583,69 +576,51 @@ export function useSettingsController({
   }
 
   async function resetGeneral() {
-    await updateAppPreferences(
-      {
-        automaticallyCheckForUpdates: defaultAppPreferences.automaticallyCheckForUpdates,
-        confirmDestructiveFileActions: defaultAppPreferences.confirmDestructiveFileActions,
-        restoreLastReader: defaultAppPreferences.restoreLastReader,
-        startupBehavior: defaultAppPreferences.startupBehavior,
-      },
-      { successMessage: "General settings reset." },
-    );
+    await updateAppPreferences({
+      automaticallyCheckForUpdates: defaultAppPreferences.automaticallyCheckForUpdates,
+      confirmDestructiveFileActions: defaultAppPreferences.confirmDestructiveFileActions,
+      restoreLastReader: defaultAppPreferences.restoreLastReader,
+      startupBehavior: defaultAppPreferences.startupBehavior,
+    });
   }
 
   async function resetReader() {
-    await updateAppPreferences(
-      { reader: defaultAppPreferences.reader, readerTheme: defaultAppPreferences.readerTheme },
-      { successMessage: "Reader settings reset." },
-    );
+    await updateAppPreferences({
+      reader: defaultAppPreferences.reader,
+      readerTheme: defaultAppPreferences.readerTheme,
+    });
   }
 
   async function resetLibrary() {
-    await updateAppPreferences(
-      {
-        library: defaultAppPreferences.library,
-        showContinueReading: defaultAppPreferences.showContinueReading,
-      },
-      { successMessage: "Library settings reset." },
-    );
+    await updateAppPreferences({
+      library: defaultAppPreferences.library,
+      showContinueReading: defaultAppPreferences.showContinueReading,
+    });
   }
 
   async function resetAppearance() {
-    await updateAppPreferences(
-      {
-        appTheme: defaultAppPreferences.appTheme,
-        appThemePreset: defaultAppPreferences.appThemePreset,
-        appearance: defaultAppPreferences.appearance,
-        density: defaultAppPreferences.density,
-      },
-      { successMessage: "Appearance settings reset." },
-    );
+    await updateAppPreferences({
+      appTheme: defaultAppPreferences.appTheme,
+      appThemePreset: defaultAppPreferences.appThemePreset,
+      appearance: defaultAppPreferences.appearance,
+      density: defaultAppPreferences.density,
+    });
   }
 
   async function resetWindow() {
-    await updateAppPreferences(
-      {
-        rememberWindowState: defaultAppPreferences.rememberWindowState,
-      },
-      { successMessage: "Window settings reset." },
-    );
+    await updateAppPreferences({
+      rememberWindowState: defaultAppPreferences.rememberWindowState,
+    });
   }
 
   async function resetStorage() {
-    await updateAppPreferences(
-      {
-        filesAndMetadata: defaultAppPreferences.filesAndMetadata,
-      },
-      { successMessage: "Storage preferences reset." },
-    );
+    await updateAppPreferences({
+      filesAndMetadata: defaultAppPreferences.filesAndMetadata,
+    });
   }
 
   async function resetImportDefaults() {
-    await updateAppPreferences(
-      { import: defaultAppPreferences.import },
-      { successMessage: "Import defaults reset." },
-    );
+    await updateAppPreferences({ import: defaultAppPreferences.import });
   }
 
   return {

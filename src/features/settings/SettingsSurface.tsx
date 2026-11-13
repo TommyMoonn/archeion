@@ -145,12 +145,6 @@ function SettingsSurfaceContent({
     scrollSettingsContent(contentRef.current);
   }
 
-  function clearSearch() {
-    setAnimateSectionChange(false);
-    setQuery("");
-    scrollSettingsContent(contentRef.current);
-  }
-
   useEffect(() => scrollSettingsContent(contentRef.current), [contentRef, trimmedQuery]);
 
   return (
@@ -170,12 +164,7 @@ function SettingsSurfaceContent({
 
       <div className="settings-content__body">
         {searchActive ? (
-          <SettingsSearchResults
-            key={trimmedQuery}
-            controller={controller}
-            onClearSearch={clearSearch}
-            query={trimmedQuery}
-          />
+          <SettingsSearchResults key={trimmedQuery} controller={controller} query={trimmedQuery} />
         ) : (
           <div
             className="settings-section-transition"

@@ -10,18 +10,46 @@
 .font-picker__popover {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 16px));
   overflow: hidden;
+  padding: 0;
+}
+
+.font-picker__header {
+  flex-shrink: 0;
+  padding: 4px;
+  border-block-end: var(--border-width) solid color-mix(in srgb, var(--line) 60%, transparent);
 }
 
 .font-picker__search {
-  flex-shrink: 0;
   inline-size: 100%;
   min-inline-size: 0;
+  min-block-size: 28px;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transition: none;
+}
+
+.font-picker .font-picker__search:focus-within {
+  border-color: transparent;
+  outline: 0;
+  background: transparent;
+}
+
+.font-picker__search input {
+  min-inline-size: 0;
+  padding: 0;
+  font-size: var(--type-meta);
+  line-height: var(--type-meta-line-height);
 }
 
 .font-picker__list {
   min-block-size: 0;
+  padding-inline: 4px;
+  padding-block-end: 4px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -33,27 +61,30 @@
 
 .font-picker__list .app-select__option > span:first-child {
   min-inline-size: 0;
-  overflow-wrap: anywhere;
-  white-space: normal;
 }
 
 .font-picker__list .app-select__option[data-active="true"] {
   color: var(--text-strong);
   background: var(--surface-hover);
+}
+
+.font-picker__list .app-select__option[data-keyboard-active="true"] {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }
 
 .font-picker__empty {
-  padding: 8px;
+  padding: 8px 12px;
   color: var(--muted);
   font-size: var(--type-meta);
 }
 
 @media (forced-colors: active) {
   .font-picker .font-picker__list .app-select__option[data-active="true"],
+  .font-picker .font-picker__list .app-select__option[data-keyboard-active="true"],
   .font-picker .font-picker__list .app-select__option[aria-selected="true"],
   .font-picker .font-picker__list .app-select__option[data-active="true"]:hover,
+  .font-picker .font-picker__list .app-select__option[data-keyboard-active="true"]:hover,
   .font-picker .font-picker__list .app-select__option[aria-selected="true"]:hover {
     /* The shared forced-colors hover rule must not put LinkText on Highlight. */
     /* Keep system-color text legible without a conflicting browser text backplate. */
@@ -61,7 +92,11 @@
     forced-color-adjust: none;
     color: HighlightText;
     background: Highlight;
-    outline-color: Highlight;
+  }
+
+  .font-picker .font-picker__list .app-select__option[data-keyboard-active="true"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
   }
 
   .font-picker__list .app-select__option .icon-slot {

@@ -121,7 +121,9 @@ Font metric differences are handled through semantic layout roles. Styles do not
 ### Application shell
 
 - The main Tauri window has a minimum size of `900 × 600`.
-- The Library sidebar uses the shared `--sidebar-width` and `--sidebar-collapsed-width` values. The titlebar and sidebar body derive their collapse width from the same shared value.
+- The Library sidebar defaults to `248px` on wider desktop windows and `220px` at viewport widths up to `820px`. It can be resized between `200px` and `360px`, and a custom expanded width is saved locally for the next launch. The resize handle supports pointer and keyboard input; `Home` and `End` select the width limits.
+- The sidebar collapse width remains `56px` and is independent of its saved expanded width. The titlebar and sidebar body share the same animated shell geometry.
+- Resizing is unavailable in the constrained top-navigation layout.
 - Hidden sidebar labels cannot receive keyboard focus. Accessible names, tooltips, and the archive switcher remain available.
 - The Library workspace fills its area without an outer rounded card, border, shadow, or frame-colored gutter.
 - Navigation and workspace sit side by side, separated by one subtle divider. Their colors may match because the layout and divider define the two areas.
@@ -139,6 +141,9 @@ Comfortable density is the default. Compact density reduces spacing and selected
 | `--control-height-standard`  | `36px` | Standard buttons and controls  |
 | `--control-height-prominent` | `40px` | Prominent buttons and controls |
 | `--border-width`             | `1px`  | Standard structural border     |
+
+Dialog buttons use the standard `36px` control height and meta text scale. This keeps modal
+actions aligned with selectors and Settings actions without changing buttons elsewhere.
 
 ### Corners
 
@@ -210,7 +215,9 @@ Components use the matching elevation token. Flat workspace areas do not need an
 - Loading placeholders do not look interactive. Skeleton fields are not exposed as controls, and focus does not move into unavailable content.
 - Shared dialog components use native `<dialog>`. They preserve focus containment, Escape behavior, dismissal, and focus restoration.
 - Dialogs, details drawers, and Quick Actions share one restrained dim backdrop without blur. Nested surfaces do not add another backdrop.
-- The Library details drawer is an opaque overlay that enters from the right. It does not move or resize the Library content.
+- The Library details drawer is an opaque overlay that enters from the right. It does not move or resize the Library content. Both the drawer and pinned panel use `--surface-main`, with a single `--line-subtle` divider at the collection edge and no surface shadow.
+- Book details use the slide-over by default. The header's pin action optionally docks the same details beside the collection in windows at least `75rem` wide; narrower windows use the slide-over. Both modes share a width that defaults to `336px` and can be resized from `280px` to `480px`. The resize edge supports pointer dragging, arrow keys, larger steps with Shift, and Home/End for the limits. Pin state and width are saved through application preferences and restored across navigation, archive switches, and restarts. A restored pinned panel starts with no inspected book. The pinned header has Favorite and Unpin actions; the slide-over also retains Close.
+- A pinned panel follows explicit book activation without changing bulk selection or moving focus. Its header and width stay stable when no book is inspected. Independently of the Library's Show Continue Reading preference, an unselected panel offers the current archive's most recently opened resumable book, labeled “Last read”, with its cover, title, author, known progress, description excerpt, last-opened date, and a Continue reading action. View book details opens the normal panel explicitly. Up to three other resumable books appear below as compact Continue Reading rows, ordered by most recently opened. These suggestions do not inspect or select books. Missing and completed books are excluded. Without a suggestion, a small monochrome book icon and “Book details” guidance explain how to populate the panel; an empty archive explains that details appear after adding and selecting a book. Multiple selected books show their count and point to the selection bar. Metadata and cover editing remain modal, protecting drafts while the collection is unavailable.
 - Frosted-glass panels, decorative blur, glow, and gradients are not general surface treatments. Existing image and Reader overlay blur remains limited to those features.
 - Functional gradients are limited to local effects such as loading shimmer and transparency checkers. They remain subtle and respect reduced motion. Empty states do not use gradients or glowing artwork.
 
@@ -232,7 +239,7 @@ Use the shared duration vocabulary:
 The application uses these motion patterns:
 
 - On intentional entry, the Library collection may rise by `8px` and fade in once. Data updates, filtering, sorting, and other state changes do not replay the entrance or remount the collection.
-- The sidebar and titlebar use the same `150ms` width interpolation during collapse and expansion. Their widths do not animate independently, and the Library subtree is not transformed.
+- The Library shell interpolates its sidebar grid track over `150ms` during collapse and expansion. The expanded track uses the saved width; the collapsed track remains `56px`. The Library subtree is not transformed.
 - Dialogs expand from the center at approximately `0.97` scale with a small opacity change. The exit fades without additional movement.
 - The backdrop follows the dialog or drawer lifecycle and fades once. It does not blur the application.
 - The Library details drawer remains opaque and travels from the right edge. It overlays the collection without changing its layout.

@@ -33,7 +33,7 @@ export const ContinueReading = memo(function ContinueReading({
   );
 });
 
-function ContinueReadingBook({
+export function ContinueReadingBook({
   book,
   onContinue,
 }: {
@@ -62,9 +62,15 @@ function ContinueReadingBook({
       >
         <BookCover book={book} className="book-cover--continue" />
         <span className="continue-book__copy">
-          <strong>{bookTitle(book)}</strong>
-          <span>{bookAuthor(book)}</span>
-          <span className="continue-book__progress">{Math.round(book.progressPercent ?? 0)}%</span>
+          <strong title={bookTitle(book)}>{bookTitle(book)}</strong>
+          <span title={bookAuthor(book)}>{bookAuthor(book)}</span>
+          {typeof book.progressPercent === "number" &&
+          Number.isFinite(book.progressPercent) &&
+          book.progressPercent > 0 ? (
+            <span className="continue-book__progress">
+              {Math.max(1, Math.round(book.progressPercent))}%
+            </span>
+          ) : null}
         </span>
         <ArrowRight aria-hidden="true" size={17} />
       </button>

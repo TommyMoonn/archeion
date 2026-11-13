@@ -92,6 +92,36 @@ describe("Tooltip", () => {
     expect(visibleTooltip()).toBeNull();
   });
 
+  it("renders active tooltips inside their owning native modal dialog", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(
+        <TooltipProvider>
+          <dialog open>
+            <Tooltip content="Close book details">
+              <button type="button">Close</button>
+            </Tooltip>
+          </dialog>
+        </TooltipProvider>,
+      );
+    });
+
+    const dialog = container.querySelector("dialog")!;
+    const trigger = dialog.querySelector("button")!;
+
+    act(() => {
+      trigger.dispatchEvent(pointerEvent("pointerover"));
+      vi.advanceTimersByTime(TOOLTIP_POINTER_OPEN_DELAY_MS);
+    });
+
+    const tooltip = visibleTooltip();
+    expect(tooltip?.textContent).toBe("Close book details");
+    expect(tooltip?.parentElement).toBe(dialog);
+    expect(tooltip?.style.visibility).toBe("visible");
+  });
+
   it("uses the shorter keyboard delay and dismisses on blur, pointer down, and Escape", () => {
     const trigger = renderTooltip();
     document.documentElement.dataset.focusPresentation = "keyboard-navigation";

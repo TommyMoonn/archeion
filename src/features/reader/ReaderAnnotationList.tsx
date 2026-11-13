@@ -1,3 +1,4 @@
+import { Tooltip } from "../../components/Tooltip";
 import { Bookmark, Check, Ellipsis, Highlighter, NotebookPen, X } from "lucide-react";
 import {
   forwardRef,
@@ -256,29 +257,31 @@ export const ReaderAnnotationList = forwardRef<
                                 </span>
                               ) : null}
                             </button>
-                            <button
-                              aria-busy={isPanelActionPending || undefined}
-                              aria-disabled={panelAction ? true : undefined}
-                              aria-expanded={menuAnnotationId === annotation.id}
-                              aria-haspopup="menu"
-                              aria-label={`Actions for ${label}`}
-                              className="menu-trigger reader-annotations__menu-trigger"
-                              data-annotation-menu-trigger
-                              disabled={Boolean(rowMutation)}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onOpenMenu(event, annotation);
-                              }}
-                              ref={(node) => {
-                                if (node) actionTriggerRefs.current.set(annotation.id, node);
-                                else actionTriggerRefs.current.delete(annotation.id);
-                              }}
-                              type="button"
-                            >
-                              <span aria-hidden="true" className="icon-slot">
-                                <Ellipsis />
-                              </span>
-                            </button>
+                            <Tooltip content={`Actions for ${label}`}>
+                              <button
+                                aria-busy={isPanelActionPending || undefined}
+                                aria-disabled={panelAction ? true : undefined}
+                                aria-expanded={menuAnnotationId === annotation.id}
+                                aria-haspopup="menu"
+                                aria-label={`Actions for ${label}`}
+                                className="menu-trigger reader-annotations__menu-trigger"
+                                data-annotation-menu-trigger
+                                disabled={Boolean(rowMutation)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  onOpenMenu(event, annotation);
+                                }}
+                                ref={(node) => {
+                                  if (node) actionTriggerRefs.current.set(annotation.id, node);
+                                  else actionTriggerRefs.current.delete(annotation.id);
+                                }}
+                                type="button"
+                              >
+                                <span aria-hidden="true" className="icon-slot">
+                                  <Ellipsis />
+                                </span>
+                              </button>
+                            </Tooltip>
                           </>
                         )}
 

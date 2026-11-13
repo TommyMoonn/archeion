@@ -69,6 +69,12 @@
   font-size: var(--type-meta);
 }
 
+.settings-search input[type="search"]::-webkit-search-cancel-button {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .settings-sidebar nav button {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -271,15 +277,15 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
 }
 
 .settings-row code {
+  display: block;
+  max-width: 100%;
   color: var(--muted);
-  overflow: hidden;
-  max-width: 54ch;
   font-family: var(--font-mono);
   font-size: var(--type-code);
   font-weight: var(--type-code-weight);
   line-height: var(--type-code-line-height);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .settings-row legend {
@@ -345,12 +351,15 @@ html[data-motion="on"] .settings-status {
 }
 
 .settings-row__control .app-select {
-  width: 188px;
+  flex: 0 0 240px;
+  width: 240px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-theme-control {
   display: grid;
-  grid-template-columns: 188px auto;
+  grid-template-columns: 240px auto;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -358,7 +367,9 @@ html[data-motion="on"] .settings-status {
 }
 
 .settings-theme-control .app-select {
-  width: 188px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-row__unavailable {
@@ -367,21 +378,44 @@ html[data-motion="on"] .settings-status {
 }
 
 .settings-row__control .segmented-control {
-  min-width: 188px;
+  min-width: min(188px, 100%);
+  max-width: 100%;
 }
 
 .settings-row__control input[type="range"] {
   width: min(220px, 28vw);
 }
 
+.settings-slider {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 240px;
+  max-width: 100%;
+}
+
+.settings-slider__value {
+  color: var(--text);
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.settings-row__control .settings-slider input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
 .settings-row__meta code {
-  display: inline-block;
-  overflow: hidden;
-  max-width: min(54ch, 46vw);
+  display: block;
+  max-width: 100%;
   color: var(--muted);
   font-family: var(--font-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .dictionary-settings {
@@ -461,8 +495,8 @@ html[data-motion="on"] .settings-status {
 }
 
 .dictionary-settings-card__heading {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-width: 0;
   align-items: center;
   gap: 9px;
@@ -512,6 +546,7 @@ html[data-motion="on"] .settings-status {
   color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--type-control-label-weight);
+  white-space: nowrap;
 }
 
 .dictionary-settings-card__facts {
@@ -694,6 +729,10 @@ html[data-motion="on"] .settings-status {
     width: 100%;
   }
 
+  .settings-row__control .app-select {
+    flex-basis: 100%;
+  }
+
   .settings-theme-control {
     grid-template-columns: minmax(0, 1fr) auto;
     width: 100%;
@@ -874,7 +913,7 @@ html[data-motion="on"] .settings-status {
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--surface);
-  overflow: hidden;
+  overflow: visible;
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard);
@@ -892,9 +931,11 @@ html[data-motion="on"] .settings-status {
   font-family: var(--font-mono);
   font-size: var(--type-meta);
   font-weight: var(--type-control-label-weight);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.keyboard-shortcut-binding kbd {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .keyboard-shortcut-clear {
@@ -918,6 +959,7 @@ html[data-motion="on"] .settings-status {
   border: var(--border-width) solid var(--line-strong);
   border-radius: var(--radius-control);
   background: var(--surface);
+  white-space: nowrap;
 }
 
 .keyboard-shortcut-capture {
@@ -961,4 +1003,21 @@ html[data-motion="on"] .settings-status {
   .keyboard-shortcut-row__controls {
     width: 100%;
   }
+}
+
+/* Settings actions use the same text scale as selectors. */
+.settings-window .button {
+  font-size: var(--type-meta);
+  line-height: var(--type-meta-line-height);
+  white-space: normal;
+}
+
+.settings-window .button__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-window .button--prominent {
+  --button-height: var(--control-height-standard);
+  --button-padding-inline: 14px;
 }

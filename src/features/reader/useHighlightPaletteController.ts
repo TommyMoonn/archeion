@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import type { HighlightAnnotation } from "../../types/annotation";
 import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import {
+  clientRectsEqual,
   normalizeClientRect,
   type ClientRect,
   type HighlightPaletteAnchor,
@@ -112,10 +113,15 @@ export function useHighlightPaletteController({
       dismiss(false);
       return;
     }
-    const nextMenu = { ...current, anchorRect };
-    menuRef.current = nextMenu;
-    setPaletteViewport(readPaletteViewport());
-    setMenu(nextMenu);
+    const nextViewport = readPaletteViewport();
+    setPaletteViewport((previous) =>
+      clientRectsEqual(previous, nextViewport) ? previous : nextViewport,
+    );
+    if (!clientRectsEqual(current.anchorRect, anchorRect)) {
+      const nextMenu = { ...current, anchorRect };
+      menuRef.current = nextMenu;
+      setMenu(nextMenu);
+    }
   }, [dismiss, readPaletteViewport, registry, viewerRef]);
 
   useEffect(() => {
@@ -130,9 +136,17 @@ export function useHighlightPaletteController({
     const anchor = menu?.anchor;
     if (!anchor) return;
 
+    let pendingFrame: number | null = null;
+    const scheduleRefresh = () => {
+      if (pendingFrame !== null) return;
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = null;
+        refreshAnchor();
+      });
+    };
     const sourceWindow = anchor.document.defaultView;
     const observer =
-      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(refreshAnchor);
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(scheduleRefresh);
     if (viewerRef.current) observer?.observe(viewerRef.current);
     let frame = sourceWindow?.frameElement;
     while (frame) {
@@ -142,7 +156,7 @@ export function useHighlightPaletteController({
     const mutations =
       typeof MutationObserver === "undefined" || !containerRef.current
         ? undefined
-        : new MutationObserver(refreshAnchor);
+        : new MutationObserver(scheduleRefresh);
     if (containerRef.current) {
       mutations?.observe(containerRef.current, {
         attributes: true,
@@ -151,16 +165,17 @@ export function useHighlightPaletteController({
       });
     }
     const onPageHide = () => dismiss(false);
-    window.addEventListener("resize", refreshAnchor);
-    document.addEventListener("scroll", refreshAnchor, true);
-    anchor.document.addEventListener("scroll", refreshAnchor, true);
+    window.addEventListener("resize", scheduleRefresh);
+    document.addEventListener("scroll", scheduleRefresh, true);
+    anchor.document.addEventListener("scroll", scheduleRefresh, true);
     sourceWindow?.addEventListener("pagehide", onPageHide);
     return () => {
+      if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
       observer?.disconnect();
       mutations?.disconnect();
-      window.removeEventListener("resize", refreshAnchor);
-      document.removeEventListener("scroll", refreshAnchor, true);
-      anchor.document.removeEventListener("scroll", refreshAnchor, true);
+      window.removeEventListener("resize", scheduleRefresh);
+      document.removeEventListener("scroll", scheduleRefresh, true);
+      anchor.document.removeEventListener("scroll", scheduleRefresh, true);
       sourceWindow?.removeEventListener("pagehide", onPageHide);
     };
   }, [containerRef, dismiss, menu?.anchor, refreshAnchor, viewerRef]);

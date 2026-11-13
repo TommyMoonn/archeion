@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,6 +12,23 @@ function entries(folders: readonly Folder[], counts = new Map<string, number>())
 }
 
 describe("FolderBrowser", () => {
+  it("keeps folder sort and view controls aligned on one row within the shared collection width", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/folders.css"), "utf8");
+
+    expect(styles).toMatch(
+      /\.folder-browser\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*1440px;/s,
+    );
+    expect(styles).toMatch(
+      /\.folder-browser__controls\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
+    );
+    expect(styles).toMatch(
+      /\.folder-browser__controls \.library-controls__display\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*max-width:\s*100%;/s,
+    );
+    expect(styles).toMatch(
+      /\.folder-browser__controls \.segmented-control\s*\{[^}]*flex:\s*0 0 auto;/s,
+    );
+  });
+
   it("uses the shared accessible icon-only collection view control", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
@@ -30,6 +49,7 @@ describe("FolderBrowser", () => {
     expect(markup).toContain('aria-label="Cards"');
     expect(markup).toContain('aria-label="List"');
     expect(markup.indexOf('aria-label="Cards"')).toBeLessThan(markup.indexOf('aria-label="List"'));
+    expect(markup.match(/role="radio"/g)).toHaveLength(2);
     expect(markup).not.toContain("folder-view-toggle");
   });
 
@@ -108,7 +128,10 @@ describe("FolderBrowser", () => {
       'class="collection-content folder-browser__content" data-surface-state="empty"',
     );
     expect(markup).toContain("No folders yet");
-    expect(markup).toContain("Add folder");
+    expect(markup).toContain("button--standard folder-browser__add-button");
+    expect(markup.match(/Add folder/g)).toHaveLength(1);
+    const emptyStateMarkup = markup.slice(markup.indexOf('class="empty-state"'));
+    expect(emptyStateMarkup).not.toContain("Add folder");
   });
 
   it("disables native autofill on the folder search field", () => {

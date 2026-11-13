@@ -159,7 +159,7 @@ describe("shared control geometry", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("does not infer a tooltip for an icon-only control without explicit adoption", () => {
+  it("uses the accessible label as the default tooltip for icon-only controls", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -167,18 +167,50 @@ describe("shared control geometry", () => {
 
     act(() => {
       root.render(
-        <IconButton label="Open actions">
-          <span>+</span>
-        </IconButton>,
+        <TooltipProvider>
+          <IconButton label="Open actions">
+            <span>+</span>
+          </IconButton>
+        </TooltipProvider>,
       );
     });
 
     const button = container.querySelector("button")!;
     expect(button.title).toBe("");
-    expect(button.getAttribute("aria-describedby")).toBeNull();
-    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    const descriptionId = button.getAttribute("aria-describedby");
+    expect(descriptionId).toBeTruthy();
+    expect(document.getElementById(descriptionId!)?.textContent).toBe("Open actions");
     act(() => button.focus());
     expect(document.activeElement).toBe(button);
+  });
+
+  it("shows the default icon-button label through the styled tooltip on hover", () => {
+    vi.useFakeTimers();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <TooltipProvider>
+          <IconButton label="Open book actions">
+            <span>⋯</span>
+          </IconButton>
+        </TooltipProvider>,
+      );
+    });
+
+    const button = container.querySelector("button")!;
+    act(() => {
+      const pointerEnter = new Event("pointerover", { bubbles: true });
+      Object.defineProperty(pointerEnter, "pointerType", { value: "mouse" });
+      button.dispatchEvent(pointerEnter);
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(document.querySelector(".app-tooltip")?.textContent).toBe("Open book actions");
+    vi.useRealTimers();
   });
 
   it("keeps an unavailable reason accessible without a native tooltip", () => {
@@ -463,6 +495,56 @@ describe("icon-only SegmentedControl", () => {
     expect(grid.getAttribute("aria-checked")).toBe("true");
     expect(grid.tabIndex).toBe(0);
     expect(list.tabIndex).toBe(-1);
+  });
+});
+
+describe("icon-only composite control tooltips", () => {
+  it("uses option labels and the select accessible name as styled tooltip descriptions", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <TooltipProvider>
+          <SegmentedControl
+            appearance="icon-only"
+            label="Collection view"
+            onChange={() => undefined}
+            options={[
+              { icon: <span>▦</span>, label: "Grid view", value: "grid" },
+              { icon: <span>☷</span>, label: "List view", value: "list" },
+            ]}
+            value="grid"
+          />
+          <AppSelect
+            appearance="icon-only"
+            ariaLabel="Choose reading appearance"
+            onChange={() => undefined}
+            options={[{ label: "Dark", value: "dark" }]}
+            triggerIcon={<span>◐</span>}
+            value="dark"
+          />
+        </TooltipProvider>,
+      );
+    });
+
+    const grid = container.querySelector<HTMLButtonElement>('button[aria-label="Grid view"]')!;
+    const list = container.querySelector<HTMLButtonElement>('button[aria-label="List view"]')!;
+    const select = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Choose reading appearance"]',
+    )!;
+
+    for (const [button, expected] of [
+      [grid, "Grid view"],
+      [list, "List view"],
+      [select, "Choose reading appearance"],
+    ] as const) {
+      const descriptionId = button.getAttribute("aria-describedby");
+      expect(descriptionId).toBeTruthy();
+      expect(document.getElementById(descriptionId!)?.textContent).toBe(expected);
+    }
   });
 });
 

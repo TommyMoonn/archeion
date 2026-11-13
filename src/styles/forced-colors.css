@@ -21,7 +21,8 @@
       select,
       textarea,
       summary,
-      [tabindex]:not([tabindex="-1"])
+      [tabindex]:not([tabindex="-1"]),
+      main[tabindex="-1"]
     ):focus-visible {
     outline: 2px solid Highlight !important;
     outline-offset: 2px;
@@ -108,6 +109,11 @@
 
   .sidebar {
     border-color: CanvasText;
+  }
+
+  .sidebar__resize-handle::after {
+    background: Highlight;
+    opacity: 1;
   }
 
   .window-titlebar__navigation-plane::after {

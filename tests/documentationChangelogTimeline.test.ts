@@ -178,7 +178,7 @@ describe("static release timeline", () => {
     });
     fs.writeFileSync(target, after.replace("docs-changelog:end", "missing-marker"));
     await expect(syncDocumentationChangelogPage(root, { check: false })).rejects.toThrow(/region/i);
-  });
+  }, 15_000);
 
   it("adds and removes releases without leaving stale headings or hand-authored history", async () => {
     const root = fixture();

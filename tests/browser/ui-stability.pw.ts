@@ -308,7 +308,9 @@ for (const hypothesis of ["font", "lazy-mount"]) {
       await frames(page, 20);
       if (hypothesis === "lazy-mount") {
         await expect(page.locator(".details-drawer[open]")).toBeVisible();
-        await expect(page.locator(".details-drawer").getByRole("status")).toContainText("Opening");
+        await expect(page.locator(".details-drawer").getByRole("status")).toHaveText(
+          "Loading book details",
+        );
         await page
           .locator(".details-drawer")
           .evaluate((element) => element.setAttribute("data-frame-probe", "pending"));
@@ -317,7 +319,10 @@ for (const hypothesis of ["font", "lazy-mount"]) {
       if (hypothesis === "font") await page.evaluate(() => document.fonts.ready);
       else {
         await expect(
-          page.locator(".details-drawer").getByRole("status").filter({ hasText: "Opening" }),
+          page
+            .locator(".details-drawer")
+            .getByRole("status")
+            .filter({ hasText: "Loading book details" }),
         ).toHaveCount(0);
         await expect(page.locator(".details-drawer[open]")).toHaveAttribute(
           "data-frame-probe",

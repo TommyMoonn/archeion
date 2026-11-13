@@ -3,6 +3,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 
 import { focusPresentationRuntime } from "../../../src/app/inputModality";
 import { SettingsSurface } from "../../../src/features/settings/SettingsSurface";
+import { TooltipProvider } from "../../../src/components/Tooltip";
 import { createInstalledFontCatalog } from "../../../src/storage/installedFontCatalog";
 import { appPreferencesStore } from "../../../src/stores/appPreferencesStore";
 import { AppearanceRuntime } from "../../../src/themes/AppearanceRuntime";
@@ -82,5 +83,9 @@ runtime.start();
 focusPresentationRuntime.start(document);
 const root = document.getElementById("root");
 if (!root) throw new Error("Application font Settings fixture root is missing.");
-createRoot(root).render(<SettingsSurface fontCatalog={catalog} />);
+createRoot(root).render(
+  <TooltipProvider>
+    <SettingsSurface fontCatalog={catalog} />
+  </TooltipProvider>,
+);
 window.applicationFontSettingsFixture.ready = true;

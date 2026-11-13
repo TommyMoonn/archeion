@@ -34,6 +34,7 @@ type BookCardProps = {
   canDelete?: boolean;
   canManageFile?: boolean;
   selected: boolean;
+  inspected?: boolean;
   selectionMode: boolean;
   collectionIndex?: number;
   contextMenuDisabledReason?: string;
@@ -54,6 +55,7 @@ function BookCardComponent({
   canDelete = true,
   canManageFile = false,
   selected,
+  inspected,
   selectionMode,
   collectionIndex,
   contextMenuDisabledReason,
@@ -103,13 +105,14 @@ function BookCardComponent({
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
+      data-inspected={inspected || undefined}
       data-selection-mode={selectionMode || undefined}
       onContextMenu={handleContextMenu}
     >
       <button
         aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : `View details for ${title}`}
-        aria-pressed={selectionMode ? selected : undefined}
+        aria-pressed={selectionMode ? selected : inspected}
         className="book-card__select"
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
@@ -171,6 +174,7 @@ export const BookCard = memo(
     previous.canDelete === next.canDelete &&
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
+    previous.inspected === next.inspected &&
     previous.selectionMode === next.selectionMode &&
     previous.collectionIndex === next.collectionIndex &&
     previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
