@@ -485,13 +485,9 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   min-width: 0;
 }
 
-.book-card[data-selected] .book-cover {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 2px var(--accent-border),
-    var(--shadow-card);
-  outline: 1px solid var(--accent);
-  outline-offset: 2px;
+.book-card:is([data-selected], [data-inspected]) .book-cover {
+  border: 2px solid var(--accent);
+  box-shadow: var(--shadow-card);
 }
 
 .book-card[data-selection-mode] .book-card__select:hover .book-cover {
@@ -565,6 +561,10 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 .book-card__select:hover .book-cover {
   border-color: var(--line-strong);
   transform: translateY(-1px);
+}
+
+.book-card:is([data-selected], [data-inspected]) .book-card__select:hover .book-cover {
+  border-color: var(--accent);
 }
 
 .book-favorite {
@@ -1148,14 +1148,16 @@ html[data-motion="on"] .book-details-loading__placeholder {
   white-space: pre-wrap;
 }
 
-.book-card[data-inspected] .book-cover,
 .book-row[data-inspected] {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 @media (forced-colors: active) {
-  .book-card[data-inspected] .book-cover,
+  .book-card:is([data-selected], [data-inspected]) .book-cover {
+    border-color: Highlight;
+  }
+
   .book-row[data-inspected] {
     outline-color: Highlight;
   }
