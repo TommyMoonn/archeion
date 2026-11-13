@@ -31,6 +31,7 @@ import {
   type RefObject,
 } from "react";
 
+import { LibraryPanelResizeHandle } from "./LibraryPanelResizeHandle";
 import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
 import { ActionListButton } from "../../components/MenuItem";
@@ -57,6 +58,11 @@ import {
 } from "../folders/folderBrowserReadModel";
 import { folderSortOptions } from "../folders/folderSortOptions";
 import { ARCHIVE_ROOT_DESTINATION } from "../filesystem/archiveImport";
+import {
+  LIBRARY_SIDEBAR_DEFAULT_WIDTH,
+  LIBRARY_SIDEBAR_MAX_WIDTH,
+  LIBRARY_SIDEBAR_MIN_WIDTH,
+} from "./useLibrarySidebarState";
 
 const smartViewIcons: Record<LibrarySmartView, LucideIcon> = {
   unread: BookOpenText,
@@ -111,6 +117,10 @@ type LibrarySidebarProps = {
   settingsAriaKeyShortcuts?: string;
   canRevealFolders?: boolean;
   activeImportDropTargetId?: string | null;
+  resizable?: boolean;
+  width?: number;
+  onWidthChange?: (width: number) => void;
+  onWidthCommit?: (width: number) => void;
 };
 
 export const LibrarySidebar = memo(function LibrarySidebar({
@@ -140,6 +150,10 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   settingsAriaKeyShortcuts,
   canRevealFolders = false,
   activeImportDropTargetId,
+  resizable = false,
+  width = LIBRARY_SIDEBAR_DEFAULT_WIDTH,
+  onWidthChange,
+  onWidthCommit,
 }: LibrarySidebarProps) {
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
@@ -429,6 +443,19 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <Settings aria-hidden="true" />
         </IconButton>
       </div>
+      {resizable && !isCollapsed ? (
+        <LibraryPanelResizeHandle
+          label="Resize sidebar"
+          tooltip="Drag to resize sidebar"
+          className="sidebar__resize-handle"
+          edge="end"
+          minWidth={LIBRARY_SIDEBAR_MIN_WIDTH}
+          maxWidth={LIBRARY_SIDEBAR_MAX_WIDTH}
+          width={width}
+          onWidthChange={onWidthChange}
+          onWidthCommit={onWidthCommit}
+        />
+      ) : null}
     </aside>
   );
 });

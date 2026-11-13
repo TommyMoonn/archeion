@@ -1,59 +1,81 @@
-/* Reserve an unanimated grid row. Toast transforms never write collection padding. */
+/* Keep the notice independent from Library layout and collection scrolling. */
 .app-shell:has(> .page-shell-notice) {
-  grid-template-rows: minmax(0, 1fr) auto;
+  position: relative;
 }
-.app-shell:has(> .page-shell-notice) > .sidebar {
-  grid-area: 1 / 1 / 3 / 2;
-}
-.app-shell:has(> .page-shell-notice) > .page-shell {
-  grid-area: 1 / 2;
-}
+/* Intrinsic sizing accommodates wider installed fonts within a predictable responsive range. */
 .page-shell-notice {
-  grid-area: 2 / 2;
-  z-index: 8;
-  align-self: end;
-  justify-self: end;
-  width: min(336px, calc(100% - 32px));
-  max-height: 40dvh;
-  margin: 16px;
-  overflow-y: auto;
+  position: absolute;
+  z-index: 15;
+  inset-inline-end: 16px;
+  inset-block-end: 16px;
+  width: max-content;
+  min-width: min(
+    360px,
+    calc(100% - var(--library-sidebar-current-width, var(--sidebar-width)) - 32px)
+  );
+  max-width: min(
+    440px,
+    calc(100% - var(--library-sidebar-current-width, var(--sidebar-width)) - 32px)
+  );
+  overflow: visible;
   pointer-events: none;
 }
 .page-shell-notice:not(:has(.update-toast)) {
-  height: 0;
-  margin: 0;
+  display: none;
+}
+/* Keep operation feedback above the bottom-right update notice. */
+.app-shell:has(.update-toast) .library-feedback {
+  max-height: max(0px, calc(60dvh - 92px));
 }
 .update-toast {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 4px;
+  max-width: 100%;
+  box-sizing: border-box;
+  max-height: min(40dvh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-menu);
   color: var(--text);
-  background: var(--surface);
+  background: var(--canvas);
   box-shadow: var(--shadow-popover);
   pointer-events: auto;
 }
+.update-toast__header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 24px;
+}
+.update-toast__content {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px;
+}
 .update-toast__message {
+  min-width: 0;
   margin: 0;
   color: var(--text-strong);
   font-size: var(--type-body);
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
-.update-toast__link {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 24px;
-  color: var(--muted);
-  font-size: var(--type-meta);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.update-toast__status-icon {
+  display: grid;
+  flex: none;
+  width: var(--icon-slot-standard);
+  height: var(--icon-slot-standard);
+  place-items: center;
+  color: var(--accent);
 }
-.update-toast__link:hover {
-  color: var(--text-strong);
+.update-toast__status-icon[data-state="error"] {
+  color: var(--error);
+}
+.update-toast__status-icon svg {
+  display: block;
 }
 .update-toast__detail {
   margin: 0;
@@ -61,40 +83,80 @@
   font-size: var(--type-meta);
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.update-toast__link-error {
+  min-width: 0;
+}
+.update-toast__progress-detail {
+  white-space: nowrap;
 }
 .update-toast__actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: end;
-  gap: 8px;
-  margin-top: 8px;
+  flex: none;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
 }
-/* Keep the small primary-action label readable in both built-in appearances. */
-.update-toast .button--primary {
-  border-color: var(--accent-strong);
-  background: var(--accent-strong);
+.update-toast__actions--indented {
+  margin-inline-start: calc(var(--icon-slot-standard) + 12px);
 }
-.update-toast progress {
+.update-toast__actions .button--primary {
+  color: var(--canvas);
+}
+.update-toast__release-button .button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.update-toast__release-button .button__label svg {
+  display: block;
+  flex: none;
+  color: var(--muted);
+}
+.update-toast__dismiss {
+  margin: 0;
+}
+.update-toast__dismiss .icon-slot {
+  --icon-slot-size: var(--icon-slot-compact);
+  --icon-glyph-size: var(--icon-glyph-compact);
+}
+.update-toast__dismiss svg {
+  display: block;
+}
+.update-toast__progress {
   width: 100%;
   height: 6px;
   accent-color: var(--accent);
 }
-/* Feedback stays above even the tallest bounded notice, without a height observer. */
-.app-shell:has(.update-toast) .library-feedback {
-  max-height: max(0px, calc(60dvh - 92px));
+.update-toast__progress--indented {
+  width: calc(100% - var(--icon-slot-standard) - 12px);
+  margin-inline-start: calc(var(--icon-slot-standard) + 12px);
 }
 @media (max-width: 560px) {
-  .app-shell:has(> .page-shell-notice) {
-    grid-template-rows: auto minmax(0, 1fr) auto;
-  }
-  .app-shell:has(> .page-shell-notice) > .sidebar {
-    grid-area: 1 / 1;
-  }
-  .app-shell:has(> .page-shell-notice) > .page-shell {
-    grid-area: 2 / 1;
-  }
   .page-shell-notice {
-    grid-area: 3 / 1;
+    inset-inline-start: auto;
+    inset-inline-end: 12px;
+    inset-block-end: 12px;
+    width: max-content;
+    min-width: min(360px, calc(100% - 24px));
+    max-width: min(440px, calc(100% - 24px));
+  }
+  .update-toast {
+    max-height: min(42dvh, 320px);
+  }
+  .update-toast__header {
+    gap: 16px;
+  }
+  .update-toast__actions {
+    gap: 4px;
+  }
+  .update-toast__actions--indented {
+    margin-inline-start: calc(var(--icon-slot-standard) + 8px);
+  }
+  .update-toast__progress--indented {
+    width: calc(100% - var(--icon-slot-standard) - 8px);
+    margin-inline-start: calc(var(--icon-slot-standard) + 8px);
   }
 }
 @media (prefers-reduced-motion: no-preference) {

@@ -28,6 +28,7 @@ const cssSource = collectFiles(stylesRoot, ".css")
   .join("\n");
 const appShellSource = read("src/styles/layout/app-shell.css");
 const menuSource = read("src/styles/components/menus.css");
+const settingsSource = read("src/styles/features/settings.css");
 const archiveSource = read("src/styles/features/archive.css");
 const folderSource = read("src/styles/features/folders.css");
 const readerSource = read("src/styles/features/reader.css");
@@ -78,13 +79,32 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(folderSource).not.toMatch(/\.folder-menu summary\s*{[^}]*\b(?:width|height):/s);
   });
 
+  it("pins Settings dropdowns to a stable desktop width and fills narrow controls", () => {
+    const desktopSelect = cssBlock(".settings-row__control .app-select", settingsSource);
+    const themeControl = cssBlock(".settings-theme-control", settingsSource);
+    const responsiveSelect = settingsSource.match(
+      /\.settings-row__control \.app-select\s*\{\s*flex-basis: 100%;\s*\}/,
+    )?.[0];
+    const responsiveStart = settingsSource.indexOf(
+      "@container settings-section (max-width: 560px)",
+    );
+
+    expect(desktopSelect).toContain("flex: 0 0 240px;");
+    expect(desktopSelect).toContain("width: 240px;");
+    expect(desktopSelect).toContain("min-width: 0;");
+    expect(themeControl).toContain("grid-template-columns: 240px auto;");
+    expect(responsiveStart).toBeGreaterThanOrEqual(0);
+    expect(responsiveSelect).toBeDefined();
+    expect(settingsSource.indexOf(responsiveSelect!)).toBeGreaterThan(responsiveStart);
+  });
+
   it("keeps explicit focus-visible treatment on global controls and reader page-turn zones", () => {
     const normalizedCssSource = cssSource
       .replace(/\s+/g, " ")
       .replace(/\(\s+/g, "(")
       .replace(/\s+\)/g, ")");
     const globalFocusableSelector =
-      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]), main[tabindex="-1"])';
     const pageTurnFocus = cssBlock(".epub-viewer__click-zone:focus-visible", readerSource);
     const previousFocus = cssBlock(
       ".epub-viewer__click-zone--previous:focus-visible",

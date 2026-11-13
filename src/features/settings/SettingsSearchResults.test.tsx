@@ -63,18 +63,16 @@ function createController(overrides: Partial<SettingsController> = {}) {
   } as unknown as SettingsController;
 }
 
-function renderResults(query: string, controller = createController(), onClearSearch = vi.fn()) {
+function renderResults(query: string, controller = createController()) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
 
   act(() => {
-    root.render(
-      <SettingsSearchResults controller={controller} onClearSearch={onClearSearch} query={query} />,
-    );
+    root.render(<SettingsSearchResults controller={controller} query={query} />);
   });
 
-  return { container, controller, onClearSearch, root };
+  return { container, controller, root };
 }
 
 describe("SettingsSearchResults", () => {
@@ -250,18 +248,13 @@ describe("SettingsSearchResults", () => {
     }
   });
 
-  it("shows a clearable empty state for an unmatched query", () => {
-    const { container, onClearSearch } = trackRoot(renderResults("quasar telemetry"));
+  it("shows an uncluttered empty state for an unmatched query", () => {
+    const { container } = trackRoot(renderResults("quasar telemetry"));
 
     expect(container.querySelector("[data-setting-id]")).toBeNull();
     expect(container.querySelector(".settings-search-results__empty")?.textContent).toContain(
       "quasar telemetry",
     );
-
-    const clearButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Clear search",
-    );
-    act(() => clearButton?.click());
-    expect(onClearSearch).toHaveBeenCalledOnce();
+    expect(container.querySelectorAll("button")).toHaveLength(0);
   });
 });

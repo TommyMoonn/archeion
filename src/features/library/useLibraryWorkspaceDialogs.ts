@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
 import { currentFocusOrigin } from "../../utils/focusRestoration";
@@ -8,7 +8,7 @@ export type DroppedEpubImport = {
   sourcePaths: string[];
 };
 
-export type BookDetailsInitialFocus = "clear-progress" | "close" | "cover" | "metadata";
+export type BookDetailsInitialFocus = "clear-progress" | "close" | "cover" | "metadata" | "none";
 
 type BookDialogOwnership = Readonly<{ returnFocusTo: HTMLElement | null }>;
 
@@ -71,7 +71,8 @@ function existingBookOrigin(dialog: LibraryWorkspaceDialog): HTMLElement | null 
   return "returnFocusTo" in dialog ? dialog.returnFocusTo : undefined;
 }
 
-export function useLibraryWorkspaceDialogs() {
+export function useLibraryWorkspaceDialogs(detailsPinned = false) {
+  const [inspectedBookId, setInspectedBookId] = useState<string | null>(null);
   const [dialog, dispatch] = useReducer(dialogReducer, { type: "none" });
   const dialogRef = useRef(dialog);
   useLayoutEffect(() => {
@@ -91,14 +92,17 @@ export function useLibraryWorkspaceDialogs() {
     },
     [],
   );
-  const show = useCallback(
-    (nextDialog: Exclude<LibraryWorkspaceDialog, { type: "none" }>) =>
-      dispatch({ type: "show", dialog: nextDialog }),
-    [],
-  );
+  const show = useCallback((nextDialog: Exclude<LibraryWorkspaceDialog, { type: "none" }>) => {
+    if ("bookId" in nextDialog) setInspectedBookId(nextDialog.bookId);
+    else if ("book" in nextDialog) setInspectedBookId(nextDialog.book.id);
+    dispatch({ type: "show", dialog: nextDialog });
+  }, []);
   const bookOrigin = useCallback(
-    () => existingBookOrigin(dialogRef.current) ?? currentFocusOrigin(),
-    [],
+    () =>
+      detailsPinned
+        ? currentFocusOrigin()
+        : (existingBookOrigin(dialogRef.current) ?? currentFocusOrigin()),
+    [detailsPinned],
   );
 
   const openAddEpub = useCallback(
@@ -106,12 +110,12 @@ export function useLibraryWorkspaceDialogs() {
     [show],
   );
   const openBookDetails = useCallback(
-    (book: LibrarySnapshotBook) =>
+    (book: LibrarySnapshotBook, returnFocusTo: HTMLElement | null = currentFocusOrigin()) =>
       show({
         type: "book-details",
         bookId: book.id,
         initialFocus: "close",
-        returnFocusTo: currentFocusOrigin(),
+        returnFocusTo,
       }),
     [show],
   );
@@ -221,7 +225,7 @@ export function useLibraryWorkspaceDialogs() {
     ],
   );
 
-  return { actions, dialog };
+  return { actions, dialog, inspectedBookId };
 }
 
 export type LibraryWorkspaceDialogActions = ReturnType<

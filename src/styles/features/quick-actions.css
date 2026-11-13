@@ -7,7 +7,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-menu);
   color: var(--text);
-  background: var(--surface-raised);
+  background: var(--surface-main);
   box-shadow: var(--shadow-popover);
   overflow: hidden;
 }
@@ -214,7 +214,7 @@ html[data-motion="on"] .quick-actions[open] {
   border: 1px solid var(--line);
   border-radius: var(--radius-menu);
   color: var(--muted);
-  background: var(--surface-raised);
+  background: var(--surface-main);
   box-shadow: var(--shadow-popover);
   font-size: var(--type-meta);
 }

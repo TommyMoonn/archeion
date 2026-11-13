@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FontPicker, type FontPickerProps } from "./FontPicker";
+import { TooltipProvider } from "./Tooltip";
 import { registerTransientSurface } from "../utils/transientSurfaceOwnership";
 
 let root: Root;
@@ -18,7 +19,13 @@ const pinned = Object.freeze([
 
 function render(overrides: Partial<FontPickerProps> = {}) {
   props = { ...props, ...overrides };
-  act(() => root.render(<FontPicker {...props} />));
+  act(() =>
+    root.render(
+      <TooltipProvider>
+        <FontPicker {...props} />
+      </TooltipProvider>,
+    ),
+  );
 }
 
 function trigger() {
@@ -49,6 +56,20 @@ function query(value: string) {
   });
 }
 
+function bounds(width: number, height: number): DOMRect {
+  return {
+    bottom: height,
+    height,
+    left: 0,
+    right: width,
+    top: 0,
+    width,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
 beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
@@ -70,6 +91,17 @@ afterEach(() => {
 });
 
 describe("FontPicker", () => {
+  it("uses the styled tooltip for a truncated selected font name instead of a native title", () => {
+    render({ value: { kind: "system", family: "A very long installed font family name" } });
+
+    expect(trigger().getAttribute("title")).toBeNull();
+    const descriptionId = trigger().getAttribute("aria-describedby");
+    expect(descriptionId).toBeTruthy();
+    expect(document.getElementById(descriptionId!)?.textContent).toBe(
+      "A very long installed font family name (Unavailable)",
+    );
+  });
+
   it("keeps a saved name neutral while the catalog is loading and leaves pinned choices usable", () => {
     render({
       catalogLoading: true,
@@ -95,6 +127,39 @@ describe("FontPicker", () => {
     act(() => options()[0].click());
     expect(props.onChange).toHaveBeenCalledWith({ kind: "pinned", value: "default" });
   });
+  it("keeps the open popover trigger-sized while the installed-font catalog resolves", () => {
+    let naturalMenuWidth = 224;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains("app-select__trigger")) return bounds(240, 36);
+      if (this.classList.contains("app-select__menu")) {
+        const width =
+          this.style.width === "max-content"
+            ? naturalMenuWidth
+            : Number.parseFloat(this.style.width) || 0;
+        return bounds(width, 120);
+      }
+      return bounds(0, 0);
+    });
+
+    render({ catalogLoading: true, installedFamilies: [] });
+    open();
+
+    const menu = container.querySelector<HTMLElement>(".font-picker__popover")!;
+    expect(menu.style.width).toBe("240px");
+
+    naturalMenuWidth = 420;
+    render({
+      catalogLoading: false,
+      installedFamilies: [
+        "Long family name with multilingual 日本語 Ελληνικά and extended unbroken characters ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+      ],
+    });
+
+    expect(menu.style.width).toBe("240px");
+  });
+
   it("opens with a named search field focused and pinned rows before sorted installed families", () => {
     open();
     expect(document.activeElement).toBe(search());
@@ -127,6 +192,7 @@ describe("FontPicker", () => {
     expect(active()).toBe(options()[0]);
     key("ArrowDown");
     expect(active()).toBe(options()[1]);
+    expect(options()[1].getAttribute("data-keyboard-active")).toBe("true");
     expect(document.activeElement).toBe(search());
     expect(options()[0].getAttribute("aria-selected")).toBe("true");
     expect(options()[1].getAttribute("aria-selected")).toBe("false");
@@ -134,6 +200,20 @@ describe("FontPicker", () => {
     key("ArrowUp");
     expect(active()).toBe(options().at(-1));
     expect(props.onChange).not.toHaveBeenCalled();
+  });
+
+  it("separates pointer-active rows from keyboard focus indicators", () => {
+    open();
+    expect(options()[0].hasAttribute("data-keyboard-active")).toBe(false);
+    key("ArrowDown");
+    expect(options()[1].getAttribute("data-keyboard-active")).toBe("true");
+
+    act(() => {
+      options()[2].dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    });
+
+    expect(active()).toBe(options()[2]);
+    expect(options()[2].hasAttribute("data-keyboard-active")).toBe(false);
   });
 
   it("selects a pinned option on Enter immediately, closes and restores the trigger", () => {

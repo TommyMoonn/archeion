@@ -26,6 +26,17 @@ const PALETTE_ANCHOR_GAP = 10;
 
 type RectGeometry = Pick<ClientRect, "bottom" | "height" | "left" | "right" | "top" | "width">;
 
+export function clientRectsEqual(left: ClientRect, right: ClientRect): boolean {
+  return (
+    left.bottom === right.bottom &&
+    left.height === right.height &&
+    left.left === right.left &&
+    left.right === right.right &&
+    left.top === right.top &&
+    left.width === right.width
+  );
+}
+
 export function normalizeClientRect(rectangle: RectGeometry | null | undefined): ClientRect | null {
   if (!rectangle) return null;
   const left = rectangle.left;

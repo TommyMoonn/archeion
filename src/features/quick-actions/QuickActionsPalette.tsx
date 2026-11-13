@@ -135,8 +135,7 @@ export function QuickActionsPalette({
     setRootBusy(false);
   }
 
-  function closePalette(suppressFocusRestoration = false): void {
-    if (suppressFocusRestoration) modal.suppressFocusRestoration();
+  function closePalette(): void {
     retirePendingOutcomes();
     disposeActiveMode();
     onClose();
@@ -244,7 +243,7 @@ export function QuickActionsPalette({
       setModeError(outcome.error);
       return;
     }
-    closePalette(true);
+    closePalette();
   }
 
   function settleRootOutcome(

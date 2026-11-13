@@ -28,17 +28,24 @@ export function libraryLocationKey(location: LibraryLocation): string {
   return location.type;
 }
 
+export function libraryNavigationTabKey(location: LibraryLocation): string {
+  if (location.type === "series" || location.type === "series-detail") return "series";
+  if (location.type === "favorites") return "favorites";
+  if (location.type === "folders") return "folders";
+  return "library";
+}
+
 type UseLibraryWorkspaceNavigationInput = {
   activeArchiveId: string;
   folders: readonly LibrarySnapshotFolder[] | undefined;
-  beforeArchiveSwitch: () => void;
+  beforeNavigation: () => void;
   smartViewPreferences: LibrarySmartViewPreferences;
 };
 
 export function useLibraryWorkspaceNavigation({
   activeArchiveId,
   folders,
-  beforeArchiveSwitch,
+  beforeNavigation,
   smartViewPreferences,
 }: UseLibraryWorkspaceNavigationInput) {
   const navigate = useNavigate();
@@ -91,6 +98,9 @@ export function useLibraryWorkspaceNavigation({
 
   const changeLocation = useCallback(
     (nextLocation: LibraryLocation) => {
+      if (libraryNavigationTabKey(location) !== libraryNavigationTabKey(nextLocation)) {
+        beforeNavigation();
+      }
       if (libraryLocationKey(location) !== libraryLocationKey(nextLocation)) {
         scrollMainContentToTop();
       }
@@ -108,6 +118,7 @@ export function useLibraryWorkspaceNavigation({
     },
     [
       activeArchiveId,
+      beforeNavigation,
       folders,
       location,
       scrollMainContentToTop,
@@ -156,14 +167,14 @@ export function useLibraryWorkspaceNavigation({
 
   const switchArchive = useCallback(
     async (archiveId: string) => {
-      beforeArchiveSwitch();
+      beforeNavigation();
       setSearchParams(
         searchParamsForLibraryLocation(searchParams, { type: "library" }, folders ?? [], archiveId),
         { replace: true },
       );
       await archiveStore.switchArchive(archiveId);
     },
-    [beforeArchiveSwitch, folders, searchParams, setSearchParams],
+    [beforeNavigation, folders, searchParams, setSearchParams],
   );
 
   useEffect(() => {

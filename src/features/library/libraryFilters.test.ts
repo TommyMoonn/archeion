@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+import * as searchText from "../../utils/searchText";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
@@ -16,6 +18,7 @@ import {
   filterBooks,
   getEffectiveLibrarySort,
   getVisibleBooks,
+  getVisibleBooksFromSearchIndex,
   hasActiveLibraryFilters,
   normalizeLibrarySort,
   pruneUnavailableLibraryMetadataFilters,
@@ -35,6 +38,27 @@ function createBook(overrides: Partial<Book>): Book {
 }
 
 describe("library filters", () => {
+  it("scores only matching entries in both indexed search paths", () => {
+    const index = createLibrarySearchIndex([
+      createBook({ id: "match", originalTitle: "Needle" }),
+      ...Array.from({ length: 20 }, (_, index) => createBook({ id: `other-${index}` })),
+    ]);
+    const score = vi.spyOn(searchText, "scoreSearchField");
+    try {
+      expect(filterBookSearchIndex(index, "needle").map((book) => book.id)).toEqual(["match"]);
+      expect(score).toHaveBeenCalledTimes(9);
+      score.mockClear();
+      expect(
+        getVisibleBooksFromSearchIndex(index, "needle", DEFAULT_LIBRARY_SORT).map(
+          (book) => book.id,
+        ),
+      ).toEqual(["match"]);
+      expect(score).toHaveBeenCalledTimes(9);
+    } finally {
+      score.mockRestore();
+    }
+  });
+
   const books = [
     createBook({
       id: "second",

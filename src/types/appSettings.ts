@@ -15,6 +15,7 @@ import {
 } from "./library";
 import { defaultReaderSettings, type ReaderSettings } from "./reader";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
+import { BOOK_DETAILS_DEFAULT_WIDTH } from "./libraryDetails";
 
 export type InterfaceDensity = "comfortable" | "compact";
 export type StartupBehavior = "open-last-archive" | "show-archive-manager";
@@ -23,7 +24,7 @@ export type AppThemePreset = "system" | "dark" | "light";
 /** In-memory publication provenance. This is not persisted in settings.json. */
 export type AppPreferencesPublication = Readonly<
   | { kind: "initialization"; generation: number }
-  | { kind: "commit" | "synchronization"; appThemeChanged: boolean }
+  | { kind: "optimistic" | "commit" | "synchronization"; appThemeChanged: boolean }
 >;
 
 export type RememberedNavigationState = {
@@ -79,6 +80,8 @@ export type AppPreferencesChanges = Omit<Partial<AppPreferences>, "appearance"> 
 };
 
 export type LibrarySettingsMutation =
+  | { field: "detailsPinned"; value: boolean }
+  | { field: "detailsWidth"; value: number }
   | {
       field: "booksCardSize";
       value: AppPreferences["library"]["collections"]["books"]["cardSize"];
@@ -219,6 +222,8 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     shortcuts: Object.freeze({}),
   }),
   library: Object.freeze({
+    detailsPinned: false,
+    detailsWidth: BOOK_DETAILS_DEFAULT_WIDTH,
     collections: Object.freeze({
       books: DEFAULT_BOOKS_COLLECTION_PREFERENCES,
       folders: DEFAULT_FOLDERS_COLLECTION_PREFERENCES,

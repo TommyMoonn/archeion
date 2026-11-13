@@ -441,6 +441,8 @@ export function setupLibraryPageTestSuite() {
       confirmDestructiveFileActions: true,
       library: {
         ...currentPreferences.library,
+        detailsPinned: false,
+        detailsWidth: 336,
         collections: {
           ...currentPreferences.library.collections,
           books: {

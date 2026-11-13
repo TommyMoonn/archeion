@@ -64,7 +64,9 @@ details[open] > .menu-trigger {
 
 .menu-popover {
   display: grid;
+  width: max-content;
   min-width: min(168px, calc(100vw - 16px));
+  max-width: min(420px, calc(100vw - 16px));
   padding: 5px;
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-menu);
@@ -74,6 +76,7 @@ details[open] > .menu-trigger {
 
 .menu-item {
   display: grid;
+  min-width: 0;
   grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
@@ -88,6 +91,7 @@ details[open] > .menu-trigger {
   font-weight: var(--type-control-label-weight);
   line-height: var(--type-meta-line-height);
   text-align: start;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 

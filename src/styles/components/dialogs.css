@@ -11,13 +11,17 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-dialog);
   color: var(--text);
-  background: var(--surface);
+  background: var(--surface-main);
   box-shadow: var(--shadow-dialog);
   overflow: hidden;
 }
 
 html[data-motion="on"] .dialog[open] {
   animation: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
+}
+
+html[data-motion="on"] :is(.dialog--add-epub, .dialog--move-epub)[open] {
+  animation-name: dialog-presence-fade-enter;
 }
 
 /* One dimming treatment and timing owner for all native application surfaces. */
@@ -178,11 +182,22 @@ html[data-motion="on"]
 }
 
 .dialog__footer {
+  align-self: center;
   display: flex;
   justify-content: flex-end;
   gap: 9px;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+/* Dialog actions use the standard control scale, not the app-wide prominent default. */
+.dialog .button {
+  --button-height: var(--control-height-standard);
+  --button-padding-inline: 14px;
+
+  gap: 8px;
+  font-size: var(--type-meta);
+  line-height: var(--type-meta-line-height);
 }
 
 .dialog__description:last-child {
@@ -266,7 +281,7 @@ html[data-motion="on"]
   justify-items: center;
   gap: 12px;
   padding: 12px;
-  background: var(--surface);
+  background: var(--surface-main);
 }
 
 .dialog__footer > .button--ghost:first-child {
@@ -319,5 +334,14 @@ html[data-motion="on"] .dialog[open][data-surface-state="closing"] {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes dialog-presence-fade-enter {
+  from {
+    opacity: var(--surface-from-opacity, 0.92);
+  }
+  to {
+    opacity: 1;
   }
 }

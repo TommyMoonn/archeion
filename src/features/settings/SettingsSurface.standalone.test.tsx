@@ -261,7 +261,9 @@ describe("standalone Settings surface", () => {
     expect(
       container.querySelector('[data-setting-id="appearance.display-font"] button')?.textContent,
     ).toBe("Archeion Default");
-    expect(container.textContent).toContain("Appearance settings reset.");
+    expect(container.textContent).not.toContain("Appearance settings reset.");
+    expect(container.textContent).not.toContain("Settings saved.");
+    expect(container.textContent).not.toContain("Saving settings.");
   });
 
   it("opening Appearance and either missing-family picker does not clear saved families", async () => {
@@ -327,8 +329,8 @@ describe("standalone Settings surface", () => {
       family: "Arial",
     });
     await choose("Georgia");
-    expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).toContain("Settings saved.");
+    expect(container.textContent).not.toContain("App settings could not be saved.");
+    expect(container.textContent).not.toContain("Settings saved.");
     expect(trigger().textContent).toBe("Georgia");
   });
   it("keeps global settings usable and marks archive operations unavailable without storage", async () => {

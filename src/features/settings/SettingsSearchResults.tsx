@@ -1,7 +1,5 @@
-import { X } from "lucide-react";
 import { useMemo } from "react";
 
-import { Button } from "../../components/Button";
 import { SettingsSectionHeader } from "./components/SettingsSectionHeader";
 import { findSettingsSearchResults } from "./settingsSearch";
 import type { SettingsItem } from "./settingsItemTypes";
@@ -11,7 +9,6 @@ import { SettingsItemContent } from "./SettingsSectionItems";
 
 type SettingsSearchResultsProps = {
   controller: SettingsController;
-  onClearSearch: () => void;
   query: string;
 };
 
@@ -46,11 +43,7 @@ function groupSearchResults(query: string): GroupedSearchResults {
   });
 }
 
-export function SettingsSearchResults({
-  controller,
-  onClearSearch,
-  query,
-}: SettingsSearchResultsProps) {
+export function SettingsSearchResults({ controller, query }: SettingsSearchResultsProps) {
   const groupedResults = useMemo(() => groupSearchResults(query), [query]);
   const resultCount = groupedResults.reduce(
     (count, section) =>
@@ -61,11 +54,6 @@ export function SettingsSearchResults({
   return (
     <section className="settings-section settings-search-results">
       <SettingsSectionHeader
-        actions={
-          <Button icon={<X aria-hidden="true" />} onClick={onClearSearch} variant="secondary">
-            Clear search
-          </Button>
-        }
         className="settings-search-results__header"
         description={
           resultCount > 0
