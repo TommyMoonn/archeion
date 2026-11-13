@@ -20,7 +20,7 @@ env:
 jobs:
   frontend-static:
     name: Frontend static checks
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
@@ -162,7 +162,7 @@ jobs:
 
   frontend-build:
     name: Frontend build and assets
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:

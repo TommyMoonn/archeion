@@ -5,7 +5,6 @@ on:
     paths:
       - .github/workflows/coverage.yml
       - package.json
-      - pnpm-lock.yaml
       - vitest.config.ts
       - scripts/coverage-rust.ps1
   workflow_dispatch:

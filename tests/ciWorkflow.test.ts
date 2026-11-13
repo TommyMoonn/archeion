@@ -77,6 +77,20 @@ function runGate(results: Record<string, string>) {
 }
 
 describe("CI workflow contract", () => {
+  it.each([
+    ["frontend-static", "ubuntu-latest"],
+    ["frontend-build", "ubuntu-latest"],
+    ["frontend-tests", "windows-latest"],
+    ["browser-contracts", "ubuntu-latest"],
+    ["rust-checks", "windows-latest"],
+    ["msrv", "windows-latest"],
+    ["font-catalog-portability", "ubuntu-latest"],
+    ["windows-runtime", "windows-2022"],
+    ["windows-updater", "windows-2022"],
+  ])("keeps %s on its intended platform", (jobId, runner) => {
+    expect(jobLines(jobId)).toContain(`    runs-on: ${runner}`);
+  });
+
   it.each(["windows-runtime", "windows-updater"])(
     "caches and verifies the exact Tauri bridge in %s",
     (jobId) => {

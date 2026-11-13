@@ -20,11 +20,28 @@ describe("diagnostic coverage workflow", () => {
     expect(workflow).toContain("  schedule:");
     expect(workflow).toMatch(/ {2}pull_request:\r?\n {4}paths:/);
     expect(workflow).not.toContain("  push:");
-    expect(workflow).toContain("      - pnpm-lock.yaml");
     expect(workflow).not.toContain("package-lock.json");
     expect(workflow).toMatch(/permissions:\r?\n {2}contents: read/);
     expect(ci).not.toContain("coverage-diagnostics");
     expect(ci).not.toContain("test:coverage:");
+  });
+
+  it("limits PR paths to coverage tooling and configuration, excluding lockfile-only updates", () => {
+    const paths = workflow
+      .split("  pull_request:")[1]
+      .split("  workflow_dispatch:")[0]
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("      - "))
+      .map((line) => line.slice("      - ".length));
+
+    // package.json owns the coverage commands and the pinned V8 provider dependency.
+    expect(paths).toEqual([
+      ".github/workflows/coverage.yml",
+      "package.json",
+      "vitest.config.ts",
+      "scripts/coverage-rust.ps1",
+    ]);
+    expect(workflow).toContain('    - cron: "0 7 * * 1"');
   });
 
   it("generates and uploads HTML plus machine-readable reports without thresholds", () => {
@@ -42,6 +59,9 @@ describe("diagnostic coverage workflow", () => {
     expect(workflow).toContain("path: coverage/frontend/");
     expect(workflow).toContain("path: coverage/rust/");
     expect(workflow.match(/retention-days: 7/g)).toHaveLength(2);
+    expect(workflow.match(/if: \$\{\{ always\(\) && !cancelled\(\) \}\}/g)).toHaveLength(2);
+    expect(workflow.match(/if-no-files-found: ignore/g)).toHaveLength(2);
+    expect(workflow).not.toContain("continue-on-error:");
     expect(workflow).not.toMatch(/fail-under|threshold|codecov/i);
     expect(vitestConfig).toContain('reportsDirectory: "coverage/frontend"');
     expect(vitestConfig).toContain('reporter: ["text-summary", "html", "lcov"]');

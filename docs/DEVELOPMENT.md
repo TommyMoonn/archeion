@@ -86,6 +86,22 @@ and product metadata, the uninstaller and registration, then checks that
 uninstall removes the installed state. The MSI is staged and checksum-verified,
 but this bounded install and uninstall smoke does not exercise it.
 
+## CI platforms and coverage diagnostics
+
+The shared CI workflow runs frontend static checks and the Vite asset build on
+Ubuntu. These jobs use Node tooling without building the Tauri application.
+Browser contracts and the Linux font catalog check also run on Ubuntu. The full
+Vitest suite stays on Windows because it includes PowerShell-dependent tests;
+Rust checks, MSRV, and native runtime and updater smoke also stay on Windows.
+
+Coverage is diagnostic and has no threshold gate. The separate Coverage
+diagnostics workflow runs weekly on Monday at 07:00 UTC, on manual dispatch,
+and for pull requests changing its workflow, `package.json` (coverage commands
+and provider dependency), `vitest.config.ts`, or `scripts/coverage-rust.ps1`.
+Lockfile-only updates do not trigger it. Frontend and Rust reports are uploaded
+as artifacts for seven days, including available reports after a failed command.
+Coverage command failures still fail their jobs; coverage is outside `CI Gate`.
+
 ## Use repository utilities
 
 The pnpm aliases for change packaging, cleanup, and repository exports are
