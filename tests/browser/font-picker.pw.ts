@@ -87,7 +87,7 @@ for (const scenario of [
   { width: 900, height: 660, query: "&transform", name: "transformed" },
   { width: 900, height: 660, query: "&modal", name: "modal" },
 ]) {
-  test(`picker is contained and long labels stay on one line in ${scenario.name} surface`, async ({
+  test(`picker is contained and long labels wrap in ${scenario.name} surface`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
@@ -122,10 +122,9 @@ for (const scenario of [
         inputFont: getComputedStyle(input).fontFamily,
       };
     });
-    expect(rowMetrics.scroll).toBeGreaterThan(rowMetrics.client);
-    expect(rowMetrics.height).toBeLessThanOrEqual(36);
-    expect(rowMetrics.whiteSpace).toBe("nowrap");
-    expect(rowMetrics.textOverflow).toBe("ellipsis");
+    expect(rowMetrics.scroll).toBeLessThanOrEqual(rowMetrics.client);
+    expect(rowMetrics.height).toBeGreaterThan(36);
+    expect(rowMetrics.whiteSpace).toBe("normal");
     expect(rowMetrics.font).toBe(rowMetrics.inputFont);
     await expect(row).toHaveAccessibleName(/^Long family name with multilingual/);
     await expectActiveVisible(page);
@@ -233,7 +232,7 @@ test("separates pointer hover from keyboard focus", async ({ page }) => {
   const hovered = page.getByRole("option", { name: "Alpha Serif", exact: true });
   await hovered.hover();
   await expect(hovered).not.toHaveAttribute("data-keyboard-active", "true");
-  expect(await hovered.evaluate((row) => parseFloat(getComputedStyle(row).outlineWidth))).toBe(0);
+  await expect(hovered).toHaveCSS("outline-style", "none");
   const hoverBackground = await hovered.evaluate((row) => getComputedStyle(row).backgroundColor);
   const menuBackground = await page
     .locator(".font-picker__popover")
@@ -243,6 +242,7 @@ test("separates pointer hover from keyboard focus", async ({ page }) => {
   await search(page).press("ArrowDown");
   const keyboardActive = page.locator('[role="option"][data-keyboard-active="true"]');
   await expect(keyboardActive).toHaveCount(1);
+  await expect(keyboardActive).toHaveCSS("outline-style", "solid");
   expect(
     await keyboardActive.evaluate((row) => parseFloat(getComputedStyle(row).outlineWidth)),
   ).toBeGreaterThanOrEqual(2);

@@ -181,7 +181,7 @@ for (const scenario of [
     enlarge: true,
   },
 ] as const) {
-  test(`Reader picker truncates long labels on one line and retains keyboard access in ${scenario.name}`, async ({
+  test(`Reader picker wraps long labels and retains keyboard access in ${scenario.name}`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
@@ -218,7 +218,7 @@ for (const scenario of [
       scenario.forced ? "light dark" : scenario.theme === "light" ? "light" : "dark",
     );
     await page.keyboard.press("Enter");
-    await expect(trigger(page)).toHaveAttribute("title", longFamily);
+    await expect(trigger(page)).toHaveAccessibleDescription(longFamily);
     expect(
       await trigger(page).evaluate(
         (element) =>
@@ -277,9 +277,8 @@ for (const scenario of [
         textOverflow: style.textOverflow,
       };
     });
-    expect(labelMetrics.scrollWidth).toBeGreaterThan(labelMetrics.clientWidth);
-    expect(labelMetrics.whiteSpace).toBe("nowrap");
-    expect(labelMetrics.textOverflow).toBe("ellipsis");
+    expect(labelMetrics.scrollWidth).toBeLessThanOrEqual(labelMetrics.clientWidth);
+    expect(labelMetrics.whiteSpace).toBe("normal");
     await expect(row).toHaveAccessibleName(/^Long family name with multilingual/);
     const colors = await row.evaluate((element) => {
       const menuBackground = getComputedStyle(

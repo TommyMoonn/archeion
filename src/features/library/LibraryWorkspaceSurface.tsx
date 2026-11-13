@@ -352,6 +352,15 @@ export function LibraryWorkspaceSurface({
             ref={bookCollectionRootRef}
             className="collection-content library-content library-content--books"
             data-surface-state={surfaceState}
+            onAnimationEnd={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                event.animationName === "app-motion-view-content-in"
+              ) {
+                // This keyed DOM owner enters once, even when its result state changes.
+                event.currentTarget.dataset.entranceComplete = "true";
+              }
+            }}
             onContextMenu={
               location.type === "library" ? handleLibraryBackgroundContextMenu : undefined
             }

@@ -102,7 +102,7 @@ describe("collection content spacing ownership", () => {
   it("animates collection results without animating Library empty states", () => {
     const entrance = cssBlock(
       collectionContentStyles,
-      'html[data-motion="on"] .library-content--books[data-surface-state="results"],\nhtml[data-motion="on"] :not(.library-content--books) > .collection-content__items',
+      'html[data-motion="on"]\n  .library-content--books[data-surface-state="results"]:not([data-entrance-complete]),\nhtml[data-motion="on"] :not(.library-content--books) > .collection-content__items',
     );
 
     expect(entrance).toContain("animation: app-motion-view-content-in");

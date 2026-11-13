@@ -256,7 +256,7 @@ for (const scenario of [
         document.documentElement.dir = "rtl";
       });
     await selectFont(page, "Interface", longFamily);
-    await expect(fontTrigger(page, "Interface")).toHaveAttribute("title", longFamily);
+    await expect(fontTrigger(page, "Interface")).toHaveAccessibleDescription(longFamily);
     await fontTrigger(page, "Interface").focus();
     await page.keyboard.press("Enter");
     await fontSearch(page, "Interface").fill("Long family");

@@ -65,7 +65,8 @@
   display: none;
 }
 
-html[data-motion="on"] .library-content--books[data-surface-state="results"],
+html[data-motion="on"]
+  .library-content--books[data-surface-state="results"]:not([data-entrance-complete]),
 html[data-motion="on"] :not(.library-content--books) > .collection-content__items {
   animation: app-motion-view-content-in var(--motion-duration-view) var(--motion-ease-view);
 }

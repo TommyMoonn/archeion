@@ -31,16 +31,25 @@ test("Reader collection controls form a named group with queryable selected stat
   await expect(group.getByRole("button", { name: "Contents", pressed: false })).toBeVisible();
 });
 
-test("selection mode keeps a stable name through keyboard toggles", async ({ page }) => {
+test("selection mode can be entered and finished with the keyboard", async ({ page }) => {
   await page.goto("/tests/browser/fixtures/?view=library-toggles");
   const filters = page.getByRole("group", { name: "Active filters", exact: true });
   await expect(
     filters.getByRole("button", { name: "Remove Series: Fixture series filter", exact: true }),
   ).toBeVisible();
-  await toggleRepeatedly(
-    page.getByRole("button", { name: "Select books", exact: true }),
-    "aria-pressed",
-  );
+  for (const key of ["Enter", "Space"]) {
+    const toggle = page.getByRole("button", { name: "Select books", exact: true });
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await toggle.focus();
+    await toggle.press(key);
+    const selection = page.getByRole("group", { name: "Book selection actions", exact: true });
+    await expect(selection).toBeVisible();
+    await expect(toggle).toHaveCount(0);
+    await selection.getByRole("button", { name: "Done", exact: true }).press(key);
+    await expect(selection).toHaveCount(0);
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  }
 });
 
 for (const view of ["Grid", "List"]) {

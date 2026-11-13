@@ -3315,7 +3315,6 @@ html[data-motion="on"] .library-feedback__token {
 @container collection-header (max-width: 900px) {
   .library-header__primary-row {
     grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
   }
 
   .library-header__actions {

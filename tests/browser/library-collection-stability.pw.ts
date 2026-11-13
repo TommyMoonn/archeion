@@ -45,6 +45,9 @@ for (const width of [1280, 900]) {
     await expect(collection).toHaveAttribute("data-surface-state", "results");
     await expect(page.locator(".book-grid")).toBeVisible();
 
+    await collection.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+    });
     const initialGeometry = await page.evaluate(() => {
       const collection = document.querySelector(".library-content--books")!;
       const primaryRow = document.querySelector(".library-header__primary-row")!;
@@ -257,13 +260,16 @@ for (const view of ["grid", "list"] as const) {
               items: items === node.querySelector(".collection-content__items"),
             })),
           ).toEqual({ root: true, items: true });
-          expect(await measure()).toEqual(baseline);
+          expect(await measure()).toEqual({
+            ...baseline,
+            padding: query ? "0px" : baseline.padding,
+          });
         }
         await page.getByRole("button", { name: "Select books", exact: true }).click();
-        await page.getByRole("button", { name: "Select books", exact: true }).click();
+        await page.getByRole("button", { name: "Done", exact: true }).click();
         await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(0));
         await expect(root).toHaveAttribute("data-surface-state", "empty");
-        expect(await measure()).toEqual(baseline);
+        expect(await measure()).toEqual({ ...baseline, padding: "0px" });
         await page.evaluate(() => window.uiStabilityFixture.resizeCatalog(50));
         await expect(root).toHaveAttribute("data-surface-state", "results");
         expect(

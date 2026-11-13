@@ -284,6 +284,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         case "plugin:app|version":
           return "1.7.0";
         case "plugin:window|is_maximized":
+        case "plugin:window|is_fullscreen":
           return false;
         case "plugin:window|scale_factor":
           return devicePixelRatio;

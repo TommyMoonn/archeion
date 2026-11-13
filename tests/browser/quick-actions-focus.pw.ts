@@ -63,7 +63,10 @@ for (const theme of ["dark", "light", "custom", "forced-colors"]) {
 }
 
 function toHex(rgb: string): ThemeColor {
-  const channels = rgb.match(/\d+/g);
-  if (!channels || channels.length !== 3) throw new Error(`Expected opaque RGB: ${rgb}`);
-  return `#${channels.map((value) => Number(value).toString(16).padStart(2, "0")).join("")}`;
+  const channels = rgb.match(/[\d.]+/g)?.map(Number);
+  if (!channels || (channels.length !== 3 && channels.length !== 4))
+    throw new Error(`Expected RGB or RGBA: ${rgb}`);
+  const bytes = channels.slice(0, 3);
+  if (channels.length === 4) bytes.push(Math.round(channels[3] * 255));
+  return `#${bytes.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }

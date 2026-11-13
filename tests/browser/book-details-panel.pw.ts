@@ -54,6 +54,8 @@ for (const appearance of ["dark", "light", "custom"]) {
     const suggestionCover = await panel.locator(".details-cover").boundingBox();
     await panel.getByRole("button", { name: "View book details", exact: true }).click();
     await expect(panel.getByText("Last read", { exact: true })).toHaveCount(0);
+    await expect(panel.locator(".book-details-loading")).toHaveCount(0);
+    await expect(panel.locator(".details-cover")).toBeVisible();
     const inspectedCover = await panel.locator(".details-cover").boundingBox();
     expect(suggestionCover).not.toBeNull();
     expect(inspectedCover).toEqual(suggestionCover);

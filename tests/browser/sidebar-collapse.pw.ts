@@ -18,6 +18,12 @@ async function frames(
       const toggle = document
         .querySelector<HTMLElement>(".library-titlebar-composition")!
         .querySelector<HTMLButtonElement>("button")!;
+      await Promise.all(
+        document
+          .querySelector(".library-content--books")!
+          .getAnimations()
+          .map((animation) => animation.finished),
+      );
       const initialY = card.getBoundingClientRect().y;
       const initialSelected = card.getAttribute("data-selected");
       const initialScrollTop = document.querySelector(".page-shell")!.scrollTop;
@@ -56,7 +62,8 @@ async function frames(
             after: document.querySelector(".sidebar")!.getBoundingClientRect().width,
           };
           reversed = true;
-          await new Promise(requestAnimationFrame);
+          // Sample all geometry in the next frame, after the reversal commit.
+          continue;
         }
         const label = document.querySelector(".library-titlebar-composition__wordmark");
         const wordmarkText = document.createRange();
