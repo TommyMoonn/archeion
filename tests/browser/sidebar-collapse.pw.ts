@@ -1,7 +1,20 @@
 import { writeFile } from "node:fs/promises";
+import os from "node:os";
 import { expect, test, type Page } from "@playwright/test";
 
 const fixture = "/tests/browser/fixtures/ui-stability.html?count=3000";
+
+test.beforeEach(async ({ browser }, info) => {
+  await info.attach("environment.json", {
+    body: JSON.stringify({
+      node: process.version,
+      os: os.version(),
+      browser: browser.version(),
+      runnerImage: process.env.ImageVersion,
+    }),
+    contentType: "application/json",
+  });
+});
 
 async function frames(
   page: Page,
@@ -9,9 +22,10 @@ async function frames(
   activation: "programmatic" | "pointer" | "keyboard" = "programmatic",
   duration = 240,
   reverseRange: readonly [number, number] = [90, 200],
+  controlled = !reverse,
 ) {
   const observation = page.evaluate(
-    async ({ reverse, activation, duration, reverseRange }) => {
+    async ({ reverse, activation, duration, reverseRange, controlled }) => {
       const card = document.querySelector("[data-reader-book-id]")!;
       const image = card.querySelector("img");
       const url = image?.getAttribute("src");
@@ -27,6 +41,8 @@ async function frames(
       const initialY = card.getBoundingClientRect().y;
       const initialSelected = card.getAttribute("data-selected");
       const initialScrollTop = document.querySelector(".page-shell")!.scrollTop;
+      const sidebar = document.querySelector(".sidebar")!;
+      const initialCollapsed = sidebar.getAttribute("data-collapsed");
       const samples = [];
       if (activation === "programmatic") {
         toggle.click();
@@ -38,10 +54,55 @@ async function frames(
         document.documentElement.removeAttribute("data-sidebar-observer-ready");
       }
       const start = performance.now();
+      // Flush the React commit and style change before yielding to the scheduler.
+      await new Promise<void>((resolve) => {
+        if (sidebar.getAttribute("data-collapsed") !== initialCollapsed) return resolve();
+        const observer = new MutationObserver(() => {
+          if (sidebar.getAttribute("data-collapsed") === initialCollapsed) return;
+          observer.disconnect();
+          resolve();
+        });
+        observer.observe(sidebar, { attributes: true, attributeFilter: ["data-collapsed"] });
+      });
+      const shell = document.querySelector(".window-app")!;
+      getComputedStyle(shell).getPropertyValue("--library-sidebar-current-width");
+      const travel = shell
+        .getAnimations()
+        .find(
+          (animation): animation is CSSTransition =>
+            animation instanceof CSSTransition &&
+            animation.transitionProperty === "--library-sidebar-current-width",
+        );
+      const held = controlled && travel;
+      const travelRunning = travel?.playState === "running";
+      if (held) travel.pause();
+      const revealStarts = new Map<Animation, number>();
+      const checkpoints = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 149, 150, 165, 180, 240];
+      let checkpointIndex = 0;
       let reversed = false;
       let turn: { before: number; after: number } | null = null;
       do {
-        await new Promise(requestAnimationFrame);
+        const checkpoint = checkpoints[checkpointIndex];
+        if (held) {
+          travel.currentTime = checkpoint;
+          // Container queries create reveal transitions as travel crosses their
+          // fit gates. Advance those clocks with travel, never with runner time.
+          for (const node of document.querySelectorAll(
+            ".sidebar__expanded-content, .sidebar__nav .nav-item > span, .library-titlebar-composition__wordmark",
+          ))
+            getComputedStyle(node).getPropertyValue("opacity");
+        }
+        if (!held) await new Promise(requestAnimationFrame);
+        if (held) {
+          for (const animation of document.getAnimations()) {
+            if (animation === travel || !(animation instanceof CSSTransition)) continue;
+            if (!revealStarts.has(animation)) {
+              revealStarts.set(animation, checkpoint);
+              animation.pause();
+            }
+            animation.currentTime = checkpoint - revealStarts.get(animation)!;
+          }
+        }
         const currentSidebar = document.querySelector<HTMLElement>(".sidebar")!;
         const currentTitlebar = document.querySelector<HTMLElement>(
           ".library-titlebar-composition",
@@ -70,6 +131,9 @@ async function frames(
         if (label) wordmarkText.selectNodeContents(label);
         samples.push({
           time: performance.now() - start,
+          checkpoint: held ? checkpoint : null,
+          travelCreated: Boolean(travel),
+          travelRunning,
           turn,
           shellDuration:
             parseFloat(
@@ -150,16 +214,23 @@ async function frames(
             ? getComputedStyle(currentExpanded).visibility
             : "hidden",
         });
+        checkpointIndex += 1;
       } while (
-        performance.now() - start < duration ||
-        document
-          .querySelector(".window-app")!
-          .getAnimations()
-          .some((animation) => animation.playState === "running" || animation.pending)
+        held
+          ? checkpointIndex < checkpoints.length
+          : performance.now() - start < duration ||
+            document
+              .querySelector(".window-app")!
+              .getAnimations()
+              .some((animation) => animation.playState === "running" || animation.pending)
       );
+      if (held) {
+        travel.finish();
+        for (const animation of revealStarts.keys()) animation.finish();
+      }
       return samples;
     },
-    { reverse, activation, duration, reverseRange },
+    { reverse, activation, duration, reverseRange, controlled },
   );
   if (activation !== "programmatic") {
     await expect(page.locator("html")).toHaveAttribute("data-sidebar-observer-ready", "true");
@@ -236,16 +307,20 @@ function expectMotion(
   trace: Awaited<ReturnType<typeof frames>>,
   collapsed: boolean,
   atomic = false,
+  controlled = true,
 ) {
   const target = collapsed ? 56 : 248;
   expect(trace.at(-1)!.body).toBe(target);
   if (atomic) expect(trace.every((frame) => frame.body === target)).toBe(true);
   else {
     const intermediate = trace.filter((frame) => frame.body > 56.1 && frame.body < 247.9);
-    expect(
-      intermediate.length,
-      "normal motion must visibly traverse intermediate widths",
-    ).toBeGreaterThanOrEqual(3);
+    expect(trace[0].travelCreated, "the authored shell transition must be created").toBe(true);
+    expect(trace[0].travelRunning, "the authored shell transition must run").toBe(true);
+    if (controlled)
+      expect(
+        intermediate.length,
+        "normal motion must visibly traverse intermediate widths",
+      ).toBeGreaterThanOrEqual(3);
     // Check the authored timing. Wall-clock samples include CI scheduling and style-flush
     // stalls, so they remain evidence rather than a deadline for observing the endpoint.
     expect(trace[0].shellDuration).toBe(150);
@@ -263,7 +338,7 @@ function expectMotion(
     ).toBe(true);
     expect(trace.at(-1)!.expandedVisibility).toBe("visible");
     expect(trace.at(-1)!.wordmarkOpacity).toBe(1);
-    if (!atomic) {
+    if (!atomic && controlled) {
       const lateExpansion = trace.filter((frame) => frame.body >= 215 && frame.body < 247.9);
       expect(lateExpansion.length).toBeGreaterThanOrEqual(2);
       const textOverlap = lateExpansion.filter(
@@ -308,7 +383,9 @@ for (const scale of [1, 1.25, 1.5]) {
     await page.goto(fixture);
     await expect(page.locator(".book-grid")).toBeVisible();
     await expect(page.locator(".book-cover img").first()).toBeVisible();
-    await page.waitForTimeout(250);
+    await page.locator(".library-content--books").evaluate(async (node) => {
+      await Promise.all(node.getAnimations().map((animation) => animation.finished));
+    });
     await page
       .locator(".sidebar__nav")
       .screenshot({ path: testInfo.outputPath("expanded-nav.png") });
@@ -437,6 +514,15 @@ for (const scale of [1, 1.25, 1.5]) {
   });
 }
 
+test("natural sidebar travel runs to both endpoints", async ({ page }) => {
+  await page.goto(fixture);
+  await expect(page.locator(".book-grid")).toBeVisible();
+  const collapse = await frames(page, false, "pointer", 240, [90, 200], false);
+  const expand = await frames(page, false, "keyboard", 240, [90, 200], false);
+  expectMotion(collapse, true, false, false);
+  expectMotion(expand, false, false, false);
+});
+
 for (const mode of ["off", "reduced"] as const) {
   test(`${mode} motion settles immediately`, async ({ page }) => {
     if (mode === "reduced") await page.emulateMedia({ reducedMotion: "reduce" });
@@ -556,10 +642,12 @@ test("record actual overlapping reveal as a natural browser filmstrip", async ({
 }, testInfo) => {
   await page.goto(fixture);
   await expect(page.locator(".book-grid")).toBeVisible();
-  await page.waitForTimeout(250);
+  await page.locator(".library-content--books").evaluate(async (node) => {
+    await Promise.all(node.getAnimations().map((animation) => animation.finished));
+  });
   const evidence = [];
   for (const direction of ["collapse", "expand"]) {
-    const trace = frames(page);
+    const trace = frames(page, false, "programmatic", 240, [90, 200], false);
     for (let index = 0; index < 7; index++) {
       const pose = await page.evaluate(() => {
         const sidebar = document.querySelector(".sidebar")!;
@@ -615,7 +703,7 @@ test("record actual overlapping reveal as a natural browser filmstrip", async ({
       evidence.push({ transitionDirection: direction, index, ...pose });
     }
     const natural = await trace;
-    expectMotion(natural, direction === "collapse");
+    expectMotion(natural, direction === "collapse", false, false);
     await writeFile(
       testInfo.outputPath(`${direction}-frames.json`),
       JSON.stringify(natural, null, 2),

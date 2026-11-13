@@ -393,20 +393,16 @@ describe("release-candidate detection", () => {
     expect(fixture.calls.filter((call) => call.startsWith("gh"))).toHaveLength(1);
   });
 
-  itWithPowerShell(
-    "uses the real release validator for complete metadata and rejects incomplete preparation",
-    () => {
-      expect(scenario({ realValidation: "valid" }).detect()).toEqual({
-        candidate: true,
-        version: "1.5.5",
-        sha: commit,
-      });
-      expect(() => scenario({ realValidation: "partial" }).detect()).toThrow(
-        "Release versions are not aligned",
-      );
-      expect(() => scenario({ realValidation: "missingNote" }).detect()).toThrow(
-        "release note is missing",
-      );
+  itWithPowerShell.each([
+    ["valid", null],
+    ["partial", "Release versions are not aligned"],
+    ["missingNote", "release note is missing"],
+  ] as const)(
+    "uses the real release validator for %s preparation",
+    (realValidation, error) => {
+      const fixture = scenario({ realValidation });
+      if (error) expect(() => fixture.detect()).toThrow(error);
+      else expect(fixture.detect()).toEqual({ candidate: true, version: "1.5.5", sha: commit });
     },
     30_000,
   );

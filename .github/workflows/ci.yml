@@ -112,6 +112,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
+
       - name: Run frontend tests
         run: pnpm run test
 
@@ -145,12 +148,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
+
+      - name: Record Playwright version
+        run: pnpm exec playwright --version
+
       - name: Install Chromium headless shell
         run: pnpm exec playwright install --with-deps chromium --only-shell
 
       - name: Run browser contracts
         timeout-minutes: 15
-        run: pnpm run test:browser --shard=${{ matrix.shard }}/2
+        run: pnpm run test:browser --fail-on-flaky-tests --shard=${{ matrix.shard }}/2
 
       - name: Upload browser failure evidence
         if: ${{ failure() && !cancelled() }}
@@ -170,7 +179,7 @@ jobs:
 
       - name: Run built async surface contracts
         if: matrix.shard == 1
-        run: pnpm exec playwright test --config tests/browser/async-surfaces.config.ts
+        run: pnpm exec playwright test --config tests/browser/async-surfaces.config.ts --fail-on-flaky-tests
 
       - name: Upload async surface failure evidence
         if: ${{ failure() && !cancelled() && matrix.shard == 1 }}
@@ -250,6 +259,9 @@ jobs:
           workspaces: |
             src-tauri -> target
 
+      - name: Record Rust environment
+        run: rustc --version --verbose
+
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.command }}
 
@@ -291,6 +303,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
 
       - name: Cache Tauri WebDriver bridge
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -352,6 +367,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
+
       - name: Cache Tauri WebDriver bridge
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
@@ -390,6 +408,8 @@ jobs:
           toolchain: 1.97.1
       - name: Compile and test the non-Windows catalog without Windows dependencies
         run: |
+          rustc --version --verbose
+          uname -a
           mkdir -p .scratch
           rustc --edition=2021 --test src-tauri/src/commands/font_catalog.rs -o .scratch/font-catalog-tests
           .scratch/font-catalog-tests

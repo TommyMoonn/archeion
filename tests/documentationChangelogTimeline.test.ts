@@ -237,7 +237,7 @@ describe("static release timeline", () => {
     },
   );
 
-  it("CLI check detects timeline drift without writing and generation refuses unsupported prose", async () => {
+  it.each([false, true])("CLI check detects drift=%s without writing", (drift) => {
     const root = fixture();
     const target = path.join(root, targetPath);
     const run = () =>
@@ -251,16 +251,22 @@ describe("static release timeline", () => {
         ],
         { encoding: "utf8", windowsHide: true },
       );
-    expect(run().status).toBe(0);
-    fs.writeFileSync(
-      target,
-      fs.readFileSync(target, "utf8").replace("September 25, 2026", "Stale date"),
-    );
+    if (drift)
+      fs.writeFileSync(
+        target,
+        fs.readFileSync(target, "utf8").replace("September 25, 2026", "Stale date"),
+      );
     const before = fs.readFileSync(target, "utf8");
     const result = run();
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Documentation changelog timeline drift");
+    expect(result.status).toBe(drift ? 1 : 0);
+    if (drift) expect(result.stderr).toContain("Documentation changelog timeline drift");
     expect(fs.readFileSync(target, "utf8")).toBe(before);
+  });
+
+  it("generation refuses unsupported prose without writing", async () => {
+    const root = fixture();
+    const target = path.join(root, targetPath);
+    const before = fs.readFileSync(target, "utf8");
     const note = path.join(root, "release-notes/v1.5.4.md");
     fs.writeFileSync(
       note,

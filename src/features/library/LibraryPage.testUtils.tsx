@@ -181,15 +181,15 @@ export function buttonWithText(container: HTMLElement, text: string): HTMLButton
 const ASYNC_SURFACE_RENDER_TIMEOUT_MS = 1_000;
 const ASYNC_SURFACE_RENDER_POLL_MS = 10;
 
-async function waitForRenderedButton(
-  findButton: () => HTMLButtonElement | undefined,
+async function waitForRenderedElement<T extends HTMLElement>(
+  findElement: () => T | undefined,
   errorMessage: string,
-): Promise<HTMLButtonElement> {
+): Promise<T> {
   const deadline = performance.now() + ASYNC_SURFACE_RENDER_TIMEOUT_MS;
 
   while (performance.now() < deadline) {
-    const button = findButton();
-    if (button) return button;
+    const element = findElement();
+    if (element) return element;
 
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, ASYNC_SURFACE_RENDER_POLL_MS));
@@ -203,7 +203,7 @@ export function waitForButtonWithText(
   container: HTMLElement,
   text: string,
 ): Promise<HTMLButtonElement> {
-  return waitForRenderedButton(
+  return waitForRenderedElement(
     () =>
       Array.from(container.querySelectorAll("button")).find(
         (candidate): candidate is HTMLButtonElement =>
@@ -217,10 +217,18 @@ export function waitForButtonWithLabel(
   container: HTMLElement,
   label: string,
 ): Promise<HTMLButtonElement> {
-  return waitForRenderedButton(() => {
+  return waitForRenderedElement(() => {
     const button = container.querySelector(`button[aria-label="${label}"]`);
     return button instanceof HTMLButtonElement ? button : undefined;
   }, `Button with label ${label} was not rendered.`);
+}
+
+export function waitForSeriesOverview(container: HTMLElement): Promise<HTMLElement> {
+  // The Suspense fallback has the same toolbar, but cannot handle its actions.
+  return waitForRenderedElement(
+    () => container.querySelector<HTMLElement>(".series-overview__content") ?? undefined,
+    "Series overview content was not rendered.",
+  );
 }
 
 export function setInputValue(input: HTMLInputElement, value: string): void {

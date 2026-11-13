@@ -188,7 +188,7 @@ describe("CI workflow contract", () => {
       "        run: pnpm exec playwright install --with-deps chromium --only-shell",
     );
     expect(browserContracts).toContain(
-      "        run: pnpm run test:browser --shard=${{ matrix.shard }}/2",
+      "        run: pnpm run test:browser --fail-on-flaky-tests --shard=${{ matrix.shard }}/2",
     );
     expect(browserContracts).toContain(
       "          name: browser-contract-failure-${{ matrix.shard }}",
@@ -298,6 +298,21 @@ describe("CI workflow contract", () => {
     );
     expect(config).toContain('testIgnore: "**/async-surfaces.pw.ts"');
     expect(asyncConfig).toContain("testIgnore: []");
+  });
+
+  it("fails both browser lanes on retry recovery and retains both attempts", () => {
+    const job = jobLines("browser-contracts").join("\n");
+    expect(job).toContain(
+      "pnpm run test:browser --fail-on-flaky-tests --shard=${{ matrix.shard }}/2",
+    );
+    expect(job).toContain(
+      "pnpm exec playwright test --config tests/browser/async-surfaces.config.ts --fail-on-flaky-tests",
+    );
+    expect(job).toContain("if: ${{ failure() && !cancelled() && matrix.shard == 1 }}");
+    const config = fs.readFileSync(path.join(projectRoot, "playwright.config.ts"), "utf8");
+    expect(config).toContain("retries: process.env.CI ? 1 : 0");
+    expect(config).toContain('trace: "retain-on-failure-and-retries"');
+    expect(config).toContain('screenshot: "only-on-failure"');
   });
 
   it("runs Rust formatting inside the Clippy job and retains tests and MSRV", () => {
@@ -632,49 +647,45 @@ describe("CI change classifier", () => {
   describe("classifier CLI with real Git history", () => {
     let directory: string;
     let revisions: Record<string, string>;
-    function git(...args: string[]) {
+    function git(args: string[], input?: string) {
       const result = spawnSync("git", args, {
         cwd: directory,
         encoding: "utf8",
         windowsHide: true,
+        input,
+        env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" },
       });
       if (result.status !== 0) throw new Error(result.stderr);
       return result.stdout.trim();
     }
-    function write(file: string, content: string) {
-      const target = path.join(directory, file);
-      fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.writeFileSync(target, content);
-    }
-    function commit() {
-      git("add", ".");
-      git(
-        "-c",
-        "user.name=CI test",
-        "-c",
-        "user.email=ci@example.invalid",
-        "commit",
-        "-m",
-        "fixture",
-      );
-      return git("rev-parse", "HEAD");
-    }
-
     beforeAll(() => {
       directory = fs.mkdtempSync(path.join(os.tmpdir(), "archeion-ci-policy-"));
-      git("init");
-      git("remote", "add", "origin", directory);
-      write("docs/guide.md", "Original guide\n");
-      const initial = commit();
-      write("docs/guide.md", "Updated guide\n");
-      const docs = commit();
-      git("mv", "docs/guide.md", "docs/renamed.md");
-      const renamed = commit();
-      git("rm", "docs/renamed.md");
-      const deleted = commit();
-      git("checkout", "-b", "base-side", initial);
-      write("src/main.tsx", "base-only code\n");
-      const divergentBase = commit();
+      git(["init", "--initial-branch=main"]);
+      git(["remote", "add", "origin", directory]);
+      const file = (name: string, content: string) =>
+        `M 100644 inline ${name}\ndata ${Buffer.byteLength(content)}\n${content}\n`;
+      const commit = (mark: number, parent: number | null, changes: string, branch = "main") =>
+        `commit refs/heads/${branch}\nmark :${mark}\ncommitter CI test <ci@example.invalid> 1700000000 +0000\ndata 7\nfixture\n${parent === null ? "" : `from :${parent}\n`}${changes}\n`;
+      // Import the same real history in one process, without five working-tree
+      // commits, hooks, signing, or per-command startup competing with release tests.
+      git(
+        ["fast-import", "--quiet"],
+        [
+          commit(1, null, file("docs/guide.md", "Original guide\n")),
+          commit(2, 1, file("docs/guide.md", "Updated guide\n")),
+          commit(3, 2, "R docs/guide.md docs/renamed.md\n"),
+          commit(4, 3, "D docs/renamed.md\n"),
+          commit(5, 1, file("src/main.tsx", "base-only code\n"), "base-side"),
+        ].join(""),
+      );
+      const [initial, docs, renamed, deleted, divergentBase] = git([
+        "rev-parse",
+        "main~3",
+        "main~2",
+        "main~1",
+        "main",
+        "base-side",
+      ]).split(/\r?\n/);
       revisions = { initial, docs, renamed, deleted, divergentBase, unavailable: "f".repeat(40) };
     });
 

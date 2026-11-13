@@ -11,7 +11,7 @@ import {
   selectionBook,
   setInputValue,
   setupLibraryPageTestSuite,
-  waitForButtonWithLabel,
+  waitForSeriesOverview,
 } from "./LibraryPage.testUtils";
 
 describe("LibraryPage shell state integration", () => {
@@ -243,7 +243,7 @@ describe("LibraryPage shell state integration", () => {
       "/?view=series&archiveId=archive-books",
     );
     suite.trackRoot(session.root);
-    await waitForButtonWithLabel(session.container, "Sort series");
+    await waitForSeriesOverview(session.container);
 
     const shell = session.container.querySelector(".page-shell");
     const loadingContent = session.container.querySelector(".series-overview__content");
@@ -277,7 +277,7 @@ describe("LibraryPage shell state integration", () => {
       "/?view=series&archiveId=archive-books",
     );
     suite.trackRoot(session.root);
-    await waitForButtonWithLabel(session.container, "Sort series");
+    await waitForSeriesOverview(session.container);
 
     act(() => loadController.publishModel([seriesBook], []));
     const seriesTarget = session.container.querySelector('button[aria-label="Open Star Saga"]');

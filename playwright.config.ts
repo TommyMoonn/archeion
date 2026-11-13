@@ -21,7 +21,7 @@ export default defineConfig({
     baseURL,
     browserName: "chromium",
     screenshot: "only-on-failure",
-    trace: "on-first-retry",
+    trace: "retain-on-failure-and-retries",
   },
   webServer: {
     command: `pnpm exec vite --host 127.0.0.1 --port ${port} --strictPort`,
