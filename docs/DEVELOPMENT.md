@@ -94,6 +94,26 @@ Browser contracts and the Linux font catalog check also run on Ubuntu. The full
 Vitest suite stays on Windows because it includes PowerShell-dependent tests;
 Rust checks, MSRV, and native runtime and updater smoke also stay on Windows.
 
+One shared `CI` workflow validates pull requests and pushes to `main`. Main pushes
+always run every validation job. Pull requests also run full validation unless
+the exact event base and head revisions contain only added or modified Markdown
+under `docs/`, authored HTML under `docs/documentation/`, or
+`docs/documentation/page-registry.json`. Documentation runtime assets and the
+generated changelog page remain in full validation, as do mixed changes,
+renames, deletions, empty diffs, unknown paths, and classification uncertainty.
+
+Documentation-only PRs retain static checks (including `docs:check`), the full
+Windows Vitest suite, both browser shards and built async-surface contracts, and
+the frontend asset build. Only Rust checks, Linux font catalog, Windows runtime,
+Windows updater, and MSRV may be skipped. The classifier publishes the mode and
+expected job IDs. The stable `CI Gate` requires successful classification, a
+valid complete job set, and successful expected jobs; it accepts only the five
+explicit documentation-only skips and rejects failures or cancellations even
+from jobs outside the expected set. Classification errors default to full
+validation; a failed classifier or malformed output fails the gate. Dependency
+Review remains an independent PR check, and Release still follows successful
+main-push CI for the exact validated commit.
+
 Coverage is diagnostic and has no threshold gate. The separate Coverage
 diagnostics workflow runs weekly on Monday at 07:00 UTC, on manual dispatch,
 and for pull requests changing its workflow, `package.json` (coverage commands

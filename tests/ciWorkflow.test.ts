@@ -1,12 +1,19 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { configDefaults } from "vitest/config";
 
 import vitestConfig from "../vitest.config";
+import {
+  allJobs,
+  frontendJobs,
+  platformJobs,
+  classifyChanges,
+} from "../scripts/ci-validation-policy.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workflow = fs.readFileSync(path.join(projectRoot, ".github", "workflows", "ci.yml"), "utf8");
@@ -48,30 +55,26 @@ const needsStart = gate.indexOf("    needs:");
 const requiredJobIds = takeWhile(gate.slice(needsStart + 1), (line) =>
   line.startsWith("      - "),
 ).map((line) => line.slice("      - ".length));
-const runStart = gate.indexOf("        run: |");
-if (runStart < 0) throw new Error("CI Gate is missing its result check");
-
-const gateScript = takeWhile(
-  gate.slice(runStart + 1),
-  (line) => line === "" || line.startsWith("          "),
-)
-  .map((line) => line.slice(10))
-  .join("\n");
-
-const hasPowerShell =
-  spawnSync("pwsh", ["-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"], {
-    encoding: "utf8",
-    windowsHide: true,
-  }).status === 0;
-
-function runGate(results: Record<string, string>) {
+function runGate(
+  results: Record<string, string>,
+  mode = "full",
+  event = "pull_request",
+  outputs?: Record<string, string>,
+) {
   const requiredJobs = Object.fromEntries(
     Object.entries(results).map(([job, result]) => [job, { result, outputs: {} }]),
   );
-
-  return spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", gateScript], {
+  requiredJobs["classify-changes"] = {
+    result: results["classify-changes"] ?? "success",
+    outputs: outputs ?? {
+      mode,
+      expected_jobs: JSON.stringify(mode === "docs-only" ? frontendJobs : allJobs),
+    },
+  };
+  return spawnSync(process.execPath, ["scripts/ci-validation-policy.mjs", "gate"], {
+    cwd: projectRoot,
     encoding: "utf8",
-    env: { ...process.env, REQUIRED_JOBS: JSON.stringify(requiredJobs) },
+    env: { ...process.env, REQUIRED_JOBS: JSON.stringify(requiredJobs), GITHUB_EVENT_NAME: event },
     windowsHide: true,
   });
 }
@@ -109,6 +112,43 @@ describe("CI workflow contract", () => {
       expect(job).not.toContain("cache-hit");
     },
   );
+  it("uses exact event classification without filtering workflow events", () => {
+    expect(workflow).toMatch(/on:\n {2}pull_request:\n {2}push:\n {4}branches:\n {6}- main/);
+    expect(workflow).not.toMatch(/paths(?:-ignore)?:/);
+    const classifier = jobLines("classify-changes").join("\n");
+    expect(classifier).toContain("fetch-depth: 0");
+    expect(classifier).toContain("persist-credentials: false");
+    expect(classifier).toContain("run: node scripts/ci-validation-policy.mjs classify");
+    expect(classifier).toContain("mode: ${{ steps.classify.outputs.mode }}");
+    expect(classifier).toContain("expected_jobs: ${{ steps.classify.outputs.expected_jobs }}");
+    expect(allJobs).toEqual(requiredJobIds.filter((job) => job !== "classify-changes"));
+    expect(frontendJobs).toEqual([
+      "frontend-static",
+      "frontend-tests",
+      "browser-contracts",
+      "frontend-build",
+    ]);
+    expect(platformJobs).toEqual([
+      "rust-checks",
+      "font-catalog-portability",
+      "windows-runtime",
+      "windows-updater",
+      "msrv",
+    ]);
+    for (const job of frontendJobs) {
+      expect(jobLines(job).join("\n")).not.toContain("needs: classify-changes");
+      expect(jobLines(job).some((line) => line.startsWith("    if:"))).toBe(false);
+    }
+    const condition = `    if: \${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '${JSON.stringify(frontendJobs)}') }}`;
+    for (const job of platformJobs) {
+      expect(jobLines(job)).toContain("    needs: classify-changes");
+      expect(jobLines(job)).toContain(condition);
+    }
+    expect(gate).toContain("        run: node scripts/ci-validation-policy.mjs gate");
+    expect(gate.join("\n")).toContain("uses: actions/checkout@");
+    expect(gate.join("\n")).toContain("node-version-file: .node-version");
+  });
+
   it("cancels stale PR runs while giving each main push its own concurrency group", () => {
     expect(workflow).toContain(
       "group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}",
@@ -381,7 +421,7 @@ describe("CI workflow contract", () => {
   });
 });
 
-(hasPowerShell ? describe : describe.skip)("CI Gate result check", () => {
+describe("CI Gate result check", () => {
   const successfulJobs = Object.fromEntries(requiredJobIds.map((jobId) => [jobId, "success"]));
 
   it("passes when all required jobs succeed", () => {
@@ -402,6 +442,293 @@ describe("CI workflow contract", () => {
     const result = runGate({});
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("CI Gate has no validation jobs.");
+    expect(result.stderr).toContain("CI Gate is missing validation jobs");
+  });
+
+  const docsJobs = {
+    ...successfulJobs,
+    ...Object.fromEntries(platformJobs.map((job: string) => [job, "skipped"])),
+  };
+
+  it("accepts only the five intentional platform skips for a docs-only PR", () => {
+    expect(runGate(docsJobs, "docs-only").status).toBe(0);
+    expect(runGate(successfulJobs, "docs-only").status).toBe(0);
+    expect(runGate(docsJobs, "docs-only", "push").status).not.toBe(0);
+    expect(runGate(docsJobs, "full", "push").status).not.toBe(0);
+    expect(runGate(successfulJobs, "full", "push").status).toBe(0);
+  });
+
+  it.each(["failure", "cancelled", "skipped", "unknown"])("rejects classifier %s", (result) => {
+    expect(runGate({ ...successfulJobs, "classify-changes": result }).status).not.toBe(0);
+  });
+
+  it.each(["failure", "cancelled", "unknown"])(
+    "rejects an excluded platform job that reports %s",
+    (result) => {
+      expect(runGate({ ...docsJobs, "rust-checks": result }, "docs-only").status).not.toBe(0);
+    },
+  );
+
+  it.each(frontendJobs)("rejects unexpectedly skipped or missing %s", (job: string) => {
+    expect(runGate({ ...docsJobs, [job]: "skipped" }, "docs-only").status).not.toBe(0);
+    const missing = { ...docsJobs };
+    delete missing[job];
+    expect(runGate(missing, "docs-only").status).not.toBe(0);
+  });
+
+  it("rejects a missing excluded job and unknown dependencies", () => {
+    const missing = { ...docsJobs };
+    delete missing["rust-checks"];
+    expect(runGate(missing, "docs-only").status).not.toBe(0);
+    expect(runGate({ ...successfulJobs, extra: "success" }).status).not.toBe(0);
+  });
+
+  it.each([
+    {},
+    { mode: "docs-only", expected_jobs: "not JSON" },
+    { mode: "docs-only", expected_jobs: "[]" },
+    { mode: "docs-only", expected_jobs: "null" },
+    { mode: "docs-only", expected_jobs: JSON.stringify(frontendJobs.slice(1)) },
+    { mode: "docs-only", expected_jobs: JSON.stringify([...frontendJobs, "unknown"]) },
+    {
+      mode: "docs-only",
+      expected_jobs: JSON.stringify([...frontendJobs.slice(1), frontendJobs[1]]),
+    },
+    { mode: "full", expected_jobs: JSON.stringify(frontendJobs) },
+    { mode: "unknown", expected_jobs: JSON.stringify(allJobs) },
+  ])("rejects malformed classifier output %j", (outputs) => {
+    expect(runGate(successfulJobs, "full", "pull_request", outputs).status).not.toBe(0);
+  });
+});
+
+describe("CI change classifier", () => {
+  const base = "a".repeat(40);
+  const head = "b".repeat(40);
+  const event = { pull_request: { base: { sha: base }, head: { sha: head } } };
+  function classify(diff: string, eventName = "pull_request", payload: unknown = event, fail = "") {
+    const commands: string[][] = [];
+    const result = classifyChanges(eventName, payload, (args: string[]) => {
+      commands.push(args);
+      if (args[0] === fail) throw new Error("controlled Git failure");
+      if (args[0] === "rev-parse") return "false\n";
+      if (args[0] === "merge-base") return `${"c".repeat(40)}\n`;
+      return args[0] === "diff" ? diff : "";
+    });
+    return { ...result, commands };
+  }
+
+  it.each([
+    "docs/DEVELOPMENT.md",
+    "docs/nested/guide.md",
+    "docs/documentation/index.html",
+    "docs/documentation/guides/reader/index.html",
+    "docs/documentation/page-registry.json",
+  ])("allows authored documentation %s", (file) => {
+    for (const status of ["A", "M"]) {
+      const result = classify(`${status}\0${file}\0`);
+      expect(result.mode).toBe("docs-only");
+      expect(JSON.parse(result.expected_jobs)).toEqual(frontendJobs);
+    }
+  });
+
+  it.each([
+    "README.md",
+    "unknown/file",
+    "docs/documentation/assets/docs.js",
+    "docs/documentation/assets/README.md",
+    "docs/documentation/assets/docs-search-index.json",
+    "docs/documentation/changelog/index.html",
+    "docs/image.png",
+    "release-notes/v1.md",
+    "src/main.tsx",
+    "tests/example.test.ts",
+    "tests/fixtures/example.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "src-tauri/Cargo.toml",
+    "src-tauri/Cargo.lock",
+    ".github/workflows/ci.yml",
+    "scripts/build.mjs",
+    "src/types/appSettings.ts",
+    "docs/../package.json",
+    "docs/guide.MD",
+  ])("keeps %s in full validation", (file) => {
+    expect(classify(`M\0${file}\0`).mode).toBe("full");
+    expect(classify(`M\0docs/guide.md\0M\0${file}\0`).mode).toBe("full");
+  });
+
+  it.each([
+    "",
+    "M\0docs/guide.md",
+    "M\0",
+    "D\0docs/guide.md\0",
+    "R100\0docs/old.md\0docs/new.md\0",
+    "T\0docs/guide.md\0",
+    "C100\0docs/old.md\0docs/new.md\0",
+    "M\0docs/guide.md\0M\0",
+  ])("fails open for empty, renamed, deleted or incomplete diffs %j", (diff) => {
+    expect(classify(diff).mode).toBe("full");
+  });
+
+  it("uses the exact event revisions rather than the merge base for its complete diff", () => {
+    const result = classify("M\0docs/guide.md\0");
+    expect(result.commands).toContainEqual(["fetch", "--no-tags", "origin", base, head]);
+    expect(result.commands).toContainEqual(["merge-base", base, head]);
+    expect(result.commands).toContainEqual([
+      "diff",
+      "--no-ext-diff",
+      "--no-textconv",
+      "--name-status",
+      "-z",
+      "--find-renames",
+      base,
+      head,
+      "--",
+    ]);
+  });
+
+  it.each(["fetch", "merge-base", "cat-file", "diff", "rev-parse"])(
+    "fails open on %s errors",
+    (command) => {
+      expect(classify("M\0docs/guide.md\0", "pull_request", event, command).mode).toBe("full");
+    },
+  );
+
+  it.each([
+    {},
+    null,
+    { pull_request: { base: {}, head: {} } },
+    { pull_request: { base: { sha: "HEAD~1" }, head: { sha: head } } },
+  ])("fails open for missing or invalid revisions %j", (payload) => {
+    expect(classify("M\0docs/guide.md\0", "pull_request", payload).mode).toBe("full");
+  });
+
+  it("fails open for shallow history and missing merge-base output", () => {
+    for (const response of ["true\n", ""]) {
+      expect(classifyChanges("pull_request", event, () => response).mode).toBe("full");
+    }
+    expect(
+      classifyChanges("pull_request", event, (args: string[]) =>
+        args[0] === "rev-parse" ? "false" : "",
+      ).mode,
+    ).toBe("full");
+  });
+
+  it("always selects full validation for pushes and unknown events, without inspecting paths", () => {
+    for (const eventName of ["push", "workflow_dispatch", "unknown"]) {
+      const result = classify("M\0docs/guide.md\0", eventName);
+      expect(result.mode).toBe("full");
+      expect(JSON.parse(result.expected_jobs)).toEqual(allJobs);
+      expect(result.commands).toEqual([]);
+    }
+  });
+
+  it("examines the entire path set, including a code change after many docs paths", () => {
+    const docs = Array.from({ length: 5000 }, (_, index) => `M\0docs/guide-${index}.md\0`).join("");
+    expect(classify(docs).mode).toBe("docs-only");
+    expect(classify(`${docs}M\0src/main.tsx\0`).mode).toBe("full");
+  });
+
+  describe("classifier CLI with real Git history", () => {
+    let directory: string;
+    let revisions: Record<string, string>;
+    function git(...args: string[]) {
+      const result = spawnSync("git", args, {
+        cwd: directory,
+        encoding: "utf8",
+        windowsHide: true,
+      });
+      if (result.status !== 0) throw new Error(result.stderr);
+      return result.stdout.trim();
+    }
+    function write(file: string, content: string) {
+      const target = path.join(directory, file);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, content);
+    }
+    function commit() {
+      git("add", ".");
+      git(
+        "-c",
+        "user.name=CI test",
+        "-c",
+        "user.email=ci@example.invalid",
+        "commit",
+        "-m",
+        "fixture",
+      );
+      return git("rev-parse", "HEAD");
+    }
+
+    beforeAll(() => {
+      directory = fs.mkdtempSync(path.join(os.tmpdir(), "archeion-ci-policy-"));
+      git("init");
+      git("remote", "add", "origin", directory);
+      write("docs/guide.md", "Original guide\n");
+      const initial = commit();
+      write("docs/guide.md", "Updated guide\n");
+      const docs = commit();
+      git("mv", "docs/guide.md", "docs/renamed.md");
+      const renamed = commit();
+      git("rm", "docs/renamed.md");
+      const deleted = commit();
+      git("checkout", "-b", "base-side", initial);
+      write("src/main.tsx", "base-only code\n");
+      const divergentBase = commit();
+      revisions = { initial, docs, renamed, deleted, divergentBase, unavailable: "f".repeat(40) };
+    });
+
+    afterAll(() => {
+      if (directory) fs.rmSync(directory, { recursive: true, force: true });
+    });
+
+    function run(event: string) {
+      const eventPath = path.join(directory, ".git", "event.json");
+      const outputPath = path.join(directory, ".git", "output");
+      fs.writeFileSync(eventPath, event);
+      fs.writeFileSync(outputPath, "");
+      const result = spawnSync(
+        process.execPath,
+        [path.join(projectRoot, "scripts/ci-validation-policy.mjs"), "classify"],
+        {
+          cwd: directory,
+          encoding: "utf8",
+          windowsHide: true,
+          env: {
+            ...process.env,
+            GITHUB_EVENT_NAME: "pull_request",
+            GITHUB_EVENT_PATH: eventPath,
+            GITHUB_OUTPUT: outputPath,
+          },
+        },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      return fs.readFileSync(outputPath, "utf8");
+    }
+
+    // Each case has its own timeout; fixture construction and seven CLI runs must not
+    // share one five-second budget when release tests compete for subprocess time.
+    it.each([
+      ["authored docs", "initial", "docs", "docs-only"],
+      ["empty diff", "docs", "docs", "full"],
+      ["rename", "docs", "renamed", "full"],
+      ["deletion", "renamed", "deleted", "full"],
+      // A merge-base diff would miss the code deletion from the exact event base.
+      ["divergent base", "divergentBase", "docs", "full"],
+      ["unavailable revision", "initial", "unavailable", "full"],
+    ])("classifies %s", (_scenario, baseKey, headKey, mode) => {
+      const output = run(
+        JSON.stringify({
+          pull_request: { base: { sha: revisions[baseKey] }, head: { sha: revisions[headKey] } },
+        }),
+      );
+      expect(output).toBe(
+        `mode=${mode}\nexpected_jobs=${JSON.stringify(mode === "docs-only" ? frontendJobs : allJobs)}\n`,
+      );
+    });
+
+    it("defaults to full validation on malformed event JSON", () => {
+      expect(run("invalid JSON")).toBe(`mode=full\nexpected_jobs=${JSON.stringify(allJobs)}\n`);
+    });
   });
 });

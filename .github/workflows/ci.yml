@@ -18,6 +18,27 @@ env:
   TAURI_DRIVER_VERSION: 2.0.6
 
 jobs:
+  classify-changes:
+    name: Classify validation scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.classify.outputs.mode }}
+      expected_jobs: ${{ steps.classify.outputs.expected_jobs }}
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .node-version
+      - name: Classify exact event revisions
+        id: classify
+        run: node scripts/ci-validation-policy.mjs classify
+
   frontend-static:
     name: Frontend static checks
     runs-on: ubuntu-latest
@@ -193,6 +214,8 @@ jobs:
         run: pnpm run test:inter-assets
 
   rust-checks:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Rust ${{ matrix.name }}
     runs-on: windows-latest
     timeout-minutes: 30
@@ -231,6 +254,8 @@ jobs:
         run: ${{ matrix.command }}
 
   windows-runtime:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Windows Tauri runtime smoke
     runs-on: windows-2022
     timeout-minutes: 50
@@ -289,6 +314,8 @@ jobs:
           retention-days: 7
 
   windows-updater:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Windows installed updater smoke
     runs-on: windows-2022
     timeout-minutes: 90
@@ -347,6 +374,8 @@ jobs:
           retention-days: 7
 
   font-catalog-portability:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Linux font catalog
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -366,6 +395,8 @@ jobs:
           .scratch/font-catalog-tests
 
   msrv:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Rust 1.90 check
     runs-on: windows-latest
     timeout-minutes: 20
@@ -395,6 +426,7 @@ jobs:
     name: CI Gate
     if: ${{ always() }}
     needs:
+      - classify-changes
       - frontend-static
       - frontend-tests
       - browser-contracts
@@ -408,20 +440,15 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Require every validation job to succeed
-        shell: pwsh
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .node-version
+      - name: Require the classified validation jobs to succeed
         env:
           REQUIRED_JOBS: ${{ toJSON(needs) }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $jobs = $env:REQUIRED_JOBS | ConvertFrom-Json -AsHashtable
-          if ($jobs.Count -eq 0) { throw 'CI Gate has no validation jobs.' }
-
-          $failed = $false
-          foreach ($job in $jobs.GetEnumerator()) {
-            $result = $job.Value['result']
-            Write-Host "$($job.Key): $result"
-            if ($result -ne 'success') { $failed = $true }
-          }
-
-          if ($failed) { throw 'A required CI validation job did not succeed.' }
+        run: node scripts/ci-validation-policy.mjs gate
