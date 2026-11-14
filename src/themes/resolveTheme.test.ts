@@ -72,7 +72,7 @@ describe("theme resolution", () => {
     expect(resolved.app.publicTokens.canvas).toBe("#f7f8f7");
     expect(resolved.reader?.base).toBe("dark");
     expect(resolved.reader?.publicTokens.link).toBe("#abcdef");
-    expect(resolved.reader?.publicTokens.background).toBe("#171717");
+    expect(resolved.reader?.publicTokens.background).toBe("#0b0b0c");
   });
 
   it("merges only registered keys even when an untyped caller mutates an overrides object", () => {
@@ -171,12 +171,12 @@ describe("theme resolution", () => {
 
   it("derives Reader quotation and visited-link roles perceptually", () => {
     expect(resolveBuiltInReaderTheme("dark").tokens).toMatchObject({
-      quotation: "#959398",
-      visitedLink: "#c0d8e8",
+      quotation: "#94989c",
+      visitedLink: "#bbd3e5",
     });
     expect(resolveBuiltInReaderTheme("light").tokens).toMatchObject({
-      quotation: "#86827c",
-      visitedLink: "#2b4b63",
+      quotation: "#7a8086",
+      visitedLink: "#304f66",
     });
     expect(resolveBuiltInReaderTheme("sepia").tokens).toMatchObject({
       quotation: "#85735e",

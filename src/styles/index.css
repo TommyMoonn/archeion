@@ -29,6 +29,7 @@
 @import "./features/filesystem.css";
 @import "./features/folders.css";
 @import "./features/reader.css";
+@import "./built-in-reader-palettes.css";
 @import "./features/reader-content-actions.css";
 @import "./features/series.css";
 @import "./features/about.css";

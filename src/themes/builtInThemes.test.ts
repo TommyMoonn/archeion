@@ -20,20 +20,26 @@ describe("canonical built-in manifests", () => {
       expect(Object.keys(builtInThemeRegistry.app[base])).toHaveLength(22);
     },
   );
-  it("preserves Reader palettes pending R.5 activation", () => {
-    expect(resolveBuiltInReaderTheme("dark").publicTokens).toMatchObject({
-      background: "#171717",
-      text: "#d6d3d9",
-      selection: "#243240",
-    });
-    expect(resolveBuiltInReaderTheme("light").publicTokens).toMatchObject({
-      background: "#f5f4f1",
-      text: "#353331",
-      selection: "#c4dbea",
-    });
-    expect(resolveBuiltInReaderTheme("sepia").publicTokens).toMatchObject({
+  it.each(["dark", "light"] as const)("resolves every canonical %s Reader token", (base) => {
+    const reader = builtInThemeManifests[base].reader;
+    if (!reader) throw new Error("Built-in Reader palette is required.");
+    const { base: readerBase, ...tokens } = reader;
+    expect(readerBase).toBe(base);
+    expect(resolveBuiltInReaderTheme(base).publicTokens).toEqual(tokens);
+    expect(Object.keys(tokens)).toHaveLength(11);
+  });
+  it("preserves the complete Reader-only Sepia palette", () => {
+    expect(resolveBuiltInReaderTheme("sepia").publicTokens).toEqual({
       background: "#eee5d2",
+      surface: "#e4d8c0",
+      line: "#d1c2a7",
       text: "#4b4033",
+      strong: "#2e271f",
+      muted: "#6d5a47",
+      focus: "#765f43",
+      danger: "#8f3f47",
+      link: "#5a4024",
+      codeBackground: "#e4d8c0",
       selection: "#ede0c8",
     });
   });

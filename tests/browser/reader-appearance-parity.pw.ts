@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resolveBuiltInReaderTheme } from "../../src/themes/resolveTheme";
 
 // Every pair of width, palette, font and presentation occurs at least once.
 // Run the same transitions at the start, middle and end in both reading modes.
@@ -73,6 +74,34 @@ test.beforeEach(async ({ page }) => {
   );
   await page.goto("/tests/browser/fixtures/reader-interactions.html");
   await expect.poll(() => page.evaluate(() => window.readerInteractions?.ready())).toBe(true);
+});
+
+test("canonical Reader palettes reach real EPUB text without changing geometry", async ({
+  page,
+}, testInfo) => {
+  await settle(page);
+  const anchor = await page.evaluate(() => window.readerInteractions.passage().cfi);
+  const before = await appearanceGeometry(page, anchor);
+  const content = page.frameLocator(".epub-container iframe").first();
+  const rgb = (hex: string) =>
+    `rgb(${[1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)).join(", ")})`;
+  for (const base of ["dark", "light", "sepia"] as const) {
+    await page.evaluate((base) => window.readerInteractions.palette(base), base);
+    await settle(page);
+    const tokens = resolveBuiltInReaderTheme(base).tokens;
+    await expect(content.locator("body")).toHaveCSS("background-color", rgb(tokens.background));
+    await expect(content.locator("p").first()).toHaveCSS("color", rgb(tokens.text));
+    await expect(content.locator("h1").first()).toHaveCSS("color", rgb(tokens.strong));
+    await expect(content.locator("a").first()).toHaveCSS("color", rgb(tokens.link));
+    await expect(content.locator("p").first()).toHaveCSS("font-size", "18px");
+    const after = await appearanceGeometry(page, anchor);
+    expect(after.current).toBe(before.current);
+    expect(after.original).toEqual(before.original);
+    expect(after.viewport).toEqual(before.viewport);
+    expect(after.documents).toEqual(before.documents);
+    await page.screenshot({ path: testInfo.outputPath(`reader-${base}.png`) });
+  }
+  expect(await page.evaluate(() => window.readerInteractions.errors())).toEqual([]);
 });
 
 for (const mode of ["continuous", "paged"] as const) {

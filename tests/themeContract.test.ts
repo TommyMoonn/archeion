@@ -377,8 +377,11 @@ describe("theme token baseline", () => {
   });
 
   it("preserves reader chrome and EPUB-content Dark, Light, and Sepia colors", () => {
+    expect(fs.readFileSync(path.join(projectRoot, "src/styles/index.css"), "utf8")).toContain(
+      '@import "./built-in-reader-palettes.css";',
+    );
     const readerCss = fs.readFileSync(
-      path.join(projectRoot, "src/styles/features/reader.css"),
+      path.join(projectRoot, "src/styles/built-in-reader-palettes.css"),
       "utf8",
     );
     const cssBlocks = {
@@ -396,19 +399,11 @@ describe("theme token baseline", () => {
     } as const;
     for (const [base, resolved] of Object.entries(resolvedThemes)) {
       const cssDeclarations = declarations(cssBlocks[base as keyof typeof cssBlocks]);
-      for (const token of [
-        "background",
-        "surface",
-        "line",
-        "text",
-        "strong",
-        "muted",
-        "focus",
-        "danger",
-      ] as const) {
-        const variable = readerThemePublicTokenRegistry[token].cssVariable;
+      for (const [token, { cssVariable: variable }] of Object.entries(
+        readerThemeResolvedTokenRegistry,
+      )) {
         expect(cssDeclarations.get(variable), `${base}.${token}`).toBe(
-          resolved.publicTokens[token],
+          resolved.tokens[token as keyof typeof readerThemeResolvedTokenRegistry],
         );
       }
 

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createDefaultLibraryFilters } from "../types/library";
 import { AppearanceRuntime } from "../themes/AppearanceRuntime";
+import { resolveBuiltInReaderTheme } from "../themes/resolveTheme";
 import { createInstalledFontCatalog } from "../storage/installedFontCatalog";
 import { createReaderAppearanceController } from "../features/reader/readerAppearanceController";
 import type { AppPreferences } from "../types/appSettings";
@@ -29,6 +30,37 @@ describe("automatic update preference compatibility", () => {
       normalizeAppPreferences({ automaticallyCheckForUpdates: false }).automaticallyCheckForUpdates,
     ).toBe(false);
   });
+});
+
+describe("Reader theme persistence", () => {
+  it.each(["dark", "light", "sepia"] as const)(
+    "restores independent Reader %s after restart",
+    async (base) => {
+      const harness = createDesktopSettingsHarness();
+      const first = new AppPreferencesStore(harness.createWindow().persistence);
+      await first.initialize();
+      const appBase = base === "dark" ? "light" : "dark";
+      await first.update({
+        appTheme: { kind: "builtin", id: appBase },
+        readerTheme: { kind: "builtin", id: base },
+      });
+      const reloaded = new AppPreferencesStore(harness.createWindow().persistence);
+      await reloaded.initialize();
+      const runtime = new AppearanceRuntime({ globalPreferences: reloaded });
+      const stop = runtime.start();
+      try {
+        expect(reloaded.getSnapshot().readerTheme).toEqual({ kind: "builtin", id: base });
+        expect(runtime.getReaderSnapshot()).toEqual(resolveBuiltInReaderTheme(base));
+        expect(runtime.getSnapshot().app.base).toBe(appBase);
+        await reloaded.update({
+          appTheme: { kind: "builtin", id: base === "light" ? "light" : "dark" },
+        });
+        expect(runtime.getReaderSnapshot()).toEqual(resolveBuiltInReaderTheme(base));
+      } finally {
+        stop();
+      }
+    },
+  );
 });
 
 describe("book details layout preferences", () => {

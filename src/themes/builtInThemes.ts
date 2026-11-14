@@ -3,6 +3,7 @@ import lightManifest from "../../themes/built-in/archeion-light/theme.json" with
 import { validateThemeManifest } from "./validateThemeManifest";
 import {
   appThemePublicTokenRegistry,
+  readerThemePublicTokenRegistry,
   type AppThemeBase,
   type AppThemePublicToken,
   type ReaderThemeBase,
@@ -15,6 +16,7 @@ function builtInManifest(value: unknown, base: AppThemeBase) {
   if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
   const manifest = result.manifest;
   if (manifest.base !== base) throw new Error("Invalid built-in application base.");
+  if (manifest.reader?.base !== base) throw new Error("Invalid built-in Reader base.");
   const tokens: Record<string, ThemeColor> = {};
   for (const key of Object.keys(appThemePublicTokenRegistry)) {
     const color = manifest.app[key as AppThemePublicToken];
@@ -23,10 +25,20 @@ function builtInManifest(value: unknown, base: AppThemeBase) {
     }
     tokens[key] = color;
   }
+  const readerTokens: Record<string, ThemeColor> = {};
+  for (const key of Object.keys(readerThemePublicTokenRegistry)) {
+    const color = manifest.reader[key as ReaderThemePublicToken];
+    if (color === undefined || color.length !== 7) {
+      throw new Error(`Built-in ${manifest.id} requires opaque Reader token ${key}.`);
+    }
+    readerTokens[key] = color;
+  }
   // Every public key was checked above; built-ins cannot inherit missing values.
   return {
     manifest,
     tokens: Object.freeze(tokens) as Readonly<Record<AppThemePublicToken, ThemeColor>>,
+    // Every Reader public key was checked above, independently of the application palette.
+    readerTokens: Object.freeze(readerTokens) as ReaderThemeBaseTokens,
   };
 }
 
@@ -41,34 +53,9 @@ export const builtInShellPalettes = Object.freeze({
 
 type ReaderThemeBaseTokens = Readonly<Record<ReaderThemePublicToken, ThemeColor>>;
 
-// R.5 activates the canonical Reader sections; keep existing reading surfaces until then.
 const reader = Object.freeze({
-  dark: Object.freeze({
-    background: "#171717",
-    surface: "#1d1d1f",
-    line: "#303034",
-    text: "#d6d3d9",
-    strong: "#ebe8ef",
-    muted: "#bab7bd",
-    focus: "#c9c4ef",
-    danger: "#e77f8c",
-    link: "#b8d9ef",
-    codeBackground: "#1d1d1f",
-    selection: "#243240",
-  }),
-  light: Object.freeze({
-    background: "#f5f4f1",
-    surface: "#ebe9e4",
-    line: "#d8d5ce",
-    text: "#353331",
-    strong: "#171615",
-    muted: "#6c6863",
-    focus: "#386f99",
-    danger: "#972f3f",
-    link: "#22577c",
-    codeBackground: "#ebe9e4",
-    selection: "#c4dbea",
-  }),
+  dark: dark.readerTokens,
+  light: light.readerTokens,
   sepia: Object.freeze({
     background: "#eee5d2",
     surface: "#e4d8c0",

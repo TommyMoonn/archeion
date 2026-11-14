@@ -319,8 +319,11 @@ fallbacks use the same manifest-backed registry. No settings migration is requir
 
 After editing a canonical palette, run `pnpm run themes:generate`. The generator uses
 the production TypeScript resolver and token registry to write
-`src/styles/built-in-palettes.css` and the explicit dark fallback in
+`src/styles/built-in-palettes.css`, `src/styles/built-in-reader-palettes.css`, and the explicit dark fallback in
 `public/appearance-startup.css`. Do not edit generated colors by hand.
 `pnpm run themes:check`, included in frontend verification, rejects stale output.
-Reader Dark and Light activation remains the R.5 checkpoint; their existing runtime
-palettes and Sepia are preserved during R.4.
+Reader Dark and Light use the manifests' complete Reader sections through the same
+resolver as custom Reader themes. Reader selection remains independent of application
+appearance and keeps the existing `dark`, `light`, and `sepia` settings identifiers.
+Sepia remains Reader-only with its unchanged palette in `builtInThemes.ts`; its CSS
+fallback is generated from that registry too.
