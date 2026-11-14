@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+test.afterEach(async ({ page }) => {
+  await page.evaluate(async () => {
+    if (window.readerInteractions) await window.readerInteractions.dispose();
+  });
+});
+
 async function open(page: Page, mode: "continuous" | "paged", width = 1050) {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto("/tests/browser/fixtures/reader-interactions.html");
