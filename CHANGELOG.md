@@ -19,6 +19,7 @@
 
 ### Fixed
 
+- Kept Continuous Reader position capture on visible text when trailing whitespace from the previous chapter remains in view, including navigation during a stage resize.
 - Preserved Library collection geometry through loading, empty, search, and results states, and stopped collection entrance animations replaying after searches.
 - Restored Library scroll position and keyboard focus when returning from Reader, while allowing newer input or navigation to cancel pending restoration.
 - Kept Reader and Library shells visible through book opening, exit saving, and archive changes, and prevented outgoing archive controls from acting on a new archive.
