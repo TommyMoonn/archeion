@@ -3,12 +3,14 @@ import { BookOpen } from "lucide-react";
 import Link from "@docusaurus/Link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Brand } from "@/components/shared/Brand";
 
 export default function FoundationControls() {
   const [submitted, setSubmitted] = useState(false);
 
   return (
-    <section aria-label="Component tooling sample" className="max-w-md space-y-4 py-4">
+    <section aria-label="Component tooling sample" className="max-w-md space-y-4 py-4 font-sans">
+      <Brand />
       <form
         className="space-y-4"
         onSubmit={(event) => {
@@ -16,7 +18,7 @@ export default function FoundationControls() {
           setSubmitted(true);
         }}
       >
-        <label htmlFor="foundation-title" className="block text-foreground">
+        <label htmlFor="foundation-title" className="block text-content">
           Sample book title
         </label>
         <Input id="foundation-title" name="title" autoComplete="off" />
@@ -29,7 +31,7 @@ export default function FoundationControls() {
             Unavailable sample
           </Button>
         </div>
-        <p role="status" className="min-h-6 text-foreground">
+        <p role="status" className="min-h-6 text-content">
           {submitted ? "Keyboard activation works." : ""}
         </p>
       </form>

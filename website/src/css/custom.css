@@ -1,4 +1,4 @@
-/* Keep Infima's document defaults until the custom documentation shell replaces them. */
+/* No Preflight: retain Infima defaults until the custom documentation shell owns them. */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" source(none);
 
@@ -7,35 +7,191 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* B1.4 replaces these integration aliases with the approved website palette. */
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/inter-regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/inter-semibold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/inter-bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Literata";
+  src: url("../assets/fonts/literata-regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* Approved mock palette, matching the finalized brand refresh. Website-owned:
+   no runtime dependency on the desktop theme resolver or installable themes. */
 :root {
-  --background: var(--ifm-background-color);
-  --foreground: var(--ifm-font-color-base);
-  --primary: var(--ifm-color-primary);
-  --primary-foreground: var(--ifm-color-content-inverse);
-  --secondary: var(--ifm-color-emphasis-200);
-  --secondary-foreground: var(--ifm-font-color-base);
-  --accent: var(--ifm-color-emphasis-200);
-  --accent-foreground: var(--ifm-font-color-base);
-  --destructive: var(--ifm-color-danger);
-  --destructive-foreground: var(--ifm-color-content-inverse);
-  --muted-foreground: var(--ifm-color-emphasis-700);
-  --input: var(--ifm-color-emphasis-400);
-  --ring: var(--ifm-color-primary);
+  color-scheme: dark;
+  --surface: #0b0b0c;
+  --surface-raised: #1a1a1b;
+  --surface-sunken: #080808;
+  --surface-overlay: #252526;
+  --surface-sidebar: #0a0a0b;
+  --surface-article: #0b0b0c;
+  --surface-article-raised: #1f1f1f;
+  --content: #d6d9dc;
+  --content-strong: #f0f2f4;
+  --content-muted: #bdc3c8;
+  --content-subtle: #858d93;
+  --content-inverted: #080808;
+  --border: #262627;
+  --border-subtle: color-mix(in srgb, var(--border) 50%, transparent);
+  --border-strong: #39393a;
+  --border-focus: #97c4e3;
+  --accent: #8bbde0;
+  --accent-hover: #9ec8e5;
+  --accent-foreground: #080808;
+  --accent-subtle: #1b2e3e;
+  --success: #8fbf9d;
+  --warning: #d8b46d;
+  --danger: #e07d9d;
+  --danger-foreground: var(--content-inverted);
+  --info: #80b6a8;
+  --control: #1a1a1b;
+  --control-hover: #323233;
+  --control-active: #252526;
+  --control-disabled: #252526;
+  --focus-ring: var(--border-focus);
+
+  /* Infima bridge for temporary routes and generated documentation chrome. */
+  --ifm-background-color: var(--surface);
+  --ifm-background-surface-color: var(--surface-raised);
+  --ifm-font-color-base: var(--content);
+  --ifm-heading-color: var(--content-strong);
+  --ifm-color-primary: var(--accent);
+  --ifm-link-color: var(--accent);
+  --ifm-link-hover-color: var(--accent-hover);
+  --ifm-font-family-base: var(--font-sans);
+  --ifm-font-family-monospace: var(--font-mono);
+}
+
+/* The approved light website sidebar uses canvas, unlike the desktop sidebar. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface: #f7f8f7;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e4e5e4;
+  --surface-overlay: #fcfcfc;
+  --surface-sidebar: #f7f8f7;
+  --surface-article: #f9faf9;
+  --surface-article-raised: #fbfbfb;
+  --content: #42484d;
+  --content-strong: #20262b;
+  --content-muted: #5b636a;
+  --content-subtle: #858c91;
+  --content-inverted: #f7f8f7;
+  --border: #dddedd;
+  --border-strong: #c8c9c8;
+  --border-focus: #4a7796;
+  --accent: #4a7796;
+  --accent-hover: #2e5b7d;
+  --accent-foreground: #f7f8f7;
+  --accent-subtle: #dde8ef;
+  --success: #477b58;
+  --warning: #8a641f;
+  --danger: #a64b68;
+  --info: #2d7f78;
+  --control: #ffffff;
+  --control-hover: #eeefee;
+  --control-active: #e4e5e4;
+  --control-disabled: #eeefee;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-sidebar: var(--surface-sidebar);
+  --color-surface-article: var(--surface-article);
+  --color-surface-article-raised: var(--surface-article-raised);
+  --color-content: var(--content);
+  --color-content-strong: var(--content-strong);
+  --color-content-muted: var(--content-muted);
+  --color-content-subtle: var(--content-subtle);
+  --color-content-inverted: var(--content-inverted);
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--border-focus);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-info: var(--info);
+  --color-control: var(--control);
+  --color-control-hover: var(--control-hover);
+  --color-control-active: var(--control-active);
+  --color-control-disabled: var(--control-disabled);
+  --color-focus-ring: var(--focus-ring);
+}
+
+@theme {
+  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-editorial: "Literata", Georgia, serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-mono: "Fira Code", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.4;
+  --text-body: 1rem;
+  --text-body--line-height: 1.7;
+  --text-lead: 1.0625rem;
+  --text-lead--line-height: 1.65;
+  --text-article-title: clamp(2.75rem, 4.2vw, 3.5rem);
+  --text-article-title--line-height: 1.08;
+  --text-hero: clamp(2.875rem, 5.1vw, 4.5rem);
+  --text-hero--line-height: 1.02;
+  --text-section: clamp(2.25rem, 4.1vw, 3.5rem);
+  --text-section--line-height: 1.08;
+  --tracking-display: -0.035em;
+  --container-site: 80rem;
+  --container-docs: 85rem;
+  --container-article: 48rem;
+  --container-hero-copy: 35rem;
+  --container-prose: 66ch;
+  --spacing-gutter: 2rem;
+  --spacing-gutter-mobile: 1.5rem;
+  --spacing-section: 7rem;
+  --spacing-header: 4.5rem;
+  --spacing-docs-header: 4.25rem;
+  --radius-control: 0.4375rem;
+  --radius-button: 0.5rem;
+  --radius-card: 0.625rem;
+  --radius-preview: 1rem;
+  --z-index-header: 60;
+  --z-index-backdrop: 80;
+  --z-index-drawer: 90;
+  --z-index-dialog: 100;
+  --z-index-skip-link: 110;
+
+  /* Named content breakpoints mirror the approved mock boundaries. */
+  --breakpoint-narrow: 37.5rem;
+  --breakpoint-navigation: 50rem;
+  --breakpoint-wide: 67.5rem;
+  --breakpoint-full: 77.5rem;
 }

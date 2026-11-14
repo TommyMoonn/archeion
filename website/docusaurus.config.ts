@@ -8,6 +8,9 @@ const config: Config = {
   organizationName: "TommyMoonn",
   projectName: "archeion",
   onBrokenLinks: "throw",
+  themeConfig: {
+    colorMode: { defaultMode: "dark", respectPrefersColorScheme: false },
+  },
   plugins: [
     function tailwindPlugin(): Plugin {
       return {
