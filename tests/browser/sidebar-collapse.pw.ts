@@ -443,6 +443,7 @@ for (const scale of [1, 1.25, 1.5]) {
       viewport: { width: 1280, height: 900 },
       deviceScaleFactor: scale,
     });
+    await context.addInitScript(installAnimationWaits);
     const page = await context.newPage();
     await page.goto(fixture);
     await expect(page.locator(".book-grid")).toBeVisible();
