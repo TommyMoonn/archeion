@@ -5,7 +5,15 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "coverage", "src-tauri/target", ".agent-work", ".planning", ".project"]),
+  globalIgnores([
+    "dist",
+    "coverage",
+    "src-tauri/target",
+    ".agent-work",
+    ".planning",
+    ".project",
+    ".scratch",
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
