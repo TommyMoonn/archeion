@@ -312,12 +312,16 @@ test("late image decode and stage/font changes preserve the visible Continuous p
   await page.evaluate(() =>
     window.readerInteractions.settings({ fontSize: 24, readingWidth: "narrow" }),
   );
+  await settle(page);
   await expect
     .poll(() => page.evaluate((cfi) => window.readerInteractions.passageAt(cfi)?.visible, cfi))
     .toBe(true);
   await page.locator("#root").evaluate((root) => {
     root.style.width = "900px";
   });
+  // Visibility can still describe the retiring iframe before resize work starts.
+  // Require stable geometry through the remount before reading its authored CFI.
+  await settle(page);
   await expect
     .poll(() => page.evaluate((cfi) => window.readerInteractions.passageAt(cfi)?.visible, cfi))
     .toBe(true);
