@@ -7,6 +7,7 @@ export const frontendJobs = [
   "frontend-tests",
   "browser-contracts",
   "frontend-build",
+  "website-build",
 ];
 export const platformJobs = [
   "rust-checks",

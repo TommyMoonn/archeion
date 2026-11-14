@@ -3,6 +3,49 @@
 This private Docusaurus workspace owns the public website presentation. It does
 not load desktop theme packages or change the application's theme contracts.
 
+## Local development
+
+Use Node 22 (see the root `.node-version`) and pnpm 10.33.0. From the repository
+root, run `pnpm install --frozen-lockfile` once, then:
+
+```sh
+pnpm --filter @archeion/website dev
+pnpm --filter @archeion/website typecheck
+pnpm --filter @archeion/website lint
+pnpm --filter @archeion/website fmt
+pnpm --filter @archeion/website build
+pnpm --filter @archeion/website serve
+```
+
+Inside `website/`, use `pnpm run dev`, `pnpm run typecheck`, `pnpm run lint`,
+`pnpm run fmt`, `pnpm run fmt:fix`, `pnpm run build`, and `pnpm run serve`.
+Lint and formatting reuse the repository's installed tools and configuration.
+The development server watches TSX, Tailwind class strings, and MDX. Open
+`/archeion/` for the component tooling sample and `/archeion/docs/foundation`
+for the temporary document. Production output goes to `website/build/`;
+`serve` previews that static output under the same project base path.
+
+The dedicated CI website job installs only `@archeion/website...`, then runs
+strict typechecking and the production build (including MDX and broken-link
+validation). The existing application jobs keep their application-only installs.
+Website changes still select full CI validation until the Branch 2 classifier
+integration. No Pages deployment is configured by this foundation.
+
+Root `pnpm run docs:sync` and `pnpm run docs:check` remain Node-only and do not
+invoke Docusaurus. They continue to own the current public site's generated
+content until B2.7 moves the release-history projection. Run the website build
+separately to compile MDX.
+
+Foundation browser contracts run from the root after a website build:
+
+```sh
+pnpm exec playwright test --config tests/browser/website-foundation.config.ts
+```
+
+Set `ARCHEION_WEBSITE_MODE=dev` to exercise the development server instead.
+The config owns its server and shuts it down after the run. These contracts are
+separate from the desktop browser suite.
+
 ## Design conventions
 
 `src/css/custom.css` is the single source for website tokens. The approved docs
@@ -64,7 +107,8 @@ visible product name. The wordmark PNGs remain README artwork as documented by
 the brand owner; they are not approximated in this component. Consumers own
 the destination link and may set the text's inherited font role for each site.
 
-The root foundation page and its component sample are temporary validation
-scaffolding. Neither is a landing-page implementation. B1.5 owns fixture
-cleanup; B2.8 still owns removing the temporary root route before the static
-homepage cutover.
+The one-off token gallery was removed after dark/light verification. Source
+palette tests and browser checks of resolved tokens and shared controls retain
+coverage. The root page and component tooling sample remain temporary route and
+tooling fixtures, not a landing-page implementation. B2.8 owns removing the
+temporary root route before the static homepage cutover.

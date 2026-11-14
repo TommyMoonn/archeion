@@ -55,8 +55,8 @@ inside `website/`.
 
 The website workspace is being bootstrapped separately from the published site.
 Its package scripts are available through `pnpm --filter @archeion/website`
-or from inside `website/`. Document routes and the first working development
-page are introduced in the next migration phase; the existing public site
+or from inside `website/`. See [website development](../website/README.md#local-development)
+for commands, temporary routes, and browser checks. The existing public site
 under `docs/` remains the published source during foundation work.
 
 ## Run Archeion

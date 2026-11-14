@@ -5,7 +5,10 @@
     "dev": "docusaurus start",
     "build": "docusaurus build",
     "serve": "docusaurus serve",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "fmt": "pnpm --dir .. exec prettier --check website",
+    "fmt:fix": "pnpm --dir .. exec prettier --write website"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",

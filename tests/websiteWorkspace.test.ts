@@ -26,8 +26,10 @@ describe("website workspace boundaries", () => {
     ["release.yml", 1],
   ])("installs only application dependencies in existing %s jobs", (workflow, count) => {
     const installs = read(`.github/workflows/${workflow}`).match(/run: pnpm install[^\r\n]*/g);
-    expect(installs).toEqual(
-      Array(count).fill("run: pnpm install --filter archeion... --frozen-lockfile"),
-    );
+    const expected = Array(count).fill("run: pnpm install --filter archeion... --frozen-lockfile");
+    if (workflow === "ci.yml") {
+      expected.push("run: pnpm install --filter @archeion/website... --frozen-lockfile");
+    }
+    expect(installs?.sort()).toEqual(expected.sort());
   });
 });

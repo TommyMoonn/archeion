@@ -48,27 +48,28 @@ test("Tailwind utilities and Lucide render in both Docusaurus themes", async ({ 
         ),
       ),
     ).toBe(true);
-    const tokens = page.getByRole("region", { name: "Design token sample" });
-    const panel = tokens.locator("div").first();
-    await expect(panel).toHaveCSS(
-      "background-color",
-      theme === "light" ? "rgb(247, 248, 247)" : "rgb(11, 11, 12)",
-    );
-    await expect(panel).toHaveCSS(
-      "border-top-color",
-      theme === "light" ? "rgb(221, 222, 221)" : "rgb(38, 38, 39)",
-    );
-    await expect(panel).toHaveCSS("border-radius", "10px");
-    await expect(panel).toHaveCSS("z-index", "60");
-    await expect(tokens).toHaveCSS("max-width", "1280px");
-    await expect(tokens).toHaveCSS("padding-left", theme === "light" ? "32px" : "24px");
-    await expect(tokens.getByText("Raised surface")).toHaveCSS(
-      "background-color",
-      theme === "light" ? "rgb(255, 255, 255)" : "rgb(26, 26, 27)",
-    );
-    await expect(tokens.getByText("Success", { exact: true })).toHaveCSS(
-      "color",
-      theme === "light" ? "rgb(71, 123, 88)" : "rgb(143, 191, 157)",
+    // Keep verifying resolved theme values after removing the one-off token gallery.
+    const roles = await page.evaluate(() => {
+      const css = getComputedStyle(document.documentElement);
+      return Object.fromEntries(
+        ["surface", "border", "surface-raised", "success"].map((role) => [
+          role,
+          css
+            .getPropertyValue(`--${role}`)
+            .trim()
+            .replace(/^#([a-f0-9])([a-f0-9])([a-f0-9])$/i, "#$1$1$2$2$3$3"),
+        ]),
+      );
+    });
+    expect(roles).toEqual(
+      theme === "light"
+        ? { surface: "#f7f8f7", border: "#dddedd", "surface-raised": "#ffffff", success: "#477b58" }
+        : {
+            surface: "#0b0b0c",
+            border: "#262627",
+            "surface-raised": "#1a1a1b",
+            success: "#8fbf9d",
+          },
     );
     await expect(sample.getByRole("textbox")).toHaveCSS("border-top-style", "solid");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

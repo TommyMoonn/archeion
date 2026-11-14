@@ -79,6 +79,7 @@ describe("CI workflow contract", () => {
   it.each([
     ["frontend-static", "ubuntu-latest"],
     ["frontend-build", "ubuntu-latest"],
+    ["website-build", "ubuntu-latest"],
     ["frontend-tests", "windows-latest"],
     ["browser-contracts", "ubuntu-latest"],
     ["rust-checks", "windows-latest"],
@@ -123,6 +124,7 @@ describe("CI workflow contract", () => {
       "frontend-tests",
       "browser-contracts",
       "frontend-build",
+      "website-build",
     ]);
     expect(platformJobs).toEqual([
       "rust-checks",
@@ -143,6 +145,17 @@ describe("CI workflow contract", () => {
     expect(gate).toContain("        run: node scripts/ci-validation-policy.mjs gate");
     expect(gate.join("\n")).toContain("uses: actions/checkout@");
     expect(gate.join("\n")).toContain("node-version-file: .node-version");
+  });
+
+  it("builds the isolated website package without changing application installs", () => {
+    const job = jobLines("website-build").join("\n");
+    expect(job).toContain("uses: ./.github/actions/setup-pnpm");
+    expect(job).toContain("node-version-file: .node-version");
+    expect(job).toContain("cache-dependency-path: pnpm-lock.yaml");
+    expect(job).toContain("run: pnpm install --filter @archeion/website... --frozen-lockfile");
+    expect(job).toContain("run: pnpm --filter @archeion/website typecheck");
+    expect(job).toContain("run: pnpm --filter @archeion/website build");
+    expect(job).not.toContain("--filter archeion...");
   });
 
   it("cancels stale PR runs while giving each main push its own concurrency group", () => {

@@ -220,9 +220,39 @@ jobs:
       - name: Verify bundled frontend assets
         run: pnpm run test:inter-assets
 
+  website-build:
+    name: Website typecheck and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: ./.github/actions/setup-pnpm
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --filter @archeion/website... --frozen-lockfile
+
+      - name: Typecheck website
+        run: pnpm --filter @archeion/website typecheck
+
+      - name: Build website
+        run: pnpm --filter @archeion/website build
+
   rust-checks:
     needs: classify-changes
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build","website-build"]') }}
     name: Rust ${{ matrix.name }}
     runs-on: windows-latest
     timeout-minutes: 30
@@ -265,7 +295,7 @@ jobs:
 
   windows-runtime:
     needs: classify-changes
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build","website-build"]') }}
     name: Windows Tauri runtime smoke
     runs-on: windows-2022
     timeout-minutes: 50
@@ -326,7 +356,7 @@ jobs:
 
   windows-updater:
     needs: classify-changes
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build","website-build"]') }}
     name: Windows installed updater smoke
     runs-on: windows-2022
     timeout-minutes: 90
@@ -387,7 +417,7 @@ jobs:
 
   font-catalog-portability:
     needs: classify-changes
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build","website-build"]') }}
     name: Linux font catalog
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -410,7 +440,7 @@ jobs:
 
   msrv:
     needs: classify-changes
-    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build","website-build"]') }}
     name: Rust 1.90 check
     runs-on: windows-latest
     timeout-minutes: 20
@@ -445,6 +475,7 @@ jobs:
       - frontend-tests
       - browser-contracts
       - frontend-build
+      - website-build
       - rust-checks
       - font-catalog-portability
       - windows-runtime
