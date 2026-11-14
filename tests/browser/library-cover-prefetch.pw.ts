@@ -106,12 +106,22 @@ async function travel(page: Page, direction: number, delayed: boolean, initialDi
 
 test.afterEach(async ({ page }, info) => {
   if (page.isClosed()) return;
-  const report = await page.evaluate(() => window.coverReadinessProbe?.snapshot());
-  if (report)
-    await info.attach("all-cover-readiness", {
-      body: JSON.stringify(report),
-      contentType: "application/json",
-    });
+  try {
+    if (
+      info.status !== info.expectedStatus ||
+      info.retry > 0 ||
+      process.env.ARCHEION_BROWSER_DIAGNOSTICS
+    ) {
+      const report = await page.evaluate(() => window.coverReadinessProbe?.snapshot());
+      if (report)
+        await info.attach("all-cover-readiness", {
+          body: JSON.stringify(report),
+          contentType: "application/json",
+        });
+    }
+  } finally {
+    await page.evaluate(() => window.coverReadinessProbe?.stop());
+  }
 });
 
 for (const [view, count, workload] of coverCases) {
@@ -155,7 +165,14 @@ for (const [view, count, workload] of coverCases) {
               intervals: [16],
             })
             .toBeGreaterThan(0);
-          const pending = await page.evaluate(() => window.coverReadinessProbe.snapshot());
+          const pending = await page.evaluate(() => {
+            const report = window.coverReadinessProbe.snapshot();
+            return {
+              time: report.time,
+              activeFiles: report.activeFiles,
+              activeDecodes: report.activeDecodes,
+            };
+          });
           await info.attach("decode-pending-reversal", {
             body: JSON.stringify({
               time: pending.time,
@@ -175,26 +192,24 @@ for (const [view, count, workload] of coverCases) {
         const end = await page.locator(".page-shell").evaluate((host) => host.scrollTop);
         expect((end - start) * direction, "Real wheel travel in each direction").toBeGreaterThan(0);
       }
-      const report = await page.evaluate(() => window.coverReadinessProbe.snapshot());
-      const entries = report.entries.filter((entry) => entry.phase === pass);
+      const report = await page.evaluate((pass) => {
+        const report = window.coverReadinessProbe.snapshot();
+        return {
+          entries: report.entries.filter((entry) => entry.phase === pass),
+          reverseWhilePending: report.wheels.some(
+            (wheel) => wheel.phase === pass && wheel.delta < 0 && wheel.activeDecodes > 0,
+          ),
+          time: report.time,
+        };
+      }, pass);
+      const entries = report.entries;
       const notReady = entries.filter((entry) => !entry.readyAtEntry);
       if (delay && pass === "continuous-cold") {
         expect(
-          report.wheels.some(
-            (wheel) => wheel.phase === pass && wheel.delta < 0 && wheel.activeDecodes > 0,
-          ),
+          report.reverseWhilePending,
           "Reverse wheel input reaches the page while decode work is pending",
         ).toBe(true);
       }
-      await info.attach(pass, {
-        body: JSON.stringify({
-          entries,
-          frames: report.frames.filter((frame) => frame.phase === pass),
-          files: report.files,
-          decodes: report.decodes,
-        }),
-        contentType: "application/json",
-      });
       expect(entries.length).toBeGreaterThan(10);
       expect(
         notReady.map((entry) => ({
@@ -204,10 +219,18 @@ for (const [view, count, workload] of coverCases) {
         })),
       ).toEqual([]);
     }
-    const report = await page.evaluate(() => window.coverReadinessProbe.snapshot());
+    const report = await page.evaluate(() => {
+      const report = window.coverReadinessProbe.snapshot();
+      return {
+        peakFiles: report.peakFiles,
+        peakDecodes: report.peakDecodes,
+        liveUrls: report.liveUrls,
+        mounted: report.frames.at(-1)!.mounted,
+      };
+    });
     expect(report.peakFiles).toBeLessThanOrEqual(4);
     expect(report.peakDecodes).toBeLessThanOrEqual(4);
-    expect(report.liveUrls).toBeLessThanOrEqual(48 + report.frames.at(-1)!.mounted);
+    expect(report.liveUrls).toBeLessThanOrEqual(48 + report.mounted);
     await page.screenshot({ path: info.outputPath("populated-artwork.png") });
   });
 }
@@ -236,17 +259,24 @@ test("abrupt jumps beyond the horizon report transient loading without relaxing 
     await page.evaluate(() => window.coverReadinessProbe.releaseDecodes());
   }
   await visibleReady(page);
-  const report = await page.evaluate(() => window.coverReadinessProbe.snapshot());
-  expect(report.entries.some((entry) => entry.phase === "abrupt-jump" && !entry.readyAtEntry)).toBe(
-    true,
-  );
-  expect(
-    report.decodes.some((decode) => decode.failed),
-    "Offscreen pending decodes are retired",
-  ).toBe(true);
+  const report = await page.evaluate(() => {
+    const report = window.coverReadinessProbe.snapshot();
+    return {
+      transientLoading: report.entries.some(
+        (entry) => entry.phase === "abrupt-jump" && !entry.readyAtEntry,
+      ),
+      retiredPendingDecode: report.decodes.some((decode) => decode.failed),
+      peakFiles: report.peakFiles,
+      peakDecodes: report.peakDecodes,
+      liveUrls: report.liveUrls,
+      mounted: report.frames.at(-1)!.mounted,
+    };
+  });
+  expect(report.transientLoading).toBe(true);
+  expect(report.retiredPendingDecode, "Offscreen pending decodes are retired").toBe(true);
   expect(report.peakFiles).toBeLessThanOrEqual(4);
   expect(report.peakDecodes).toBeLessThanOrEqual(4);
-  expect(report.liveUrls).toBeLessThanOrEqual(48 + report.frames.at(-1)!.mounted);
+  expect(report.liveUrls).toBeLessThanOrEqual(48 + report.mounted);
   await info.attach("jump-limit", {
     body: JSON.stringify(report),
     contentType: "application/json",

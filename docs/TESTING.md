@@ -121,6 +121,13 @@ ignored by Git.
 
 ### Optional browser diagnostics
 
+Reader frame and Library cover probes retain detailed snapshots on failure or
+retry. Successful runs attach compact summaries. Set
+`$env:ARCHEION_BROWSER_DIAGNOSTICS = "1"` before a focused `pnpm run test:browser`
+command to retain detailed evidence locally; remove it afterward with
+`Remove-Item Env:ARCHEION_BROWSER_DIAGNOSTICS`. This changes reporting only and
+keeps the required workloads and assertions enabled.
+
 Observational workloads do not run in the required browser suite. Run them explicitly:
 
 ```powershell

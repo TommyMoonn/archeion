@@ -124,6 +124,7 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
       activeDecodes--;
     }
   };
+  let restoreInvoke = () => {};
   window.installCoverReadinessProbe = () => {
     const internals = (
       window as unknown as {
@@ -133,6 +134,9 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
       }
     ).__TAURI_INTERNALS__;
     const invoke = internals.invoke;
+    restoreInvoke = () => {
+      internals.invoke = invoke;
+    };
     internals.invoke = async (command, args) => {
       if (command !== "load_epub_cover") return invoke(command, args);
       const record = {
@@ -153,10 +157,33 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
       }
     };
   };
+  let dirty = true;
+  let trailing = 2;
+  let sampledScroll = NaN;
+  const invalidate = () => {
+    dirty = true;
+    trailing = 2;
+  };
+  const mutations = new MutationObserver(invalidate);
+  mutations.observe(document, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ["data-cover-state", "src", "class", "style"],
+  });
+  const resize = new ResizeObserver(invalidate);
+  const observeRoot = () => resize.observe(document.documentElement);
+  if (document.documentElement) observeRoot();
+  else window.addEventListener("DOMContentLoaded", observeRoot, { once: true });
+  window.addEventListener("scroll", invalidate, { capture: true, passive: true });
+  window.addEventListener("resize", invalidate, { passive: true });
   const sample = () => {
     const time = performance.now();
     const host = document.querySelector<HTMLElement>(".page-shell");
-    if (host) {
+    if (host && (dirty || trailing > 0 || host.scrollTop !== sampledScroll)) {
+      dirty = false;
+      trailing = Math.max(0, trailing - 1);
+      sampledScroll = host.scrollTop;
       const bounds = host.getBoundingClientRect();
       const current = new Set<Element>();
       const cards = [...document.querySelectorAll<HTMLElement>("[data-reader-book-id]")];
@@ -255,6 +282,15 @@ export function installCoverReadinessProbe(options: CoverReadinessOptions) {
     }),
     stop: () => {
       cancelAnimationFrame(raf);
+      mutations.disconnect();
+      resize.disconnect();
+      window.removeEventListener("DOMContentLoaded", observeRoot);
+      window.removeEventListener("scroll", invalidate, true);
+      window.removeEventListener("resize", invalidate);
+      restoreInvoke();
+      holdDecodes = false;
+      for (const resolve of heldDecodes.values()) resolve();
+      heldDecodes.clear();
       window.removeEventListener("wheel", recordWheel, true);
       URL.createObjectURL = create;
       URL.revokeObjectURL = revoke;
