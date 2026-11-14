@@ -128,7 +128,8 @@ for (const mode of ["continuous", "paged"] as const) {
   test(`structural policy reversal, RTL, navigation and note annotations in ${mode}`, async ({
     page,
   }, info) => {
-    test.setTimeout(180000);
+    // Three hosted runs peaked at 19.1s for this full structural reversal contract.
+    test.setTimeout(60_000);
     await open(page, mode);
     await page.evaluate(() => window.readerInteractions.navigate("structural-negatives"));
     for (const policy of ["publisher", "archeion"] as const) {

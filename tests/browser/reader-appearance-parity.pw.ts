@@ -78,7 +78,8 @@ test.beforeEach(async ({ page }) => {
 for (const mode of ["continuous", "paged"] as const) {
   for (const section of ["section-01", "section-21", "section-42"]) {
     test(`${mode} appearance matrix at ${section}`, async ({ page }, testInfo) => {
-      test.setTimeout(180_000);
+      // Three hosted runs peaked at 11s; retain headroom for the appearance matrix.
+      test.setTimeout(60_000);
       await page.evaluate((flow) => window.readerInteractions.open("long-spine", flow), mode);
       await expect.poll(() => page.evaluate(() => window.readerInteractions.ready())).toBe(true);
       await page.evaluate((target) => window.readerInteractions.navigate(target), section);

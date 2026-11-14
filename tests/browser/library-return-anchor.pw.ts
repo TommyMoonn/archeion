@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 // The production-route fixture has a substantial cold Vite module graph on Windows.
-test.setTimeout(120_000);
+if (process.platform === "win32") test.setTimeout(120_000);
 
 for (const view of ["grid", "list"] as const) {
   // Each view covers every count and position. Middle at 500 additionally covers
