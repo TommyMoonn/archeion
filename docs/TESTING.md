@@ -128,6 +128,8 @@ pnpm run test:browser:ui-stability
 pnpm run test:browser:visual-diagnostics
 ```
 
+Both commands build the existing production fixture bundle before opening cold
+browser contexts, so development-module transforms do not distort observations.
 The first command measures the UI stability workloads. The second records the
 cold/warm UX-15 Add EPUB first-paint observations. The remaining visual-refinement
 and all first-paint acceptance tests still run in required CI. For the built-fixture

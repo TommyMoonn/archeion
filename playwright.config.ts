@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 const port = Number(process.env.ARCHEION_BROWSER_PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) {
@@ -29,6 +30,7 @@ export default defineConfig({
     trace: "retain-on-failure-and-retries",
   },
   webServer: {
+    cwd: fileURLToPath(new URL(".", import.meta.url)),
     command: `pnpm exec vite --host 127.0.0.1 --port ${port} --strictPort`,
     url: `${baseURL}/docs/`,
     reuseExistingServer: false,

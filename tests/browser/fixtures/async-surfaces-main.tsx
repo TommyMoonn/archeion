@@ -18,7 +18,6 @@ import {
 import { defaultAppPreferences } from "../../../src/types/appSettings";
 import type { Book } from "../../../src/types/book";
 import { LibraryStorageProvider } from "../../../src/storage/LibraryStorageContext";
-import { TauriArchiveLibraryStorage } from "../../../src/storage/TauriArchiveLibraryStorage";
 import "../../../src/styles/index.css";
 
 const book: Book = {
@@ -30,6 +29,8 @@ const book: Book = {
   addedAt: "2026-10-23",
   updatedAt: "2026-10-23",
 };
+const { TauriArchiveLibraryStorage } =
+  await import("../../../src/storage/TauriArchiveLibraryStorage");
 const storage = new TauriArchiveLibraryStorage();
 storage.loadBookCover = async () => undefined;
 const noop = () => {};

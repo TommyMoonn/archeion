@@ -92,8 +92,8 @@
     "changes:review": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/review-changes.ps1",
     "zip:repo": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1 --mode repo",
     "zip:workspace": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1 --mode workspace",
-    "test:browser:ui-stability": "playwright test --config tests/browser/ui-stability.config.ts",
-    "test:browser:visual-diagnostics": "playwright test --config tests/browser/visual-refinement-diagnostics.config.ts"
+    "test:browser:ui-stability": "vite build --config tests/browser/visual-refinement-build.config.ts && playwright test --config tests/browser/ui-stability.config.ts",
+    "test:browser:visual-diagnostics": "vite build --config tests/browser/visual-refinement-build.config.ts && playwright test --config tests/browser/visual-refinement-diagnostics.config.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

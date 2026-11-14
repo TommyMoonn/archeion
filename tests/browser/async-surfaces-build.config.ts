@@ -4,6 +4,7 @@ export default mergeConfig(
   base,
   defineConfig({
     build: {
+      manifest: true,
       target: "chrome105",
       outDir: ".scratch/async-surfaces-build",
       rollupOptions: {
