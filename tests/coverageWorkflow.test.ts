@@ -36,6 +36,7 @@ describe("diagnostic coverage workflow", () => {
 
     // package.json owns the coverage commands and the pinned V8 provider dependency.
     expect(paths).toEqual([
+      ".github/actions/setup-pnpm/**",
       ".github/workflows/coverage.yml",
       "package.json",
       "vitest.config.ts",
