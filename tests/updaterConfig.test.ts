@@ -48,9 +48,31 @@ describe("updater trust and build configuration", () => {
     });
 
     const schema = readJson("node_modules/@tauri-apps/cli/config.schema.json");
-    const validate = new Ajv({ strict: false, allErrors: true, unicodeRegExp: false }).compile(
-      schema,
-    );
+    const validate = new Ajv({
+      strict: false,
+      allErrors: true,
+      unicodeRegExp: false,
+      formats: {
+        uri: (value: string) => URL.canParse(value),
+        double: { type: "number", validate: Number.isFinite },
+        int32: {
+          type: "number",
+          validate: (value: number) =>
+            Number.isInteger(value) && value >= -(2 ** 31) && value < 2 ** 31,
+        },
+        int64: { type: "number", validate: Number.isSafeInteger },
+        uint32: {
+          type: "number",
+          validate: (value: number) => Number.isInteger(value) && value >= 0 && value < 2 ** 32,
+        },
+        uint8: {
+          type: "number",
+          validate: (value: number) => Number.isInteger(value) && value >= 0 && value < 256,
+        },
+        uuid: (value: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value),
+      },
+    }).compile(schema);
     expect(validate(config), JSON.stringify(validate.errors)).toBe(true);
     const releaseConfig = { ...config, bundle: { ...config.bundle, ...overlay.bundle } };
     expect(validate(releaseConfig), JSON.stringify(validate.errors)).toBe(true);
