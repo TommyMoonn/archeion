@@ -63,6 +63,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check built-in palette outputs
+        run: pnpm run themes:check
+
       - name: Check architecture
         run: pnpm run architecture:check
 

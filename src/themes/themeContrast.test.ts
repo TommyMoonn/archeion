@@ -131,7 +131,7 @@ describe("theme contrast diagnostics", () => {
   });
 
   it("keeps APCA diagnostic when a custom pair passes the formal WCAG contract", () => {
-    const app = resolveAppTheme("dark", { muted: "#929096" });
+    const app = resolveAppTheme("dark", { muted: "#929096", surfaceHover: "#29292d" });
     const muted = themeContrastDiagnostics(app).find(
       ({ foregroundPath }) => foregroundPath === "$.app.muted",
     );

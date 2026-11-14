@@ -47,7 +47,7 @@ for (const appearance of ["dark", "light"] as const) {
       /serif/,
     );
     expect(await heading.evaluate((element) => getComputedStyle(element).fontSize)).toBe("30px");
-    const logo = await page.locator(".about-window__brand img").boundingBox();
+    const logo = await page.locator(".about-window__brand img:visible").boundingBox();
     expect(logo!.width).toBe(64);
     expect(logo!.height).toBe(64);
     await expect(page.getByRole("button", { name: "Close window", exact: true })).toBeVisible();

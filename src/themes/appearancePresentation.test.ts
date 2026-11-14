@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applicationPresentation } from "./appearancePresentation";
 import { resolveBuiltInAppTheme, resolveTheme } from "./resolveTheme";
-import shellPalettes from "./appShellPalettes.json";
+import { builtInShellPalettes as shellPalettes } from "./builtInThemes";
 
 describe("derived application presentation", () => {
   it.each(["dark", "light"] as const)("uses the same %s canvas as the runtime", (base) => {

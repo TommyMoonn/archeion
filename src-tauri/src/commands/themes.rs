@@ -148,6 +148,12 @@ fn resolve_existing_package_at(root: &Path, id: &str) -> Result<PathBuf, String>
 
 fn normalize_manifest_json(id: &str, manifest_json: &str) -> Result<Vec<u8>, String> {
     let id = validate_theme_id(id)?;
+    if matches!(
+        id.as_str(),
+        "dark" | "light" | "sepia" | "archeion-dark" | "archeion-light"
+    ) {
+        return Err("This theme ID is reserved by a built-in theme.".to_string());
+    }
     if manifest_json.len() > MAX_THEME_MANIFEST_BYTES {
         return Err("The theme manifest is too large to store safely.".to_string());
     }
@@ -477,6 +483,22 @@ mod tests {
         let root = std::env::temp_dir().join(format!("archeion-themes-{label}-{nonce}"));
         fs::create_dir_all(&root).expect("test archive should be created");
         root
+    }
+
+    #[test]
+    fn reserved_ids_cannot_be_created_or_replaced() {
+        let root = test_root("reserved-ids");
+        for id in ["archeion-dark", "archeion-light", "dark", "light", "sepia"] {
+            let source = manifest(id, "Reserved");
+            assert!(create_theme_package_at(&root, id, &source)
+                .unwrap_err()
+                .contains("reserved"));
+            assert!(replace_theme_manifest_at(&root, id, &source)
+                .unwrap_err()
+                .contains("reserved"));
+        }
+        assert!(!root.join("themes").exists());
+        fs::remove_dir_all(&root).unwrap();
     }
 
     fn manifest(id: &str, name: &str) -> String {

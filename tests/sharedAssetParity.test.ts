@@ -18,7 +18,7 @@ type ParityGroup = Readonly<{
 const requiredCopies: readonly ParityGroup[] = [
   {
     canonical: "src-tauri/icons/128x128.png",
-    copies: ["src/assets/brand/archeion-icon-128.png", "docs/assets/images/archeion-icon.png"],
+    copies: ["docs/assets/images/archeion-icon.png"],
   },
   {
     canonical:

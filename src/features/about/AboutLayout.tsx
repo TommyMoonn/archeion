@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { APPLICATION_VERSION_FALLBACK, resolveApplicationVersion } from "../../app/appVersion";
-import archeionIcon from "../../assets/brand/archeion-icon-128.png";
+import { BrandLogo } from "../../components/BrandLogo";
 
 import { AboutLayoutContext } from "./aboutLayoutContext";
 
@@ -20,7 +20,7 @@ export function AboutLayout({ children }: { children: ReactNode }) {
       <div className="about-window__content">
         <header className="about-window__identity" data-utility-slot="identity">
           <div className="about-window__brand" aria-hidden="true">
-            <img alt="" src={archeionIcon} />
+            <BrandLogo />
           </div>
           <div className="about-window__copy">
             <h1 id="about-title">Archeion</h1>

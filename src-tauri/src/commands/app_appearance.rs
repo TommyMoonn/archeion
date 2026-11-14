@@ -25,10 +25,32 @@ struct ShellPalettes {
 
 fn palettes() -> &'static ShellPalettes {
     static PALETTES: OnceLock<ShellPalettes> = OnceLock::new();
-    PALETTES.get_or_init(|| {
-        serde_json::from_str(include_str!("../../../src/themes/appShellPalettes.json"))
-            .expect("built-in shell palettes must be valid")
+    PALETTES.get_or_init(|| ShellPalettes {
+        dark: manifest_palette(include_str!(
+            "../../../themes/built-in/archeion-dark/theme.json"
+        )),
+        light: manifest_palette(include_str!(
+            "../../../themes/built-in/archeion-light/theme.json"
+        )),
     })
+}
+
+fn manifest_palette(source: &str) -> ShellPalette {
+    #[derive(Deserialize)]
+    struct Manifest {
+        app: AppColors,
+    }
+    #[derive(Deserialize)]
+    struct AppColors {
+        main: String,
+        text: String,
+    }
+    // Bundled inputs are verified by themes:check; malformed build inputs must fail loudly.
+    let manifest: Manifest = serde_json::from_str(source).expect("valid built-in manifest");
+    ShellPalette {
+        background: manifest.app.main.to_ascii_lowercase(),
+        foreground: manifest.app.text.to_ascii_lowercase(),
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

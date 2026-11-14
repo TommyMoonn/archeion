@@ -157,7 +157,7 @@ describe("committed native presentation handoff", () => {
     oldAcknowledgement();
     await settle();
     expect(root.dataset.appTheme).toBe("dark");
-    expect(root.style.getPropertyValue("--surface-main")).toBe("#1b1b1d");
+    expect(root.style.getPropertyValue("--surface-main")).toBe("#0b0b0c");
     stop();
   });
 

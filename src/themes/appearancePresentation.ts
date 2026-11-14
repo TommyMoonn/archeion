@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AppThemeSelection } from "../types/settings";
 import type { ResolvedAppTheme } from "./domain";
-import shellPalettes from "./appShellPalettes.json" with { type: "json" };
+import { builtInShellPalettes as shellPalettes } from "./builtInThemes";
 
 export type AppearancePresentation = Readonly<{
   selection: AppThemeSelection;

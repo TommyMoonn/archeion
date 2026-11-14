@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="docs/assets/archeion-wordmark.png" alt="Archeion" width="256">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="src/assets/brand/archeion-wordmark-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="src/assets/brand/archeion-wordmark-light.png">
+    <img src="src/assets/brand/archeion-wordmark-dark.png" alt="Archeion" width="512" height="210">
+  </picture>
 </p>
 
 <p align="center">
@@ -16,7 +20,7 @@
 <p align="center">
   <img
     src="docs/assets/archeion-preview.png"
-    alt="Archeion library and reader preview"
+    alt="Archeion Library in the dark theme, showing a folder sidebar and EPUB cover grid"
     width="900"
   >
 </p>

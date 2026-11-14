@@ -1,3 +1,4 @@
+import { isReservedThemeId } from "./themeCatalogReadModel";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
@@ -102,6 +103,15 @@ export class ThemeRepository {
 }
 
 function normalizedManifest(manifest: ThemeManifestV1): ThemeManifestV1 {
+  if (isReservedThemeId(manifest.id)) {
+    throw new InvalidThemeManifestError([
+      {
+        code: "invalid-value",
+        path: "$.id",
+        message: "This theme ID is reserved by a built-in theme.",
+      },
+    ]);
+  }
   const result = validateThemeManifest(manifest, { expectedId: manifest.id });
   if (!result.ok) throw new InvalidThemeManifestError(result.diagnostics);
   return result.manifest;

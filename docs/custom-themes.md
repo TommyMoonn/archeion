@@ -7,6 +7,19 @@ Archeion theme manifests are strict, color-only JSON files. They can recolor the
 
 ## Package layout
 
+The repository's [`themes/`](../themes/README.md) directory contains canonical
+bundled manifests under `built-in/` and five optional official packages: Archeion
+Nocturne, Mono, Chalk, Classic Dark, and Classic Light. The Classic packages preserve
+the previous built-in application and Reader palettes. Optional packages are not
+included in the app or installer and do not appear in selectors until imported.
+
+Download a package's raw `theme.json`, then open **Settings → Appearance → Manage
+themes → Import**. Imported copies live in application data, remain available
+across archives and restarts, and are independent of this repository. Reimport and
+confirm replacement to update a copy; there is no automatic synchronization.
+All five official packages include Reader overrides, selectable independently in
+**Settings → Reader → Reader theme** or the Reader settings panel after import.
+
 Use **Open themes folder** in Theme Manager to find Archeion's application-data theme directory. Store each theme in one direct child directory:
 
 ```text

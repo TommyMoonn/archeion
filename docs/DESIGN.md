@@ -5,7 +5,7 @@
 
 This guide records the visual rules for Archeion's desktop app. It covers the application frame, Library, Reader controls, settings, dialogs, menus, and utility windows. It does not cover the layout or typography of EPUB content, the public website, or the documentation site.
 
-The guide describes the intended UI. Implementation values are defined in `src/styles/tokens.css`, and theme colors are defined in `src/themes/themeTokenRegistry.ts`. Update this guide when an accepted design decision changes either source.
+The guide describes the intended UI. Non-color tokens are defined in `src/styles/tokens.css`, built-in application and Reader colors in `themes/built-in/`, and token contracts in `src/themes/themeTokenRegistry.ts`. Update this guide when an accepted design decision changes these sources.
 
 ## Design principles
 
@@ -66,6 +66,31 @@ Use `--muted` for readable secondary text and `--muted-soft` for inactive or dec
 Cards, notices, callouts, and other content groups do not use thick accent-colored left borders. Their hierarchy comes from the surface color, a restrained outline, a heading, or a contextual icon.
 
 ## Typography
+
+### Desktop identity
+
+About and Archive Manager use `BrandLogo` with the owner's unchanged logo PNGs
+in `src/assets/brand/`. The resolved application base selects the dark or light
+artwork, including for custom themes. Keep the existing icon dimensions and
+product-name headings. Library retains its text-only product name and existing
+sidebar visibility gates. Settings retains its compact product eyebrow.
+
+The in-app product name continues to use its existing typography, including the
+configurable Display font. The supplied wordmark PNGs are for the root README;
+do not substitute them for in-app text or recreate their lettering with a font.
+This owner decision supersedes the rebrand plan's proposed fixed brand font role.
+
+Regenerate platform icons from the approved 500 x 500 desktop composition:
+
+```powershell
+pnpm exec tauri icon src/assets/brand/archeion-logo-dark.png --output src-tauri/icons
+Copy-Item src-tauri/icons/128x128.png docs/assets/images/archeion-icon.png
+Copy-Item src-tauri/icons/32x32.png public/favicon.png
+```
+
+Larger exports are upscaled derivatives. Keep the configured executable and
+installer icon paths. `node scripts/generate-brand-assets.mjs --check` guards
+the approved source bytes.
 
 ### Font families and ownership
 
@@ -278,3 +303,27 @@ Check the application under conditions that affect layout or contrast:
 Inspect the Library shell, expanded and collapsed sidebar, archive switcher, collection grid and list, Reader toolbar and panels, settings, dialogs, menus, popovers, Theme Manager, Archive Manager, and utility windows. State changes must not move unrelated content, hide actions, or leave hidden controls focusable.
 
 The current automated and owner-run checks are documented in `tests/visualFoundations.test.ts`, `tests/uiIntegrationGate.test.ts`, `tests/formHitAreaContract.test.ts`, `tests/browser/visual-refinement.md`, and `font-preferences-validation.md`. Browser tests verify repeatable geometry and interactions. They do not establish physical Windows display scaling, first paint in packaged WebView2, native frame performance, or screen-reader output. Mark those checks as unverified until they have been tested.
+
+## Built-in palette sources
+
+`themes/built-in/archeion-dark/theme.json` and `archeion-light/theme.json` own the
+built-in application and Reader palette values. `src/themes/themeTokenRegistry.ts`
+owns the public and derived token contract. `builtInThemes.ts` validates the manifests,
+requires complete opaque application palettes, and maps them to the existing `dark`
+and `light` selections. Canonical manifest IDs are reserved against custom imports;
+conflicting installed packages are reported as invalid without deleting their files.
+
+Rust native appearance includes these manifests at compile time and reads `app.main`
+and `app.text` for native backgrounds and prepaint snapshots. Frontend compositing
+fallbacks use the same manifest-backed registry. No settings migration is required.
+
+After editing a canonical palette, run `pnpm run themes:generate`. The generator uses
+the production TypeScript resolver and token registry to write
+`src/styles/built-in-palettes.css`, `src/styles/built-in-reader-palettes.css`, and the explicit dark fallback in
+`public/appearance-startup.css`. Do not edit generated colors by hand.
+`pnpm run themes:check`, included in frontend verification, rejects stale output.
+Reader Dark and Light use the manifests' complete Reader sections through the same
+resolver as custom Reader themes. Reader selection remains independent of application
+appearance and keeps the existing `dark`, `light`, and `sepia` settings identifiers.
+Sepia remains Reader-only with its unchanged palette in `builtInThemes.ts`; its CSS
+fallback is generated from that registry too.

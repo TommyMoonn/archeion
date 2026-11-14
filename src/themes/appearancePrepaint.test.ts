@@ -2,7 +2,7 @@
 
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import palettes from "./appShellPalettes.json" with { type: "json" };
+import { builtInShellPalettes as palettes } from "./builtInThemes";
 
 const source = readFileSync("public/appearance-prepaint.js", "utf8");
 const root = document.documentElement;

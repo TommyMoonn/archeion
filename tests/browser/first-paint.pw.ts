@@ -2,7 +2,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { startUIStabilityCapture } from "./ui-stability-capture";
 import { resolveBuiltInAppTheme, resolveTheme } from "../../src/themes/resolveTheme";
 import { applicationPresentation } from "../../src/themes/appearancePresentation";
-import shellPalettes from "../../src/themes/appShellPalettes.json" with { type: "json" };
+import { builtInShellPalettes as shellPalettes } from "../../src/themes/builtInThemes";
 import { shellStressThemes } from "../fixtures/themes/shellStressThemes";
 
 const fixture = "/tests/browser/fixtures/ui-stability.html";

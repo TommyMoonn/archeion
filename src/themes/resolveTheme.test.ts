@@ -69,10 +69,10 @@ describe("theme resolution", () => {
     expect(resolved.app.base).toBe("light");
     expect(resolved.app.publicTokens.accent).toBe("#123abc");
     expect(resolved.app.publicTokens.text).toBe("#252525");
-    expect(resolved.app.publicTokens.canvas).toBe("#f6f3ed");
+    expect(resolved.app.publicTokens.canvas).toBe("#f7f8f7");
     expect(resolved.reader?.base).toBe("dark");
     expect(resolved.reader?.publicTokens.link).toBe("#abcdef");
-    expect(resolved.reader?.publicTokens.background).toBe("#171717");
+    expect(resolved.reader?.publicTokens.background).toBe("#0b0b0c");
   });
 
   it("merges only registered keys even when an untyped caller mutates an overrides object", () => {
@@ -158,8 +158,8 @@ describe("theme resolution", () => {
   });
 
   it("derives stable built-in darkening neutrals from each appearance source", () => {
-    expect(resolveBuiltInAppTheme("dark").tokens.darkening).toBe("#030303");
-    expect(resolveBuiltInAppTheme("light").tokens.darkening).toBe("#080504");
+    expect(resolveBuiltInAppTheme("dark").tokens.darkening).toBe("#000000");
+    expect(resolveBuiltInAppTheme("light").tokens.darkening).toBe("#0a0f13");
   });
 
   it("multiplies alpha while deriving tokens from translucent overrides", () => {
@@ -171,12 +171,12 @@ describe("theme resolution", () => {
 
   it("derives Reader quotation and visited-link roles perceptually", () => {
     expect(resolveBuiltInReaderTheme("dark").tokens).toMatchObject({
-      quotation: "#959398",
-      visitedLink: "#c0d8e8",
+      quotation: "#94989c",
+      visitedLink: "#bbd3e5",
     });
     expect(resolveBuiltInReaderTheme("light").tokens).toMatchObject({
-      quotation: "#86827c",
-      visitedLink: "#2b4b63",
+      quotation: "#7a8086",
+      visitedLink: "#304f66",
     });
     expect(resolveBuiltInReaderTheme("sepia").tokens).toMatchObject({
       quotation: "#85735e",
