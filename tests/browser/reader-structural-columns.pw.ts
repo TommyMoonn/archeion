@@ -386,7 +386,19 @@ for (const mode of ["continuous", "paged"] as const) {
     expect(await page.evaluate(() => window.readerInteractions.errors())).toEqual([]);
   });
   for (const stage of [900, 1050, 1400]) {
-    for (const category of ["legacy", "note", "proportional"] as const) {
+    // Each category covers both modes and all reading widths. Stage extremes
+    // rotate across modes; 1050px retains the common case for every category.
+    const categories =
+      stage === 1050
+        ? (["legacy", "note", "proportional"] as const)
+        : stage === 900
+          ? mode === "continuous"
+            ? (["legacy", "note"] as const)
+            : (["proportional"] as const)
+          : mode === "continuous"
+            ? (["proportional"] as const)
+            : (["legacy", "note"] as const);
+    for (const category of categories) {
       test(`${category} reading measure in ${mode} at ${stage}px`, async ({ page }, info) => {
         test.setTimeout(90000);
         await open(page, mode, stage);

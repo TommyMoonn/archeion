@@ -76,12 +76,35 @@ test("preparation follows mounted views across scrolling, equivalent settings an
     .toBeGreaterThan(
       traversed.documents.reduce((total, doc) => total + doc.mediaClassifications, 0),
     );
+  const beforeNavigation = await page.evaluate(() => ({
+    relocations: window.readerInteractions.relocations(),
+    cfi: window.readerInteractions.location(),
+  }));
   expect(await page.evaluate(() => window.readerInteractions.navigate("section-01"))).toBe(true);
   await expect(page.locator(".archeion-highlight")).toHaveCount(1);
   // Display completion precedes the relocated event that publishes progress.
   await expect
+    .poll(() => page.evaluate(() => window.readerInteractions.relocations()))
+    .toBeGreaterThan(beforeNavigation.relocations);
+  await expect
     .poll(() => page.evaluate(() => window.readerInteractions.location()))
-    .toMatch(/^epubcfi\(\/6\/2!/);
+    .not.toBe(beforeNavigation.cfi);
+  const targetCfi = await page.evaluate(() => window.readerInteractions.cfi("section-01-p1"));
+  await expect
+    .poll(() =>
+      page.evaluate((cfi) => window.readerInteractions.passageAt(cfi)?.visible, targetCfi),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.readerInteractions
+          .location()
+          ?.split("!")[0]
+          .replace(/\[[^\]]*\]/g, ""),
+      ),
+    )
+    .toBe(targetCfi.split("!")[0].replace(/\[[^\]]*\]/g, ""));
   const cfi = await page.evaluate(async () => {
     const location = window.readerInteractions.location();
     // Snapshot and begin teardown in one task so a later relocation cannot

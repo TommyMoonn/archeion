@@ -20,38 +20,75 @@ export class ReaderRuntimeDriver {
   }
 
   async sampleFrames(action: () => Promise<void>) {
-    const recording = this.page.evaluate(async () => {
-      const samples: RuntimeSnapshot[] = [];
-      for (let frame = 0; frame < 30; frame += 1) {
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        samples.push(window.readerFixture.snapshot());
-      }
-      return samples;
+    // Begin in the browser before input and retain every painted transition through
+    // quiescence, including asynchronous prepend/recovery after input completes.
+    const recorder = await this.page.evaluateHandle(() => {
+      const samples = [window.readerFixture.snapshot()];
+      let raf = 0;
+      const deadline = performance.now() + 8000;
+      const state = { samples, expired: false, signature: "", stableSince: performance.now() };
+      const tick = () => {
+        if (performance.now() >= deadline) {
+          state.expired = true;
+          return;
+        }
+        const sample = window.readerFixture.snapshot();
+        samples.push(sample);
+        const signature = JSON.stringify([
+          sample.scrollTop,
+          sample.scrollHeight,
+          sample.sections,
+          sample.anchors,
+        ]);
+        if (signature !== state.signature) state.stableSince = performance.now();
+        state.signature = signature;
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      return { state, stop: () => cancelAnimationFrame(raf) };
     });
-    await action();
-    return recording;
+    try {
+      await action();
+      return await recorder.evaluate(async (recording) => {
+        // Require the full existing quiet window after input finishes, even if
+        // the browser had already been idle while the action was being prepared.
+        recording.state.stableSince = performance.now();
+        while (!recording.state.expired) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          if (recording.state.expired) break;
+          if (performance.now() - recording.state.stableSince >= 400)
+            return recording.state.samples;
+        }
+        throw new Error("Reader frame recording exceeded 8000ms before settlement");
+      });
+    } finally {
+      await recorder.evaluate((recording) => recording.stop());
+      await recorder.dispose();
+    }
   }
 
   async settle() {
-    let previous = "";
-    let stable = 0;
-    await expect
-      .poll(
-        async () => {
-          const sample = await this.snapshot();
-          const signature = JSON.stringify([
-            sample.scrollTop,
-            sample.scrollHeight,
-            sample.sections,
-            sample.anchors,
-          ]);
-          stable = signature === previous ? stable + 1 : 0;
-          previous = signature;
-          return stable;
-        },
-        { timeout: 8000, intervals: [100] },
-      )
-      .toBeGreaterThanOrEqual(4);
+    // Keep the existing 400ms geometry stability window, but sample in-browser
+    // instead of serializing every anchor over the automation connection.
+    await this.page.evaluate(async () => {
+      let previous = "";
+      let stableSince = performance.now();
+      const deadline = performance.now() + 8000;
+      while (performance.now() < deadline) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const sample = window.readerFixture.snapshot();
+        const signature = JSON.stringify([
+          sample.scrollTop,
+          sample.scrollHeight,
+          sample.sections,
+          sample.anchors,
+        ]);
+        if (signature !== previous) stableSince = performance.now();
+        previous = signature;
+        if (performance.now() - stableSince >= 400) return;
+      }
+      throw new Error("Reader geometry did not settle within 8000ms");
+    });
   }
 
   async wheel(deltaY: number) {

@@ -415,13 +415,6 @@ for (const scale of [1, 1.25, 1.5]) {
       path: evidencePath,
       contentType: "application/json",
     });
-    console.log(
-      JSON.stringify({
-        scale,
-        layoutDurationMs: evidence.layoutDurationMs,
-        layoutCount: evidence.layoutCount,
-      }),
-    );
     for (const trace of [collapse, expand, reversal]) {
       expect(Math.max(...trace.map((f) => Math.abs(f.title - f.body)))).toBeLessThan(0.1);
       expect(trace.every((f) => f.retained && f.label)).toBe(true);

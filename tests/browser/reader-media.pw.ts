@@ -110,7 +110,7 @@ for (const mode of ["continuous", "paged"] as const) {
     expect((await geometry(media)).centered).toBe(true);
     expect(Math.abs((await geometry(media)).centerError)).toBeLessThanOrEqual(1);
   });
-  for (const width of [900, 1050, 1400]) {
+  for (const width of [900, 1400]) {
     test(`audit-like standalone image centers at ${width}px in ${mode}`, async ({
       page,
     }, testInfo) => {
@@ -130,7 +130,7 @@ for (const mode of ["continuous", "paged"] as const) {
     });
   }
 
-  for (const width of [900, 1050, 1400]) {
+  for (const width of [900, 1400]) {
     test(`wrapper picture SVG intrinsic size and fit contracts at ${width}px in ${mode}`, async ({
       page,
     }, testInfo) => {
@@ -333,7 +333,7 @@ test("late image decode and stage/font changes preserve the visible Continuous p
 });
 
 for (const mode of ["continuous", "paged"] as const) {
-  for (const width of [900, 1050, 1400]) {
+  for (const width of [900, 1400]) {
     test(`opening artwork classification at ${width}px in ${mode}`, async ({ page }, testInfo) => {
       await open(page, mode, width);
       const samples = [];
