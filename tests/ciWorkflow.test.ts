@@ -244,9 +244,8 @@ describe("CI workflow contract", () => {
     "windows-updater",
   ])("uses pnpm setup, frozen installs and the lockfile cache in %s", (jobId) => {
     const job = jobLines(jobId).join("\n");
-    expect(job).toMatch(/uses: pnpm\/action-setup@[a-f0-9]{40}/);
-    expect(job).toContain("run_install: false");
-    expect(job.indexOf("uses: pnpm/action-setup@")).toBeLessThan(
+    expect(job).toContain("uses: ./.github/actions/setup-pnpm");
+    expect(job.indexOf("uses: ./.github/actions/setup-pnpm")).toBeLessThan(
       job.indexOf("uses: actions/setup-node@"),
     );
     expect(job).toMatch(/uses: actions\/setup-node@[a-f0-9]{40}/);

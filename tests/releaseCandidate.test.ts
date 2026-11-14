@@ -160,8 +160,7 @@ describe("release-candidate workflow", () => {
   ])("sets up pinned pnpm before metadata validation in %s", (jobId, validationStep) => {
     const job = releaseJob(jobId);
     const setup = releaseStep(jobId, "Set up pnpm");
-    expect(setup).toMatch(/uses: pnpm\/action-setup@[a-f0-9]{40}(?:\s|$)/);
-    expect(setup).toContain("run_install: false");
+    expect(setup).toContain("uses: ./.github/actions/setup-pnpm");
     expect(job.indexOf("uses: actions/checkout@")).toBeLessThan(job.indexOf(setup));
     expect(job.indexOf(setup)).toBeLessThan(job.indexOf(releaseStep(jobId, validationStep)));
   });
