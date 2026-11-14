@@ -407,6 +407,7 @@ for (const interruption of ["rejection", "supersession", "archive"]) {
     });
     await library(page);
     await openBook(page);
+    await expect(page.locator(".reader-page")).toHaveAttribute("data-reader-phase", "ready");
     await expect(page.locator(".reader-loading")).toHaveCount(0);
     if (interruption === "supersession") await page.clock.install();
     await page.evaluate(() => window.uiStabilityFixture.holdReaderExit());
@@ -644,6 +645,13 @@ for (const surface of ["book dialog", "Quick Actions"]) {
 test("unavailable archive recovery keeps the retiring Library chrome", async ({ page }) => {
   await page.goto(`${fixture}?count=2&archiveFailure=once`, { waitUntil: "domcontentloaded" });
   await library(page);
+  const diagnostics = await page.evaluateHandle(() => {
+    const errors: string[][] = [];
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((value) => (value instanceof Error ? value.message : String(value))));
+    };
+    return errors;
+  });
   await page
     .locator(".sidebar")
     .evaluate((node) => node.setAttribute("data-retained-shell", "true"));
@@ -658,6 +666,9 @@ test("unavailable archive recovery keeps the retiring Library chrome", async ({ 
   await expect(page.locator("[data-archive-blocked]")).toHaveCount(0);
   await library(page);
   await expect(page.locator(".sidebar[data-retained-shell]")).toContainText("Synthetic a");
+  expect(await diagnostics.jsonValue()).toEqual([
+    ["activate_archive failed", "Synthetic unavailable archive"],
+  ]);
 });
 
 for (const motion of ["app-off", "system-reduced"]) {
