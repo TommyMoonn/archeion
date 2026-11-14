@@ -33,6 +33,32 @@ pnpm install --frozen-lockfile
 Use `pnpm install --frozen-lockfile` for a clean checkout. It installs the versions recorded in
 `pnpm-lock.yaml`.
 
+The repository is a pnpm workspace. A root install includes the desktop app
+(`archeion`) and the private website package (`@archeion/website`) under
+`website/`, using the same lockfile and package-manager version. Keep website
+dependencies in that package; the root application keeps its existing Vite
+and Tauri toolchain.
+
+For a package-specific clean install, use:
+
+```powershell
+# Desktop application, including CI, coverage, installers, and release builds
+pnpm install --filter archeion... --frozen-lockfile
+
+# Website build and deployment jobs
+pnpm install --filter @archeion/website... --frozen-lockfile
+```
+
+Jobs that need both packages must select both or use the full workspace
+install. Do not create a lockfile or duplicate package-manager configuration
+inside `website/`.
+
+The website workspace is being bootstrapped separately from the published site.
+Its package scripts are available through `pnpm --filter @archeion/website`
+or from inside `website/`. See [website development](../website/README.md#local-development)
+for commands, temporary routes, and browser checks. The existing public site
+under `docs/` remains the published source during foundation work.
+
 ## Run Archeion
 
 Start the Tauri desktop application:
