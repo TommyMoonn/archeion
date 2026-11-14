@@ -1,5 +1,10 @@
-import { expect, test } from "@playwright/test";
-import { ReaderRuntimeDriver, assertNoBlankReverse, findAnchor } from "./reader-runtime-driver";
+import { expect } from "@playwright/test";
+import {
+  test,
+  ReaderRuntimeDriver,
+  assertNoBlankReverse,
+  findAnchor,
+} from "./reader-runtime-driver";
 import type { PrependCorrection } from "./fixtures/reader-prepend-probe";
 
 function prependCompensation(corrections: PrependCorrection[], since: number, validate = true) {

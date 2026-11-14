@@ -1,5 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { ReaderRuntimeDriver } from "./reader-runtime-driver";
+import { expect, type Page } from "@playwright/test";
+import { test, ReaderRuntimeDriver } from "./reader-runtime-driver";
 import { startPerformanceCapture } from "./reader-performance-collector.mjs";
 
 async function frames(page: Page, count = 8) {

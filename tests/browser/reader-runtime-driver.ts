@@ -1,6 +1,20 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
 import type { RuntimeOptions } from "./fixtures/reader-epub-main";
 import type { RuntimeAnchor, RuntimeSnapshot } from "./fixtures/reader-runtime-observer";
+
+export const test = base.extend({
+  page: async ({ page }, runTest) => {
+    try {
+      await runTest(page);
+    } finally {
+      if (!page.isClosed()) {
+        await page.evaluate(() => {
+          if (window.readerFixture) window.readerFixture.dispose();
+        });
+      }
+    }
+  },
+});
 
 export class ReaderRuntimeDriver {
   constructor(readonly page: Page) {}
