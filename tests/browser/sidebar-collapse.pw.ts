@@ -1,6 +1,11 @@
+import { installAnimationWaits } from "./animation-waits";
 import { writeFile } from "node:fs/promises";
 import os from "node:os";
 import { expect, test, type Page } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(installAnimationWaits);
+});
 
 const fixture = "/tests/browser/fixtures/ui-stability.html?count=3000";
 
@@ -32,12 +37,7 @@ async function frames(
       const toggle = document
         .querySelector<HTMLElement>(".library-titlebar-composition")!
         .querySelector<HTMLButtonElement>("button")!;
-      await Promise.all(
-        document
-          .querySelector(".library-content--books")!
-          .getAnimations()
-          .map((animation) => animation.finished),
-      );
+      await window.animationWaits.finish([document.querySelector(".library-content--books")!]);
       const initialY = card.getBoundingClientRect().y;
       const initialSelected = card.getAttribute("data-selected");
       const initialScrollTop = document.querySelector(".page-shell")!.scrollTop;
@@ -47,21 +47,58 @@ async function frames(
       if (activation === "programmatic") {
         toggle.click();
       } else {
-        await new Promise<void>((resolve) => {
-          toggle.addEventListener("click", () => resolve(), { once: true });
+        await new Promise<void>((resolve, reject) => {
+          const cleanup = () => {
+            clearTimeout(timer);
+            toggle.removeEventListener("click", clicked);
+            window.removeEventListener("pagehide", cancel);
+            document.documentElement.removeAttribute("data-sidebar-observer-ready");
+          };
+          const clicked = () => {
+            cleanup();
+            resolve();
+          };
+          const cancel = () => {
+            cleanup();
+            reject(new Error("Sidebar activation cancelled"));
+          };
+          const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error("Sidebar activation did not arrive within 5000ms"));
+          }, 5000);
+          toggle.addEventListener("click", clicked, { once: true });
+          window.addEventListener("pagehide", cancel, { once: true });
           document.documentElement.setAttribute("data-sidebar-observer-ready", "true");
         });
         document.documentElement.removeAttribute("data-sidebar-observer-ready");
       }
       const start = performance.now();
       // Flush the React commit and style change before yielding to the scheduler.
-      await new Promise<void>((resolve) => {
+      await new Promise<void>((resolve, reject) => {
         if (sidebar.getAttribute("data-collapsed") !== initialCollapsed) return resolve();
+        const cleanup = () => {
+          observer.disconnect();
+          clearTimeout(timer);
+          window.removeEventListener("pagehide", cancel);
+        };
+        const cancel = () => {
+          cleanup();
+          reject(new Error("Sidebar attribute wait cancelled"));
+        };
         const observer = new MutationObserver(() => {
           if (sidebar.getAttribute("data-collapsed") === initialCollapsed) return;
-          observer.disconnect();
+          cleanup();
           resolve();
         });
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(
+            new Error(
+              `Sidebar data-collapsed did not change: ${JSON.stringify(window.animationWaits.describe([sidebar]))}`,
+            ),
+          );
+        }, 2000);
+        window.addEventListener("pagehide", cancel, { once: true });
         observer.observe(sidebar, { attributes: true, attributeFilter: ["data-collapsed"] });
       });
       const shell = document.querySelector(".window-app")!;
@@ -78,10 +115,33 @@ async function frames(
       if (held) travel.pause();
       const revealStarts = new Map<Animation, number>();
       const checkpoints = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 149, 150, 165, 180, 240];
+      const ownedNodes = [
+        shell,
+        ...document.querySelectorAll(
+          ".sidebar__expanded-content, .sidebar__nav .nav-item > span, .library-titlebar-composition__wordmark",
+        ),
+      ];
+      const transitionBudget = Math.max(
+        ...ownedNodes.map((node) => {
+          const style = getComputedStyle(node);
+          const delays = style.transitionDelay.split(",").map((value) => parseFloat(value) * 1000);
+          return Math.max(
+            ...style.transitionDuration
+              .split(",")
+              .map((value, index) => parseFloat(value) * 1000 + delays[index % delays.length]),
+          );
+        }),
+      );
+      // Two travels for reversal plus reveal, with 1000ms scheduling headroom.
+      const deadline = start + Math.max(duration, transitionBudget * 3) + 1000;
       let checkpointIndex = 0;
       let reversed = false;
       let turn: { before: number; after: number } | null = null;
       do {
+        if (performance.now() > deadline)
+          throw new Error(
+            `Sidebar motion timed out: ${JSON.stringify(window.animationWaits.describe(ownedNodes))}`,
+          );
         const checkpoint = checkpoints[checkpointIndex];
         if (held) {
           travel.currentTime = checkpoint;
@@ -388,7 +448,7 @@ for (const scale of [1, 1.25, 1.5]) {
     await expect(page.locator(".book-grid")).toBeVisible();
     await expect(page.locator(".book-cover img").first()).toBeVisible();
     await page.locator(".library-content--books").evaluate(async (node) => {
-      await Promise.all(node.getAnimations().map((animation) => animation.finished));
+      await window.animationWaits.finish([node]);
     });
     await page
       .locator(".sidebar__nav")
@@ -640,7 +700,7 @@ test("record actual overlapping reveal as a natural browser filmstrip", async ({
   await page.goto(fixture);
   await expect(page.locator(".book-grid")).toBeVisible();
   await page.locator(".library-content--books").evaluate(async (node) => {
-    await Promise.all(node.getAnimations().map((animation) => animation.finished));
+    await window.animationWaits.finish([node]);
   });
   const evidence = [];
   for (const direction of ["collapse", "expand"]) {

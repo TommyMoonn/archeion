@@ -1,4 +1,9 @@
+import { installAnimationWaits } from "./animation-waits";
 import { expect, test } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(installAnimationWaits);
+});
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/tests/browser/fixtures/reader-drawers.html");
@@ -82,8 +87,7 @@ for (const mode of ["continuous", "paged"] as const) {
         };
         window.readerDrawer.show("navigation");
         const drawer = document.querySelector(".reader-side-drawer")!;
-        while (!drawer.getAnimations().length) await new Promise(requestAnimationFrame);
-        const entry = drawer.getAnimations()[0];
+        const entry = await window.animationWaits.acquire(drawer);
         entry.pause();
         entry.currentTime = Number(entry.effect!.getTiming().duration) * 0.4;
         const samples = [];
