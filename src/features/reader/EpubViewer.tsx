@@ -352,6 +352,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     handleDocumentRemoved: handleContentActionDocumentRemoved,
     handleEscape: handleContentActionEscape,
     handleFootnoteAction,
+    handleRelocation: handleContentActionRelocation,
     prepareDocument,
     resetForSession: resetContentActionSession,
   } = contentActions;
@@ -381,7 +382,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         dismiss(false);
         dismissDictionaryLookup();
         clearFeedback();
-        dismissFootnote(false);
+        handleContentActionRelocation();
         dismissExternal(false);
         clearContentActionFeedback();
       },
@@ -419,7 +420,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     dismiss,
     dismissDictionaryLookup,
     dismissExternal,
-    dismissFootnote,
+    handleContentActionRelocation,
     handleSelection,
     onError,
     onLocationChange,
