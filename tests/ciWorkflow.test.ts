@@ -251,7 +251,7 @@ describe("CI workflow contract", () => {
     expect(job).toMatch(/uses: actions\/setup-node@[a-f0-9]{40}/);
     expect(job).toContain("node-version-file: .node-version");
     expect(job).toContain("cache: pnpm\n          cache-dependency-path: pnpm-lock.yaml");
-    expect(job).toContain("run: pnpm install --frozen-lockfile");
+    expect(job).toContain("run: pnpm install --filter archeion... --frozen-lockfile");
     expect(job).not.toMatch(/\bnpm (?:ci|install|run)\b|cache: npm/);
   });
 

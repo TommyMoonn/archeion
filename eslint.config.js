@@ -7,6 +7,8 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores([
     "dist",
+    "website/build",
+    "website/.docusaurus",
     "coverage",
     "src-tauri/target",
     ".agent-work",
