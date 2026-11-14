@@ -131,7 +131,12 @@ for (const failure of ["missing", "corrupt", "timeout"]) {
     });
     await expect(page.locator("html")).toHaveAttribute("data-app-theme", "dark");
     if (failure === "timeout") {
-      await page.waitForTimeout(1800);
+      await expect
+        .poll(() => page.evaluate(() => window.uiStabilityFixture.themeReadSettled()))
+        .toBe(true);
+      await page.evaluate(
+        () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+      );
       await expect(page.locator("html")).not.toHaveCSS("--surface-main", "#22284e");
     }
     await page.getByRole("button", { name: "Dismiss theme notice" }).focus();
@@ -216,7 +221,10 @@ test("a newer choice wins while a secondary window resolves its startup custom r
     await window.uiStabilityFixture.setAppTheme({ kind: "builtin", id: "light" });
     return performance.now();
   });
-  await page.waitForTimeout(1800);
+  await expect
+    .poll(() => page.evaluate(() => window.uiStabilityFixture.themeReadSettled()))
+    .toBe(true);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   const report = await finish({ newest: "light", lateCustomReadObserved: true });
   const frames = report.probe.frames.filter(
     (frame) => frame.time >= latestAt && frame.palette.body,

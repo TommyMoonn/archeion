@@ -13,7 +13,6 @@ import { BookAdvancedMetadataDialog } from "../../../src/features/library/BookAd
 import { BookCoverWritebackDialog } from "../../../src/features/library/BookCoverWritebackDialog";
 import { BulkMetadataDialog } from "../../../src/features/library/BulkMetadataDialog";
 import { LibraryStorageProvider } from "../../../src/storage/LibraryStorageContext";
-import { TauriArchiveLibraryStorage } from "../../../src/storage/TauriArchiveLibraryStorage";
 import type { Book, EpubCoverPreparation } from "../../../src/types/book";
 import "../../../src/styles/index.css";
 
@@ -81,6 +80,8 @@ mockIPC((command) => {
   throw new Error(`Unexpected dialog fixture command: ${command}`);
 });
 focusPresentationRuntime.start(document);
+const { TauriArchiveLibraryStorage } =
+  await import("../../../src/storage/TauriArchiveLibraryStorage");
 const storage = new TauriArchiveLibraryStorage();
 storage.loadBookCover = async () => undefined;
 

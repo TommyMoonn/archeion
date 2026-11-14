@@ -160,8 +160,7 @@ describe("release-candidate workflow", () => {
   ])("sets up pinned pnpm before metadata validation in %s", (jobId, validationStep) => {
     const job = releaseJob(jobId);
     const setup = releaseStep(jobId, "Set up pnpm");
-    expect(setup).toContain("uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061");
-    expect(setup).toContain("run_install: false");
+    expect(setup).toContain("uses: ./.github/actions/setup-pnpm");
     expect(job.indexOf("uses: actions/checkout@")).toBeLessThan(job.indexOf(setup));
     expect(job.indexOf(setup)).toBeLessThan(job.indexOf(releaseStep(jobId, validationStep)));
   });
@@ -393,20 +392,16 @@ describe("release-candidate detection", () => {
     expect(fixture.calls.filter((call) => call.startsWith("gh"))).toHaveLength(1);
   });
 
-  itWithPowerShell(
-    "uses the real release validator for complete metadata and rejects incomplete preparation",
-    () => {
-      expect(scenario({ realValidation: "valid" }).detect()).toEqual({
-        candidate: true,
-        version: "1.5.5",
-        sha: commit,
-      });
-      expect(() => scenario({ realValidation: "partial" }).detect()).toThrow(
-        "Release versions are not aligned",
-      );
-      expect(() => scenario({ realValidation: "missingNote" }).detect()).toThrow(
-        "release note is missing",
-      );
+  itWithPowerShell.each([
+    ["valid", null],
+    ["partial", "Release versions are not aligned"],
+    ["missingNote", "release note is missing"],
+  ] as const)(
+    "uses the real release validator for %s preparation",
+    (realValidation, error) => {
+      const fixture = scenario({ realValidation });
+      if (error) expect(() => fixture.detect()).toThrow(error);
+      else expect(fixture.detect()).toEqual({ candidate: true, version: "1.5.5", sha: commit });
     },
     30_000,
   );

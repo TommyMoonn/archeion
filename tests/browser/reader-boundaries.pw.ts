@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { ReaderRuntimeDriver } from "./reader-runtime-driver";
+import { expect } from "@playwright/test";
+import { test, ReaderRuntimeDriver } from "./reader-runtime-driver";
 
 test.use({
   viewport: { width: 1600, height: 1000 },

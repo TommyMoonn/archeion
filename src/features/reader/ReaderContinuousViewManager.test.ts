@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import type { ResidentView } from "epubjs/src/managers/continuous/index.js";
+import ContinuousViewManager from "epubjs/src/managers/continuous/index.js";
+import type Section from "epubjs/types/section";
 import { ReaderContinuousViewManager } from "./ReaderContinuousViewManager";
 
 function setup() {
@@ -102,6 +104,41 @@ describe("Continuous warm residency", () => {
     await Promise.all([first, second]);
     expect(pending.view.displayed).toBe(true);
   });
+
+  it.each(["warm-first", "navigation-first"])(
+    "shares an iframe mount between navigation and a warm update: %s",
+    async (order) => {
+      const { manager, create } = setup();
+      const pending = create(500, 600, false);
+      const finishers: Array<() => void> = [];
+      pending.view.display.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishers.push(() => {
+              pending.view.displayed = true;
+              resolve(pending.view);
+            });
+          }),
+      );
+      const stockDisplay = vi
+        .spyOn(ContinuousViewManager.prototype, "display")
+        .mockResolvedValue(undefined);
+      const navigate = () => manager.display(pending.view.section as Section);
+      const work =
+        order === "warm-first" ? [manager.update(), navigate()] : [navigate(), manager.update()];
+      try {
+        // Two loads on the same vendor iframe overwrite its onload callback,
+        // leaving the first caller's navigation promise permanently pending.
+        expect(pending.view.display).toHaveBeenCalledOnce();
+      } finally {
+        for (const finish of finishers) finish();
+        await Promise.all(work);
+        stockDisplay.mockRestore();
+      }
+      expect(pending.view.displayed).toBe(true);
+      expect(pending.view.show).toHaveBeenCalled();
+    },
+  );
 
   it("reports a failed warm mount to its owning session", async () => {
     const { manager, create } = setup();

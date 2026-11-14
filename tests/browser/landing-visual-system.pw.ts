@@ -1,4 +1,9 @@
+import { installAnimationWaits } from "./animation-waits";
 import { expect, test } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(installAnimationWaits);
+});
 
 for (const [name, width, height] of [
   ["desktop", 1440, 900],
@@ -8,7 +13,9 @@ for (const [name, width, height] of [
 ] as const) {
   test(`site roles and product controls remain readable at ${name}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto("/docs/", { waitUntil: "networkidle" });
+    await page.goto("/docs/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".hero-product")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const metrics = await page.evaluate(() => {
       const css = (selector: string) =>
         getComputedStyle(document.querySelector<HTMLElement>(selector)!);
@@ -35,7 +42,9 @@ for (const [name, width, height] of [
 
 test("focus, Reader themes and reduced motion remain meaningful", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/docs/", { waitUntil: "networkidle" });
+  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".hero-product")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
   const search = page.locator(".app-library__search input");
   await search.focus();
@@ -50,7 +59,9 @@ test("focus, Reader themes and reduced motion remain meaningful", async ({ page 
   await expect(page.locator(".reader-demo")).toHaveAttribute("data-theme", "sepia");
 
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".hero-product")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const styles = await page
     .locator("[data-reveal]")
     .first()

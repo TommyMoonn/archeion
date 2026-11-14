@@ -1,12 +1,14 @@
 import { defineConfig } from "@playwright/test";
-import base from "../../playwright.config";
+import base from "./visual-refinement.config";
 
-// An external Vite process permits explicit server preparation before cold browser contexts.
-// It never changes the production build or the shared suite's startup contract.
+// Observe the built fixture so development module transforms do not dominate
+// cold browser measurements. The package command prepares the existing build.
 export default defineConfig({
   ...base,
   testDir: ".",
   testMatch: "ui-stability.pw.ts",
+  testIgnore: [],
+  fullyParallel: false,
   outputDir: "../../test-results/ui-stability",
   reporter: "line",
   workers: 1,

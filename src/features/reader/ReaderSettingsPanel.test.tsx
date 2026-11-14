@@ -42,9 +42,9 @@ const basePanelProps = {
   settings: { ...defaultReaderSettings },
 };
 
-afterEach(() => {
+afterEach(async () => {
   if (root) {
-    act(() => root?.unmount());
+    await act(async () => root?.unmount());
   }
   resetTransientSurfaceOwnershipForTests();
   document.body.replaceChildren();
@@ -60,12 +60,12 @@ function createContainer() {
   return container;
 }
 
-function renderPanel(persistenceFailed = false) {
+async function renderPanel(persistenceFailed = false) {
   const host = createContainer();
   const onClose = vi.fn();
   const onReaderThemeCommit = vi.fn();
 
-  act(() => {
+  await act(async () => {
     root?.render(
       <ReaderSideSurfaceLayer onDismiss={onClose}>
         <ReaderSettingsPanel
@@ -187,10 +187,10 @@ function keyboardEvent(target: Element): KeyboardEvent {
 }
 
 describe("ReaderSettingsPanel", () => {
-  it("commits book layout with pointer and arrow keys independently of global settings", () => {
+  it("commits book layout with pointer and arrow keys independently of global settings", async () => {
     const host = createContainer();
     const commit = vi.fn();
-    act(() =>
+    await act(async () =>
       root?.render(
         <ReaderSettingsPanel {...basePanelProps} onClose={vi.fn()} onPresentationCommit={commit} />,
       ),
@@ -200,9 +200,9 @@ describe("ReaderSettingsPanel", () => {
     expect(options[0].getAttribute("aria-checked")).toBe("true");
     expect(options[0].tabIndex).toBe(0);
     expect(options[1].tabIndex).toBe(-1);
-    act(() => options[1].click());
+    await act(async () => options[1].click());
     expect(commit).toHaveBeenLastCalledWith("publisher");
-    act(() =>
+    await act(async () =>
       group.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
       ),
@@ -212,10 +212,10 @@ describe("ReaderSettingsPanel", () => {
     expect(basePanelProps.onSettingsCommit).not.toHaveBeenCalled();
   });
 
-  it("announces a failed book-layout save and exposes retry without showing it for fixed layout", () => {
+  it("announces a failed book-layout save and exposes retry without showing it for fixed layout", async () => {
     const host = createContainer();
     const retry = vi.fn();
-    act(() =>
+    await act(async () =>
       root?.render(
         <ReaderSettingsPanel
           {...basePanelProps}
@@ -228,13 +228,13 @@ describe("ReaderSettingsPanel", () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toContain(
       "The saved layout has been restored",
     );
-    act(() =>
+    await act(async () =>
       [...host.querySelectorAll<HTMLButtonElement>("button")]
         .find((button) => button.textContent === "Retry saving book layout")!
         .click(),
     );
     expect(retry).toHaveBeenCalledOnce();
-    act(() =>
+    await act(async () =>
       root?.render(
         <ReaderSettingsPanel
           {...basePanelProps}
@@ -270,10 +270,10 @@ describe("ReaderSettingsPanel", () => {
       root?.render(<TypographyPanel />);
       await fontCatalog.load();
     });
-    act(() =>
+    await act(async () =>
       host.querySelector<HTMLButtonElement>('button[aria-label^="Reader typeface:"]')!.click(),
     );
-    act(() =>
+    await act(async () =>
       [...host.querySelectorAll<HTMLButtonElement>('[role="option"]')]
         .find((option) => option.textContent === "Arial")!
         .click(),
@@ -285,7 +285,7 @@ describe("ReaderSettingsPanel", () => {
         lineHeight: 1.6,
       }),
     );
-    act(() =>
+    await act(async () =>
       host.querySelector<HTMLButtonElement>('button[aria-label="Increase text size"]')!.click(),
     );
     expect(commits).toHaveBeenLastCalledWith(
@@ -295,7 +295,7 @@ describe("ReaderSettingsPanel", () => {
         lineHeight: 1.6,
       }),
     );
-    act(() =>
+    await act(async () =>
       [...host.querySelectorAll<HTMLButtonElement>('[role="radio"]')]
         .find((button) => button.textContent === "Airy")!
         .click(),
@@ -307,7 +307,7 @@ describe("ReaderSettingsPanel", () => {
         lineHeight: 2,
       }),
     );
-    act(() =>
+    await act(async () =>
       host.querySelector<HTMLButtonElement>('button[aria-label^="Reader typeface:"]')!.click(),
     );
     expect(provider).toHaveBeenCalledOnce();
@@ -330,8 +330,8 @@ describe("ReaderSettingsPanel", () => {
     expect(provider).not.toHaveBeenCalled();
   });
 
-  it("keeps the full current control set for reflowable publications", () => {
-    const rendered = renderPanel();
+  it("keeps the full current control set for reflowable publications", async () => {
+    const rendered = await renderPanel();
 
     expect(settingLabels(rendered.container)).toEqual([
       "Reading mode",
@@ -345,11 +345,11 @@ describe("ReaderSettingsPanel", () => {
     ]);
   });
 
-  it("offers reading widths in increasing order and commits the semantic value", () => {
+  it("offers reading widths in increasing order and commits the semantic value", async () => {
     const host = createContainer();
     const onSettingsCommit = vi.fn();
 
-    act(() => {
+    await act(async () => {
       root?.render(
         <ReaderSettingsPanel
           {...basePanelProps}
@@ -372,7 +372,7 @@ describe("ReaderSettingsPanel", () => {
     ]);
     expect(options[1]?.getAttribute("aria-checked")).toBe("true");
 
-    act(() => options[2]?.click());
+    await act(async () => options[2]?.click());
 
     expect(onSettingsCommit).toHaveBeenCalledWith({
       ...defaultReaderSettings,
@@ -380,10 +380,10 @@ describe("ReaderSettingsPanel", () => {
     });
   });
 
-  it("omits unsafe controls for fixed-layout publications and explains the limitation", () => {
+  it("omits unsafe controls for fixed-layout publications and explains the limitation", async () => {
     const host = createContainer();
 
-    act(() => {
+    await act(async () => {
       root?.render(
         <ReaderSettingsPanel
           {...basePanelProps}
@@ -402,7 +402,7 @@ describe("ReaderSettingsPanel", () => {
     expect(host.querySelector('[aria-label="Reader theme"]')).toBeNull();
   });
 
-  it("restores reflowable controls without changing stored preferences", () => {
+  it("restores reflowable controls without changing stored preferences", async () => {
     const host = createContainer();
     const onSettingsCommit = vi.fn();
     const settings = {
@@ -410,8 +410,8 @@ describe("ReaderSettingsPanel", () => {
       fontSize: 22,
       mode: "continuous" as const,
     };
-    const render = (layoutCapability: ReaderPublicationLayoutCapability) => {
-      act(() => {
+    const render = async (layoutCapability: ReaderPublicationLayoutCapability) => {
+      await act(async () => {
         root?.render(
           <ReaderSettingsPanel
             {...basePanelProps}
@@ -424,11 +424,11 @@ describe("ReaderSettingsPanel", () => {
       });
     };
 
-    render("fixed-layout");
+    await render("fixed-layout");
     expect(host.textContent).not.toContain("22px");
     expect(onSettingsCommit).not.toHaveBeenCalled();
 
-    render("reflowable");
+    await render("reflowable");
     expect(host.textContent).toContain("22px");
     expect(
       [...host.querySelectorAll<HTMLButtonElement>("button")]
@@ -438,8 +438,8 @@ describe("ReaderSettingsPanel", () => {
     expect(onSettingsCommit).not.toHaveBeenCalled();
   });
 
-  it("focuses the close control when the panel opens", () => {
-    const rendered = renderPanel();
+  it("focuses the close control when the panel opens", async () => {
+    const rendered = await renderPanel();
     const close = rendered.container.querySelector<HTMLButtonElement>(
       'button[aria-label="Close reader settings"]',
     );
@@ -451,26 +451,26 @@ describe("ReaderSettingsPanel", () => {
     expect(document.activeElement).toBe(close);
   });
 
-  it("keeps successful automatic persistence silent", () => {
-    const rendered = renderPanel();
+  it("keeps successful automatic persistence silent", async () => {
+    const rendered = await renderPanel();
 
     expect(rendered.container.textContent).not.toContain("Saved automatically");
     expect(rendered.container.querySelector(".reader-settings__status")).toBeNull();
     expect(rendered.container.querySelector('[role="status"]')).toBeNull();
   });
 
-  it("announces persistence failures as an alert", () => {
-    const rendered = renderPanel(true);
+  it("announces persistence failures as an alert", async () => {
+    const rendered = await renderPanel(true);
 
     expect(rendered.container.querySelector('[role="alert"]')?.textContent).toContain(
       "Settings could not be saved",
     );
   });
 
-  it("announces reader theme catalog failures through the existing alert surface", () => {
+  it("announces reader theme catalog failures through the existing alert surface", async () => {
     const host = createContainer();
 
-    act(() => {
+    await act(async () => {
       root?.render(
         <ReaderSettingsPanel
           {...basePanelProps}
@@ -486,10 +486,10 @@ describe("ReaderSettingsPanel", () => {
     expect(host.querySelector(".reader-settings__status")?.hasAttribute("data-error")).toBe(true);
   });
 
-  it("keeps appearance-save feedback authoritative over background theme refresh feedback", () => {
+  it("keeps appearance-save feedback authoritative over background theme refresh feedback", async () => {
     const host = createContainer();
 
-    act(() => {
+    await act(async () => {
       root?.render(
         <ReaderSettingsPanel
           {...basePanelProps}
@@ -508,29 +508,29 @@ describe("ReaderSettingsPanel", () => {
     );
   });
 
-  it("uses the shared archive reader-theme selection", () => {
-    const rendered = renderPanel();
+  it("uses the shared archive reader-theme selection", async () => {
+    const rendered = await renderPanel();
     const select = rendered.container.querySelector<HTMLButtonElement>('[role="combobox"]')!;
 
-    act(() => select.click());
+    await act(async () => select.click());
     const sepia = Array.from(rendered.container.querySelectorAll<HTMLButtonElement>("button")).find(
       (button) => button.textContent === "Sepia",
     )!;
-    act(() => sepia.click());
+    await act(async () => sepia.click());
 
     expect(rendered.onReaderThemeCommit).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
     expect(rendered.onClose).not.toHaveBeenCalled();
     expect(rendered.container.textContent?.match(/Reader theme/g)).toHaveLength(1);
   });
 
-  it("requests freshness on reader-theme entry and preserves the open selection while options update", () => {
+  it("requests freshness on reader-theme entry and preserves the open selection while options update", async () => {
     const host = createContainer();
     const onReaderThemeOpen = vi.fn();
-    const render = (
+    const render = async (
       entries: readonly ThemeCatalogEntry[] = basePanelProps.readerThemeEntries,
       readerThemeCatalogError: string | null = null,
     ) => {
-      act(() => {
+      await act(async () => {
         root?.render(
           <ReaderSettingsPanel
             {...basePanelProps}
@@ -542,14 +542,14 @@ describe("ReaderSettingsPanel", () => {
         );
       });
     };
-    render();
+    await render();
     const select = host.querySelector<HTMLButtonElement>('button[aria-label="Reader theme"]')!;
 
-    act(() => select.click());
+    await act(async () => select.click());
     expect(onReaderThemeOpen).toHaveBeenCalledOnce();
     expect(select.getAttribute("aria-expanded")).toBe("true");
 
-    render([
+    await render([
       {
         applicable: true,
         capabilities: { application: true, reader: true },
@@ -574,7 +574,7 @@ describe("ReaderSettingsPanel", () => {
     expect(host.textContent).toContain("Moon Ink");
     expect(select.textContent).toContain("Dark");
 
-    render([], "Themes could not be refreshed. Reload themes to try again.");
+    await render([], "Themes could not be refreshed. Reload themes to try again.");
     expect(select.getAttribute("aria-expanded")).toBe("true");
     expect(select.textContent).toContain("Dark");
     expect(host.querySelector('[role="alert"]')?.textContent).toContain(
@@ -582,8 +582,8 @@ describe("ReaderSettingsPanel", () => {
     );
   });
 
-  it("associates each visible setting label with its control group", () => {
-    const rendered = renderPanel();
+  it("associates each visible setting label with its control group", async () => {
+    const rendered = await renderPanel();
     const groups = [...rendered.container.querySelectorAll<HTMLElement>(".reader-setting")];
 
     expect(groups.length).toBeGreaterThan(0);
@@ -595,8 +595,8 @@ describe("ReaderSettingsPanel", () => {
     }
   });
 
-  it("registers the rendered aside as one reader-panel and removes ownership on unmount", () => {
-    const rendered = renderPanel();
+  it("registers the rendered aside as one reader-panel and removes ownership on unmount", async () => {
+    const rendered = await renderPanel();
     const panel = rendered.container.querySelector<HTMLElement>(
       'aside[aria-label="Reader settings"]',
     )!;
@@ -606,20 +606,20 @@ describe("ReaderSettingsPanel", () => {
     expect(layer.dataset.applicationTransient).toBe("reader-panel");
     expect(activeTransientSurfaceKind()).toBe("reader-panel");
 
-    act(() => root?.unmount());
+    await act(async () => root?.unmount());
     root = null;
 
     expect(layer.dataset.applicationTransient).toBeUndefined();
     expect(activeTransientSurfaceKind()).toBeNull();
   });
 
-  it("does not duplicate ownership or global listeners when settings values rerender", () => {
+  it("does not duplicate ownership or global listeners when settings values rerender", async () => {
     createContainer();
     const onClose = vi.fn();
     const addEventListener = vi.spyOn(window, "addEventListener");
 
-    function render(settings: ReaderSettings) {
-      act(() => {
+    async function render(settings: ReaderSettings) {
+      await act(async () => {
         root?.render(
           <ReaderSideSurfaceLayer onDismiss={onClose}>
             <ReaderSettingsPanel {...basePanelProps} onClose={onClose} settings={settings} />
@@ -628,8 +628,8 @@ describe("ReaderSettingsPanel", () => {
       });
     }
 
-    render({ ...defaultReaderSettings });
-    render({ ...defaultReaderSettings, fontSize: defaultReaderSettings.fontSize + 1 });
+    await render({ ...defaultReaderSettings });
+    await render({ ...defaultReaderSettings, fontSize: defaultReaderSettings.fontSize + 1 });
 
     expect(
       addEventListener.mock.calls.filter(
@@ -637,22 +637,22 @@ describe("ReaderSettingsPanel", () => {
       ),
     ).toHaveLength(1);
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
     });
 
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("claims parent-document Escape once before lower reader handling", () => {
+  it("claims parent-document Escape once before lower reader handling", async () => {
     const host = createContainer();
     const onClose = vi.fn();
-    act(() => root?.render(<ControlledPanel onClose={onClose} />));
+    await act(async () => root?.render(<ControlledPanel onClose={onClose} />));
     const lowerReaderClose = vi.fn();
     window.addEventListener("keydown", lowerReaderClose, true);
     const event = new KeyboardEvent("keydown", { cancelable: true, key: "Escape" });
 
-    act(() => window.dispatchEvent(event));
+    await act(async () => window.dispatchEvent(event));
 
     expect(event.defaultPrevented).toBe(true);
     expect(onClose).toHaveBeenCalledOnce();
@@ -662,10 +662,10 @@ describe("ReaderSettingsPanel", () => {
     window.removeEventListener("keydown", lowerReaderClose, true);
   });
 
-  it("claims EPUB-document Escape before reader-local fallbacks", () => {
+  it("claims EPUB-document Escape before reader-local fallbacks", async () => {
     const host = createContainer();
     const onClose = vi.fn();
-    act(() => root?.render(<ControlledPanel onClose={onClose} />));
+    await act(async () => root?.render(<ControlledPanel onClose={onClose} />));
     const frame = mountedFrame();
     const chapter = frame.contentDocument!;
     const onEscape = vi.fn(() => true);
@@ -680,7 +680,7 @@ describe("ReaderSettingsPanel", () => {
       key: "Escape",
     });
 
-    act(() => chapter.dispatchEvent(event));
+    await act(async () => chapter.dispatchEvent(event));
 
     expect(event.defaultPrevented).toBe(true);
     expect(onClose).toHaveBeenCalledOnce();
@@ -691,18 +691,18 @@ describe("ReaderSettingsPanel", () => {
     expect(activeTransientSurfaceKind()).toBeNull();
   });
 
-  it("lets the font picker own the first Escape before Reader Settings", () => {
+  it("lets the font picker own the first Escape before Reader Settings", async () => {
     const host = createContainer();
     const onClose = vi.fn();
-    act(() => root?.render(<ControlledPanel onClose={onClose} />));
+    await act(async () => root?.render(<ControlledPanel onClose={onClose} />));
     const typeface = host.querySelector<HTMLButtonElement>(
       'button[aria-label^="Reader typeface:"]',
     )!;
 
-    act(() => typeface.click());
+    await act(async () => typeface.click());
     expect(activeTransientSurfaceKind()).toBe("popover");
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
     });
 
@@ -711,7 +711,7 @@ describe("ReaderSettingsPanel", () => {
     expect(activeTransientSurfaceKind()).toBe("reader-panel");
     expect(onClose).not.toHaveBeenCalled();
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
     });
 
@@ -720,23 +720,23 @@ describe("ReaderSettingsPanel", () => {
     expect(activeTransientSurfaceKind()).toBeNull();
   });
 
-  it("remains registered beneath a modal and closes after the modal is dismissed", () => {
+  it("remains registered beneath a modal and closes after the modal is dismissed", async () => {
     const host = createContainer();
     const onPanelClose = vi.fn();
     const onModalClose = vi.fn();
-    act(() =>
+    await act(async () =>
       root?.render(<PanelWithModal onModalClose={onModalClose} onPanelClose={onPanelClose} />),
     );
 
     const openModal = Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find(
       (button) => button.textContent === "Open modal",
     )!;
-    act(() => openModal.click());
+    await act(async () => openModal.click());
 
     expect(activeTransientSurfaceKind()).toBe("app-dialog");
     expect(host.querySelector('aside[aria-label="Reader settings"]')).not.toBeNull();
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
     });
 
@@ -745,7 +745,7 @@ describe("ReaderSettingsPanel", () => {
     expect(activeTransientSurfaceKind()).toBe("reader-panel");
     expect(host.querySelector('aside[aria-label="Reader settings"]')).not.toBeNull();
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
     });
 
@@ -753,8 +753,8 @@ describe("ReaderSettingsPanel", () => {
     expect(activeTransientSurfaceKind()).toBeNull();
   });
 
-  it("uses the same resolver scope contract as the other reader panels", () => {
-    renderPanel();
+  it("uses the same resolver scope contract as the other reader panels", async () => {
+    await renderPanel();
     const epubDocument = document.implementation.createHTMLDocument("EPUB");
     const target = epubDocument.createElement("p");
     epubDocument.body.append(target);

@@ -960,6 +960,8 @@ it("retires a pending palette outcome at close request while exit still owns the
     expect(disposed).toHaveBeenCalledOnce();
     expect(container.textContent).not.toContain("Search late");
   } finally {
+    await act(async () => root?.unmount());
+    root = null;
     animationSpy.mockRestore();
     delete document.documentElement.dataset.motion;
   }

@@ -9,6 +9,7 @@ import { probeReaderPrepend } from "./reader-prepend-probe";
 import {
   observeReaderRuntime,
   type RuntimeSnapshot,
+  type RuntimeFrame,
   type RuntimeEvent,
 } from "./reader-runtime-observer";
 
@@ -53,6 +54,7 @@ declare global {
       highlight: (cfi: string) => void;
       turn: (direction: "next" | "prev") => Promise<void>;
       snapshot: () => RuntimeSnapshot;
+      sampleFrame: (trackedIds?: string[]) => RuntimeFrame;
       events: () => RuntimeEvent[];
       metrics: ReturnType<typeof observeReaderRuntime>["metrics"];
       clearEvents: () => void;
@@ -293,6 +295,7 @@ window.readerFixture = {
     current().rendition.annotations.highlight(cfi, { note: "Synthetic fixture note" });
   },
   snapshot: () => current().observer.snapshot(),
+  sampleFrame: (trackedIds) => current().observer.sampleFrame(trackedIds),
   events: () => current().observer.events(),
   metrics: () => current().observer.metrics(),
   clearEvents: () => current().observer.clear(),

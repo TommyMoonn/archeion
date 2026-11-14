@@ -1,4 +1,9 @@
+import { installAnimationWaits } from "./animation-waits";
 import { expect, test } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(installAnimationWaits);
+});
 
 const viewports = [
   { name: "minimum", width: 320, height: 800 },
@@ -11,7 +16,9 @@ const viewports = [
 for (const viewport of viewports) {
   test(`production Hero remains legible without clipping at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto("/docs/", { waitUntil: "networkidle" });
+    await page.goto("/docs/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".hero-product")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
     const hero = page.locator(".hero");
     const product = page.locator(".hero-product");
@@ -26,7 +33,12 @@ for (const viewport of viewports) {
     await expect(hero.getByRole("link", { name: "Download for Windows" })).toBeVisible();
     await expect(hero.getByRole("link", { name: "Explore the library" })).toBeVisible();
 
-    await page.waitForTimeout(900);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      const product = document.querySelector(".hero-product");
+      if (!product) throw new Error("Hero product missing");
+      await window.animationWaits.finish([product]);
+    });
 
     const metrics = await page.evaluate(() => {
       const hero = document.querySelector<HTMLElement>(".hero");
@@ -67,7 +79,9 @@ test("production Hero has bounded full motion and a complete reduced-motion stat
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/docs/", { waitUntil: "networkidle" });
+  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".hero-product")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
   const fullMotion = await page.evaluate(() =>
     [".hero-product__library", ".hero-product__bridge", ".hero-product__reader"].map((selector) => {
@@ -83,7 +97,9 @@ test("production Hero has bounded full motion and a complete reduced-motion stat
   expect(fullMotion.every(({ count }) => count === "1")).toBe(true);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".hero-product")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const reducedMotion = await page.evaluate(() =>
     [".hero-product__library", ".hero-product__bridge", ".hero-product__reader"].map((selector) => {
       const element = document.querySelector<HTMLElement>(selector)!;
@@ -107,7 +123,9 @@ test("Hero actions are keyboard reachable and no-animation rendering keeps the p
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/docs/", { waitUntil: "networkidle" });
+  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".hero-product")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
   const hero = page.locator(".hero");
   const primary = hero.getByRole("link", { name: "Download for Windows" });
@@ -125,13 +143,16 @@ test("Hero actions are keyboard reachable and no-animation rendering keeps the p
   await expect(page.locator(".hero-product__reader")).toBeVisible();
 });
 
-test("coarse pointer keeps the complete H04 product relationship", async ({ browser }) => {
+test("coarse pointer keeps the complete H04 product relationship", async ({ browser, baseURL }) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
+    baseURL,
   });
   const page = await context.newPage();
-  await page.goto("http://127.0.0.1:4173/docs/", { waitUntil: "networkidle" });
+  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".hero-product")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
 
   expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
   await expect(page.locator(".hero-product__library")).toBeVisible();

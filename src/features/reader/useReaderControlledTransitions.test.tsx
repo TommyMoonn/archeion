@@ -325,7 +325,10 @@ describe("useReaderControlledTransitions", () => {
       retire: retireA,
       settle: settleA,
     });
-    const leaveA = apiRef.current!.leaveReader(navigateA);
+    let leaveA!: Promise<boolean>;
+    await act(async () => {
+      leaveA = apiRef.current!.leaveReader(navigateA);
+    });
     await act(async () => Promise.resolve());
     expect(settleA).toHaveBeenCalledOnce();
 
@@ -336,7 +339,9 @@ describe("useReaderControlledTransitions", () => {
       settle: settleB,
     });
     await expect(leaveA).resolves.toBe(false);
-    await expect(apiRef.current!.leaveReader(navigateB)).resolves.toBe(true);
+    await act(async () => {
+      await expect(apiRef.current!.leaveReader(navigateB)).resolves.toBe(true);
+    });
 
     await act(async () => settlementA.resolve(true));
     expect(navigateA).not.toHaveBeenCalled();
@@ -366,7 +371,10 @@ describe("useReaderControlledTransitions", () => {
       archiveId: "archive-a",
       settle: () => settlementA.promise,
     });
-    const leaveA = apiRef.current!.leaveReader(navigateA);
+    let leaveA!: Promise<boolean>;
+    await act(async () => {
+      leaveA = apiRef.current!.leaveReader(navigateA);
+    });
     await act(async () => Promise.resolve());
 
     await renderHarness({
@@ -376,7 +384,9 @@ describe("useReaderControlledTransitions", () => {
       settle: async () => true,
     });
     await expect(leaveA).resolves.toBe(false);
-    await expect(apiRef.current!.leaveReader(navigateB)).resolves.toBe(true);
+    await act(async () => {
+      await expect(apiRef.current!.leaveReader(navigateB)).resolves.toBe(true);
+    });
     await act(async () => settlementA.resolve(true));
 
     expect(navigateA).not.toHaveBeenCalled();
@@ -403,8 +413,14 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], retire, sessionKey: "book-a", settle });
 
-    const first = apiRef.current!.leaveReader(action);
-    const second = apiRef.current!.leaveReader(duplicate);
+    let first!: Promise<boolean>;
+    await act(async () => {
+      first = apiRef.current!.leaveReader(action);
+    });
+    let second!: Promise<boolean>;
+    await act(async () => {
+      second = apiRef.current!.leaveReader(duplicate);
+    });
     expect(second).toBe(first);
     expect(duplicate).not.toHaveBeenCalled();
     expect(action).not.toHaveBeenCalled();
@@ -433,8 +449,12 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], retire, sessionKey: "book-a", settle });
 
-    const failed = apiRef.current!.leaveReader(firstNavigation);
-    const duplicate = apiRef.current!.leaveReader(duplicateNavigation);
+    let failed!: Promise<boolean>;
+    let duplicate!: Promise<boolean>;
+    await act(async () => {
+      failed = apiRef.current!.leaveReader(firstNavigation);
+      duplicate = apiRef.current!.leaveReader(duplicateNavigation);
+    });
     expect(duplicate).toBe(failed);
     await expect(failed).resolves.toBe(false);
     expect(publishFailure).toHaveBeenCalledOnce();
@@ -442,7 +462,9 @@ describe("useReaderControlledTransitions", () => {
     expect(duplicateNavigation).not.toHaveBeenCalled();
     expect(retire).not.toHaveBeenCalled();
 
-    await expect(apiRef.current!.leaveReader(retryNavigation)).resolves.toBe(true);
+    await act(async () => {
+      await expect(apiRef.current!.leaveReader(retryNavigation)).resolves.toBe(true);
+    });
     expect(retryNavigation).toHaveBeenCalledOnce();
     expect(retire).toHaveBeenCalledOnce();
   });
@@ -456,8 +478,14 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const first = apiRef.current!.leaveReader(firstAction);
-    const competing = apiRef.current!.leaveReader(competingAction);
+    let first!: Promise<boolean>;
+    await act(async () => {
+      first = apiRef.current!.leaveReader(firstAction);
+    });
+    let competing!: Promise<boolean>;
+    await act(async () => {
+      competing = apiRef.current!.leaveReader(competingAction);
+    });
     await act(async () => Promise.resolve());
 
     expect(competing).toBe(first);
@@ -471,7 +499,7 @@ describe("useReaderControlledTransitions", () => {
     expect(completed).toBe(false);
 
     expect(blockedRoute.ownership.owns()).toBe(true);
-    act(() =>
+    await act(async () =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(blockedRoute.attempt, true),
     );
     await expect(first).resolves.toBe(true);
@@ -499,7 +527,10 @@ describe("useReaderControlledTransitions", () => {
     };
 
     await renderHarness({ ...props, readerIdentity: identityA, retire: retireA });
-    const leaveA = apiRef.current!.leaveReader(navigateA);
+    let leaveA!: Promise<boolean>;
+    await act(async () => {
+      leaveA = apiRef.current!.leaveReader(navigateA);
+    });
     await act(async () => Promise.resolve());
     expect(navigateA).toHaveBeenCalledOnce();
     expect(retireA).toHaveBeenCalledOnce();
@@ -508,7 +539,10 @@ describe("useReaderControlledTransitions", () => {
     await expect(leaveA).resolves.toBe(false);
     act(() => mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(routeA.attempt, true));
 
-    const leaveB = apiRef.current!.leaveReader(navigateB);
+    let leaveB!: Promise<boolean>;
+    await act(async () => {
+      leaveB = apiRef.current!.leaveReader(navigateB);
+    });
     await act(async () => Promise.resolve());
     act(() => mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(routeB.attempt, true));
     await expect(leaveB).resolves.toBe(true);
@@ -532,9 +566,15 @@ describe("useReaderControlledTransitions", () => {
       settle: () => settlement.promise,
     });
 
-    const exit = apiRef.current!.leaveReader(exitAction);
+    let exit!: Promise<boolean>;
+    await act(async () => {
+      exit = apiRef.current!.leaveReader(exitAction);
+    });
     await act(async () => Promise.resolve());
-    const chapter = apiRef.current!.runControlledTransition(chapterAction);
+    let chapter!: Promise<boolean>;
+    await act(async () => {
+      chapter = apiRef.current!.runControlledTransition(chapterAction);
+    });
 
     await act(async () => settlement.resolve(true));
 
@@ -550,16 +590,22 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const exit = apiRef.current!.leaveReader(() => {
-      controlledRoute = beginBlockedRoute();
+    let exit!: Promise<boolean>;
+    await act(async () => {
+      exit = apiRef.current!.leaveReader(() => {
+        controlledRoute = beginBlockedRoute();
+      });
     });
     await act(async () => Promise.resolve());
-    const laterRoute = beginBlockedRoute();
+    let laterRoute!: ReturnType<typeof beginBlockedRoute>;
+    await act(async () => {
+      laterRoute = beginBlockedRoute();
+    });
 
     await expect(exit).resolves.toBe(false);
     expect(controlledRoute.ownership.owns()).toBe(false);
     expect(laterRoute.ownership.owns()).toBe(true);
-    act(() =>
+    await act(async () =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(laterRoute.attempt, true),
     );
   });
@@ -570,18 +616,24 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const firstExit = apiRef.current!.leaveReader(() => {
-      firstRoute = beginBlockedRoute();
+    let firstExit!: Promise<boolean>;
+    await act(async () => {
+      firstExit = apiRef.current!.leaveReader(() => {
+        firstRoute = beginBlockedRoute();
+      });
     });
     await act(async () => Promise.resolve());
-    beginBlockedRoute();
+    act(() => beginBlockedRoute());
     await expect(firstExit).resolves.toBe(false);
 
-    const secondExit = apiRef.current!.leaveReader(() => {
-      secondRoute = beginBlockedRoute();
+    let secondExit!: Promise<boolean>;
+    await act(async () => {
+      secondExit = apiRef.current!.leaveReader(() => {
+        secondRoute = beginBlockedRoute();
+      });
     });
     await act(async () => Promise.resolve());
-    act(() =>
+    await act(async () =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(firstRoute.attempt, true),
     );
     let secondCompleted = false;
@@ -591,7 +643,7 @@ describe("useReaderControlledTransitions", () => {
     await act(async () => Promise.resolve());
     expect(secondCompleted).toBe(false);
 
-    act(() =>
+    await act(async () =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(secondRoute.attempt, true),
     );
     await expect(secondExit).resolves.toBe(true);
@@ -606,17 +658,22 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const failed = apiRef.current!.leaveReader(blockedAction);
+    let failed!: Promise<boolean>;
+    await act(async () => {
+      failed = apiRef.current!.leaveReader(blockedAction);
+    });
     await act(async () => Promise.resolve());
     expect(apiRef.current!.leavePending).toBe(true);
-    act(() =>
+    await act(async () =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(blockedRoute.attempt, false),
     );
     await expect(failed).resolves.toBe(false);
     await act(async () => Promise.resolve());
     expect(apiRef.current!.leavePending).toBe(false);
 
-    await expect(apiRef.current!.leaveReader(retryAction)).resolves.toBe(true);
+    await act(async () => {
+      await expect(apiRef.current!.leaveReader(retryAction)).resolves.toBe(true);
+    });
     expect(retryAction).toHaveBeenCalledOnce();
   });
 
@@ -660,7 +717,7 @@ describe("useReaderControlledTransitions", () => {
       let result!: Promise<boolean>;
       await act(async () => {
         if (source === "route") {
-          beginBlockedRoute();
+          act(() => beginBlockedRoute());
           result = mocks.routeGuardOptions.at(-1)!.settle();
         } else result = mocks.archiveGuards.at(-1)!();
       });
@@ -676,8 +733,11 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     const props = { apiRef, intents: [], sessionKey: "book-a", settle: async () => true };
     await renderHarness(props);
-    const exit = apiRef.current!.leaveReader(() => {
-      beginBlockedRoute();
+    let exit!: Promise<boolean>;
+    await act(async () => {
+      exit = apiRef.current!.leaveReader(() => {
+        act(() => beginBlockedRoute());
+      });
     });
     await act(async () => Promise.resolve());
 
@@ -694,8 +754,11 @@ describe("useReaderControlledTransitions", () => {
       sessionKey: "book-a",
       settle: async () => true,
     });
-    const exit = apiRef.current!.leaveReader(() => {
-      beginBlockedRoute();
+    let exit!: Promise<boolean>;
+    await act(async () => {
+      exit = apiRef.current!.leaveReader(() => {
+        act(() => beginBlockedRoute());
+      });
     });
     await act(async () => Promise.resolve());
 
@@ -728,7 +791,10 @@ describe("useReaderControlledTransitions", () => {
       settle: () => settlement.promise,
     });
 
-    const result = apiRef.current!.runControlledTransition(action);
+    let result!: Promise<boolean>;
+    await act(async () => {
+      result = apiRef.current!.runControlledTransition(action);
+    });
     expect(action).not.toHaveBeenCalled();
     await act(async () => settlement.resolve(true));
     await expect(result).resolves.toBe(true);
@@ -745,8 +811,10 @@ describe("useReaderControlledTransitions", () => {
       archiveId: "archive-a",
       readerIdentity: expect.objectContaining({ bookId: "book-a" }),
     });
-    mocks.routeGuardOptions.at(-1)?.onNavigationIntent();
-    await expect(mocks.archiveGuards.at(-1)?.()).resolves.toBe(true);
+    await act(async () => {
+      mocks.routeGuardOptions.at(-1)?.onNavigationIntent();
+      await expect(mocks.archiveGuards.at(-1)?.()).resolves.toBe(true);
+    });
     expect(intents).toEqual(["book-a", "book-a"]);
     expect(settle).toHaveBeenCalledOnce();
   });

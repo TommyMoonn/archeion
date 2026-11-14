@@ -19,7 +19,7 @@ import {
 import { TauriArchiveLibraryStorage } from "../../storage/TauriArchiveLibraryStorage";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import { createStorage } from "./LibraryPage.testUtils";
+import { createStorage } from "./libraryStorage.testUtils";
 import { useLibraryWorkspaceData, type ArchiveBooksLoadState } from "./useLibraryWorkspaceData";
 
 type WorkspaceCommit = {

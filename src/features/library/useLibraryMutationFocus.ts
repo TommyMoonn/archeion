@@ -98,6 +98,7 @@ export function useLibraryMutationFocus({
   const tokenRef = useRef(0);
   const capturedBookRef = useRef<BookFocusContext | null>(null);
   const capturedFolderRef = useRef<FolderFocusContext | null>(null);
+  const pendingBookRef = useRef<PendingBookFocus | null>(null);
   const [pendingBook, setPendingBook] = useState<PendingBookFocus | null>(null);
   const [pendingFolder, setPendingFolder] = useState<PendingFolderFocus | null>(null);
 
@@ -156,7 +157,9 @@ export function useLibraryMutationFocus({
       ) {
         return;
       }
-      setPendingBook({ ...captured, waitForRemoval: outcome === "deleted" });
+      const pending = { ...captured, waitForRemoval: outcome === "deleted" };
+      pendingBookRef.current = pending;
+      setPendingBook(pending);
     },
     [],
   );
@@ -280,6 +283,7 @@ export function useLibraryMutationFocus({
 
   useEffect(() => {
     capturedBookRef.current = null;
+    pendingBookRef.current = null;
     const frame = window.requestAnimationFrame(() => setPendingBook(null));
     return () => window.cancelAnimationFrame(frame);
   }, [locationKey]);
@@ -287,6 +291,7 @@ export function useLibraryMutationFocus({
   useEffect(() => {
     capturedBookRef.current = null;
     capturedFolderRef.current = null;
+    pendingBookRef.current = null;
     const frame = window.requestAnimationFrame(() => {
       setPendingBook(null);
       setPendingFolder(null);
@@ -315,15 +320,16 @@ export function useLibraryMutationFocus({
   useEffect(() => {
     if (!pendingBookTarget?.fallback || !pendingBook) return;
     const frame = window.requestAnimationFrame(() => {
-      setPendingBook((current) => {
-        if (!current || current.token !== pendingBook.token) return current;
-        if (focusIsUnowned()) {
-          focusElementIfRestorationOwned(fallbackRef.current, {
-            requestIsCurrent: () => pendingBook?.token === current.token,
-          });
-        }
-        return null;
-      });
+      if (pendingBookRef.current?.token !== pendingBook.token) return;
+      pendingBookRef.current = null;
+      if (focusIsUnowned()) {
+        focusElementIfRestorationOwned(fallbackRef.current, {
+          requestIsCurrent: () =>
+            activeArchiveIdRef.current === pendingBook.archiveId &&
+            locationKeyRef.current === pendingBook.locationKey,
+        });
+      }
+      setPendingBook((current) => (current?.token === pendingBook.token ? null : current));
     });
     return () => window.cancelAnimationFrame(frame);
   }, [fallbackRef, pendingBook, pendingBookTarget]);
@@ -335,23 +341,24 @@ export function useLibraryMutationFocus({
       bookId: book.id,
       index,
       onTargetReady: (bookId, targetIndex, target) => {
-        setPendingBook((current) => {
-          if (
-            !current ||
-            current.token !== pendingBook.token ||
-            bookId !== book.id ||
-            targetIndex !== index ||
-            !isUsableFocusTarget(target)
-          ) {
-            return current;
-          }
-          if (focusIsUnowned()) {
-            focusElementIfRestorationOwned(target, {
-              requestIsCurrent: () => pendingBook?.token === current.token,
-            });
-          }
-          return null;
-        });
+        if (
+          pendingBookRef.current?.token !== pendingBook.token ||
+          activeArchiveIdRef.current !== pendingBook.archiveId ||
+          locationKeyRef.current !== pendingBook.locationKey ||
+          bookId !== book.id ||
+          targetIndex !== index ||
+          !isUsableFocusTarget(target)
+        )
+          return;
+        pendingBookRef.current = null;
+        if (focusIsUnowned()) {
+          focusElementIfRestorationOwned(target, {
+            requestIsCurrent: () =>
+              activeArchiveIdRef.current === pendingBook.archiveId &&
+              locationKeyRef.current === pendingBook.locationKey,
+          });
+        }
+        setPendingBook((current) => (current?.token === pendingBook.token ? null : current));
       },
     };
   }, [pendingBook, pendingBookTarget]);

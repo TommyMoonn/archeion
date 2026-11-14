@@ -263,6 +263,69 @@ describe("useEpubContentActionController", () => {
     },
   );
 
+  it.each(["not-footnote", "resolved"] as const)(
+    "preserves internal navigation through relocation without revealing a late %s popup",
+    async (kind) => {
+      let finish!: (resolution: EpubFootnoteResolution) => void;
+      resolveEpubFootnote.mockReturnValue(
+        new Promise<EpubFootnoteResolution>((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const harness = renderController({ current: session() });
+      const { document: chapter, link } = linkedDocument("chapter-2.xhtml#part");
+      act(() =>
+        harness.latest().handleContentClick(clickFrom(link), {
+          document: chapter,
+          sectionHref: "Text/chapter.xhtml",
+        }),
+      );
+      const signal = resolveEpubFootnote.mock.calls[0][0].signal;
+      act(() => harness.latest().handleRelocation());
+      expect(signal?.aborted).toBe(false);
+      const release = vi.fn();
+      await act(async () =>
+        finish(
+          kind === "resolved"
+            ? { kind, value: { nodes: [{ text: "Late note", type: "text" }], release } }
+            : { kind },
+        ),
+      );
+      if (kind === "not-footnote")
+        expect(harness.navigateToTarget).toHaveBeenCalledExactlyOnceWith(
+          "Text/chapter-2.xhtml#part",
+        );
+      else expect(harness.navigateToTarget).not.toHaveBeenCalled();
+      expect(harness.latest().footnote).toBeNull();
+      expect(release).toHaveBeenCalledTimes(kind === "resolved" ? 1 : 0);
+    },
+  );
+
+  it("cancels an explicit footnote still loading when the Reader relocates", async () => {
+    let finish!: (resolution: EpubFootnoteResolution) => void;
+    resolveEpubFootnote.mockReturnValue(
+      new Promise<EpubFootnoteResolution>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const harness = renderController({ current: session() });
+    const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+    act(() =>
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      }),
+    );
+    const signal = resolveEpubFootnote.mock.calls[0][0].signal;
+    act(() => harness.latest().handleRelocation());
+    expect(signal?.aborted).toBe(true);
+    const release = vi.fn();
+    await act(async () => finish({ kind: "resolved", value: { nodes: [], release } }));
+    expect(harness.navigateToTarget).not.toHaveBeenCalled();
+    expect(harness.latest().footnote).toBeNull();
+    expect(release).toHaveBeenCalledOnce();
+  });
+
   it("opens a footnote without navigating and restores focus after Escape", async () => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callback(0);

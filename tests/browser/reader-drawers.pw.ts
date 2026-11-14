@@ -1,4 +1,9 @@
+import { installAnimationWaits } from "./animation-waits";
 import { expect, test, type Page } from "@playwright/test";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(installAnimationWaits);
+});
 
 type Kind = "navigation" | "search" | "annotations" | "settings";
 
@@ -56,8 +61,7 @@ async function holdEntry(page: Page, kind: Kind, fraction: number, playbackRate 
     async ({ kind, fraction, playbackRate }) => {
       window.readerDrawer.show(kind);
       const drawer = document.querySelector(".reader-side-drawer")!;
-      while (!drawer.getAnimations().length) await new Promise(requestAnimationFrame);
-      const animation = drawer.getAnimations()[0];
+      const animation = await window.animationWaits.acquire(drawer);
       animation.playbackRate = playbackRate;
       animation.pause();
       animation.currentTime = Number(animation.effect!.getTiming().duration) * fraction;

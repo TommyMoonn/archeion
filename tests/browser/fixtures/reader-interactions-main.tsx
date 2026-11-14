@@ -106,10 +106,10 @@ let relocations = 0;
 let locationCfi: string | null = null;
 let closeOverlay: (() => void) | undefined;
 
-function passage() {
+function passageIfVisible() {
   const scroller = document.querySelector<HTMLElement>(".epub-container")!;
   const anchor = captureContinuousAnchor(scroller);
-  if (!anchor?.range) throw new Error("Expected visible fixture text");
+  if (!anchor?.range) return null;
   const fixture = readerFixtures.find((entry) => entry.id === fixtureId)!;
   const index = fixture.sections.findIndex(
     (section) => section.id === anchor.element.ownerDocument.title,
@@ -123,6 +123,12 @@ function passage() {
     y: anchor.y,
     text: anchor.range.toString(),
   };
+}
+
+function passage() {
+  const visible = passageIfVisible();
+  if (!visible) throw new Error("Expected visible fixture text");
+  return visible;
 }
 
 function passageAt(target: string) {
@@ -292,6 +298,7 @@ declare global {
       setInteractionBlocked: (blocked: boolean) => void;
       note: () => string | null;
       passage: typeof passage;
+      passageIfVisible: typeof passageIfVisible;
       passageAt: typeof passageAt;
       relocations: () => number;
       location: () => string | null;
@@ -315,6 +322,7 @@ window.readerInteractions = {
   open,
   sectionLoads: sectionLoadProbe,
   passage,
+  passageIfVisible,
   passageAt,
   relocations: () => relocations,
   location: () => locationCfi,

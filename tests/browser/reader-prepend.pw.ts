@@ -1,5 +1,10 @@
-import { expect, test } from "@playwright/test";
-import { ReaderRuntimeDriver, assertNoBlankReverse, findAnchor } from "./reader-runtime-driver";
+import { expect } from "@playwright/test";
+import {
+  test,
+  ReaderRuntimeDriver,
+  assertNoBlankReverse,
+  findAnchor,
+} from "./reader-runtime-driver";
 import type { PrependCorrection } from "./fixtures/reader-prepend-probe";
 
 function prependCompensation(corrections: PrependCorrection[], since: number, validate = true) {
@@ -68,15 +73,6 @@ for (const profile of ["stock", "archeion"] as const) {
         error,
         corrections: await page.evaluate(() => window.readerFixture.prependProbe().corrections()),
       });
-      console.log(
-        JSON.stringify({
-          profile,
-          anchoring,
-          addedHeight,
-          correction: after.scrollTop - before.scrollTop,
-          error,
-        }),
-      );
       expect(addedHeight).toBeGreaterThan(0);
       if (anchoring === "none") expect(Math.abs(error)).toBeLessThanOrEqual(2);
       else expect(Math.abs(error)).toBeGreaterThan(2);
@@ -110,16 +106,6 @@ for (const profile of ["stock", "archeion"] as const) {
         visibleError,
         corrections,
       });
-      console.log(
-        JSON.stringify({
-          profile,
-          anchoring,
-          offset: 40,
-          inserted,
-          correction: settled.scrollTop - nearTop.scrollTop,
-          visibleError,
-        }),
-      );
       expect(inserted).toBeGreaterThan(0);
       if (anchoring === "none") expect(Math.abs(visibleError)).toBeLessThanOrEqual(2);
       else expect(Math.abs(visibleError)).toBeGreaterThan(2);
@@ -239,7 +225,6 @@ for (const offset of [40, 140, 300]) {
     const anchor = before.anchors.find((candidate) => candidate.visible)!;
     expect(anchor).toBeDefined();
     expect(before.scrollTop).toBe(offset);
-    await driver.settle();
     const after = await driver.snapshot();
     const corrections = await page.evaluate(() =>
       window.readerFixture.prependProbe().corrections(),
@@ -370,7 +355,7 @@ test("reverse input crosses ten boundaries without downward passage snap", async
       step % 6 === 0
         ? () => page.evaluate(() => window.readerFixture.turn("prev"))
         : () => driver.wheel(-450);
-    const frames = await driver.sampleFrames(action);
+    const frames = await driver.sampleFrames(action, [passage.id]);
     assertNoBlankReverse(frames);
     let previousY = passage.top;
     for (const frame of frames) {
@@ -378,7 +363,6 @@ test("reverse input crosses ten boundaries without downward passage snap", async
       expect(y).toBeGreaterThanOrEqual(previousY - 2);
       previousY = y;
     }
-    await driver.settle();
     const after = await driver.snapshot();
     expect(findAnchor(after, passage.id).top).toBeGreaterThan(passage.top);
     samples.push(after);
@@ -390,7 +374,6 @@ test("reverse input crosses ten boundaries without downward passage snap", async
   const dragFrames = await driver.sampleFrames(() => driver.dragScrollbar(reverseFraction));
   await driver.attach(testInfo, "scrollbar-reverse-frames", { beforeDrag, frames: dragFrames });
   assertNoBlankReverse(dragFrames);
-  await driver.settle();
   expect(findAnchor(await driver.snapshot(), passage.id).top).toBeGreaterThan(passage.top);
   const after = await driver.snapshot();
   expect(
@@ -467,7 +450,6 @@ for (const retirement of ["book switch", "abort"] as const) {
     const before = await driver.snapshot();
     const passage = before.anchors.find((anchor) => anchor.visible)!;
     const retiredResult = await pending;
-    await driver.settle();
     const after = await driver.snapshot();
     expect(after.scrollTop).toBe(before.scrollTop);
     expect(findAnchor(after, passage.id).top).toBe(findAnchor(before, passage.id).top);

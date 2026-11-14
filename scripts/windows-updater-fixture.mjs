@@ -19,7 +19,18 @@ export function selectSmokeBundleFiles(names, nonce) {
 }
 
 /** Build-only test overlay. Never write these allowances into the production configuration. */
-export function createSmokeOverlay({ nonce, publicKey, endpoint, version, upgradeCode, windows }) {
+export function createSmokeOverlay({
+  nonce,
+  publicKey,
+  endpoint,
+  version,
+  upgradeCode,
+  windows,
+  family,
+  msiLogPath,
+}) {
+  assert.ok(["nsis", "msi"].includes(family), "Expected one installer family");
+  if (family === "msi") assert.ok(msiLogPath, "Expected an MSI updater log path");
   assert.match(nonce, /^[a-f0-9]{16}$/, "Invalid updater smoke identity");
   assert.match(upgradeCode, /^[a-f0-9-]{36}$/i, "Invalid updater upgrade identity");
   assert.notEqual(
@@ -72,7 +83,12 @@ export function createSmokeOverlay({ nonce, publicKey, endpoint, version, upgrad
         requireSignedVersion: true,
         allowDowngrades: false,
         dangerousInsecureTransportProtocol: true,
-        windows: { installMode: "passive" },
+        // The updater plugin shares installerArgs across families. Separate builds
+        // keep MSI logging switches out of the NSIS executable's embedded config.
+        windows: {
+          installMode: "passive",
+          ...(family === "msi" ? { installerArgs: ["/L*v", `"${msiLogPath}"`] } : {}),
+        },
       },
     },
   };

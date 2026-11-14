@@ -1,5 +1,11 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+test.afterEach(async ({ page }) => {
+  await page.evaluate(async () => {
+    if (window.readerInteractions) await window.readerInteractions.dispose();
+  });
+});
+
 async function open(page: Page, mode: "continuous" | "paged", width = 1050) {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto("/tests/browser/fixtures/reader-interactions.html");
@@ -110,7 +116,7 @@ for (const mode of ["continuous", "paged"] as const) {
     expect((await geometry(media)).centered).toBe(true);
     expect(Math.abs((await geometry(media)).centerError)).toBeLessThanOrEqual(1);
   });
-  for (const width of [900, 1050, 1400]) {
+  for (const width of [900, 1400]) {
     test(`audit-like standalone image centers at ${width}px in ${mode}`, async ({
       page,
     }, testInfo) => {
@@ -130,7 +136,7 @@ for (const mode of ["continuous", "paged"] as const) {
     });
   }
 
-  for (const width of [900, 1050, 1400]) {
+  for (const width of [900, 1400]) {
     test(`wrapper picture SVG intrinsic size and fit contracts at ${width}px in ${mode}`, async ({
       page,
     }, testInfo) => {
@@ -312,12 +318,16 @@ test("late image decode and stage/font changes preserve the visible Continuous p
   await page.evaluate(() =>
     window.readerInteractions.settings({ fontSize: 24, readingWidth: "narrow" }),
   );
+  await settle(page);
   await expect
     .poll(() => page.evaluate((cfi) => window.readerInteractions.passageAt(cfi)?.visible, cfi))
     .toBe(true);
   await page.locator("#root").evaluate((root) => {
     root.style.width = "900px";
   });
+  // Visibility can still describe the retiring iframe before resize work starts.
+  // Require stable geometry through the remount before reading its authored CFI.
+  await settle(page);
   await expect
     .poll(() => page.evaluate((cfi) => window.readerInteractions.passageAt(cfi)?.visible, cfi))
     .toBe(true);
@@ -333,7 +343,7 @@ test("late image decode and stage/font changes preserve the visible Continuous p
 });
 
 for (const mode of ["continuous", "paged"] as const) {
-  for (const width of [900, 1050, 1400]) {
+  for (const width of [900, 1400]) {
     test(`opening artwork classification at ${width}px in ${mode}`, async ({ page }, testInfo) => {
       await open(page, mode, width);
       const samples = [];

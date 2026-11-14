@@ -36,6 +36,23 @@ export type RuntimeSnapshot = {
   }[];
   queuedWork: number;
 };
+export type RuntimeFrame = Pick<
+  RuntimeSnapshot,
+  | "time"
+  | "scrollTop"
+  | "scrollHeight"
+  | "clientHeight"
+  | "viewportTop"
+  | "viewportLeft"
+  | "viewportWidth"
+  | "viewCount"
+  | "sections"
+  | "readiness"
+  | "queuedWork"
+> & {
+  authoredContentVisible: boolean;
+  anchors: RuntimeAnchor[];
+};
 export type RuntimeEvent = {
   type: string;
   time: number;
@@ -64,7 +81,11 @@ export function observeReaderRuntime(
   const observedFrames = new Set<HTMLIFrameElement>();
   let disposed = false;
   const scroller = () => stage.querySelector<HTMLElement>(".epub-container");
-  const snapshot = (): RuntimeSnapshot => {
+  const measure = (
+    compact: boolean,
+    trackedIds: string[] = [],
+  ): RuntimeSnapshot & { authoredContentVisible: boolean } => {
+    let authoredContentVisible = false;
     const outer = scroller();
     const viewport = (outer ?? stage).getBoundingClientRect();
     const sections: RuntimeSnapshot["sections"] = [];
@@ -103,7 +124,7 @@ export function observeReaderRuntime(
     }
     // epub.js keeps an empty .epub-view placeholder after destroying its iframe.
     // ref is a read-only vendor DOM marker; do not count it as resident content.
-    for (const view of stage.querySelectorAll<HTMLElement>(".epub-view[ref]")) {
+    for (const view of compact ? [] : stage.querySelectorAll<HTMLElement>(".epub-view[ref]")) {
       const index = Number(view.getAttribute("ref"));
       const section = fixture.sections[index];
       if (section)
@@ -127,14 +148,19 @@ export function observeReaderRuntime(
       const shown = frameStyle.visibility === "visible" && frameStyle.display !== "none";
       const id = fixture.sections[index].id;
       sections.push({ id, index, top: rect.top, height: rect.height });
+      const intersects = rect.top < viewport.bottom && rect.bottom > viewport.top;
+      if (compact && (!intersects || authoredContentVisible) && trackedIds.length === 0) continue;
       for (const element of doc.querySelectorAll<HTMLElement>("p[id], img[id]")) {
+        if (compact && authoredContentVisible && trackedIds.length === 0) break;
+        const tracked = trackedIds.includes(element.id);
+        if (compact && !tracked && (authoredContentVisible || !intersects)) continue;
         const box = element.getBoundingClientRect();
         const elementStyle = doc.defaultView?.getComputedStyle(element);
         const top = rect.top + box.top * scaleY;
         const left = rect.left + box.left * scaleX;
         const width = box.width * scaleX;
         const height = box.height * scaleY;
-        anchors.push({
+        const anchor = {
           section: id,
           id: element.id,
           top,
@@ -149,7 +175,9 @@ export function observeReaderRuntime(
             top + height > Math.max(viewport.top, rect.top) &&
             left < Math.min(viewport.right, rect.right) &&
             left + width > Math.max(viewport.left, rect.left),
-        });
+        };
+        authoredContentVisible ||= anchor.visible;
+        if (!compact || tracked) anchors.push(anchor);
       }
     }
     const visible = sections.filter(
@@ -158,6 +186,7 @@ export function observeReaderRuntime(
     const first = visible[0]?.index;
     const last = visible.at(-1)?.index;
     return {
+      authoredContentVisible,
       time: performance.now(),
       scrollTop: outer?.scrollTop ?? 0,
       scrollHeight: outer?.scrollHeight ?? 0,
@@ -176,6 +205,25 @@ export function observeReaderRuntime(
         Boolean(outer && outer.scrollHeight - outer.clientHeight - outer.scrollTop <= 2),
       readiness,
       queuedWork: manager.q.length(),
+    };
+  };
+  const snapshot = (): RuntimeSnapshot => measure(false);
+  const sampleFrame = (trackedIds: string[] = []): RuntimeFrame => {
+    const sample = measure(true, trackedIds);
+    return {
+      time: sample.time,
+      scrollTop: sample.scrollTop,
+      scrollHeight: sample.scrollHeight,
+      clientHeight: sample.clientHeight,
+      viewportTop: sample.viewportTop,
+      viewportLeft: sample.viewportLeft,
+      viewportWidth: sample.viewportWidth,
+      viewCount: sample.viewCount,
+      sections: sample.sections,
+      readiness: sample.readiness,
+      queuedWork: sample.queuedWork,
+      authoredContentVisible: sample.authoredContentVisible,
+      anchors: sample.anchors,
     };
   };
   const record = (
@@ -304,6 +352,7 @@ export function observeReaderRuntime(
   manager.on("reader-residency", residency);
   return {
     snapshot,
+    sampleFrame,
     events: () => [...events],
     metrics: () => ({
       counts: { ...counts },

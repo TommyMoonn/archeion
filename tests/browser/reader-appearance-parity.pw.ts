@@ -1,5 +1,22 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// Every pair of width, palette, font and presentation occurs at least once.
+// Run the same transitions at the start, middle and end in both reading modes.
+const appearanceCases = [
+  ["narrow", "light", "serif", "publisher"],
+  ["narrow", "dark", "literata", "archeion"],
+  ["narrow", "sepia", "serif", "publisher"],
+  ["comfortable", "light", "literata", "publisher"],
+  ["comfortable", "dark", "serif", "archeion"],
+  ["comfortable", "sepia", "literata", "publisher"],
+  ["wide", "light", "serif", "archeion"],
+  ["wide", "dark", "literata", "publisher"],
+  ["wide", "sepia", "serif", "archeion"],
+  ["full", "light", "literata", "archeion"],
+  ["full", "dark", "serif", "publisher"],
+  ["full", "sepia", "literata", "archeion"],
+] as const;
+
 async function settle(page: Page) {
   await expect(page.locator(".reader-loading")).toHaveCount(0);
   let previous = "";
@@ -61,7 +78,8 @@ test.beforeEach(async ({ page }) => {
 for (const mode of ["continuous", "paged"] as const) {
   for (const section of ["section-01", "section-21", "section-42"]) {
     test(`${mode} appearance matrix at ${section}`, async ({ page }, testInfo) => {
-      test.setTimeout(180_000);
+      // Three hosted runs peaked at 11s; retain headroom for the appearance matrix.
+      test.setTimeout(60_000);
       await page.evaluate((flow) => window.readerInteractions.open("long-spine", flow), mode);
       await expect.poll(() => page.evaluate(() => window.readerInteractions.ready())).toBe(true);
       await page.evaluate((target) => window.readerInteractions.navigate(target), section);
@@ -79,76 +97,81 @@ for (const mode of ["continuous", "paged"] as const) {
       const before = await appearanceGeometry(page, anchor);
       const samples = [];
       const colors = new Map<string, string>();
-      for (const width of ["narrow", "comfortable", "wide", "full"] as const) {
-        for (const palette of ["light", "dark", "sepia"] as const) {
-          for (const font of ["serif", "literata"] as const) {
-            for (const presentation of ["publisher", "archeion"] as const) {
-              await page.evaluate(
-                ({ width, palette, font, presentation }) => {
-                  window.readerInteractions.settings({
-                    readingWidth: width,
-                    fontFamily: { kind: "builtin", id: font },
-                  });
-                  window.readerInteractions.palette(palette);
-                  window.readerInteractions.presentation(presentation);
-                },
-                { width, palette, font, presentation },
-              );
-              await settle(page);
-              const after = await appearanceGeometry(page, anchor);
-              if (!after.original?.visible) {
-                await testInfo.attach("visible-cfi-failure", {
-                  body: JSON.stringify({
-                    before,
-                    width,
-                    palette,
-                    font,
-                    presentation,
-                    anchor,
-                    after,
-                  }),
-                  contentType: "application/json",
-                });
-              }
-              expect(
-                after.original?.visible,
-                JSON.stringify({ width, palette, font, presentation, anchor, after }),
-              ).toBe(true);
-              const documents = await page.evaluate(() =>
-                [...document.querySelectorAll<HTMLIFrameElement>(".epub-container iframe")].map(
-                  (frame) => {
-                    const doc = frame.contentDocument!;
-                    const text = doc.defaultView!.getComputedStyle(doc.querySelector("p")!);
-                    return {
-                      title: doc.title,
-                      fontFamily: text.fontFamily,
-                      fontSize: text.fontSize,
-                      color: text.color,
-                      prose: doc.querySelectorAll(
-                        "[data-archeion-running-prose], [data-archeion-prose-continuation], [data-archeion-prose-flow]",
-                      ).length,
-                      themeSheets: doc.querySelectorAll("#epubjs-inserted-css-archeion-reader")
-                        .length,
-                      layoutSheets: doc.querySelectorAll("#archeion-reader-reflowable-layout")
-                        .length,
-                    };
-                  },
-                ),
-              );
-              for (const doc of documents) {
-                expect(doc.fontSize).toBe("18px");
-                expect(doc.fontFamily.includes("Literata")).toBe(font === "literata");
-                if (colors.has(palette)) expect(doc.color).toBe(colors.get(palette));
-                else colors.set(palette, doc.color);
-                expect(doc.themeSheets).toBe(1);
-                expect(doc.layoutSheets).toBe(presentation === "archeion" ? 1 : 0);
-                if (presentation === "publisher") expect(doc.prose).toBe(0);
-                else expect(doc.prose).toBeGreaterThan(0);
-              }
-              samples.push({ width, palette, font, presentation, documents, geometry: after });
-            }
+      for (const [width, palette, font, presentation] of appearanceCases) {
+        await page.evaluate(
+          ({ width, palette, font, presentation }) => {
+            window.readerInteractions.settings({
+              readingWidth: width,
+              fontFamily: { kind: "builtin", id: font },
+            });
+            window.readerInteractions.palette(palette);
+            window.readerInteractions.presentation(presentation);
+          },
+          { width, palette, font, presentation },
+        );
+        await settle(page);
+        const after = await appearanceGeometry(page, anchor);
+        if (!after.original?.visible) {
+          await testInfo.attach("visible-cfi-failure", {
+            body: JSON.stringify({
+              before,
+              width,
+              palette,
+              font,
+              presentation,
+              anchor,
+              after,
+            }),
+            contentType: "application/json",
+          });
+        }
+        expect(
+          after.original?.visible,
+          JSON.stringify({ width, palette, font, presentation, anchor, after }),
+        ).toBe(true);
+        expect(after.original?.text).toBe(before.original?.text);
+        const documents = await page.evaluate(() =>
+          [...document.querySelectorAll<HTMLIFrameElement>(".epub-container iframe")].map(
+            (frame) => {
+              const doc = frame.contentDocument!;
+              const text = doc.defaultView!.getComputedStyle(doc.querySelector("p")!);
+              return {
+                title: doc.title,
+                fontFamily: text.fontFamily,
+                readingWidth: doc.getElementById("archeion-reader-reflowable-layout")?.dataset
+                  .readerWidth,
+                measure: doc
+                  .defaultView!.getComputedStyle(doc.documentElement)
+                  .getPropertyValue("--archeion-reader-measure")
+                  .trim(),
+                fontSize: text.fontSize,
+                color: text.color,
+                prose: doc.querySelectorAll(
+                  "[data-archeion-running-prose], [data-archeion-prose-continuation], [data-archeion-prose-flow]",
+                ).length,
+                themeSheets: doc.querySelectorAll("#epubjs-inserted-css-archeion-reader").length,
+                layoutSheets: doc.querySelectorAll("#archeion-reader-reflowable-layout").length,
+              };
+            },
+          ),
+        );
+        for (const doc of documents) {
+          expect(doc.fontSize).toBe("18px");
+          expect(doc.fontFamily.includes("Literata")).toBe(font === "literata");
+          if (colors.has(palette)) expect(doc.color).toBe(colors.get(palette));
+          else colors.set(palette, doc.color);
+          expect(doc.themeSheets).toBe(1);
+          expect(doc.layoutSheets).toBe(presentation === "archeion" ? 1 : 0);
+          if (presentation === "publisher") expect(doc.prose).toBe(0);
+          else {
+            expect(doc.prose).toBeGreaterThan(0);
+            expect(doc.readingWidth).toBe(width);
+            expect(doc.measure).toBe(
+              { narrow: "58ch", comfortable: "72ch", wide: "90ch", full: "none" }[width],
+            );
           }
         }
+        samples.push({ width, palette, font, presentation, documents, geometry: after });
       }
       expect(new Set(colors.values()).size).toBe(3);
       expect(await page.evaluate(() => window.readerInteractions.errors())).toEqual([]);
@@ -262,26 +285,22 @@ for (const fixture of ["fixed-layout", "nested-prose"] as const) {
       }, fixture);
     const before = await readControl();
     for (const mode of ["paged", "continuous"] as const) {
-      for (const width of ["narrow", "comfortable", "wide", "full"] as const) {
-        for (const palette of ["light", "dark", "sepia"] as const) {
-          for (const presentation of ["publisher", "archeion"] as const) {
-            await page.evaluate(
-              ({ mode, width, palette, presentation }) => {
-                window.readerInteractions.settings({
-                  mode,
-                  readingWidth: width,
-                  fontSize: 24,
-                  fontFamily: { kind: "builtin", id: "literata" },
-                });
-                window.readerInteractions.palette(palette);
-                window.readerInteractions.presentation(presentation);
-              },
-              { mode, width, palette, presentation },
-            );
-            await settle(page);
-            expect(await readControl()).toEqual(before);
-          }
-        }
+      for (const [width, palette, font, presentation] of appearanceCases) {
+        await page.evaluate(
+          ({ mode, width, palette, font, presentation }) => {
+            window.readerInteractions.settings({
+              mode,
+              readingWidth: width,
+              fontSize: 24,
+              fontFamily: { kind: "builtin", id: font },
+            });
+            window.readerInteractions.palette(palette);
+            window.readerInteractions.presentation(presentation);
+          },
+          { mode, width, palette, font, presentation },
+        );
+        await settle(page);
+        expect(await readControl()).toEqual(before);
       }
     }
     await page.screenshot({ path: testInfo.outputPath("structural-control.png") });
