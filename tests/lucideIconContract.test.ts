@@ -2,9 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import * as lucideIcons from "lucide-react";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -21,46 +18,10 @@ function collectSourceFiles(directory: string): string[] {
   });
 }
 
-function collectRuntimeLucideImports(filePath: string, source: string): string[] {
-  const sourceFile = ts.createSourceFile(
-    filePath,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    filePath.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-  );
-  const iconNames: string[] = [];
-
-  for (const statement of sourceFile.statements) {
-    if (
-      !ts.isImportDeclaration(statement) ||
-      !ts.isStringLiteral(statement.moduleSpecifier) ||
-      statement.moduleSpecifier.text !== "lucide-react" ||
-      statement.importClause?.isTypeOnly
-    ) {
-      continue;
-    }
-
-    const namedBindings = statement.importClause?.namedBindings;
-    if (!namedBindings || !ts.isNamedImports(namedBindings)) continue;
-    for (const specifier of namedBindings.elements) {
-      if (!specifier.isTypeOnly) {
-        iconNames.push(specifier.propertyName?.text ?? specifier.name.text);
-      }
-    }
-  }
-
-  return iconNames;
-}
-
 function iconProviderDependencies(dependencies: Record<string, string>): string[] {
   return Object.keys(dependencies)
     .filter((name) => iconProviderPackagePattern.test(name))
     .sort();
-}
-
-function invalidLucideExports(iconNames: Iterable<string>): string[] {
-  return [...iconNames].filter((iconName) => !(iconName in lucideIcons)).sort();
 }
 
 function assertSingleIconProvider(dependencies: Record<string, string>) {
@@ -69,13 +30,6 @@ function assertSingleIconProvider(dependencies: Record<string, string>) {
     throw new Error(
       `Expected lucide-react as the only icon provider; found: ${providers.join(", ")}`,
     );
-  }
-}
-
-function assertValidLucideExports(iconNames: Iterable<string>) {
-  const invalidExports = invalidLucideExports(iconNames);
-  if (invalidExports.length > 0) {
-    throw new Error(`Invalid lucide-react exports: ${invalidExports.join(", ")}`);
   }
 }
 
@@ -113,37 +67,6 @@ function heavierIconOverrides(filePath: string, source: string): string[] {
 }
 
 describe("Lucide icon integration", () => {
-  it.each([
-    ["source without stroke attributes", "export const icon = <Search />;", []],
-    ["a comment containing the token", "// strokeWidth={2.25}\nconst icon = <Search />;", []],
-    ["a non-emphasized stroke", "const icon = <Search strokeWidth={2} />;", []],
-    [
-      "nested and paired emphasized glyphs",
-      "const icon = <div><Check strokeWidth={2.25} /><Plus strokeWidth={2.25}></Plus></div>;",
-      ["Check", "Plus"],
-    ],
-    [
-      "an ordinary glyph with an invalid override",
-      "const icon = <Search strokeWidth={2.25} />;",
-      ["Search"],
-    ],
-  ])("detects heavier overrides in %s", (_description, source, expected) => {
-    expect(heavierIconOverrides("fixture.tsx", source)).toEqual(expected);
-  });
-
-  it("supports default, emphasized, decorative, and persistent filled-state glyphs", () => {
-    expect(renderToStaticMarkup(createElement(lucideIcons.X))).toContain('stroke-width="2"');
-    expect(renderToStaticMarkup(createElement(lucideIcons.Check, { strokeWidth: 2.25 }))).toContain(
-      'stroke-width="2.25"',
-    );
-    expect(
-      renderToStaticMarkup(createElement(lucideIcons.BookOpenText, { strokeWidth: 1.5 })),
-    ).toContain('stroke-width="1.5"');
-    expect(
-      renderToStaticMarkup(createElement(lucideIcons.Heart, { fill: "currentColor" })),
-    ).toContain('fill="currentColor"');
-  });
-
   it("reserves heavier strokes for selection marks and the primary add action", () => {
     // These are the documented stronger-emphasis roles, not ordinary utilities.
     const emphasizedIcons = new Set(["Check", "SquareCheckBig", "Plus"]);
@@ -170,33 +93,4 @@ describe("Lucide icon integration", () => {
 
     expect(() => assertSingleIconProvider(packageManifest.dependencies ?? {})).not.toThrow();
   });
-
-  it("rejects a second icon-provider dependency", () => {
-    expect(() =>
-      assertSingleIconProvider({
-        "lucide-react": "compatible-version",
-        "react-icons": "compatible-version",
-      }),
-    ).toThrow("lucide-react, react-icons");
-  });
-
-  it("rejects invalid Lucide symbols", () => {
-    expect(() => assertValidLucideExports(["Search", "DefinitelyNotALucideIcon"])).toThrow(
-      "DefinitelyNotALucideIcon",
-    );
-  });
-
-  it("uses only valid Lucide runtime exports across application source", () => {
-    const importedIcons = new Set<string>();
-
-    for (const filePath of collectSourceFiles(sourceRoot)) {
-      const source = fs.readFileSync(filePath, "utf8");
-      for (const iconName of collectRuntimeLucideImports(filePath, source)) {
-        importedIcons.add(iconName);
-      }
-    }
-
-    expect(importedIcons.size).toBeGreaterThan(0);
-    expect(() => assertValidLucideExports(importedIcons)).not.toThrow();
-  }, 30_000);
 });

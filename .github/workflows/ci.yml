@@ -15,11 +15,33 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  TAURI_DRIVER_VERSION: 2.0.6
 
 jobs:
+  classify-changes:
+    name: Classify validation scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.classify.outputs.mode }}
+      expected_jobs: ${{ steps.classify.outputs.expected_jobs }}
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .node-version
+      - name: Classify exact event revisions
+        id: classify
+        run: node scripts/ci-validation-policy.mjs classify
+
   frontend-static:
     name: Frontend static checks
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
@@ -29,9 +51,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
+        uses: ./.github/actions/setup-pnpm
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -64,6 +84,9 @@ jobs:
       - name: Typecheck frontend
         run: pnpm run typecheck
 
+      - name: Typecheck browser contracts
+        run: pnpm run test:browser:typecheck
+
   frontend-tests:
     name: Frontend tests
     runs-on: windows-latest
@@ -76,9 +99,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
+        uses: ./.github/actions/setup-pnpm
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -89,6 +110,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
 
       - name: Run frontend tests
         run: pnpm run test
@@ -109,9 +133,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
+        uses: ./.github/actions/setup-pnpm
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -123,12 +145,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
+
+      - name: Record Playwright version
+        run: pnpm exec playwright --version
+
       - name: Install Chromium headless shell
         run: pnpm exec playwright install --with-deps chromium --only-shell
 
       - name: Run browser contracts
         timeout-minutes: 15
-        run: pnpm run test:browser --shard=${{ matrix.shard }}/2
+        run: pnpm exec playwright test --fail-on-flaky-tests --shard=${{ matrix.shard }}/2
 
       - name: Upload browser failure evidence
         if: ${{ failure() && !cancelled() }}
@@ -148,7 +176,7 @@ jobs:
 
       - name: Run built async surface contracts
         if: matrix.shard == 1
-        run: pnpm exec playwright test --config tests/browser/async-surfaces.config.ts
+        run: pnpm exec playwright test --config tests/browser/async-surfaces.config.ts --fail-on-flaky-tests
 
       - name: Upload async surface failure evidence
         if: ${{ failure() && !cancelled() && matrix.shard == 1 }}
@@ -161,7 +189,7 @@ jobs:
 
   frontend-build:
     name: Frontend build and assets
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
@@ -171,9 +199,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
+        uses: ./.github/actions/setup-pnpm
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -186,46 +212,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        run: pnpm run build
+        run: pnpm exec vite build
 
       - name: Verify bundled frontend assets
         run: pnpm run test:inter-assets
 
-  release-tooling:
-    name: Release tooling checks
-    runs-on: windows-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: 1.97.1
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run release tooling tests
-        run: pnpm run test tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts
-
   rust-checks:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Rust ${{ matrix.name }}
     runs-on: windows-latest
     timeout-minutes: 30
@@ -260,10 +254,15 @@ jobs:
           workspaces: |
             src-tauri -> target
 
+      - name: Record Rust environment
+        run: rustc --version --verbose
+
       - name: Run ${{ matrix.name }}
         run: ${{ matrix.command }}
 
   windows-runtime:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Windows Tauri runtime smoke
     runs-on: windows-2022
     timeout-minutes: 50
@@ -275,9 +274,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
+        uses: ./.github/actions/setup-pnpm
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -300,8 +297,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Tauri WebDriver bridge
-        run: cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
+
+      - name: Cache Tauri WebDriver bridge
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .scratch/runtime-smoke-tools
+          key: tauri-driver-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ env.TAURI_DRIVER_VERSION }}
+
+      - name: Verify or install Tauri WebDriver bridge
+        run: node scripts/ensure-tauri-driver.mjs
 
       - name: Run real Windows runtime smoke
         run: pnpm run test:runtime:windows
@@ -316,6 +322,8 @@ jobs:
           retention-days: 7
 
   windows-updater:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Windows installed updater smoke
     runs-on: windows-2022
     timeout-minutes: 90
@@ -327,9 +335,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4.2.0
-        with:
-          run_install: false
+        uses: ./.github/actions/setup-pnpm
 
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -352,8 +358,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Tauri WebDriver bridge
-        run: cargo install tauri-driver --version 2.0.6 --locked --root .scratch/runtime-smoke-tools
+      - name: Record test environment
+        run: node -p "JSON.stringify({node:process.version,os:require('node:os').version(),runnerImage:process.env.ImageVersion})"
+
+      - name: Cache Tauri WebDriver bridge
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .scratch/runtime-smoke-tools
+          key: tauri-driver-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust-toolchain.toml') }}-${{ env.TAURI_DRIVER_VERSION }}
+
+      - name: Verify or install Tauri WebDriver bridge
+        run: node scripts/ensure-tauri-driver.mjs
 
       - name: Verify isolated signed NSIS and MSI updates
         run: pnpm run test:updater:windows
@@ -368,6 +383,8 @@ jobs:
           retention-days: 7
 
   font-catalog-portability:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Linux font catalog
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -382,11 +399,15 @@ jobs:
           toolchain: 1.97.1
       - name: Compile and test the non-Windows catalog without Windows dependencies
         run: |
+          rustc --version --verbose
+          uname -a
           mkdir -p .scratch
           rustc --edition=2021 --test src-tauri/src/commands/font_catalog.rs -o .scratch/font-catalog-tests
           .scratch/font-catalog-tests
 
   msrv:
+    needs: classify-changes
+    if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build"]') }}
     name: Rust 1.90 check
     runs-on: windows-latest
     timeout-minutes: 20
@@ -416,11 +437,11 @@ jobs:
     name: CI Gate
     if: ${{ always() }}
     needs:
+      - classify-changes
       - frontend-static
       - frontend-tests
       - browser-contracts
       - frontend-build
-      - release-tooling
       - rust-checks
       - font-catalog-portability
       - windows-runtime
@@ -430,20 +451,15 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Require every validation job to succeed
-        shell: pwsh
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .node-version
+      - name: Require the classified validation jobs to succeed
         env:
           REQUIRED_JOBS: ${{ toJSON(needs) }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $jobs = $env:REQUIRED_JOBS | ConvertFrom-Json -AsHashtable
-          if ($jobs.Count -eq 0) { throw 'CI Gate has no validation jobs.' }
-
-          $failed = $false
-          foreach ($job in $jobs.GetEnumerator()) {
-            $result = $job.Value['result']
-            Write-Host "$($job.Key): $result"
-            if ($result -ne 'success') { $failed = $true }
-          }
-
-          if ($failed) { throw 'A required CI validation job did not succeed.' }
+        run: node scripts/ci-validation-policy.mjs gate

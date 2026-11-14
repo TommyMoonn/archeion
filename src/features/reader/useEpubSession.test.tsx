@@ -160,6 +160,7 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
       eventCallbacks.set(event, registrations);
     }),
     prev: vi.fn(async () => undefined),
+    q: { stop: vi.fn() },
     resize: vi.fn(),
     started,
     themes: {
@@ -907,6 +908,40 @@ describe("useEpubSession lifecycle", () => {
       expect(createdSession.destroy).toHaveBeenCalledOnce();
     }
     expect(facadeRef.current).toBeNull();
+  });
+
+  it("retires a rendition before its physical stage attaches without breaking exit", async () => {
+    const started = deferred<void>();
+    const session = createBookSession({ started: started.promise });
+    const rendition = Object.assign(session.rendition, {
+      manager: new ReaderContinuousViewManager({ settings: {} }),
+    });
+    // The actual vendor manager cannot destroy a stage that has not rendered.
+    session.destroy.mockImplementation(() => rendition.manager?.destroy());
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await vi.waitFor(() => expect(bridge.onSessionCreated).toHaveBeenCalledOnce());
+
+    act(() => facadeRef.current?.teardown());
+    expect(session.destroy).toHaveBeenCalledOnce();
+    expect(rendition.q.stop).toHaveBeenCalledOnce();
+    await act(async () => {
+      started.resolve();
+      await started.promise;
+    });
+    expect(rendition.display).not.toHaveBeenCalled();
+    expect(bridge.onReady).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    expect(session.destroy).toHaveBeenCalledOnce();
   });
 
   it.each(["resolve", "reject"] as const)(

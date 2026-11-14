@@ -77,7 +77,32 @@ async function installPriorityProbe(page: import("@playwright/test").Page) {
     };
     const visible = new Map<string, CoverEntry>();
     let raf = 0;
+    let dirty = true;
+    let trailing = 2;
+    let sampledScroll = NaN;
+    const invalidate = () => {
+      dirty = true;
+      trailing = 2;
+    };
+    const mutations = new MutationObserver(invalidate);
+    mutations.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-cover-state", "src", "class", "style"],
+    });
+    const resize = new ResizeObserver(invalidate);
+    resize.observe(document.documentElement);
+    window.addEventListener("scroll", invalidate, { capture: true, passive: true });
+    window.addEventListener("resize", invalidate, { passive: true });
     const sample = () => {
+      if (!dirty && trailing === 0 && host.scrollTop === sampledScroll) {
+        raf = requestAnimationFrame(sample);
+        return;
+      }
+      dirty = false;
+      trailing = Math.max(0, trailing - 1);
+      sampledScroll = host.scrollTop;
       const bounds = host.getBoundingClientRect();
       const current = new Set<string>();
       for (const card of document.querySelectorAll<HTMLElement>("[data-reader-book-id]")) {
@@ -111,6 +136,10 @@ async function installPriorityProbe(page: import("@playwright/test").Page) {
     raf = requestAnimationFrame(sample);
     probe.stop = () => {
       cancelAnimationFrame(raf);
+      mutations.disconnect();
+      resize.disconnect();
+      window.removeEventListener("scroll", invalidate, true);
+      window.removeEventListener("resize", invalidate);
       internals.invoke = invoke;
       HTMLImageElement.prototype.decode = decode;
     };
@@ -119,28 +148,40 @@ async function installPriorityProbe(page: import("@playwright/test").Page) {
 
 test.afterEach(async ({ page }, info) => {
   if (page.isClosed()) return;
-  const diagnostic = await page.evaluate(() => {
-    const probe = window.coverPriorityProbe;
-    if (!probe) return null;
-    return {
-      entries: probe.entries,
-      starts: probe.starts,
-      peakFiles: probe.peakFiles,
-      peakDecodes: probe.peakDecodes,
-      activeFiles: probe.activeFiles,
-      activeDecodes: probe.activeDecodes,
-      covers: [...document.querySelectorAll<HTMLElement>("[data-reader-book-id]")].map((card) => ({
-        id: card.dataset.readerBookId,
-        state: card.querySelector<HTMLElement>(".book-cover")?.dataset.coverState,
-        rect: card.querySelector(".book-cover")?.getBoundingClientRect().toJSON(),
-      })),
-    };
-  });
-  if (diagnostic)
-    await info.attach("priority-diagnostic", {
-      body: JSON.stringify(diagnostic),
-      contentType: "application/json",
-    });
+  try {
+    if (
+      info.status !== info.expectedStatus ||
+      info.retry > 0 ||
+      process.env.ARCHEION_BROWSER_DIAGNOSTICS
+    ) {
+      const diagnostic = await page.evaluate(() => {
+        const probe = window.coverPriorityProbe;
+        if (!probe) return null;
+        return {
+          entries: probe.entries,
+          starts: probe.starts,
+          peakFiles: probe.peakFiles,
+          peakDecodes: probe.peakDecodes,
+          activeFiles: probe.activeFiles,
+          activeDecodes: probe.activeDecodes,
+          covers: [...document.querySelectorAll<HTMLElement>("[data-reader-book-id]")].map(
+            (card) => ({
+              id: card.dataset.readerBookId,
+              state: card.querySelector<HTMLElement>(".book-cover")?.dataset.coverState,
+              rect: card.querySelector(".book-cover")?.getBoundingClientRect().toJSON(),
+            }),
+          ),
+        };
+      });
+      if (diagnostic)
+        await info.attach("priority-diagnostic", {
+          body: JSON.stringify(diagnostic),
+          contentType: "application/json",
+        });
+    }
+  } finally {
+    await page.evaluate(() => window.coverPriorityProbe?.stop());
+  }
 });
 
 for (const view of ["grid", "list"] as const) {
@@ -235,10 +276,19 @@ for (const view of ["grid", "list"] as const) {
       expect(result.peakDecodes).toBeLessThanOrEqual(4);
       expect(result.live).toBeLessThanOrEqual(result.mounted + 48);
       await info.attach("delayed-visible-readiness", {
-        body: JSON.stringify({ view, count, visibleCount, readinessBudget, latencies, ...result }),
+        body: JSON.stringify({
+          view,
+          count,
+          visibleCount,
+          readinessBudget,
+          latencies,
+          peakFiles: result.peakFiles,
+          peakDecodes: result.peakDecodes,
+          live: result.live,
+          mounted: result.mounted,
+        }),
         contentType: "application/json",
       });
-      await page.evaluate(() => window.coverPriorityProbe.stop());
     });
   }
 }

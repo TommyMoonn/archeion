@@ -54,6 +54,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   let active = "a";
   let revision = 0;
   let themeReads = 0;
+  let themeReadsCompleted = 0;
   const windowMode = params.get("window") ?? "main";
   if (!["main", "about", "settings", "archive-manager", "theme-manager"].includes(windowMode))
     throw new Error("Unsupported window mode");
@@ -268,6 +269,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         case "read_theme_manifest":
           themeReads += 1;
           await delay(themeDelay);
+          themeReadsCompleted += 1;
           if (themeFailure === "missing") throw new Error("Synthetic missing theme");
           if (themeFailure === "corrupt") return "invalid json";
           return JSON.stringify(shellStressThemes.distinct);
@@ -314,6 +316,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   return {
     utilityEvents,
     themeReadStarted: () => themeReads > 0,
+    themeReadSettled: () => themeReads > 0 && themeReadsCompleted === themeReads,
     unexpected,
     windowMode,
     preferences,

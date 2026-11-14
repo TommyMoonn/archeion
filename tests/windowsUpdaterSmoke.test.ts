@@ -13,6 +13,7 @@ afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
 });
 const options = {
+  family: "nsis",
   nonce: "0123456789abcdef",
   publicKey: "ephemeral public key",
   endpoint: "http://127.0.0.1:4567/manifest/{{bundle_type}}",
@@ -23,6 +24,27 @@ const options = {
 };
 
 describe("isolated Windows updater fixtures", () => {
+  it.each(["1.6.0", "1.6.1"])(
+    "preserves family-specific updater configuration for %s",
+    (version) => {
+      const msiLogPath = "C:/isolated/evidence with spaces/msi-updater.log";
+      const nsis = createSmokeOverlay({ ...options, version, family: "nsis" });
+      const msi = createSmokeOverlay({ ...options, version, family: "msi", msiLogPath });
+      expect(nsis.plugins.updater.windows).toEqual({ installMode: "passive" });
+      expect(msi.plugins.updater.windows).toEqual({
+        installMode: "passive",
+        installerArgs: ["/L*v", `"${msiLogPath}"`],
+      });
+      const withoutArgs = structuredClone(msi);
+      delete withoutArgs.plugins.updater.windows.installerArgs;
+      expect(withoutArgs).toEqual(nsis);
+      expect(msi.version).toBe(version);
+      expect(msi.build.beforeBuildCommand).toBe("");
+      expect(msi.bundle.createUpdaterArtifacts).toBe(true);
+      expect(() => createSmokeOverlay({ ...options, family: "nsis,msi" })).toThrow(/family/);
+      expect(() => createSmokeOverlay({ ...options, family: "msi" })).toThrow(/log path/);
+    },
+  );
   it("uses the shared Windows command deadline for elevation and fails closed on probe errors", async () => {
     const run = vi.fn().mockResolvedValue("True\r\n");
     await expect(isWindowsProcessElevated(run)).resolves.toBe(true);

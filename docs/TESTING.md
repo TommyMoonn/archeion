@@ -24,8 +24,7 @@ The command runs these checks:
 `pnpm run verify` does not run the separate Chromium browser suite, Windows
 runtime smoke, Windows updater smoke, Linux font catalog portability check, or
 Rust MSRV check. CI runs those as separate `CI Gate` dependencies. The
-release-tooling tests are part of the local Vitest suite and also run in a
-dedicated Windows CI job.
+release-tooling tests run once as part of the full Windows Vitest suite.
 
 ## Run focused checks
 
@@ -101,15 +100,53 @@ pnpm run test:browser:install
 pnpm run test:browser
 ```
 
+To apply the CI failure policy locally, run `pnpm run test:browser
+--fail-on-flaky-tests`. CI retains one diagnostic retry, but a test that passes
+only on retry fails the job. Both the source suite and built async-surface suite
+use this policy.
+
 `pnpm run test:browser` runs the browser-test TypeScript check before Playwright.
-CI runs the suite in two shards as a required `CI Gate` dependency. The first
+CI runs browser TypeScript validation once in `frontend-static`, then invokes
+Playwright directly in two shards with two workers and test-level parallelism.
+Both shards remain required `CI Gate` dependencies. Each test owns its browser
+context and uses `testInfo.outputPath` for artifacts. The first
 shard also builds and runs the separate async-surface browser contracts.
 
 Browser failure artifacts are named `browser-contract-failure-1` and
 `browser-contract-failure-2`. They contain the HTML report, screenshots, and
-retry traces where available. The first shard also uploads
+first-attempt and retry traces where available, including a successful retry.
+The first shard also uploads
 `async-surface-contract-failure` when those checks fail. Browser outputs are
 ignored by Git.
+
+### Optional browser diagnostics
+
+Reader frame and Library cover probes retain detailed snapshots on failure or
+retry. Successful runs attach compact summaries. Set
+`$env:ARCHEION_BROWSER_DIAGNOSTICS = "1"` before a focused `pnpm run test:browser`
+command to retain detailed evidence locally; remove it afterward with
+`Remove-Item Env:ARCHEION_BROWSER_DIAGNOSTICS`. This changes reporting only and
+keeps the required workloads and assertions enabled.
+
+Observational workloads do not run in the required browser suite. Run them explicitly:
+
+```powershell
+pnpm run test:browser:ui-stability
+pnpm run test:browser:visual-diagnostics
+```
+
+Both commands build the existing production fixture bundle before opening cold
+browser contexts, so development-module transforms do not distort observations.
+The first command measures the UI stability workloads. The second records the
+cold/warm UX-15 Add EPUB first-paint observations. The remaining visual-refinement
+and all first-paint acceptance tests still run in required CI. For the built-fixture
+visual review, build with `pnpm exec vite build --config
+tests/browser/visual-refinement-build.config.ts`, then run `pnpm exec playwright
+test --config tests/browser/visual-refinement.config.ts`.
+
+Frontend tests fail on unexpected console warnings or errors. Tests that exercise
+an expected diagnostic must intercept and assert that specific message, then
+restore their spy. Do not filter React warnings or disable the act environment.
 
 ## Run the Windows Tauri runtime smoke
 
@@ -171,7 +208,8 @@ with:
 pnpm run test tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts
 ```
 
-CI runs these tests in a separate required Windows validation job.
+CI runs these tests once through the full Windows Vitest suite. There is no
+separate release-tooling job.
 
 ## Generate diagnostic coverage reports
 

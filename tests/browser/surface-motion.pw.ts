@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const fixture = "/tests/browser/fixtures/modal-lifetime.html";
-test.use({ video: "on" });
+test.use({ video: "retain-on-failure" });
 
 test("interrupted dialog entry keeps its displayed size through exit and mid-exit reopen", async ({
   page,

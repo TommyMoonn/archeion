@@ -98,6 +98,7 @@ function createMockRendition(): MockRendition {
     currentLocation: vi.fn(() => undefined),
     next: vi.fn(async () => undefined),
     prev: vi.fn(async () => undefined),
+    q: { stop: vi.fn() },
     themes: {
       register: vi.fn(),
       select: vi.fn(),

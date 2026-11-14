@@ -160,6 +160,7 @@ window.uiStabilityFixture = {
     ).appearanceRuntime.refreshAppearance(),
   getStoredAppTheme: () => appPreferencesStore.getSnapshot().appTheme,
   themeReadStarted: backend.themeReadStarted,
+  themeReadSettled: backend.themeReadSettled,
   setAppTheme: (appTheme) => appPreferencesStore.update({ appTheme }).then(() => undefined),
   unexpected: backend.unexpected,
   setUpdate: backend.setUpdate,
@@ -213,6 +214,7 @@ declare global {
       recoverAppearance: () => Promise<void>;
       getStoredAppTheme: () => import("../../../src/types/settings").AppThemeSelection;
       themeReadStarted: () => boolean;
+      themeReadSettled: () => boolean;
       setAppTheme: (
         selection: import("../../../src/types/settings").AppThemeSelection,
       ) => Promise<void>;

@@ -68,6 +68,11 @@ test("keeps card geometry and placeholder until decode completes", async ({ page
   await expect(cover).toHaveAttribute("data-cover-state", "loading");
   await expect(cover.locator("img")).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.coverControl.decodes)).toBe(2);
+  // Translation during the collection entrance can round equal DOMRect heights
+  // differently. Measure decode geometry after that independent animation settles.
+  await page.locator(".library-content--books").evaluate(async (node) => {
+    await Promise.all(node.getAnimations().map((animation) => animation.finished));
+  });
   const before = await cover.boundingBox();
   await page.evaluate(() => {
     window.coverControl.hold = false;

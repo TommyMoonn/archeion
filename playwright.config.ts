@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 const port = Number(process.env.ARCHEION_BROWSER_PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) {
@@ -9,8 +10,13 @@ const baseURL = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: "./tests/browser",
   testMatch: "**/*.pw.ts",
-  // Chunk interception requires the production fixture build, run separately in CI.
-  testIgnore: "**/async-surfaces.pw.ts",
+  // Built chunk interception and observational diagnostics have dedicated configurations.
+  testIgnore: [
+    "**/async-surfaces.pw.ts",
+    "**/ui-stability.pw.ts",
+    "**/visual-refinement-diagnostics.pw.ts",
+  ],
+  fullyParallel: true,
   timeout: 30_000,
   expect: { timeout: 5_000 },
   workers: 2,
@@ -21,9 +27,10 @@ export default defineConfig({
     baseURL,
     browserName: "chromium",
     screenshot: "only-on-failure",
-    trace: "on-first-retry",
+    trace: "retain-on-failure-and-retries",
   },
   webServer: {
+    cwd: fileURLToPath(new URL(".", import.meta.url)),
     command: `pnpm exec vite --host 127.0.0.1 --port ${port} --strictPort`,
     url: `${baseURL}/docs/`,
     reuseExistingServer: false,

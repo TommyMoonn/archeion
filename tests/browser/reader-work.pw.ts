@@ -76,11 +76,43 @@ test("preparation follows mounted views across scrolling, equivalent settings an
     .toBeGreaterThan(
       traversed.documents.reduce((total, doc) => total + doc.mediaClassifications, 0),
     );
-  await page.evaluate(() => window.readerInteractions.navigate("section-01"));
+  const beforeNavigation = await page.evaluate(() => ({
+    relocations: window.readerInteractions.relocations(),
+    cfi: window.readerInteractions.location(),
+  }));
+  expect(await page.evaluate(() => window.readerInteractions.navigate("section-01"))).toBe(true);
   await expect(page.locator(".archeion-highlight")).toHaveCount(1);
-  const cfi = await page.evaluate(() => window.readerInteractions.location());
+  // Display completion precedes the relocated event that publishes progress.
+  await expect
+    .poll(() => page.evaluate(() => window.readerInteractions.relocations()))
+    .toBeGreaterThan(beforeNavigation.relocations);
+  await expect
+    .poll(() => page.evaluate(() => window.readerInteractions.location()))
+    .not.toBe(beforeNavigation.cfi);
+  const targetCfi = await page.evaluate(() => window.readerInteractions.cfi("section-01-p1"));
+  await expect
+    .poll(() =>
+      page.evaluate((cfi) => window.readerInteractions.passageAt(cfi)?.visible, targetCfi),
+    )
+    .toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.readerInteractions
+          .location()
+          ?.split("!")[0]
+          .replace(/\[[^\]]*\]/g, ""),
+      ),
+    )
+    .toBe(targetCfi.split("!")[0].replace(/\[[^\]]*\]/g, ""));
+  const cfi = await page.evaluate(async () => {
+    const location = window.readerInteractions.location();
+    // Snapshot and begin teardown in one task so a later relocation cannot
+    // make an earlier expected CFI stale between separate browser commands.
+    await window.readerInteractions.open("nested-prose", "paged", "archive-b");
+    return location;
+  });
   expect(cfi).toBeTruthy();
-  await page.evaluate(() => window.readerInteractions.open("nested-prose", "paged", "archive-b"));
   await expect.poll(() => page.evaluate(() => window.readerInteractions.ready())).toBe(true);
   const switched = await page.evaluate(() => window.readerInteractions.persistence());
   expect(
@@ -88,8 +120,11 @@ test("preparation follows mounted views across scrolling, equivalent settings an
       .progressCfi,
   ).toBe(cfi);
   expect(switched.flushes).toBe(1);
-  const finalCfi = await page.evaluate(() => window.readerInteractions.location());
-  await page.evaluate(() => window.readerInteractions.dispose());
+  const finalCfi = await page.evaluate(async () => {
+    const location = window.readerInteractions.location();
+    await window.readerInteractions.dispose();
+    return location;
+  });
   const final = await page.evaluate(() => ({
     work: window.readerInteractions.work()!,
     persistence: window.readerInteractions.persistence(),

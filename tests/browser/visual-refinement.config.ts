@@ -5,7 +5,13 @@ import base from "../../playwright.config";
 export default defineConfig({
   ...base,
   testDir: ".",
-  testMatch: ["visual-refinement.pw.ts", "ui-stability.pw.ts"],
+  testMatch: [
+    "visual-refinement.pw.ts",
+    "ui-stability.pw.ts",
+    "visual-refinement-diagnostics.pw.ts",
+  ],
+  testIgnore: [],
+  fullyParallel: false,
   workers: 1,
   reporter: "list",
   outputDir: "../../test-results/visual-refinement",

@@ -16,7 +16,7 @@ import {
   renderLibraryPage,
   setInputValue,
   setupLibraryPageTestSuite,
-  waitForButtonWithLabel,
+  waitForSeriesOverview,
 } from "./LibraryPage.testUtils";
 
 describe("LibraryPage navigation and archive loading", () => {
@@ -682,7 +682,7 @@ describe("LibraryPage navigation and archive loading", () => {
     });
 
     await act(async () => sidebarButton("Series").click());
-    await waitForButtonWithLabel(session.container, "Sort series");
+    await waitForSeriesOverview(session.container);
     await act(async () => {
       session.container
         .querySelector<HTMLButtonElement>('[role="radio"][aria-label="List"]')
@@ -709,7 +709,7 @@ describe("LibraryPage navigation and archive loading", () => {
     ).toContain("Most books");
 
     await act(async () => sidebarButton("Series").click());
-    await waitForButtonWithLabel(session.container, "Sort series");
+    await waitForSeriesOverview(session.container);
     currentArchive = archiveB;
     await act(async () => {
       notifyArchiveChange?.();
@@ -719,7 +719,7 @@ describe("LibraryPage navigation and archive loading", () => {
     });
 
     await act(async () => sidebarButton("Series").click());
-    await waitForButtonWithLabel(session.container, "Sort series");
+    await waitForSeriesOverview(session.container);
     expect(
       session.container
         .querySelector('[role="radio"][aria-label="List"]')

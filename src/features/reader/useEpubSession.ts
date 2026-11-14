@@ -597,6 +597,12 @@ export function useEpubSession({
         }
         documentSessions.retire(sessionDocuments);
         bridgeRef.current?.onSessionEnding(endingReason);
+        // epub.js queues startup, attachment and display independently. Its
+        // destroy path neither cancels that queue nor supports an unrendered
+        // manager, which has no stage or DOM listeners to release yet.
+        session.rendition.q.stop();
+        const retiringRendition = session.rendition as RenditionWithManager;
+        if (retiringRendition.manager?.rendered === false) delete retiringRendition.manager;
         if (pendingSeekGeneration) {
           // Retire visible views now, but keep section hooks/source alive until
           // the seek map's active load drains. Book.destroy owns the remaining

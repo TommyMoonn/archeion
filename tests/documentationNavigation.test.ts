@@ -405,17 +405,19 @@ describe("documentation navigation contract", () => {
   it.each(["unregistered page", "missing page", "malformed region", "malformed header"])(
     "rejects %s before writing any HTML",
     async (mode) => {
-      const root = createFixture();
-      const first = path.join(root, registry.pages[0].sourcePath);
+      // Three adjacent pages retain the all-or-nothing write contract without
+      // formatting the full site before reaching the malformed final page.
+      const { root, pages } = await createRepairFixture();
+      const first = path.join(root, pages[0].sourcePath);
       fs.writeFileSync(first, fs.readFileSync(first, "utf8").replace('rel="next"', 'rel="prev"'));
       if (mode === "unregistered page") {
         const extra = path.join(root, "docs/documentation/unregistered/index.html");
         fs.mkdirSync(path.dirname(extra), { recursive: true });
         fs.copyFileSync(first, extra);
       } else if (mode === "missing page") {
-        fs.rmSync(path.join(root, registry.pages.at(-1)!.sourcePath));
+        fs.rmSync(path.join(root, pages.at(-1)!.sourcePath));
       } else {
-        const last = path.join(root, registry.pages.at(-1)!.sourcePath);
+        const last = path.join(root, pages.at(-1)!.sourcePath);
         fs.writeFileSync(
           last,
           fs

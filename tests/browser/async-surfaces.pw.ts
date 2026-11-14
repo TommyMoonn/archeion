@@ -1,4 +1,21 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import type { Manifest } from "vite";
+
+const manifest: Manifest = JSON.parse(
+  readFileSync(
+    new URL("../../.scratch/async-surfaces-build/.vite/manifest.json", import.meta.url),
+    "utf8",
+  ),
+);
+function builtChunk(name: string) {
+  // Several shared chunks can have the same stem. Hold the authored module
+  // entry from the actual build, rather than every similarly named chunk.
+  const entries = Object.entries(manifest).filter(([source]) => source.endsWith(`/${name}.tsx`));
+  if (entries.length !== 1)
+    throw new Error(`Expected one built entry for ${name}; found ${entries.length}`);
+  return `**/${entries[0][1].file}`;
+}
 
 const fixture = "/tests/browser/fixtures/async-surfaces.html";
 const chunks = {
@@ -113,7 +130,7 @@ for (const surface of ["rename", "add", "metadata", "cover"] as const) {
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(`**/${chunks[surface]}-*.js`, async (route) => {
+    await page.route(builtChunk(chunks[surface]), async (route) => {
       await held;
       await route.continue();
     });
@@ -164,7 +181,7 @@ for (const [surface, chunk] of Object.entries(chunks).filter(
       const held = new Promise<void>((resolve) => {
         release = resolve;
       });
-      await page.route(`**/${chunk}-*.js`, async (route) => {
+      await page.route(builtChunk(chunk), async (route) => {
         await held;
         await route.continue();
       });
@@ -230,7 +247,7 @@ for (const [surface, chunk] of Object.entries(chunks)) {
       release = resolve;
     });
     let requests = 0;
-    await page.route(`**/${chunk}-*.js`, async (route) => {
+    await page.route(builtChunk(chunk), async (route) => {
       requests++;
       await held;
       await route.continue();
@@ -295,7 +312,7 @@ test("late content cannot replace a newer modal or take its focus", async ({ pag
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/RenameFileDialog-*.js", async (route) => {
+  await page.route(builtChunk("RenameFileDialog"), async (route) => {
     await held;
     await route.continue();
   });
@@ -327,7 +344,7 @@ for (const [surface, chunk] of [
     const held = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(`**/${chunk}-*.js`, async (route) => {
+    await page.route(builtChunk(chunk), async (route) => {
       await held;
       await route.continue();
     });
@@ -385,7 +402,7 @@ for (const motion of ["app-off", "system-reduce"]) {
 
 test("a failed chunk keeps an accessible retry and dismissal path", async ({ page }) => {
   let requests = 0;
-  await page.route("**/RenameFileDialog-*.js", async (route) => {
+  await page.route(builtChunk("RenameFileDialog"), async (route) => {
     requests++;
     if (requests === 1) await route.abort();
     else await route.continue();
@@ -412,7 +429,7 @@ test("retry preserves keyboard dismissal intent through a delayed second import"
     release = resolve;
   });
   let requests = 0;
-  await page.route("**/RenameFileDialog-*.js", async (route) => {
+  await page.route(builtChunk("RenameFileDialog"), async (route) => {
     requests++;
     if (requests === 1) {
       await failed;

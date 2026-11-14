@@ -1,0 +1,9 @@
+name: Set up pinned pnpm
+description: Install the packageManager version without a bundled bootstrap package manager
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        npm install --prefix "$RUNNER_TEMP/archeion-pnpm" --no-package-lock --ignore-scripts --no-audit --no-fund "$(node -p "require('./package.json').packageManager")"
+        echo "$RUNNER_TEMP/archeion-pnpm/node_modules/.bin" >> "$GITHUB_PATH"

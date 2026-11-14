@@ -81,6 +81,7 @@ export type EpubContentActionController = {
   handleDocumentRemoved: (document: Document) => void;
   handleEscape: () => boolean;
   handleFootnoteAction: (action: Exclude<EpubContentAction, { kind: "unsupported" }>) => void;
+  handleRelocation: () => void;
   prepareDocument: (context: ReaderContentDocumentContext) => void;
   resetForSession: () => void;
 };
@@ -108,6 +109,7 @@ export function useEpubContentActionController({
   const operationRef = useRef(0);
   const resolutionDocumentRef = useRef<Document | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const pendingInternalLinkRef = useRef<{ relocated: boolean } | null>(null);
   const footnoteRef = useRef<ReaderFootnoteState | null>(null);
   const externalRef = useRef<ReaderExternalLinkState | null>(null);
   const illustrationRef = useRef<ReaderIllustrationState | null>(null);
@@ -139,6 +141,7 @@ export function useEpubContentActionController({
 
   const cancelResolution = useCallback(() => {
     operationRef.current += 1;
+    pendingInternalLinkRef.current = null;
     resolutionDocumentRef.current = null;
     abortRef.current?.abort();
     abortRef.current = null;
@@ -170,6 +173,17 @@ export function useEpubContentActionController({
     },
     [cancelResolution, restoreFocus, setFootnote],
   );
+
+  const handleRelocation = useCallback(() => {
+    const pendingLink = pendingInternalLinkRef.current;
+    if (pendingLink) {
+      // Focusing an internal link can scroll before its target is classified.
+      // Preserve navigation, but do not reveal a late footnote after that scroll.
+      pendingLink.relocated = true;
+      return;
+    }
+    dismissFootnote(false);
+  }, [dismissFootnote]);
 
   const dismissExternal = useCallback(
     (shouldRestoreFocus = true) => {
@@ -280,6 +294,9 @@ export function useEpubContentActionController({
       const operation = operationRef.current;
       resolutionDocumentRef.current = anchor.document;
 
+      const pendingLink = action.kind === "internal" ? { relocated: false } : null;
+      pendingInternalLinkRef.current = pendingLink;
+
       void session
         .resolveFootnote({
           currentDocument,
@@ -294,6 +311,7 @@ export function useEpubContentActionController({
           }
           abortRef.current = null;
           resolutionDocumentRef.current = null;
+          pendingInternalLinkRef.current = null;
 
           if (resolution.kind === "cancelled") return;
           if (resolution.kind === "not-footnote") {
@@ -307,6 +325,11 @@ export function useEpubContentActionController({
           }
           if (resolution.kind === "unsupported" && !forceFootnote) {
             navigate(action.target.displayTarget);
+            return;
+          }
+
+          if (pendingLink?.relocated) {
+            if (resolution.kind === "resolved") resolution.value.release();
             return;
           }
 
@@ -702,6 +725,7 @@ export function useEpubContentActionController({
     handleDocumentRemoved,
     handleEscape,
     handleFootnoteAction,
+    handleRelocation,
     prepareDocument,
     resetForSession,
   };
