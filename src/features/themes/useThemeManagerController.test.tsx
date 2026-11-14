@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 
 import { act, useEffect } from "react";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +16,12 @@ import {
   type ThemeManagerController,
   type ThemeManagerControllerOptions,
 } from "./useThemeManagerController";
+import { applicationThemeOptions, readerThemeOptions } from "./themeSelectionOptions";
+
+const repositoryThemesRoot = resolve("themes");
+const repositoryThemeIds = readdirSync(repositoryThemesRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name !== "built-in")
+  .map((entry) => entry.name);
 
 function manifest(id: string): ThemeManifestV1 {
   return {
@@ -178,6 +186,53 @@ describe("global Theme Manager controller", () => {
     await mount();
     expect(latest.entries.map((entry) => entry.id)).toEqual(["dark", "light", "moon-ink"]);
   });
+
+  it.each(repositoryThemeIds)(
+    "imports, selects, reloads, and removes the optional %s package",
+    async (id) => {
+      const services = await mount(createServices([]));
+      expect(latest.entries.every((entry) => entry.origin === "builtin")).toBe(true);
+      const source = readFileSync(resolve(repositoryThemesRoot, id, "theme.json"), "utf8");
+      await act(async () => {
+        expect(await latest.importFile(new File([source], "theme.json"))).toBe(true);
+      });
+      const selection = { kind: "custom", id } as const;
+      expect(applicationThemeOptions(latest.entries)).toContainEqual(
+        expect.objectContaining({ value: `custom:${id}` }),
+      );
+      expect(readerThemeOptions(latest.entries)).toContainEqual(
+        expect.objectContaining({ value: `custom:${id}` }),
+      );
+      act(() => latest.select(`custom:${id}`));
+      await act(async () => expect(latest.useSelectedTheme()).resolves.toBe(true));
+      expect(services.runtime.getPreviewContext().settings.appTheme).toEqual(selection);
+      await act(async () => expect(latest.reload()).resolves.toBe(true));
+      // A fresh catalog reads the installed copy, as it would after a restart.
+      const restarted = new ThemeCatalog(() => ({
+        listPackageDirectories: async () => [...services.sources.keys()],
+        readManifest: async (packageId) => {
+          const installed = services.sources.get(packageId);
+          if (installed === undefined) throw new Error("Missing installed theme");
+          return installed;
+        },
+      }));
+      const resolved = await restarted.loadSelected({
+        appTheme: selection,
+        readerTheme: selection,
+      });
+      expect(resolved.app).toMatchObject({ fellBack: false, effective: { entry: { id } } });
+      expect(resolved.reader).toMatchObject({ fellBack: false, effective: { entry: { id } } });
+      act(() => latest.requestDelete());
+      await act(async () => expect(latest.confirmDelete()).resolves.toBe(true));
+      expect(services.sources.has(id)).toBe(false);
+      expect(
+        applicationThemeOptions(latest.entries).some(({ value }) => value === `custom:${id}`),
+      ).toBe(false);
+      expect(readerThemeOptions(latest.entries).some(({ value }) => value === `custom:${id}`)).toBe(
+        false,
+      );
+    },
+  );
 
   it("applies a selected theme through global preferences and preserves Reader selection", async () => {
     const services = await mount();

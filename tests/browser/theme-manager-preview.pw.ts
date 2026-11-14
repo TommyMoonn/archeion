@@ -1,9 +1,49 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { resolveBuiltInAppTheme, resolveTheme } from "../../src/themes/resolveTheme";
 import type { ResolvedAppTheme } from "../../src/themes/domain";
 import { appThemeResolvedTokenRegistry } from "../../src/themes/themeTokenRegistry";
 import { shellStressThemes } from "../fixtures/themes/shellStressThemes";
+import { validateThemeManifest } from "../../src/themes/validateThemeManifest";
+
+for (const id of [
+  "archeion-nocturne",
+  "archeion-mono",
+  "archeion-chalk",
+  "archeion-classic-dark",
+  "archeion-classic-light",
+]) {
+  test(`imports and applies the repository package ${id} through Theme Manager`, async ({
+    page,
+  }) => {
+    const manifestPath = resolve("themes", id, "theme.json");
+    const input: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+    const validation = validateThemeManifest(input);
+    if (!validation.ok) throw new Error(JSON.stringify(validation.diagnostics));
+    const manifest = validation.manifest;
+    await page.goto("/tests/browser/fixtures/?view=theme-manager");
+    const row = page.getByRole("button", { name: new RegExp(`^${manifest.name}`) });
+    await expect(row).toHaveCount(0);
+    await page.getByLabel("Import theme file").setInputFiles(manifestPath);
+    await expect(row).toBeVisible();
+    await row.click();
+    await expectPreviewColors(page, resolveTheme(manifest).app);
+    await page.getByRole("button", { name: "Use theme", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-app-theme", manifest.base);
+    const expected = resolveTheme(manifest).app.publicTokens.main;
+    await expect(page.locator("html")).toHaveCSS("--surface-main", expected);
+    await page.getByRole("button", { name: "Reload themes" }).click();
+    await expect(row).toBeVisible();
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await page
+      .getByRole("dialog", { name: /Remove/ })
+      .getByRole("button", { name: "Remove theme" })
+      .click();
+    await expect(row).toHaveCount(0);
+  });
+}
 
 async function expectPreviewColors(page: Page, theme: ResolvedAppTheme) {
   const graphic = page.getByRole("img", { name: "Application shell preview", exact: true });
