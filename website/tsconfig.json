@@ -2,9 +2,17 @@
   "extends": "@docusaurus/tsconfig",
   "compilerOptions": {
     "baseUrl": ".",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["@docusaurus/module-type-aliases"],
+    "paths": {
+      "@site/*": ["./*"]
+    },
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
   "include": ["docusaurus.config.ts", "sidebars.ts", "src/**/*"],

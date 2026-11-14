@@ -11,9 +11,11 @@ const config: Config = {
     [
       "classic",
       {
-        docs: false,
+        docs: {
+          routeBasePath: "docs",
+          sidebarPath: "./sidebars.ts",
+        },
         blog: false,
-        pages: false,
       },
     ],
   ],
