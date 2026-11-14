@@ -219,9 +219,13 @@ async function frames(
         held
           ? checkpointIndex < checkpoints.length
           : performance.now() - start < duration ||
-            document
-              .querySelector(".window-app")!
-              .getAnimations()
+            [
+              document.querySelector(".window-app")!,
+              ...document.querySelectorAll(
+                ".sidebar__expanded-content, .sidebar__nav .nav-item > span, .library-titlebar-composition__wordmark",
+              ),
+            ]
+              .flatMap((node) => node.getAnimations())
               .some((animation) => animation.playState === "running" || animation.pending)
       );
       if (held) {
