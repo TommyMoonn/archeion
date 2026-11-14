@@ -124,3 +124,230 @@ palette tests and browser checks of resolved tokens and shared controls retain
 coverage. The root page and component tooling sample remain temporary route and
 tooling fixtures, not a landing-page implementation. B2.8 owns removing the
 temporary root route before the static homepage cutover.
+
+## Documentation migration map (B2.1)
+
+This is the pre-implementation contract for the documentation port. It records
+the approved mock's final cascade and the existing public behavior at foundation
+commit `d629a358ac015ef339a00dc8d4100891778a6d6c`. The owners below are planned;
+the foundation still serves only its temporary routes. B2.1 changes no runtime,
+article, generator, route, public asset, or deployment behavior.
+
+The visual reference is `.project/experiments/archeion-docs-site.html`, including
+its later shell/header overrides. The factual source remains the 24 registered
+articles in `docs/documentation/`, with `release-notes/` owning release history.
+`docs/DESIGN.md` governs the desktop app, explicitly excluding website layout
+and typography; the website uses the foundation conventions above. Local
+inspection scripts, screenshots, measurements, review records, and phase status
+belong in `.plans/website-migration/`, outside the published artifact.
+
+### Visual and responsive contract
+
+The mock uses a sticky translucent header, a flat scrollable sidebar with
+collapsible uppercase groups, an editorial article column, and a sticky right
+outline. There is no default Docusaurus navbar, floating card around the article,
+desktop sidebar-collapse button, or back-to-top control in the approved design.
+Its final header contains Brand, centered search, Home, theme, GitHub, and the
+mobile menu. Earlier `.top-nav`, download-button, and rail-note CSS does not
+correspond to rendered controls and must not create extra production UI.
+
+| Region            | Effective mock dimensions and treatment                                                                                                         | Implementation direction                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Frame             | Centered 1360px maximum; 28px horizontal gutters above 1240px                                                                                   | Reuse `max-w-docs`; keep header and content on the same rails                                                              |
+| Header            | 68px high; three grid columns: flexible brand, search capped at 440px, flexible actions; 24px column gap                                        | Shell owns geometry; theme-aware Brand remains a shared primitive                                                          |
+| Sidebar           | 230px column, sticky below header, viewport-height scroll region; right border; 28px top padding                                                | Render Docusaurus sidebar data with approved flat links and disclosure groups                                              |
+| Article           | Flexible middle column, centered 700px maximum after final override; 42px top padding; 28px grid gaps                                           | Add/reconcile a named docs-article width when implementing; existing `max-w-article` is 768px and is not this measured cap |
+| Outline           | 170px column; sticky below header; 42px top padding; h3 links indented 21px versus h2 10px                                                      | Same document heading data as article; accent text and left border for current section                                     |
+| Topline           | Muted `Documentation / group / title` breadcrumb, then ghost Copy page; uppercase type label with dot except Overview                           | Route metadata supplies labels; keep full names available when visual breadcrumb truncates                                 |
+| Typography        | Inter body/UI; Literata regular brand and h1/h2; body 16px/1.85, summary 17px/1.75, h1 clamp 44–56px/1.08, h2 31px/1.22, h3 19px/1.4            | Reuse bundled fonts and semantic type roles; reconcile differing role dimensions centrally rather than inheriting Infima   |
+| Article structure | Heading spacing, underlined accent links, marked lists, quotes, notices, inline code, keyboard keys, horizontal rules, disclosures              | MDX element mappings use Tailwind; preserve semantic markup and authored content                                           |
+| Notices           | Icon/label/body grid; 18px marker, 16px/18px padding, 8px corners, raised surface                                                               | One docs notice component preserves each existing label, advice, and note semantics                                        |
+| Code and tables   | Code 14px/1.75 mono, 18px/20px padding, 8px corners, local overflow; table wrapper scrolls horizontally, 11px/13px cells                        | Local scrolling must not overflow the page; copy stays reachable with keyboard and touch                                   |
+| Overview          | Getting-started cards in three columns, other groups in two; 9px gaps; bordered raised cards, arrow hover                                       | Derive destination metadata from docs data; own only the short authored overview copy                                      |
+| Pager             | Bottom-aligned on short desktop articles; two bordered cards with Previous/Next labels, 80px minimum height; a sole neighbor spans both columns | Docusaurus neighbor metadata owns sequence; first has no Previous and last no Next                                         |
+| Changelog         | Vertical rail and dots; 116px date/version column plus change body, 22px gap                                                                    | React timeline consumes generated release data in B2.7; no copied mock history                                             |
+| Search            | Fixed overlay at z100; dim/blur backdrop, 680px maximum dialog, 12px corners; top inset min(16vh,130px); scrollable results max min(58vh,520px) | Preserve the approved surface using centralized tokens; semantic dialog behavior comes from the search owner               |
+
+These are inclusive `max-width` boundaries in the mock. Tailwind variants must
+preserve the effective boundary, including the exact boundary pixel; ordinary
+minimum-width variants must not accidentally invert it.
+
+| Width   | Changes from the wider layout                                                                                                                                                                                                                              |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ≤1240px | 24px gutters; search cap 360px; header column gap 20px; content gap stays 28px                                                                                                                                                                             |
+| ≤1080px | Right outline disappears, with no inline/mobile replacement; two content columns, 30px gap; search cap 330px; header gap 16px                                                                                                                              |
+| ≤900px  | Brand's Documentation label/divider and Home text link disappear; search cap 260px; header gap 14px                                                                                                                                                        |
+| ≤800px  | Content becomes one block; sidebar becomes a left drawer, width min(310px, viewport−52px), z90; backdrop z80 below header; 22px gutters; centered 240px search remains expanded; menu appears; article top padding 30px; desktop bottom-fill behavior ends |
+| ≤690px  | Search becomes a 38px icon-only trigger, with accessible name retained; pager becomes one column and both directions align left                                                                                                                            |
+| ≤600px  | Header/drawer offset becomes 62px; gutters 17px; article top padding 24px; h1 40px, h2 27px; overview cards and timeline become one column; search top inset 9vh                                                                                           |
+| ≤400px  | Brand name 18px and mark 26px; GitHub header icon hidden; theme and menu remain                                                                                                                                                                            |
+
+The 900px, 690px, and 400px exceptions come from the approved mock; the foundation
+already names 1240/1080/800/600px. Centralize any repeated exception on
+implementation. The mock's `html { overflow-x: clip }` is not proof that content
+fits: check element containment and scrolling areas, including doubled text.
+Retain the 320px minimum supported layout and test short viewports, coarse
+pointer, forced colors, and reduced motion.
+
+Dark is the initial theme. Light uses the canvas-colored sidebar already defined
+by the foundation. Final ghost actions have transparent borders and hover fills;
+do not port the earlier outlined icon styles. Keyboard focus is a 2px outline
+with 3px offset. Link color transitions are generally 340ms, ordinary controls
+160–240ms, and the drawer 260ms. Reduced motion removes smooth scrolling and
+effectively removes transitions. Theme changes suppress palette transitions.
+
+The mock requests remote variable Inter and Fira Code as well as embedded local
+fonts. The foundation deliberately bundles Inter 400/600/700 and Literata 400,
+with a declared mono fallback. Keep that approved asset policy: do not introduce
+Google Fonts, CDN Tailwind, base64 artwork, or a Fira dependency. Mock weights
+such as 550/650 require comparison against the available local weights at B2.4;
+do not claim pixel-identical typography before that comparison.
+
+### Public behavior decisions
+
+Preserve means retain the observable contract through the new implementation.
+Adapt means retain the capability with the specific approved presentation or
+interaction changes below. Explicit retirements identify the removed behavior
+and its reason. Missing mock behavior alone does not authorize removing data,
+accessibility, or released product guidance.
+
+| Existing behavior and evidence owner                                                                                                                                    | Decision for the React port                                                                                                                                                                                                                                                                                                                    | Phase / replacement owner                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 24 pages, six groups, stable IDs/types, explicit group/page order (`page-registry.json`, navigation generator)                                                          | Preserve every page exactly once; adapt `/documentation/` to `/docs/`; no second manually maintained routing registry                                                                                                                                                                                                                          | B2.5 MDX metadata + `sidebars.ts`; B2.8 compatibility pages                                           |
+| Native links and static article/sidebar/pager output before JavaScript                                                                                                  | Preserve static build output, direct navigation, hard refresh, back/forward, modified/new-tab activation, and no-JS article readability                                                                                                                                                                                                        | B2.2 route links; B2.5 content; B2.10 production route checks                                         |
+| Brand returns to overview; separate Home link returns to landing                                                                                                        | Adapt Brand to mock's landing destination and decorative theme-selected artwork/visible name; retain Overview in sidebar and an accessible documentation breadcrumb link                                                                                                                                                                       | B2.2 DocsHeader / DocsBreadcrumbs                                                                     |
+| Header Release notes utility                                                                                                                                            | Explicitly retire duplicate header link: mock's final header has Home and icon actions only. Preserve Changelog in sidebar, overview, pager, search, and release anchors, including mobile access                                                                                                                                              | B2.2 header; B2.5/B2.7 destinations; retarget header-specific tests                                   |
+| Sidebar group collapse saved per group, current group forced open on load (`docs.js`)                                                                                   | Preserve collapse preference and current-page discoverability; adapt to uppercase mock disclosure rows and accent active text, without old selection rail                                                                                                                                                                                      | B2.2/B2.3 DocsSidebarGroup; derive active group from sidebar data                                     |
+| Closed mobile drawer inert; modal focus capture/trap, background inert, Escape/close/backdrop dismissal, focus return, resize handoff                                   | Preserve all semantics at mock's 800px boundary. Mock only toggles transform/backdrop and expanded label; its missing focus/Escape behavior is a prototype defect                                                                                                                                                                              | B2.3 DocsMobileNavigation; one owner releases modal state on route change/unmount/desktop resize      |
+| Drawer links close for ordinary same-window navigation; modified/download/prevented actions remain native                                                               | Preserve; same-page fragment activation focuses destination rather than the hidden opener                                                                                                                                                                                                                                                      | B2.3 navigation owner + Docusaurus routing                                                            |
+| Search shortcut disabled while navigation owns modal surface                                                                                                            | Preserve exclusive modal ownership; do not stack a search modal over the drawer                                                                                                                                                                                                                                                                | B2.3 shell; B2.6 search                                                                               |
+| Theme cycles system/light/dark and tolerates unavailable localStorage                                                                                                   | Adapt to persisted dark/light toggle, dark default; explicitly retire system selection because approved website offers two themes. Storage failures remain nonfatal; no desktop preference mutation                                                                                                                                            | B2.3 Docusaurus colorMode, no competing theme store                                                   |
+| Existing theme storage key `archeion-docs-theme`                                                                                                                        | Adapt once through Docusaurus-owned preference initialization: retain explicit old light/dark when no new preference exists; old system/invalid values resolve to dark. Do not maintain two writable keys                                                                                                                                      | B2.3 theme initialization; prevent first-paint flash and update action label/logo/browser theme color |
+| Skip link, semantic main/article landmarks, visible focus, accessible control names                                                                                     | Preserve; adapt position/appearance to mock. Keep navigation focus on article/heading after route or fragment activation; avoid live-announcing the entire article as the mock does                                                                                                                                                            | B2.2/B2.3 shell and article                                                                           |
+| Stable h2/h3 IDs and separate named heading permalinks                                                                                                                  | Preserve all inbound IDs, including non-heading anchors; explicit MDX IDs where automatic slugs differ; retain keyboard-copyable heading links although mock omits permalink chrome                                                                                                                                                            | B2.3 fixtures, B2.5 authored MDX                                                                      |
+| Desktop and mobile outline generated from article headings (`docs.js`)                                                                                                  | Adapt to mock's desktop-only outline; explicitly retire inline mobile disclosure at ≤1080px because approved layout removes the rail without replacement. Native section fragments and heading links remain                                                                                                                                    | B2.3 DocsTableOfContents; retarget mobile-outline presentation tests                                  |
+| Outline tracks dense/sparse headings, reverse scroll, native fragment rounding, reflow, restored position, and final short section at bottom                            | Preserve section ownership and `aria-current=location`; adapt moving old indicator to mock's active-link border/text. Retire old indicator animation because approved rail uses per-link borders; do not copy mock's narrow observer-band gaps                                                                                                 | B2.3 outline owner; one active section, cleaned subscriptions                                         |
+| Search input-first modal, Ctrl/Cmd+K, Escape/outside dismissal, focus restoration, keyboard/Tab/native links (`docs-search.js`)                                         | Preserve focus containment, first-Escape dismissal, safe outside gesture, rapid reopen, IME/modifier handling, and native result links. Adapt to mock's explicit close button and group/title/summary surface; repeated shortcut keeps open/input focused, preserving current behavior                                                         | B2.6 DocsSearchDialog; B2.2 surface fixture only                                                      |
+| Search corpus has page introductions and h2/h3 section bodies, explicit aliases, normalized text, 240-character excerpts                                                | Preserve all fields and stable section destinations; derive from MDX/doc build data, excluding shell/hidden/control content; mock's page-only embedded dataset is not the new index                                                                                                                                                            | B2.6 build-time local search index                                                                    |
+| Ranking: title before section heading, alias, body; canonical page/section order breaks ties                                                                            | Preserve tiers and tie order; support mock's useful normalized token matching/group/summary fields without demoting existing primary tiers. Retire mock-only alphabetical ties and numeric scoring, which conflict with released search                                                                                                        | B2.6 pure search matching/ranking logic                                                               |
+| Empty query browses page introductions; no-results message; currently all matches render                                                                                | Preserve page-only browse and useful empty recovery; adapt to bounded results (mock shows first 10) with total/shown count. Ensure rank precedes bounding; no hidden section duplication for title hits                                                                                                                                        | B2.6 result presentation                                                                              |
+| Show details reveals excerpts without node replacement, reordering, selection reset, or count announcement                                                              | Preserve toggle and stable result identity although absent from mock; fit a restrained control into approved dialog. Summary/context is not a substitute for body excerpts                                                                                                                                                                     | B2.6 search presentation                                                                              |
+| Literal text highlighting, accessible result title/context names, excerpt descriptions, one stable polite count region                                                  | Preserve safe text-node/React-text rendering and input focus on query changes. Do not copy mock's whole-results live region or unsafe HTML highlighting                                                                                                                                                                                        | B2.6 search accessibility                                                                             |
+| Copy page exports article-only portable Markdown (`docs-copy.js`)                                                                                                       | Preserve headings, emphasis, nested/numbered lists and starts/values, safe absolute links, tables, code fences/whitespace, notes/quotes, and escaping. Exclude outline, hidden helpers, permalinks, controls, pager/footer. Explicitly retire mock's `innerText` page export because it loses Markdown structure and includes generated chrome | B2.6 article serializer; B2.2/B2.3 visual action only                                                 |
+| Copy code exports exact code text                                                                                                                                       | Preserve exact bytes as represented by rendered code; adapt mock hover/focus reveal, but keep controls discoverable on touch. Do not introduce mock's temporary textarea focus theft                                                                                                                                                           | B2.3 fixture code control; B2.6 shared copy lifecycle                                                 |
+| Copy control names stay stable; one polite status; success/failure/retry, persistent feedback, dismiss/focus return, newest async operation wins, disposal invalidation | Preserve all states; adapt feedback visually without changing labels to transient Copied/Copy failed or using mock reset timers                                                                                                                                                                                                                | B2.6 article-local clipboard owner shared by page/code actions                                        |
+| Footer Edit this page / Report a documentation issue, outside copied article                                                                                            | Preserve even though mock has no footer actions; use correct MDX source edit path and repository issue tracker. Changelog directs to `release-notes/README.md`, never generated data                                                                                                                                                           | B2.5 DocsArticleFooter, B2.7 changelog special case                                                   |
+| Overview compact grouped links and ordered onboarding                                                                                                                   | Adapt to approved cards, preserving every destination and useful distinct summary. Preserve callout labels/advice and avoid duplicate introductions                                                                                                                                                                                            | B2.5 content + B2.6 DocsOverview                                                                      |
+| Technical prose, ordered tasks, tables, notices, code, links, examples, images, safe recovery guidance                                                                  | Preserve current factual content and public-resource references; do not copy stale mock prose as authority                                                                                                                                                                                                                                     | B2.5 MDX mappings + existing factual coverage suites                                                  |
+| Release history readable without JS; versions/dates/change bullets, safe Markdown links, GitHub Release links and anchors                                               | Preserve canonical notes, date/version ordering, LF-normalized schemaVersion 1 projection, parser API/exact release body, failure-before-write validation and drift checks; adapt timeline visuals                                                                                                                                             | B2.7 ReleaseTimeline + existing root parser/generator owner                                           |
+| Root `docs:sync` / `docs:check`, navigation/search/timeline generators and imperative runtime                                                                           | Preserve Node-only entry points; retire HTML chrome/search/timeline generators and old runtime only after replacements/tests pass. B2.7 projects release JSON; B2.10 removes obsolete site implementation                                                                                                                                      | B2.7 tooling, B2.10 cleanup                                                                           |
+| Public fonts/images/theme schema/examples and legacy deep links                                                                                                         | Preserve exact public resource URLs/bytes and old article paths via static fragment-preserving compatibility pages with visible fallback. No server rewrite assumption                                                                                                                                                                         | B2.8 static resources; B2.10 artifact checks                                                          |
+| Page title/description, canonical/social/icon metadata and site navigation under project base URL                                                                       | Preserve production metadata and correct `/archeion/` paths; mock only updates title/theme-color and is not a complete SEO source                                                                                                                                                                                                              | B2.5 metadata; B2.8/B2.10 hosting integration                                                         |
+| Reduced motion, forced colors, coarse-pointer targets, doubled text, narrow/short viewports                                                                             | Preserve accessible behavior; adapt approved visuals without hiding essential content or leaving offscreen focusable elements. Desktop custom application themes do not become website themes                                                                                                                                                  | B2.3/B2.4 shell checks; B2.5–B2.7 content checks                                                      |
+
+No current public capability beyond the explicitly named presentation/theme
+retirements is discarded. The mock's hash router, template cloning, embedded
+`pageData`, global event wiring, and DOM `innerHTML` construction are prototype
+mechanisms to replace, not compatibility APIs. Production routes remain ordinary
+document paths with native fragments; old hash-TOC reload behavior is not copied.
+
+### Content identity reconciliation
+
+All six group names, page IDs, navigation titles, group order, and page order
+agree between mock and registry. The sequence is Overview, Getting started,
+Using Archeion, Customization, Reference, Changelog. Preserve the following
+suffixes under `/archeion/docs/`; the same suffixes under
+`/archeion/documentation/` need compatibility pages. This table is an audit
+snapshot, not an input to routing or content generation.
+
+| Group           | IDs in page order                                                                                                                                                                              | Route suffixes in the same order                                                                                                                                                                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview        | `overview`                                                                                                                                                                                     | `/`                                                                                                                                                                                                                                                                                                        |
+| Getting started | `installing`, `archives`, `adding-books`                                                                                                                                                       | `/getting-started/installing/`, `/getting-started/archives/`, `/getting-started/adding-books/`                                                                                                                                                                                                             |
+| Using Archeion  | `library`, `archive-health`, `quick-actions`, `metadata-covers`, `series`, `reading`, `reader-navigation`, `reader-media`, `file-management`, `settings`, `dictionaries`, `keyboard-shortcuts` | `/guides/library/`, `/guides/archive-health/`, `/guides/quick-actions/`, `/guides/metadata-covers/`, `/guides/series/`, `/guides/reading/`, `/guides/reader-navigation/`, `/guides/reader-media/`, `/guides/file-management/`, `/guides/settings/`, `/guides/dictionaries/`, `/guides/keyboard-shortcuts/` |
+| Customization   | `appearance`, `custom-themes`, `theme-manager`                                                                                                                                                 | `/customization/appearance/`, `/customization/custom-themes/`, `/customization/theme-manager/`                                                                                                                                                                                                             |
+| Reference       | `archive-storage`, `troubleshooting`, `annotation-export`, `about-resources`                                                                                                                   | `/reference/archive-storage/`, `/reference/troubleshooting/`, `/reference/annotation-export/`, `/reference/about-resources/`                                                                                                                                                                               |
+| Changelog       | `changelog`                                                                                                                                                                                    | `/changelog/`                                                                                                                                                                                                                                                                                              |
+
+The mock has 24 templates and all current h2/h3 fragment identities except
+`release-1-8-0`: its history stops at v1.7.0. B2.7 must include v1.8.0 and every
+canonical note. Preserve other authored anchors such as `after-installing`,
+which is on a paragraph rather than a heading. Type metadata remains explicit:
+Customization articles are guides; Troubleshooting has its own type, rather than
+inferring type from directory names. Large copied mock content/search text must
+not become another source of product facts.
+
+### Composition and interaction ownership
+
+Installed Docusaurus 3.10.2 provides `DocRoot` with `DocsSidebarProvider`,
+`DocRoot/Layout`, `DocItem/Layout`, and `useDoc()` metadata/TOC. Keep those data
+providers and the router. Replace only presentation seams that conflict with the
+mock. The default layouts import CSS Modules and Infima grid classes, so simply
+wrapping them would leave competing geometry. Do not copy those styles into the
+website or create one giant replacement Layout component.
+
+| Planned boundary                                              | Inputs and responsibility                                                                                        | State and lifecycle owner                                                                                        |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Docusaurus docs plugin + `sidebars.ts`                        | Routes, metadata, static rendering, sidebar order, neighbors, heading IDs/TOC; MDX is article source             | Framework data owner; no manual parallel registry                                                                |
+| `theme/DocRoot/Layout` → DocsShell composition                | Header, sidebar/drawer, main slot, search surface; docs-only custom shell with thin integration into site Layout | Only shell-wide modal coordination; no article/search datasets in layout                                         |
+| DocsHeader / DocsSearchTrigger / shared Brand and ThemeToggle | Approved header and responsive utilities; links and accessible names                                             | ThemeToggle calls Docusaurus colorMode; trigger requests search open; neither owns independent global state      |
+| DocsSidebar / DocsSidebarGroup                                | Framework sidebar items, active route, accessible disclosures                                                    | Group owns collapse preference; parent derives active group, no duplicate current-page state                     |
+| DocsMobileNavigation                                          | Same sidebar data, drawer/backdrop at 800px                                                                      | Open state, focus/inert/scroll lock, close/resize/route cleanup; coordinate with search at shell boundary        |
+| `theme/DocItem/Layout` → article composition                  | Breadcrumbs, article type/header, MDX slot, outline, footer and paginator from `useDoc()`                        | Route-scoped composition; title/summary rendered once, document change resets transient interactions             |
+| DocsBreadcrumbs / DocsArticleHeader / DocsArticleFooter       | Metadata, Copy page trigger, correct edit/issue links                                                            | Presentation and callbacks only; do not serialize article in a header component                                  |
+| DocsTableOfContents                                           | Framework h2/h3 TOC plus rendered heading geometry                                                               | One active-section owner, reflow/scroll/hash handling with cleanup; no independently scraped content registry    |
+| DocsArticleNavigation                                         | Framework previous/next metadata                                                                                 | Stateless native links; responsive card layout                                                                   |
+| DocsSearchDialog + local index/matching helpers               | One generated MDX-derived index, bounded ranked view, details control, result links/status                       | Dialog owns query, selection, details and opener; build owns index, not layout or release timeline               |
+| Article-copy owner + MDX CodeBlock mapping                    | Article ref, rendered code text, pure Markdown serialization                                                     | Shared page/code request generation and status lifecycle, disposed on route change; no site-wide clipboard store |
+| MDX element mappings / DocsNotice                             | Semantic prose, lists, links, tables, notes, disclosures and code; Tailwind classes                              | Native disclosure state where applicable; shared Button/Input reused when semantics fit                          |
+| DocsOverview                                                  | Authored overview introduction plus framework category/doc metadata                                              | Data-derived links/cards; no duplicate authored page registry                                                    |
+| ReleaseTimeline                                               | Typed adapter over generated release-history JSON                                                                | Stateless rendering; root release-note parser/projection retains validation ownership                            |
+
+Names describe responsibilities, not a requirement for one file per row. Keep
+page/layout files thin, local state local, and context limited to cross-shell
+search/modal coordination when needed. Shared components remain independent of
+desktop source and docs-specific routing. Reuse existing Button/Input/Brand and
+Lucide; generate another primitive only for a demonstrated requirement.
+
+### Verification handoff
+
+B2.1 inspected the full mock source/cascade/runtime, rendered all 24 article
+templates, compared their IDs/routes/headings and content vocabulary with all
+24 current pages, and measured 17 widths: 1440, 1241/1240, 1081/1080, 901/900,
+801/800, 691/690, 601/600, 401/400, 390, and 320px. Desktop dark/light, mobile,
+drawer, search, code hover, theme reload, search keyboard/empty/no-result states,
+copy payloads, drawer dismissal and reduced-motion behavior were inspected.
+This is reference inspection, not acceptance of a React port. Network fonts in
+the reference and its missing accessibility behavior remain comparison limits.
+
+The existing test contracts to retain and adapt are:
+
+- `tests/documentation{Articles,Navigation,Outline,Shell,MobileDrawer}.test.ts`
+  and browser `documentation-{articles,navigation,outline,shell}.pw.ts`: routes,
+  metadata, native links/pagers, sidebar, stable fragments, focus, responsive
+  reflow and outline ownership. Replace assertions for the explicit retired
+  header/mobile-outline/indicator presentations with the decisions above.
+- `tests/documentationSearch{Index,Announcements}.test.ts` and browser
+  `documentation-search{,-interaction}.pw.ts`: corpus extraction, ranking,
+  aliases, safe highlighting, names/status, stable details mode, keyboard,
+  native result navigation, dismissal and focus.
+- `tests/documentationCopy.test.ts` and browser `documentation-copy.pw.ts`:
+  Markdown vocabulary/escaping, exact code, feedback, focus and async ordering.
+- `tests/documentationChangelog{Data,Timeline}.test.ts`,
+  `tests/releaseNotes.test.ts`, and browser `documentation-changelog.pw.ts`:
+  canonical notes/projection, safe rendering, timeline links and static content.
+- `tests/{coreWorkflow,libraryReader,utility,archiveRecovery,releasedBehavior}DocumentationCoverage.test.ts`
+  and browser `documentation-{workflows,recovery,behavior}.pw.ts`: released
+  product claims, recovery guidance and task navigation. Keep these factual
+  checks when retargeting HTML selectors to MDX/rendered React output.
+
+B2.2 builds only the shell with representative temporary content and a search
+surface fixture. B2.3 adds responsive/theme/TOC/navigation/code interaction;
+B2.4 verifies visual and accessible behavior before real content. B2.5 migrates
+articles; B2.6 implements real search/overview/article-copy behavior; B2.7
+integrates history/tooling; B2.8 preserves public resources, redirects, and the
+temporary static homepage (remove the foundation root and disable preset pages
+first); B2.9 completes CI classification/browser integration; B2.10 deploys and
+retires legacy implementation. Existing routes/generators stay active until
+their replacements pass. No parent merge, rebase, stack flattening, or early
+cutover is a prerequisite for these phases.
