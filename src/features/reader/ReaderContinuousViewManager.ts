@@ -23,6 +23,20 @@ export class ReaderContinuousViewManager extends ContinuousViewManager {
     return !this.retired && this.ownsSession();
   }
 
+  private async mount(view: ResidentView): Promise<void> {
+    let pending = this.loading.get(view);
+    if (!pending) {
+      pending = view.display(this.request);
+      this.loading.set(view, pending);
+      this.emit("reader-residency", "loading", view);
+    }
+    try {
+      await pending;
+    } finally {
+      if (this.loading.get(view) === pending) this.loading.delete(view);
+    }
+  }
+
   private warm(view: ResidentView): boolean {
     const viewport = this.container.getBoundingClientRect();
     const bounds = view.element.getBoundingClientRect();
@@ -75,7 +89,7 @@ export class ReaderContinuousViewManager extends ContinuousViewManager {
       if (prepare) {
         // Preserve the current passage while an evicted navigation target mounts.
         destination ??= this.append(section);
-        await destination.display(this.request);
+        await this.mount(destination);
         if (!this.isSessionCurrent() || !this.views.all().includes(destination))
           throw new Error("Reader navigation retired");
         destination.show();
@@ -107,19 +121,11 @@ export class ReaderContinuousViewManager extends ContinuousViewManager {
     await Promise.all(
       required.map(async (view) => {
         if (!view.displayed) {
-          let pending = this.loading.get(view);
-          if (!pending) {
-            pending = view.display(this.request);
-            this.loading.set(view, pending);
-            this.emit("reader-residency", "loading", view);
-          }
           try {
-            await pending;
+            await this.mount(view);
           } catch (error) {
             if (this.isSessionCurrent()) this.onLoadError(error);
             return;
-          } finally {
-            if (this.loading.get(view) === pending) this.loading.delete(view);
           }
         }
         if (this.isSessionCurrent() && this.views.all().includes(view) && view.displayed)
