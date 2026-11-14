@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.use({ video: "on" });
+test.use({ video: "retain-on-failure" });
 
 for (const surface of ["dialog", "drawer", "palette"]) {
   test(`${surface}: retained native containment, guarded actions, Escape, and deadline`, async ({

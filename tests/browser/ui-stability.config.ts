@@ -7,6 +7,8 @@ export default defineConfig({
   ...base,
   testDir: ".",
   testMatch: "ui-stability.pw.ts",
+  testIgnore: [],
+  fullyParallel: false,
   outputDir: "../../test-results/ui-stability",
   reporter: "line",
   workers: 1,

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { configDefaults } from "vitest/config";
 
 import vitestConfig from "../vitest.config";
@@ -17,19 +17,14 @@ import {
 } from "../scripts/ci-validation-policy.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const workflow = fs.readFileSync(path.join(projectRoot, ".github", "workflows", "ci.yml"), "utf8");
-const desktopWorkflow = fs.readFileSync(
-  path.join(projectRoot, ".github", "workflows", "desktop-build.yml"),
-  "utf8",
-);
-const dependencyReviewWorkflow = fs.readFileSync(
-  path.join(projectRoot, ".github", "workflows", "dependency-review.yml"),
-  "utf8",
-);
-const codeqlWorkflow = fs.readFileSync(
-  path.join(projectRoot, ".github", "workflows", "codeql.yml"),
-  "utf8",
-);
+const readWorkflow = (name: string) =>
+  fs
+    .readFileSync(path.join(projectRoot, ".github", "workflows", name), "utf8")
+    .replace(/\r\n/g, "\n");
+const workflow = readWorkflow("ci.yml");
+const desktopWorkflow = readWorkflow("desktop-build.yml");
+const dependencyReviewWorkflow = readWorkflow("dependency-review.yml");
+const codeqlWorkflow = readWorkflow("codeql.yml");
 const tauriConfig = JSON.parse(
   fs.readFileSync(path.join(projectRoot, "src-tauri", "tauri.conf.json"), "utf8"),
 ) as { build: { beforeBuildCommand: string } };
@@ -190,7 +185,7 @@ describe("CI workflow contract", () => {
       "        run: pnpm exec playwright install --with-deps chromium --only-shell",
     );
     expect(browserContracts).toContain(
-      "        run: pnpm run test:browser --fail-on-flaky-tests --shard=${{ matrix.shard }}/2",
+      "        run: pnpm exec playwright test --fail-on-flaky-tests --shard=${{ matrix.shard }}/2",
     );
     expect(browserContracts).toContain(
       "          name: browser-contract-failure-${{ matrix.shard }}",
@@ -298,14 +293,14 @@ describe("CI workflow contract", () => {
       path.join(projectRoot, "tests/browser/async-surfaces.config.ts"),
       "utf8",
     );
-    expect(config).toContain('testIgnore: "**/async-surfaces.pw.ts"');
+    expect(config).toContain('"**/async-surfaces.pw.ts"');
     expect(asyncConfig).toContain("testIgnore: []");
   });
 
   it("fails both browser lanes on retry recovery and retains both attempts", () => {
     const job = jobLines("browser-contracts").join("\n");
     expect(job).toContain(
-      "pnpm run test:browser --fail-on-flaky-tests --shard=${{ matrix.shard }}/2",
+      "pnpm exec playwright test --fail-on-flaky-tests --shard=${{ matrix.shard }}/2",
     );
     expect(job).toContain(
       "pnpm exec playwright test --config tests/browser/async-surfaces.config.ts --fail-on-flaky-tests",
@@ -540,6 +535,15 @@ describe("CI Gate result check", () => {
 });
 
 describe("CI change classifier", () => {
+  let warnings: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    warnings = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    for (const [message] of warnings.mock.calls)
+      expect(message).toMatch(/^CI classification defaults to full validation:/);
+    warnings.mockRestore();
+  });
   const base = "a".repeat(40);
   const head = "b".repeat(40);
   const event = { pull_request: { base: { sha: base }, head: { sha: head } } };
