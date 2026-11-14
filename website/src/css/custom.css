@@ -1,0 +1,41 @@
+/* Keep Infima's document defaults until the custom documentation shell replaces them. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source(none);
+
+@source "../";
+@source "../../docs";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* B1.4 replaces these integration aliases with the approved website palette. */
+:root {
+  --background: var(--ifm-background-color);
+  --foreground: var(--ifm-font-color-base);
+  --primary: var(--ifm-color-primary);
+  --primary-foreground: var(--ifm-color-content-inverse);
+  --secondary: var(--ifm-color-emphasis-200);
+  --secondary-foreground: var(--ifm-font-color-base);
+  --accent: var(--ifm-color-emphasis-200);
+  --accent-foreground: var(--ifm-font-color-base);
+  --destructive: var(--ifm-color-danger);
+  --destructive-foreground: var(--ifm-color-content-inverse);
+  --muted-foreground: var(--ifm-color-emphasis-700);
+  --input: var(--ifm-color-emphasis-400);
+  --ring: var(--ifm-color-primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}

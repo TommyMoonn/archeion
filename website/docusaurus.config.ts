@@ -1,4 +1,5 @@
-import type { Config } from "@docusaurus/types";
+import tailwindcss from "@tailwindcss/postcss";
+import type { Config, Plugin } from "@docusaurus/types";
 
 const config: Config = {
   title: "Archeion",
@@ -7,6 +8,20 @@ const config: Config = {
   organizationName: "TommyMoonn",
   projectName: "archeion",
   onBrokenLinks: "throw",
+  plugins: [
+    function tailwindPlugin(): Plugin {
+      return {
+        name: "archeion-tailwind",
+        configurePostCss(options) {
+          options.plugins.push(tailwindcss());
+          return options;
+        },
+        configureWebpack() {
+          return { resolve: { alias: { "@": `${__dirname}/src` } } };
+        },
+      };
+    },
+  ],
   presets: [
     [
       "classic",
@@ -16,6 +31,7 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
         },
         blog: false,
+        theme: { customCss: "./src/css/custom.css" },
       },
     ],
   ],
