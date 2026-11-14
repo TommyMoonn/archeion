@@ -43,7 +43,11 @@ test("long traversal retires offscreen frames and reverses through evicted secti
   expect(samples.at(-1)!.atBookEnd).toBe(true);
   const counts = samples.map((sample) => sample.viewCount);
   await testInfo.attach("residency-traversal", {
-    body: JSON.stringify({ visited: [...visited], samples }),
+    body: JSON.stringify({
+      visited: [...visited],
+      viewCounts: counts,
+      ...(process.env.ARCHEION_BROWSER_DIAGNOSTICS || testInfo.retry > 0 ? { samples } : {}),
+    }),
     contentType: "application/json",
   });
   if (process.env.ARCHEION_RESIDENCY_BASELINE) {
@@ -74,7 +78,7 @@ test("long traversal retires offscreen frames and reverses through evicted secti
   for (let step = 0; step < 60; step++) {
     const frames = await driver.sampleFrames(() => driver.wheel(-600));
     assertNoBlankReverse(frames);
-    const sample = frames.at(-1)!;
+    const sample = await driver.snapshot();
     expect(sample.viewCount).toBeLessThanOrEqual(frameBound);
     const listeners = await page.evaluate(() => window.readerFixture.residency());
     expect(listeners.registeredDocuments).toBeLessThanOrEqual(sample.viewCount);
@@ -107,23 +111,26 @@ test("warm window handles tiny chapters, bursts, PageUp, scrollbar seek and resi
   });
   for (const delta of [-900, 700, -900, 700, -900]) {
     const frames = await driver.sampleFrames(() => driver.wheel(delta));
-    await testInfo.attach(`burst-${delta}`, {
-      body: JSON.stringify(frames),
-      contentType: "application/json",
-    });
+    if (process.env.ARCHEION_BROWSER_DIAGNOSTICS || testInfo.retry > 0)
+      await testInfo.attach(`burst-${delta}`, {
+        body: JSON.stringify(frames),
+        contentType: "application/json",
+      });
     assertNoBlankReverse(frames);
   }
   const keyFrames = await driver.sampleFrames(() => driver.key("PageUp"));
-  await testInfo.attach("page-up", {
-    body: JSON.stringify(keyFrames),
-    contentType: "application/json",
-  });
+  if (process.env.ARCHEION_BROWSER_DIAGNOSTICS || testInfo.retry > 0)
+    await testInfo.attach("page-up", {
+      body: JSON.stringify(keyFrames),
+      contentType: "application/json",
+    });
   assertNoBlankReverse(keyFrames);
   const dragFrames = await driver.sampleFrames(() => driver.dragScrollbar(0));
-  await testInfo.attach("scrollbar-seek", {
-    body: JSON.stringify(dragFrames),
-    contentType: "application/json",
-  });
+  if (process.env.ARCHEION_BROWSER_DIAGNOSTICS || testInfo.retry > 0)
+    await testInfo.attach("scrollbar-seek", {
+      body: JSON.stringify(dragFrames),
+      contentType: "application/json",
+    });
   assertNoBlankReverse(dragFrames);
   const before = await page.evaluate(() => {
     const scroller = document.querySelector<HTMLElement>("#publication .epub-container")!;

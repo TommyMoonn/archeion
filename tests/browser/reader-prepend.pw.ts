@@ -355,7 +355,7 @@ test("reverse input crosses ten boundaries without downward passage snap", async
       step % 6 === 0
         ? () => page.evaluate(() => window.readerFixture.turn("prev"))
         : () => driver.wheel(-450);
-    const frames = await driver.sampleFrames(action);
+    const frames = await driver.sampleFrames(action, [passage.id]);
     assertNoBlankReverse(frames);
     let previousY = passage.top;
     for (const frame of frames) {

@@ -1,16 +1,44 @@
 import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
 import type { RuntimeOptions } from "./fixtures/reader-epub-main";
-import type { RuntimeAnchor, RuntimeSnapshot } from "./fixtures/reader-runtime-observer";
+import type {
+  RuntimeAnchor,
+  RuntimeSnapshot,
+  RuntimeFrame,
+} from "./fixtures/reader-runtime-observer";
+
+const recordings = new WeakMap<Page, RuntimeFrame[]>();
 
 export const test = base.extend({
-  page: async ({ page }, runTest) => {
+  page: async ({ page }, runTest, info) => {
     try {
       await runTest(page);
     } finally {
       if (!page.isClosed()) {
-        await page.evaluate(() => {
-          if (window.readerFixture) window.readerFixture.dispose();
-        });
+        try {
+          if (
+            info.status !== info.expectedStatus ||
+            info.retry > 0 ||
+            process.env.ARCHEION_BROWSER_DIAGNOSTICS
+          ) {
+            const evidence = await page.evaluate(() =>
+              window.readerFixture?.ready
+                ? {
+                    snapshot: window.readerFixture.snapshot(),
+                    events: window.readerFixture.events(),
+                  }
+                : { ready: window.readerFixture?.ready, error: window.readerFixture?.error },
+            );
+            await info.attach("reader-failure-evidence", {
+              body: JSON.stringify({ ...evidence, frames: recordings.get(page) }),
+              contentType: "application/json",
+            });
+          }
+        } finally {
+          recordings.delete(page);
+          await page.evaluate(() => {
+            if (window.readerFixture) window.readerFixture.dispose();
+          });
+        }
       }
     }
   },
@@ -33,11 +61,11 @@ export class ReaderRuntimeDriver {
     return this.page.evaluate(() => window.readerFixture.snapshot());
   }
 
-  async sampleFrames(action: () => Promise<void>) {
+  async sampleFrames(action: () => Promise<void>, trackedIds: string[] = []) {
     // Begin in the browser before input and retain every painted transition through
     // quiescence, including asynchronous prepend/recovery after input completes.
-    const recorder = await this.page.evaluateHandle(() => {
-      const samples = [window.readerFixture.snapshot()];
+    const recorder = await this.page.evaluateHandle((trackedIds) => {
+      const samples = [window.readerFixture.sampleFrame(trackedIds)];
       let raf = 0;
       const deadline = performance.now() + 8000;
       const state = { samples, expired: false, signature: "", stableSince: performance.now() };
@@ -46,7 +74,7 @@ export class ReaderRuntimeDriver {
           state.expired = true;
           return;
         }
-        const sample = window.readerFixture.snapshot();
+        const sample = window.readerFixture.sampleFrame(trackedIds);
         samples.push(sample);
         const signature = JSON.stringify([
           sample.scrollTop,
@@ -60,10 +88,10 @@ export class ReaderRuntimeDriver {
       };
       raf = requestAnimationFrame(tick);
       return { state, stop: () => cancelAnimationFrame(raf) };
-    });
+    }, trackedIds);
     try {
       await action();
-      return await recorder.evaluate(async (recording) => {
+      const frames = await recorder.evaluate(async (recording) => {
         // Require the full existing quiet window after input finishes, even if
         // the browser had already been idle while the action was being prepared.
         recording.state.stableSince = performance.now();
@@ -75,6 +103,11 @@ export class ReaderRuntimeDriver {
         }
         throw new Error("Reader frame recording exceeded 8000ms before settlement");
       });
+      recordings.set(this.page, frames);
+      return frames;
+    } catch (error) {
+      recordings.set(this.page, await recorder.evaluate((recording) => recording.state.samples));
+      throw error;
     } finally {
       await recorder.evaluate((recording) => recording.stop());
       await recorder.dispose();
@@ -155,14 +188,25 @@ export class ReaderRuntimeDriver {
       events: window.readerFixture.events(),
     }));
     await testInfo.attach(label, {
-      body: JSON.stringify({ ...extra, ...evidence }, null, 2),
+      body: JSON.stringify(
+        testInfo.status !== testInfo.expectedStatus ||
+          testInfo.retry > 0 ||
+          process.env.ARCHEION_BROWSER_DIAGNOSTICS
+          ? { ...extra, ...evidence }
+          : {
+              viewCount: evidence.snapshot.viewCount,
+              sections: evidence.snapshot.sections.map((section) => section.index),
+              eventCount: evidence.events.length,
+              checkpoints: Object.keys(extra),
+            },
+      ),
       contentType: "application/json",
     });
     return evidence;
   }
 }
 
-export function findAnchor(snapshot: RuntimeSnapshot, id: string): RuntimeAnchor {
+export function findAnchor(snapshot: Pick<RuntimeSnapshot, "anchors">, id: string): RuntimeAnchor {
   const anchor = snapshot.anchors.find((candidate) => candidate.id === id);
   expect(anchor, `Mounted authored anchor ${id}`).toBeDefined();
   return anchor!;
@@ -206,7 +250,7 @@ export async function assertImageCentered(driver: ReaderRuntimeDriver, id: strin
   );
 }
 
-export function assertNoBlankReverse(samples: RuntimeSnapshot[]) {
+export function assertNoBlankReverse(samples: (RuntimeSnapshot | RuntimeFrame)[]) {
   expect(samples.length).toBeGreaterThan(1);
   for (const sample of samples) {
     expect(
@@ -219,7 +263,9 @@ export function assertNoBlankReverse(samples: RuntimeSnapshot[]) {
       "A mounted chapter covers the visible viewport",
     ).toBe(true);
     expect(
-      sample.anchors.some((anchor) => anchor.visible),
+      "authoredContentVisible" in sample
+        ? sample.authoredContentVisible
+        : sample.anchors.some((anchor) => anchor.visible),
       "Authored text/media is actually visible",
     ).toBe(true);
     expect(
