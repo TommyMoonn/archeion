@@ -244,6 +244,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --filter @archeion/website... --frozen-lockfile
 
+      - name: Test website tooling
+        run: pnpm --filter @archeion/website test
+
       - name: Typecheck website
         run: pnpm --filter @archeion/website typecheck
 

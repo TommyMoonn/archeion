@@ -11,6 +11,7 @@ root, run `pnpm install --frozen-lockfile` once, then:
 ```sh
 pnpm --filter @archeion/website dev
 pnpm --filter @archeion/website typecheck
+pnpm --filter @archeion/website test
 pnpm --filter @archeion/website lint
 pnpm --filter @archeion/website fmt
 pnpm --filter @archeion/website build
@@ -18,7 +19,8 @@ pnpm --filter @archeion/website serve
 ```
 
 Inside `website/`, use `pnpm run dev`, `pnpm run typecheck`, `pnpm run lint`,
-`pnpm run fmt`, `pnpm run fmt:fix`, `pnpm run build`, and `pnpm run serve`.
+`pnpm run test`, `pnpm run fmt`, `pnpm run fmt:fix`, `pnpm run build`, and
+`pnpm run serve`.
 Lint and formatting reuse the repository's installed tools and configuration.
 The development server watches TSX, Tailwind class strings, and MDX. Open
 `/archeion/` for the component tooling sample and `/archeion/docs/foundation`
@@ -26,10 +28,20 @@ for the temporary document. Production output goes to `website/build/`;
 `serve` previews that static output under the same project base path.
 
 The dedicated CI website job installs only `@archeion/website...`, then runs
-strict typechecking and the production build (including MDX and broken-link
-validation). The existing application jobs keep their application-only installs.
+website tooling tests, strict typechecking, and the production build (including
+MDX and broken-link validation). The existing application jobs keep their application-only installs.
 Website changes still select full CI validation until the Branch 2 classifier
 integration. No Pages deployment is configured by this foundation.
+
+The root `package.json` scopes a tinypool 2.1.2 override to Docusaurus. Docusaurus
+3.10.2 still requests 1.x, which is affected by GHSA-85c8-ppgw-ccpr and
+GHSA-5gmw-xhrv-c9v3. Keep the override until Docusaurus requires a patched
+version. Scoped overrides use serialize-javascript 7.1.3 for
+copy-webpack-plugin and css-minimizer-webpack-plugin to fix
+GHSA-5c6j-r48x-rmvq. These overrides do not change the desktop application's
+dependency requirements. Website runtime tests live under
+`website/tests/` and run in the website job; application-only tests do not import
+website modules or require Docusaurus dependencies.
 
 Root `pnpm run docs:sync` and `pnpm run docs:check` remain Node-only and do not
 invoke Docusaurus. They continue to own the current public site's generated

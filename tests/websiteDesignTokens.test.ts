@@ -67,14 +67,18 @@ describe("website design foundation", () => {
   it("consumes unchanged approved artwork, fonts, and licenses", () => {
     for (const theme of ["dark", "light"]) {
       const name = `archeion-logo-${theme}.png`;
-      expect(fs.readFileSync(path.join(root, `website/src/assets/brand/${name}`))).toEqual(
-        fs.readFileSync(path.join(root, `src/assets/brand/${name}`)),
-      );
+      expect(
+        fs
+          .readFileSync(path.join(root, `website/src/assets/brand/${name}`))
+          .equals(fs.readFileSync(path.join(root, `src/assets/brand/${name}`))),
+      ).toBe(true);
     }
     for (const name of ["inter-regular", "inter-semibold", "inter-bold", "literata-regular"]) {
-      expect(fs.readFileSync(path.join(root, `website/src/assets/fonts/${name}.woff2`))).toEqual(
-        fs.readFileSync(path.join(root, `docs/assets/fonts/${name}.woff2`)),
-      );
+      expect(
+        fs
+          .readFileSync(path.join(root, `website/src/assets/fonts/${name}.woff2`))
+          .equals(fs.readFileSync(path.join(root, `docs/assets/fonts/${name}.woff2`))),
+      ).toBe(true);
     }
     for (const family of ["Inter", "Literata"]) {
       const name = `${family}-OFL-1.1.txt`;

@@ -154,6 +154,8 @@ describe("CI workflow contract", () => {
     expect(job).toContain("cache-dependency-path: pnpm-lock.yaml");
     expect(job).toContain("run: pnpm install --filter @archeion/website... --frozen-lockfile");
     expect(job).toContain("run: pnpm --filter @archeion/website typecheck");
+    expect(job).toContain("run: pnpm --filter @archeion/website test");
+    expect(vitestConfig.test?.exclude).toContain("website/**");
     expect(job).toContain("run: pnpm --filter @archeion/website build");
     expect(job).not.toContain("--filter archeion...");
   });
