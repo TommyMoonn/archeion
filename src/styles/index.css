@@ -7,6 +7,7 @@
 @import "./layout/app-shell.css";
 @import "./layout/collection-content.css";
 
+@import "./components/brand.css";
 @import "./components/buttons.css";
 @import "./components/forms.css";
 @import "./components/dialogs.css";

@@ -24,7 +24,7 @@ Run `node scripts/generate-brand-assets.mjs` to regenerate the transparent SVG v
 
 R.2 generates the configured Windows and Tauri icons from `archeion-logo-dark.png`, preserving the approved composition. The source is 500 × 500; larger raster outputs cannot gain additional detail. Do not replace it with a newly designed tile or claim that an upscaled export is a higher-resolution original.
 
-Use the approved wordmark as an image with an accessible product name. Its lettering is fixed artwork and cannot inherit a user's display-font preference. Do not approximate it with Georgia or another font. If existing small text placements require a fixed brand font role, keep that separate from the approved image and from configurable display typography.
+The owner clarified during R.2 that both supplied wordmark PNGs are for the root README. Keep existing in-app Archeion text and its Display font behavior. Do not substitute the wordmark images for that text or add a fixed brand font role. About and Archive Manager use the unchanged logo PNGs in their existing icon placements, selected by the resolved application base. Do not approximate the README lettering with Georgia or another font.
 
 Give a standalone logo or wordmark image meaningful alternative text. Use empty alternative text for a decorative symbol next to an already-visible product name.
 

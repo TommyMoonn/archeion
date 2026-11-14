@@ -67,6 +67,31 @@ Cards, notices, callouts, and other content groups do not use thick accent-color
 
 ## Typography
 
+### Desktop identity
+
+About and Archive Manager use `BrandLogo` with the owner's unchanged logo PNGs
+in `src/assets/brand/`. The resolved application base selects the dark or light
+artwork, including for custom themes. Keep the existing icon dimensions and
+product-name headings. Library retains its text-only product name and existing
+sidebar visibility gates. Settings retains its compact product eyebrow.
+
+The in-app product name continues to use its existing typography, including the
+configurable Display font. The supplied wordmark PNGs are for the root README;
+do not substitute them for in-app text or recreate their lettering with a font.
+This owner decision supersedes the rebrand plan's proposed fixed brand font role.
+
+Regenerate platform icons from the approved 500 x 500 desktop composition:
+
+```powershell
+pnpm exec tauri icon src/assets/brand/archeion-logo-dark.png --output src-tauri/icons
+Copy-Item src-tauri/icons/128x128.png docs/assets/images/archeion-icon.png
+Copy-Item src-tauri/icons/32x32.png public/favicon.png
+```
+
+Larger exports are upscaled derivatives. Keep the configured executable and
+installer icon paths. `node scripts/generate-brand-assets.mjs --check` guards
+the approved source bytes.
+
 ### Font families and ownership
 
 - The application interface uses bundled Inter, followed by Segoe UI and the system sans-serif stack.

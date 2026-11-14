@@ -8,8 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
-// Copied from src-tauri/icons/128x128.png so the frontend can load it through Vite.
-import archeionIcon from "../../assets/brand/archeion-icon-128.png";
+import { BrandLogo } from "../../components/BrandLogo";
 import { Button } from "../../components/Button";
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import {
@@ -379,7 +378,7 @@ export function ArchiveManagerWindowContent({
           <section className="archive-manager-window__main">
             <div className="archive-manager-window__identity">
               <div className="archive-manager-window__mark" aria-hidden="true">
-                <img className="archive-manager-window__icon" src={archeionIcon} alt="" />
+                <BrandLogo className="archive-manager-window__icon" />
               </div>
               <div className="archive-manager-window__identity-copy">
                 <h1 id="archive-manager-title">Archeion</h1>

@@ -1,0 +1,23 @@
+.brand-logo {
+  display: grid;
+}
+
+.brand-logo img {
+  grid-area: 1 / 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-logo .brand-logo__light {
+  display: none;
+}
+
+html[data-app-theme="light"] .brand-logo__dark {
+  display: none;
+}
+
+html[data-app-theme="light"] .brand-logo__light {
+  display: block;
+}
