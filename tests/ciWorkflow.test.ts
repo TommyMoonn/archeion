@@ -13,6 +13,7 @@ import {
   frontendJobs,
   platformJobs,
   classifyChanges,
+  checkGate,
 } from "../scripts/ci-validation-policy.mjs";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -167,6 +168,7 @@ describe("CI workflow contract", () => {
       jobIds.filter((jobId) => jobId !== "ci-gate").sort(),
     );
     expect(gate).toContain("    if: ${{ always() }}");
+    expect(gate).toContain("    name: CI Gate");
     expect(gate).toContain("          REQUIRED_JOBS: ${{ toJSON(needs) }}");
   });
 
@@ -438,6 +440,27 @@ describe("CI workflow contract", () => {
 
 describe("CI Gate result check", () => {
   const successfulJobs = Object.fromEntries(requiredJobIds.map((jobId) => [jobId, "success"]));
+
+  it.each(["pull_request", "push"])("requires every validation job on a full %s", (event) => {
+    const needs = Object.fromEntries(allJobs.map((job) => [job, { result: "success" }]));
+    const classifier = {
+      result: "success",
+      outputs: { mode: "full", expected_jobs: JSON.stringify(allJobs) },
+    };
+    expect(() => checkGate({ ...needs, "classify-changes": classifier }, event)).not.toThrow();
+    for (const job of allJobs) {
+      for (const result of ["failure", "cancelled", "skipped", "unknown"]) {
+        expect(() =>
+          checkGate({ ...needs, [job]: { result }, "classify-changes": classifier }, event),
+        ).toThrow(`CI validation job did not succeed: ${job}`);
+      }
+      const missing = { ...needs };
+      delete missing[job];
+      expect(() => checkGate({ ...missing, "classify-changes": classifier }, event)).toThrow(
+        "CI Gate is missing validation jobs",
+      );
+    }
+  });
 
   it("passes when all required jobs succeed", () => {
     const result = runGate(successfulJobs);

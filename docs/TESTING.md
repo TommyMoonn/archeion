@@ -24,8 +24,7 @@ The command runs these checks:
 `pnpm run verify` does not run the separate Chromium browser suite, Windows
 runtime smoke, Windows updater smoke, Linux font catalog portability check, or
 Rust MSRV check. CI runs those as separate `CI Gate` dependencies. The
-release-tooling tests are part of the local Vitest suite and also run in a
-dedicated Windows CI job.
+release-tooling tests run once as part of the full Windows Vitest suite.
 
 ## Run focused checks
 
@@ -101,13 +100,19 @@ pnpm run test:browser:install
 pnpm run test:browser
 ```
 
+To apply the CI failure policy locally, run `pnpm run test:browser
+--fail-on-flaky-tests`. CI retains one diagnostic retry, but a test that passes
+only on retry fails the job. Both the source suite and built async-surface suite
+use this policy.
+
 `pnpm run test:browser` runs the browser-test TypeScript check before Playwright.
 CI runs the suite in two shards as a required `CI Gate` dependency. The first
 shard also builds and runs the separate async-surface browser contracts.
 
 Browser failure artifacts are named `browser-contract-failure-1` and
 `browser-contract-failure-2`. They contain the HTML report, screenshots, and
-retry traces where available. The first shard also uploads
+first-attempt and retry traces where available, including a successful retry.
+The first shard also uploads
 `async-surface-contract-failure` when those checks fail. Browser outputs are
 ignored by Git.
 
@@ -171,7 +176,8 @@ with:
 pnpm run test tests/releaseTooling.test.ts tests/releaseCandidate.test.ts tests/releasePublication.test.ts
 ```
 
-CI runs these tests in a separate required Windows validation job.
+CI runs these tests once through the full Windows Vitest suite. There is no
+separate release-tooling job.
 
 ## Generate diagnostic coverage reports
 
