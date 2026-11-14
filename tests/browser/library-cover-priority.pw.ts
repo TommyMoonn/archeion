@@ -336,9 +336,13 @@ for (const appearance of ["light", "dark"] as const) {
       (window as unknown as { releaseCoverDecode: () => void }).releaseCoverDecode(),
     );
     await expect(cover).toHaveAttribute("data-cover-state", "available");
-    const ready = await cover.boundingBox();
-    expect(ready!.width).toBe(observed.width);
-    expect(ready!.height).toBe(observed.height);
+    // Use the same DOM measurement as the loading and fallback samples; CDP rounds differently.
+    const ready = await cover.evaluate((node) => {
+      const { width, height } = node.getBoundingClientRect();
+      return { width, height };
+    });
+    expect(ready.width).toBe(observed.width);
+    expect(ready.height).toBe(observed.height);
     await cover.locator("img").evaluate((img) => img.dispatchEvent(new Event("error")));
     await expect(cover).toHaveAttribute("data-cover-state", "unavailable");
     const fallback = await cover.evaluate((node) => {

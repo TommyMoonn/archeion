@@ -83,9 +83,19 @@ describe("static release timeline", () => {
           .map((line: string) =>
             line
               .slice(2)
+              .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, "$1")
               .replace(/\*\*([^*]+)\*\*/g, "$1")
               .replace(/`([^`]+)`/g, "$1"),
           ),
+      );
+      expect(
+        [...release.querySelectorAll(".release-changes > ul a")].map((link) =>
+          link.getAttribute("href"),
+        ),
+      ).toEqual(
+        [...note.changes.matchAll(/\[[^\]\n]+\]\((https?:\/\/[^\s)]+)\)/g)].map(
+          (match) => match[1],
+        ),
       );
       expect(release.querySelector(".release-notes-link")?.getAttribute("href")).toBe(
         `https://github.com/TommyMoonn/archeion/releases/tag/v${note.version}`,
