@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scriptsRoot = path.join(projectRoot, "scripts");
@@ -124,14 +124,30 @@ function stageFixture(
   ]);
 }
 
-function createStagedInstallerFixture() {
-  const fixture = createBundleFixture();
-  const result = stageFixture(fixture);
-  if (result.status !== 0) {
-    throw new Error(`Could not stage installer fixture: ${combinedOutput(result)}`);
-  }
+let stagedSeed: ReturnType<typeof createBundleFixture> | undefined;
+afterAll(() => {
+  if (stagedSeed) fs.rmSync(stagedSeed.root, { recursive: true, force: true });
+});
 
-  return fixture;
+function createStagedInstallerFixture() {
+  if (!stagedSeed) {
+    const seed = createBundleFixture();
+    const result = stageFixture(seed);
+    if (result.status !== 0) {
+      throw new Error(`Could not stage installer fixture: ${combinedOutput(result)}`);
+    }
+    // The seed outlives per-test cleanup, but every verifier gets its own copy.
+    temporaryRoots.splice(temporaryRoots.indexOf(seed.root), 1);
+    stagedSeed = seed;
+  }
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "archeion-release-verifier-"));
+  temporaryRoots.push(root);
+  fs.cpSync(stagedSeed.root, root, { recursive: true });
+  return {
+    root,
+    bundleRoot: path.join(root, "bundle"),
+    outputDirectory: path.join(root, "artifacts", "windows"),
+  };
 }
 
 function addSignatureFixtures(bundleRoot: string, version = "0.3.0") {
