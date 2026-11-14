@@ -32,6 +32,7 @@ const config: Config = {
         docs: {
           routeBasePath: "docs",
           sidebarPath: "./sidebars.ts",
+          editUrl: "https://github.com/TommyMoonn/archeion/edit/main/website/",
         },
         blog: false,
         theme: { customCss: "./src/css/custom.css" },

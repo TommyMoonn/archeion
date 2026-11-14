@@ -44,9 +44,11 @@
 :root {
   color-scheme: dark;
   --surface: #0b0b0c;
+  --surface-header: color-mix(in srgb, var(--surface) 94%, transparent);
   --surface-raised: #1a1a1b;
   --surface-sunken: #080808;
   --surface-overlay: #252526;
+  --scrim: rgb(0 0 0 / 58%);
   --surface-sidebar: #0a0a0b;
   --surface-article: #0b0b0c;
   --surface-article-raised: #1f1f1f;
@@ -120,6 +122,8 @@
 
 @theme inline {
   --color-surface: var(--surface);
+  --color-surface-header: var(--surface-header);
+  --color-scrim: var(--scrim);
   --color-surface-raised: var(--surface-raised);
   --color-surface-sunken: var(--surface-sunken);
   --color-surface-overlay: var(--surface-overlay);
@@ -172,6 +176,33 @@
   --container-site: 80rem;
   --container-docs: 85rem;
   --container-article: 48rem;
+  --container-docs-article: 43.75rem;
+  --container-docs-dialog: 42.5rem;
+  --spacing-docs-sidebar: 14.375rem;
+  --spacing-docs-rail: 10.625rem;
+  --spacing-docs-search: 27.5rem;
+  --spacing-docs-search-full: 22.5rem;
+  --spacing-docs-search-wide: 20.625rem;
+  --spacing-docs-search-compact: 16.25rem;
+  --spacing-docs-search-mobile: 15rem;
+  --text-docs-body: 1rem;
+  --text-docs-body--line-height: 1.85;
+  --text-docs-lead: 1.0625rem;
+  --text-docs-lead--line-height: 1.75;
+  --text-docs-heading: 1.9375rem;
+  --text-docs-heading--line-height: 1.22;
+  --text-docs-subheading: 1.1875rem;
+  --text-docs-subheading--line-height: 1.4;
+  --text-docs-label: 0.6875rem;
+  --text-docs-brand: 1.375rem;
+  --text-docs-navigation: 0.9375rem;
+  --text-docs-title-mobile: 2.5rem;
+  --text-docs-title-mobile--line-height: 1.08;
+  --text-docs-heading-mobile: 1.6875rem;
+  --text-docs-heading-mobile--line-height: 1.22;
+  --tracking-docs-label: 0.11em;
+  --tracking-docs-group: 0.045em;
+  --shadow-docs-dialog: 0 24px 80px rgb(0 0 0 / 38%);
   --container-hero-copy: 35rem;
   --container-prose: 66ch;
   --spacing-gutter: 2rem;
@@ -194,4 +225,16 @@
   --breakpoint-navigation: 50rem;
   --breakpoint-wide: 67.5rem;
   --breakpoint-full: 77.5rem;
+  --breakpoint-brand: 56.25rem;
+  --breakpoint-search: 43.125rem;
+  --breakpoint-tiny: 25rem;
 }
+
+/* Inclusive boundaries are intentional: the approved mock changes at <= width. */
+@custom-variant docs-full (@media (max-width: 1240px));
+@custom-variant docs-wide (@media (max-width: 1080px));
+@custom-variant docs-brand (@media (max-width: 900px));
+@custom-variant docs-navigation (@media (max-width: 800px));
+@custom-variant docs-search (@media (max-width: 690px));
+@custom-variant docs-narrow (@media (max-width: 600px));
+@custom-variant docs-tiny (@media (max-width: 400px));

@@ -102,8 +102,8 @@ different arbitrary value in each component. Page-specific exceptions still
 need evidence from the approved mock.
 
 Keep all component styling in Tailwind. The global stylesheet contains only
-Tailwind setup, tokens, and font-face rules. Preflight stays omitted while
-Infima owns the temporary document shell; primitives explicitly supply borders,
+Tailwind setup, tokens, and font-face rules. Preflight stays omitted; the docs
+shell replaces Infima geometry at focused theme seams. Primitives supply borders,
 font families, focus outlines, and reduced-motion-aware transitions.
 
 ## Shared components
@@ -351,3 +351,47 @@ first); B2.9 completes CI classification/browser integration; B2.10 deploys and
 retires legacy implementation. Existing routes/generators stay active until
 their replacements pass. No parent merge, rebase, stack flattening, or early
 cutover is a prerequisite for these phases.
+
+## Documentation shell fixtures (B2.2)
+
+`theme/DocsRoot` keeps the framework version/routes and layout provider, while
+`theme/DocRoot/Layout` composes `DocsShell` inside `DocsSidebarProvider`.
+`theme/DocItem/Layout` composes the article using `useDoc()`. These overrides
+replace default CSS Module/Infima geometry without changing the root tooling page.
+The existing DocItem still owns metadata and the document provider. Sidebar,
+breadcrumbs, outline, search fixture links, and neighbors consume framework data;
+there is no copied public registry or second route list.
+
+Temporary routes are `/docs/`, `/docs/foundation`,
+`/docs/fixtures/sample-guide`, and `/docs/fixtures/sample-reference` under the
+project base URL. Three fixture MDX files join the retained foundation document;
+none is a migrated public article. The sidebar deliberately has only fixture
+groups. B2.5 replaces these fixtures with the real corpus after B2.4 approval.
+
+The shell implements the measured header, flat sidebar, 700px article cap,
+170px outline, editorial typography, breadcrumbs, type, footer, pager, and search
+surface. `max-w-docs-article` is distinct from foundation `max-w-article`.
+Named docs type/width roles and inclusive `docs-*` variants live centrally in
+custom.css. Arbitrary grid tracks express the measured flexible columns;
+viewport calculations express sticky heights and the dialog's measured inset,
+width, and result height. These are layout formulas rather than new palette or
+spacing systems. The disclosure's `[open]` selector uses the native details
+attribute because the broader generated `:open` selector is incompatible with
+the current production PostCSS selector transform. The GitHub SVG retains the
+mock's brand glyph because current Lucide excludes brand icons.
+
+Theme, mobile navigation, and Copy page controls are disabled visual fixtures.
+B2.3 owns theme/drawer/active-outline/heading-anchor/code-copy interaction;
+B2.6 owns real search and portable Markdown copying. The native search dialog
+can be opened, dismissed, and followed to fixture routes, with basic native
+focus containment/restoration. Its read-only field and links are a surface
+fixture, not a search index or matching implementation. No search shortcut is
+registered yet. B2.4 owns full visual/accessibility acceptance; the B2.2 browser
+checks establish geometry, static readability, native routing and fixture states.
+
+Run the foundation browser config for both the retained foundation checks and
+`website-docs-shell.pw.ts`. Production checks include no-JavaScript article and
+neighbor output; dev mode checks the React routes. B2.9 owns CI integration of
+the completed documentation interaction suite. The legacy site, content,
+generators, release owners, public resource paths, and deployment remain active
+and unchanged in this phase.
