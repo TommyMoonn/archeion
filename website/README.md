@@ -380,9 +380,9 @@ attribute because the broader generated `:open` selector is incompatible with
 the current production PostCSS selector transform. The GitHub SVG retains the
 mock's brand glyph because current Lucide excludes brand icons.
 
-Theme, mobile navigation, and Copy page controls are disabled visual fixtures.
-B2.3 owns theme/drawer/active-outline/heading-anchor/code-copy interaction;
-B2.6 owns real search and portable Markdown copying. The native search dialog
+Copy page remains a disabled visual fixture. B2.3 adds the theme toggle,
+mobile drawer, active outline, heading permalinks, and code copying described
+below. B2.6 owns real search and portable Markdown copying. The native search dialog
 can be opened, dismissed, and followed to fixture routes, with basic native
 focus containment/restoration. Its read-only field and links are a surface
 fixture, not a search index or matching implementation. No search shortcut is
@@ -395,3 +395,43 @@ neighbor output; dev mode checks the React routes. B2.9 owns CI integration of
 the completed documentation interaction suite. The legacy site, content,
 generators, release owners, public resource paths, and deployment remain active
 and unchanged in this phase.
+
+## Documentation shell interactions (B2.3)
+
+Docusaurus colorMode owns dark/light preference. A head script migrates an
+explicit `archeion-docs-theme` value only when the framework's `theme` key is
+absent, before its pre-body initialization. Legacy system/invalid values resolve
+to dark. The old key is never written. Storage failures are nonfatal. The toggle
+uses the framework hook, suppresses descendant palette transitions through a
+Tailwind ancestor variant, and updates browser theme color from the surface
+token. The framework's early script remains the initial theme owner.
+
+DocsShell coordinates one modal at a time. Both surfaces use native dialogs for
+focus containment and background inertness, and release document scroll locking
+on close or unmount. The mobile drawer uses the same framework sidebar data,
+with the measured `min(310px, viewport - 52px)` width and header offset. Escape,
+close, a complete backdrop gesture, route changes, and crossing 800px dismiss
+it. Dismissal restores the opener; navigation focuses the destination article or
+fragment; desktop resize hands focus to the current sidebar link. Modified links
+retain browser behavior. Search remains a fixture with no keyboard shortcut or
+index until B2.6.
+
+Native sidebar disclosures persist collapse per framework category label;
+the current category opens on route entry and reload. The outline consumes
+framework h2/h3 identities, samples heading geometry at the native fragment
+clearance, and tracks scroll, reverse scroll, hash changes, article reflow,
+font completion, and the short final section at the bottom. It owns exactly one
+`aria-current="location"` link, with the approved accent border rather than a
+moving indicator. Heading permalinks retain native IDs and independent names.
+No inline mobile outline is introduced.
+
+Code copying reads the rendered code text exactly. An article-scoped clipboard
+owner keeps one polite status region and persistent, dismissible feedback;
+its fixed feedback surface uses a viewport-minus-gutters maximum width so it
+stays visible without moving the article or overflowing a narrow screen.
+control names stay stable, failures can be retried, newer requests supersede
+older completions, and navigation invalidates pending results. Copy controls
+appear on hover or focus and remain visible for coarse pointers. B2.6 will add
+portable Markdown page copying to this owner. No public article corpus has been
+migrated. The dedicated browser config includes the interaction fixture suite;
+B2.4 still owns the complete visual and accessibility checkpoint.

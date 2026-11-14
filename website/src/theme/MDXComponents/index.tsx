@@ -1,22 +1,13 @@
 import type { ComponentProps } from "react";
 import OriginalComponents from "@theme-original/MDXComponents";
 import type { MDXComponentsObject } from "@theme/MDXComponents";
+import { DocsHeading } from "@/components/docs/DocsHeading";
 import Link from "@docusaurus/Link";
 
 const MDXComponents: MDXComponentsObject = {
   ...OriginalComponents,
-  h2: (props: ComponentProps<"h2">) => (
-    <h2
-      {...props}
-      className="mt-12 mb-4.25 scroll-mt-24 font-editorial text-docs-heading font-normal tracking-display text-balance text-content-strong docs-narrow:text-docs-heading-mobile"
-    />
-  ),
-  h3: (props: ComponentProps<"h3">) => (
-    <h3
-      {...props}
-      className="mt-7.5 mb-3 scroll-mt-24 text-docs-subheading font-semibold tracking-tight text-content-strong"
-    />
-  ),
+  h2: (props: ComponentProps<"h2">) => <DocsHeading {...props} level={2} />,
+  h3: (props: ComponentProps<"h3">) => <DocsHeading {...props} level={3} />,
   p: (props: ComponentProps<"p">) => <p {...props} className="mt-0 mb-4.75" />,
   a: ({ href, ...props }: ComponentProps<"a">) => (
     <Link

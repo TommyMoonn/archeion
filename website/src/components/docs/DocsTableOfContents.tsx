@@ -1,7 +1,14 @@
 import { useDoc } from "@docusaurus/plugin-content-docs/client";
 
+import { useActiveSection } from "./useActiveSection";
+
 export function DocsTableOfContents() {
   const { toc, frontMatter } = useDoc();
+  const active = useActiveSection(
+    toc
+      .filter((heading) => heading.level === 2 || heading.level === 3)
+      .map((heading) => heading.id),
+  );
   if (frontMatter.hide_table_of_contents || toc.length === 0) return null;
   return (
     <aside
@@ -19,7 +26,8 @@ export function DocsTableOfContents() {
               <li key={heading.id}>
                 <a
                   href={`#${heading.id}`}
-                  className={`block border-0 border-s border-solid border-transparent py-1.25 pe-1 text-sm leading-relaxed text-content-muted hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring ${heading.level === 3 ? "ps-5.25" : "ps-2.5"}`}
+                  aria-current={active === heading.id ? "location" : undefined}
+                  className={`block border-0 border-s border-solid py-1.25 pe-1 text-sm leading-relaxed hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring ${active === heading.id ? "border-accent text-accent" : "border-transparent text-content-muted"} ${heading.level === 3 ? "ps-5.25" : "ps-2.5"}`}
                 >
                   {heading.value}
                 </a>

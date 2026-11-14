@@ -8,7 +8,7 @@ export default function DocsRoot({ route }: Props) {
   if (!route.routes) throw new Error("Documentation routes are missing");
   return (
     <LayoutProvider>
-      <div className="min-h-screen bg-surface font-sans text-content">
+      <div className="in-[[class~=theme-switching]]:[&_*]:transition-none min-h-screen bg-surface font-sans text-content">
         <ErrorBoundary fallback={(params) => <ErrorPageContent {...params} />}>
           {renderRoutes(route.routes)}
         </ErrorBoundary>

@@ -8,6 +8,17 @@ const config: Config = {
   organizationName: "TommyMoonn",
   projectName: "archeion",
   onBrokenLinks: "throw",
+  // Keep the framework preference key explicit for the one-time legacy migration.
+  storage: { type: "localStorage", namespace: false },
+  headTags: [
+    { tagName: "meta", attributes: { name: "theme-color", content: "#0b0b0c" } },
+    {
+      tagName: "script",
+      attributes: {},
+      // Runs in head, before Docusaurus's pre-body theme initialization and paint.
+      innerHTML: `(function(){try{if(localStorage.getItem('theme')===null){var old=localStorage.getItem('archeion-docs-theme');if(old!==null)localStorage.setItem('theme',old==='light'?'light':'dark');}}catch(e){}})();`,
+    },
+  ],
   themeConfig: {
     colorMode: { defaultMode: "dark", respectPrefersColorScheme: false },
   },

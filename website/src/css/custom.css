@@ -49,6 +49,7 @@
   --surface-sunken: #080808;
   --surface-overlay: #252526;
   --scrim: rgb(0 0 0 / 58%);
+  --scrim-navigation: rgb(0 0 0 / 45%);
   --surface-sidebar: #0a0a0b;
   --surface-article: #0b0b0c;
   --surface-article-raised: #1f1f1f;
@@ -124,6 +125,7 @@
   --color-surface: var(--surface);
   --color-surface-header: var(--surface-header);
   --color-scrim: var(--scrim);
+  --color-scrim-navigation: var(--scrim-navigation);
   --color-surface-raised: var(--surface-raised);
   --color-surface-sunken: var(--surface-sunken);
   --color-surface-overlay: var(--surface-overlay);
@@ -203,6 +205,7 @@
   --tracking-docs-label: 0.11em;
   --tracking-docs-group: 0.045em;
   --shadow-docs-dialog: 0 24px 80px rgb(0 0 0 / 38%);
+  --shadow-docs-drawer: 18px 0 50px rgb(0 0 0 / 18%);
   --container-hero-copy: 35rem;
   --container-prose: 66ch;
   --spacing-gutter: 2rem;

@@ -1,7 +1,8 @@
+import { handleDocsNavigation } from "./handleDocsNavigation";
 import { useDocsSidebar } from "@docusaurus/plugin-content-docs/client";
 import type { PropSidebarItem } from "@docusaurus/plugin-content-docs";
 import Link from "@docusaurus/Link";
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ function SearchFixtureLinks({ items, close }: { items: PropSidebarItem[]; close:
       <Link
         key={item.href}
         to={item.href}
-        onClick={close}
+        onClick={(event) => handleDocsNavigation(event, close)}
         className="grid gap-1 rounded-control border border-solid border-transparent px-3.5 py-3.25 hover:border-border hover:bg-surface hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring"
       >
         <span className="text-sm font-semibold text-content-strong">{item.label}</span>
@@ -29,17 +30,27 @@ function SearchFixtureLinks({ items, close }: { items: PropSidebarItem[]; close:
 
 export function DocsSearchDialog({
   dialogRef,
+  onClose,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
+  onClose: () => void;
 }) {
   const sidebar = useDocsSidebar();
-  const close = () => dialogRef.current?.close();
+  const outsidePress = useRef(false);
+  const close = onClose;
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby="docs-search-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+      onPointerDown={(event) => {
+        outsidePress.current = event.target === event.currentTarget;
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) close();
+        if (outsidePress.current && event.target === event.currentTarget) close();
       }}
       className="fixed inset-0 z-dialog m-0 h-screen max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-content backdrop:bg-scrim backdrop:backdrop-blur-sm"
     >

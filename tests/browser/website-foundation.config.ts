@@ -6,7 +6,11 @@ const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: ".",
-  testMatch: ["website-foundation.pw.ts", "website-docs-shell.pw.ts"],
+  testMatch: [
+    "website-foundation.pw.ts",
+    "website-docs-shell.pw.ts",
+    "website-docs-interactions.pw.ts",
+  ],
   workers: 1,
   reporter: "list",
   outputDir: "../../test-results/website-foundation",

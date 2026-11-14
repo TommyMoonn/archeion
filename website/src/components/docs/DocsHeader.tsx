@@ -1,9 +1,18 @@
 import Link from "@docusaurus/Link";
-import { ArrowUpRight, Menu, Moon, Search, Sun } from "lucide-react";
+import { ArrowUpRight, Menu, Search } from "lucide-react";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { Brand } from "@/components/shared/Brand";
 import { Button } from "@/components/ui/button";
 
-export function DocsHeader({ onSearch }: { onSearch: () => void }) {
+export function DocsHeader({
+  onSearch,
+  onNavigation,
+  navigationOpen,
+}: {
+  onSearch: () => void;
+  onNavigation: () => void;
+  navigationOpen: boolean;
+}) {
   return (
     <header className="sticky top-0 z-header h-docs-header border-0 border-b border-solid border-border bg-surface-header backdrop-blur-lg docs-narrow:h-15.5">
       {/* The three tracks preserve the mock's centered search independently of action width. */}
@@ -40,17 +49,7 @@ export function DocsHeader({ onSearch }: { onSearch: () => void }) {
             <ArrowUpRight aria-hidden="true" className="size-3" />
           </Link>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled
-              aria-label="Theme switch preview"
-              title="Theme interaction follows in B2.3"
-              className="disabled:bg-transparent disabled:text-content-muted"
-            >
-              <Sun aria-hidden="true" className="hidden dark:block" />
-              <Moon aria-hidden="true" className="block dark:hidden" />
-            </Button>
+            <ThemeToggle />
             <Button variant="ghost" size="icon" asChild className="docs-tiny:hidden">
               <a
                 href="https://github.com/TommyMoonn/archeion"
@@ -76,12 +75,13 @@ export function DocsHeader({ onSearch }: { onSearch: () => void }) {
             <Button
               variant="ghost"
               size="icon"
-              disabled
-              aria-label="Documentation navigation preview"
-              title="Mobile navigation follows in B2.3"
-              className="hidden disabled:bg-transparent disabled:text-content-muted docs-navigation:inline-flex"
+              onClick={onNavigation}
+              aria-label="Open documentation navigation"
+              aria-expanded={navigationOpen}
+              aria-controls="docs-mobile-navigation"
+              className="hidden docs-navigation:inline-flex pointer-coarse:min-h-11 pointer-coarse:min-w-11"
             >
-              <Menu aria-hidden="true" />
+              <Menu aria-hidden="true" className={navigationOpen ? "invisible" : undefined} />
             </Button>
           </div>
         </nav>
