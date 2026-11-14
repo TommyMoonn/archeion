@@ -1,72 +1,47 @@
-import type {
-  AppThemeBase,
-  AppThemePublicToken,
-  ReaderThemeBase,
-  ReaderThemePublicToken,
-  ThemeColor,
+import darkManifest from "../../themes/built-in/archeion-dark/theme.json" with { type: "json" };
+import lightManifest from "../../themes/built-in/archeion-light/theme.json" with { type: "json" };
+import { validateThemeManifest } from "./validateThemeManifest";
+import {
+  appThemePublicTokenRegistry,
+  type AppThemeBase,
+  type AppThemePublicToken,
+  type ReaderThemeBase,
+  type ReaderThemePublicToken,
+  type ThemeColor,
 } from "./themeTokenRegistry";
-import shellPalettes from "./appShellPalettes.json" with { type: "json" };
-import { isThemeColor } from "./themeColor";
 
-function shellColor(value: string): ThemeColor {
-  if (!isThemeColor(value)) throw new Error("Invalid built-in application shell color.");
-  return value;
+function builtInManifest(value: unknown, base: AppThemeBase) {
+  const result = validateThemeManifest(value, { expectedId: `archeion-${base}` });
+  if (!result.ok) throw new Error(JSON.stringify(result.diagnostics));
+  const manifest = result.manifest;
+  if (manifest.base !== base) throw new Error("Invalid built-in application base.");
+  const tokens: Record<string, ThemeColor> = {};
+  for (const key of Object.keys(appThemePublicTokenRegistry)) {
+    const color = manifest.app[key as AppThemePublicToken];
+    if (color === undefined || color.length !== 7) {
+      throw new Error(`Built-in ${manifest.id} requires opaque application token ${key}.`);
+    }
+    tokens[key] = color;
+  }
+  // Every public key was checked above; built-ins cannot inherit missing values.
+  return {
+    manifest,
+    tokens: Object.freeze(tokens) as Readonly<Record<AppThemePublicToken, ThemeColor>>,
+  };
 }
 
-type AppThemeBaseTokens = Readonly<Record<AppThemePublicToken, ThemeColor>>;
+const dark = builtInManifest(darkManifest, "dark");
+const light = builtInManifest(lightManifest, "light");
+export const builtInThemeManifests = Object.freeze({ dark: dark.manifest, light: light.manifest });
+const app = Object.freeze({ dark: dark.tokens, light: light.tokens });
+export const builtInShellPalettes = Object.freeze({
+  dark: Object.freeze({ background: app.dark.main, foreground: app.dark.text }),
+  light: Object.freeze({ background: app.light.main, foreground: app.light.text }),
+});
+
 type ReaderThemeBaseTokens = Readonly<Record<ReaderThemePublicToken, ThemeColor>>;
 
-const app = Object.freeze({
-  dark: Object.freeze({
-    canvas: "#171717",
-    canvasDeep: "#121213",
-    surface: "#1d1d1f",
-    surfaceRaised: "#242427",
-    surfaceHover: "#29292d",
-    frame: "#151516",
-    sidebar: "#151516",
-    main: shellColor(shellPalettes.dark.background),
-    mainRaised: "#222225",
-    line: "#303034",
-    lineStrong: "#414147",
-    text: shellColor(shellPalettes.dark.foreground),
-    textStrong: "#ebe8ef",
-    muted: "#bab7bd",
-    mutedSoft: "#6f6d73",
-    accent: "#8fc1e3",
-    accentStrong: "#b8d9ef",
-    focus: "#c9c4ef",
-    success: "#a0cdb0",
-    warning: "#d1ad68",
-    error: "#d9707e",
-    info: "#83bdc9",
-  }),
-  light: Object.freeze({
-    canvas: "#f6f3ed",
-    canvasDeep: "#eee8de",
-    surface: "#ffffff",
-    surfaceRaised: "#fbf8f2",
-    surfaceHover: "#f2ece2",
-    frame: "#eee8de",
-    sidebar: "#eee8de",
-    main: shellColor(shellPalettes.light.background),
-    mainRaised: "#ffffff",
-    line: "#ddd4c8",
-    lineStrong: "#cabeae",
-    text: shellColor(shellPalettes.light.foreground),
-    textStrong: "#1e1a17",
-    muted: "#6f665a",
-    mutedSoft: "#91887d",
-    accent: "#386f99",
-    accentStrong: "#22577c",
-    focus: "#386f99",
-    success: "#467a55",
-    warning: "#8a641f",
-    error: "#aa4350",
-    info: "#2f7182",
-  }),
-} satisfies Record<AppThemeBase, AppThemeBaseTokens>);
-
+// R.5 activates the canonical Reader sections; keep existing reading surfaces until then.
 const reader = Object.freeze({
   dark: Object.freeze({
     background: "#171717",

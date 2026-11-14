@@ -30,6 +30,16 @@ describe("global ThemeRepository", () => {
     invokeMock.mockResolvedValue(undefined);
   });
 
+  it.each(["archeion-dark", "archeion-light", "dark", "light", "sepia"])(
+    "rejects reserved %s before any native mutation",
+    (id) => {
+      const repository = new ThemeRepository();
+      expect(() => repository.storeManifest(manifest({ id }))).toThrow(InvalidThemeManifestError);
+      expect(() => repository.replaceManifest(manifest({ id }))).toThrow(InvalidThemeManifestError);
+      expect(invokeMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("lists and reads from global storage without an archive root", async () => {
     invokeMock.mockResolvedValueOnce(["moon-ink", "invalid folder"]).mockResolvedValueOnce("raw");
     const repository = new ThemeRepository();

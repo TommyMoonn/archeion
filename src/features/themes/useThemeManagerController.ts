@@ -1,3 +1,4 @@
+import { isReservedThemeId } from "../../themes/themeCatalogReadModel";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { AppThemeSelection } from "../../types/settings";
@@ -161,9 +162,7 @@ export function useThemeManagerController({
     let imported = false;
     try {
       const manifest = await validatedFile(file);
-      const builtInConflict = snapshot.entries.some(
-        (entry) => entry.origin === "builtin" && entry.id === manifest.id,
-      );
+      const builtInConflict = isReservedThemeId(manifest.id);
       if (builtInConflict) {
         throw new ThemeManagerUserError(
           `Theme ID "${manifest.id}" is reserved by a built-in theme.`,

@@ -154,6 +154,26 @@ describe("global Theme Manager controller", () => {
     return services;
   }
 
+  it.each(["archeion-dark", "archeion-light"])(
+    "rejects reserved %s imports before replacement or storage",
+    async (id) => {
+      const services = createServices();
+      services.sources.set(id, JSON.stringify(manifest(id)));
+      await mount(services);
+      await act(async () => {
+        expect(
+          await latest.importFile(
+            new File([JSON.stringify(manifest(id))], "theme.json", { type: "application/json" }),
+          ),
+        ).toBe(false);
+      });
+      expect(latest.error).toContain("reserved");
+      expect(latest.pendingReplacement).toBeNull();
+      expect(services.repository.storeManifest).not.toHaveBeenCalled();
+      expect(services.repository.replaceManifest).not.toHaveBeenCalled();
+    },
+  );
+
   it("loads the global catalog without an active archive", async () => {
     await mount();
     expect(latest.entries.map((entry) => entry.id)).toEqual(["dark", "light", "moon-ink"]);

@@ -143,3 +143,12 @@ export function findBuiltInThemeCatalogEntry(
 ): BuiltInThemeCatalogEntry | undefined {
   return builtInThemeCatalogEntries.find((entry) => entry.id === id);
 }
+
+/** Includes persisted built-in selections and the canonical manifest IDs. */
+export function isReservedThemeId(id: string): boolean {
+  return (
+    id === "archeion-dark" ||
+    id === "archeion-light" ||
+    builtInThemeCatalogEntries.some((entry) => entry.id === id)
+  );
+}

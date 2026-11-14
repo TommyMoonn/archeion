@@ -6,6 +6,7 @@ import {
   builtInThemeCatalogEntries,
   emptyThemeCatalogCapabilities,
   findBuiltInThemeCatalogEntry,
+  isReservedThemeId,
 } from "./themeCatalogReadModel";
 import type {
   AppEffectiveThemeCatalogSelection,
@@ -374,15 +375,14 @@ export class ThemeCatalog {
         validated.manifest,
       );
     }
-    const builtIn = builtInThemeCatalogEntries.find((entry) => entry.id === validated.manifest.id);
-    if (builtIn) {
+    if (isReservedThemeId(validated.manifest.id)) {
       return invalidEntry(
         packageId,
         [
           catalogDiagnostic(
             "duplicate-id",
             "$.id",
-            `Theme id "${validated.manifest.id}" conflicts with immutable built-in theme "${builtIn.name}".`,
+            `Theme id "${validated.manifest.id}" is reserved by a built-in theme.`,
           ),
         ],
         validated.manifest,

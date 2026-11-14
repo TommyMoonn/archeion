@@ -35,6 +35,31 @@ describe("global ThemeCatalog", () => {
     expect(Object.isFrozen(catalog.getSnapshot())).toBe(true);
   });
 
+  it.each(["archeion-dark", "archeion-light"])(
+    "reports existing reserved %s packages as invalid and falls back",
+    async (id) => {
+      const catalog = new ThemeCatalog(() => ({
+        listPackageDirectories: async () => [id],
+        readManifest: async () => manifest(id, true),
+      }));
+      const snapshot = await catalog.enumeratePackages();
+      expect(snapshot.entries.find((entry) => entry.origin === "custom")).toMatchObject({
+        status: "invalid",
+        applicable: false,
+        diagnostics: [{ code: "duplicate-id" }],
+      });
+      const selected = await catalog.loadSelected({
+        appTheme: { kind: "custom", id },
+        readerTheme: { kind: "custom", id },
+      });
+      expect(selected.app).toMatchObject({
+        fellBack: true,
+        effective: { entry: { id: "dark", origin: "builtin" } },
+      });
+      expect(selected.reader.fellBack).toBe(true);
+    },
+  );
+
   it("loads built-in selections without enumerating packages", async () => {
     const listPackageDirectories = vi.fn(async () => [] as readonly string[]);
     const readManifest = vi.fn(async () => "");

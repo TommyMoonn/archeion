@@ -133,7 +133,7 @@ describe("Archeion theme schema v1", () => {
       "utf8",
     );
     const hostDeclarations = declarations(
-      fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8"),
+      fs.readFileSync(path.join(projectRoot, "src/styles/built-in-palettes.css"), "utf8"),
     );
     const canonicalVariables = new Map(
       Object.entries(appThemeResolvedTokenRegistry).map(([role, definition]) => [
@@ -312,11 +312,14 @@ describe("theme token baseline", () => {
     );
   });
 
-  it("keeps Dark, Light, and system-light resolved application baselines aligned with tokens.css", () => {
-    const tokensSource = fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8");
+  it("keeps Dark, Light, and system-light resolved application baselines aligned with generated CSS", () => {
+    const tokensSource = fs.readFileSync(
+      path.join(projectRoot, "src/styles/built-in-palettes.css"),
+      "utf8",
+    );
     const rootSource = tokensSource.slice(0, tokensSource.indexOf('html[data-app-theme="light"]'));
     const lightSource = tokensSource.match(
-      /html\[data-app-theme="light"\]\s*{([\s\S]*?)}\s*\n\n@media/,
+      /html\[data-app-theme="light"\]\s*{([\s\S]*?)}\s*@media/,
     )?.[1];
     const systemLightSource = tokensSource.match(
       /html\[data-app-theme="system"\]\s*{([\s\S]*?)}\s*\n\s*}/,
@@ -334,32 +337,10 @@ describe("theme token baseline", () => {
       dark: resolveBuiltInAppTheme("dark"),
       light: resolveBuiltInAppTheme("light"),
     } as const;
-    const requiredDerivedTokens = [
-      "lineSubtle",
-      "darkening",
-      "accentSoft",
-      "accentBorder",
-      "successSoft",
-      "successBorder",
-      "errorStrong",
-      "errorSoft",
-      "errorBorder",
-      "danger",
-      "dangerStrong",
-      "dangerSoft",
-      "dangerBorder",
-      "shellHover",
-      "shellActive",
-      "cardShadow",
-      "tooltipShadow",
-      "popoverShadow",
-      "dialogShadow",
-      "drawerShadow",
-    ] as const satisfies readonly AppThemeResolvedToken[];
-    const bootstrapOwnedTokens = [
-      ...(Object.keys(appThemePublicTokenRegistry) as AppThemeResolvedToken[]),
-      ...requiredDerivedTokens,
-    ].sort();
+    const bootstrapOwnedTokens = Object.keys(appThemeResolvedTokenRegistry).sort();
+    expect(fs.readFileSync(path.join(projectRoot, "src/styles/index.css"), "utf8")).toContain(
+      '@import "./built-in-palettes.css";',
+    );
 
     for (const [base, resolved] of Object.entries(resolvedThemes)) {
       const comparedTokens: AppThemeResolvedToken[] = [];

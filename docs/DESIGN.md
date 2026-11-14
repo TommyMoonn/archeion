@@ -303,3 +303,24 @@ Check the application under conditions that affect layout or contrast:
 Inspect the Library shell, expanded and collapsed sidebar, archive switcher, collection grid and list, Reader toolbar and panels, settings, dialogs, menus, popovers, Theme Manager, Archive Manager, and utility windows. State changes must not move unrelated content, hide actions, or leave hidden controls focusable.
 
 The current automated and owner-run checks are documented in `tests/visualFoundations.test.ts`, `tests/uiIntegrationGate.test.ts`, `tests/formHitAreaContract.test.ts`, `tests/browser/visual-refinement.md`, and `font-preferences-validation.md`. Browser tests verify repeatable geometry and interactions. They do not establish physical Windows display scaling, first paint in packaged WebView2, native frame performance, or screen-reader output. Mark those checks as unverified until they have been tested.
+
+## Built-in palette sources
+
+`themes/built-in/archeion-dark/theme.json` and `archeion-light/theme.json` own the
+built-in application and Reader palette values. `src/themes/themeTokenRegistry.ts`
+owns the public and derived token contract. `builtInThemes.ts` validates the manifests,
+requires complete opaque application palettes, and maps them to the existing `dark`
+and `light` selections. Canonical manifest IDs are reserved against custom imports;
+conflicting installed packages are reported as invalid without deleting their files.
+
+Rust native appearance includes these manifests at compile time and reads `app.main`
+and `app.text` for native backgrounds and prepaint snapshots. Frontend compositing
+fallbacks use the same manifest-backed registry. No settings migration is required.
+
+After editing a canonical palette, run `pnpm run themes:generate`. The generator uses
+the production TypeScript resolver and token registry to write
+`src/styles/built-in-palettes.css` and the explicit dark fallback in
+`public/appearance-startup.css`. Do not edit generated colors by hand.
+`pnpm run themes:check`, included in frontend verification, rejects stale output.
+Reader Dark and Light activation remains the R.5 checkpoint; their existing runtime
+palettes and Sepia are preserved during R.4.
