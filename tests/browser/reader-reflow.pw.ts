@@ -158,6 +158,30 @@ test("rapid sizes followed by deliberate navigation retain the latest destinatio
   expect(passage.cfi).toContain("/6/6[current]");
 });
 
+test("blank trailing chapter space does not hide the next visible passage", async ({ page }) => {
+  await page.evaluate(() => window.readerInteractions.navigate("current"));
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          window.readerInteractions.passageAt(window.readerInteractions.cfi("current-anchor"))
+            ?.visible,
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() => {
+    const scroller = document.querySelector<HTMLElement>(".epub-container")!;
+    const frame = [...scroller.querySelectorAll("iframe")].find(
+      (candidate) => candidate.contentDocument?.title === "current",
+    )!;
+    scroller.scrollTop +=
+      frame.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16;
+  });
+  expect(await page.evaluate(() => window.readerInteractions.passageIfVisible()?.cfi)).toContain(
+    "/6/6[current]",
+  );
+});
+
 test("all overlay shells retain stage geometry and iframe identity", async ({ page }) => {
   const before = await page.evaluate(() => ({
     geometry: document.querySelector(".epub-container")!.getBoundingClientRect().toJSON(),

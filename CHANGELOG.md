@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-14
+
+### Added
+
+- Added a pinnable Book details panel that follows the selected book, shows a resumable book when no book is selected, and uses a slide-over in narrow windows.
+- Added adjustable Library sidebar and Book details widths with saved preferences and keyboard-accessible resize controls.
+- Added five optional themes for manual import: Archeion Nocturne, Mono, Chalk, Classic Dark, and Classic Light. Classic themes preserve the previous built-in application and Reader palettes; application and Reader theme selection remain independent.
+
+### Changed
+
+- Refreshed Archeion's logo and desktop icons, along with the built-in Dark and Light application and Reader colors. Existing custom themes and the Sepia Reader theme remain available.
+- Aligned dialog, drawer, sidebar, and titlebar transitions, including interrupted dismissal and reopening, while respecting reduced-motion preferences.
+- Refined Library selection feedback, cover selection borders, empty states, font pickers, shared controls, Settings layouts, and update notifications.
+- Cover replacement now uses the explicit Write cover to EPUB action in place of a separate confirmation checkbox, with preview, progress, and recovery feedback.
+
+### Fixed
+
+- Kept Continuous Reader position capture on visible text when trailing whitespace from the previous chapter remains in view, including navigation during a stage resize.
+- Preserved Library collection geometry through loading, empty, search, and results states, and stopped collection entrance animations replaying after searches.
+- Restored Library scroll position and keyboard focus when returning from Reader, while allowing newer input or navigation to cancel pending restoration.
+- Kept Reader and Library shells visible through book opening, exit saving, and archive changes, and prevented outgoing archive controls from acting on a new archive.
+- Applied saved appearance before revealing application content and kept utility-window loading and error states within the themed window.
+- Opened new utility windows on the main window's display, preserved existing window size and position, and recovered stranded windows with a usable titlebar.
+- Stabilized dialog scrolling, action-button labels, and feedback areas during background operations. Loading dialogs retain their shell, provide retry states, and preserve keyboard focus as content becomes ready.
+- Restored focus after theme selection and kept Reader progress previews within the progress track.
+
 ## [1.7.0] - 2026-10-18
 
 ### Added
@@ -674,7 +700,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/TommyMoonn/archeion/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/TommyMoonn/archeion/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/TommyMoonn/archeion/compare/v1.5.6...v1.6.0
 [1.5.6]: https://github.com/TommyMoonn/archeion/compare/v1.5.5...v1.5.6

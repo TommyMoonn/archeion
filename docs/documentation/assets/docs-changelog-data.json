@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "version": "1.8.0",
+      "date": "2026-11-14",
+      "sourcePath": "release-notes/v1.8.0.md",
+      "changes": "- Pin Book details beside the Library to keep a selected book's information and actions in view. With no book selected, the panel offers your last-read book when it can be resumed. Narrow windows use a slide-over panel.\n- Resize the Library sidebar and Book details by dragging their edges or using the keyboard. Your widths and pin preference are saved.\n- Archeion has a new logo and desktop icons, plus refreshed Dark and Light colors for the application and Reader. Custom themes and the Sepia Reader theme remain available.\n- Five optional themes are available to [download and import](https://github.com/TommyMoonn/archeion/tree/main/themes): Archeion Nocturne, Mono, Chalk, Classic Dark, and Classic Light. The Classic themes restore the previous built-in colors. Import them through Settings → Appearance → Manage themes; choose their Reader colors separately under Reader theme.\n- The Library keeps its layout through loading, searching, and empty results, and returning from Reader restores your scroll position and keyboard focus. Update notifications stay within their own area.\n- Dialogs keep their size and button labels steady while work is in progress. Loading content stays inside the dialog, with retry options when it fails, and keyboard focus carries through to the loaded controls.\n- Cover replacement now uses the Write cover to EPUB button without a separate confirmation checkbox. You can preview the image before writing it, with progress and recovery feedback during the operation.\n- Dialogs, side panels, and the Library sidebar have consistent opening and closing transitions that respect reduced-motion preferences. Selection feedback, font pickers, and Settings layouts have also been refined.\n- Application and utility windows apply your saved appearance before showing their content. New utility windows open on the main window's display, and windows stranded off-screen are brought back into reach.\n- Book opening, returning to the Library, and archive switching keep the surrounding interface visible while loading or saving finishes. Continuous Reader position capture now follows visible text across trailing chapter whitespace. Theme selection restores keyboard focus, and Reader progress previews stay inside the progress track."
+    },
+    {
       "version": "1.7.0",
       "date": "2026-10-18",
       "sourcePath": "release-notes/v1.7.0.md",

@@ -24,6 +24,7 @@ function passageY(scroller: HTMLElement, passage: Passage): number {
 /** A live DOM range preserves text identity without rewriting publication/CFI nodes. */
 export function captureContinuousAnchor(scroller: HTMLElement): Passage | null {
   const viewport = scroller.getBoundingClientRect();
+  let blankPage: Passage | null = null;
   for (const frame of scroller.querySelectorAll("iframe")) {
     const frameBox = frame.getBoundingClientRect();
     const doc = frame.contentDocument;
@@ -78,10 +79,16 @@ export function captureContinuousAnchor(scroller: HTMLElement): Passage | null {
       }
       const passage: Passage = { element, frame, range, y: 0 };
       passage.y = passageY(scroller, passage);
+      // Trailing body whitespace must not mask a visible passage in the next chapter.
+      // Retain it only when no visible content anchor is available.
+      if (element === doc.body && !range) {
+        blankPage ??= passage;
+        continue;
+      }
       return passage;
     }
   }
-  return null;
+  return blankPage;
 }
 
 export function continuousAnchorDelta(scroller: HTMLElement, passage: Passage): number | null {
