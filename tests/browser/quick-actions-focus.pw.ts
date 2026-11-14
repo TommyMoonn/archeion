@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import lightManifest from "../../themes/built-in/archeion-light/theme.json" with { type: "json" };
 import { themeColorContrastRatio } from "../../src/themes/themeColor";
 import type { ThemeColor } from "../../src/themes/themeTokenRegistry";
 
@@ -22,7 +23,11 @@ for (const motion of ["off", "on"]) {
       await expect(main).not.toBeFocused();
       await expect(main).toHaveCSS("outline-style", "none");
       if (origin === "control") await expect(opener).toBeFocused();
-      await expect(main).toHaveCSS("background-color", "rgb(248, 245, 239)");
+      await expect
+        .poll(async () =>
+          toHex(await main.evaluate((element) => getComputedStyle(element).backgroundColor)),
+        )
+        .toBe(lightManifest.app.main.toLowerCase());
     });
   }
 }
