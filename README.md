@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="src/assets/brand/archeion-wordmark.png">
+    <source media="(prefers-color-scheme: dark)" srcset="src/assets/brand/archeion-wordmark-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="src/assets/brand/archeion-wordmark-light.png">
     <img src="src/assets/brand/archeion-wordmark-dark.png" alt="Archeion" width="512" height="210">
   </picture>

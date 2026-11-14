@@ -8,7 +8,7 @@ The owner selected the experimental dark logo, light logo, wordmark, and applica
 | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
 | `archeion-logo-dark.png`       | Approved dark desktop icon composition, unchanged from the supplied 500 × 500 PNG                        |
 | `archeion-logo-light.png`      | Approved light composition, unchanged from the supplied 500 × 500 PNG                                    |
-| `archeion-wordmark.png`        | Approved 512 × 210 wordmark, unchanged; use the artwork rather than recreating the lettering with a font |
+| `archeion-wordmark-dark.png`   | Approved 512 × 210 wordmark, unchanged; use the artwork rather than recreating the lettering with a font |
 | `archeion-wordmark-light.png`  | Owner-supplied light-surface wordmark, unchanged; dark lettering and the light icon composition          |
 | `archeion-symbol.svg`          | Editable, flat vector derivative of the page silhouette in the approved dark logo                        |
 | `archeion-symbol-on-light.svg` | Generated dark transparent symbol for light surfaces                                                     |
@@ -30,6 +30,6 @@ Give a standalone logo or wordmark image meaningful alternative text. Use empty 
 
 ## README references
 
-R.3 uses the approved wordmarks here and the application preview at `.project/experiments/archeion-preview.png`. `archeion-wordmark.png` has light lettering for dark surfaces; the owner-supplied `archeion-wordmark-light.png` has dark lettering for light surfaces. Use both for GitHub's light and dark rendering. Promote the preview to a tracked production location before referencing it from the root README. Preserve its aspect ratio and the supplied composition. Do not reference `.project/experiments/` from production Markdown.
+R.3 uses the approved wordmarks here and the application preview at `.project/experiments/archeion-preview.png`. `archeion-wordmark-dark.png` has light lettering for dark surfaces; the owner-supplied `archeion-wordmark-light.png` has dark lettering for light surfaces. Use both for GitHub's light and dark rendering. Promote the preview to a tracked production location before referencing it from the root README. Preserve its aspect ratio and the supplied composition. Do not reference `.project/experiments/` from production Markdown.
 
 Recheck preview accuracy after the application and Reader palette phases. The experimental preview is a visual reference, not evidence that the final application matches it.

@@ -8,7 +8,10 @@ const directory = path.join(root, "src/assets/brand");
 const approvedImages = new Map([
   ["archeion-logo-dark.png", "89832875ec9f7ce1fe0ef821fef0f6c8e484450ee8c6b058879170ae94e6902d"],
   ["archeion-logo-light.png", "49fe7ec9e4128dd1b06b0ade96faafc4ab77f7051c0091869ae2e14f26e1e7ac"],
-  ["archeion-wordmark.png", "e3f63c98a19f8afb557a01afae9ddee95dd7737647d77341da0c9b0659ab9a13"],
+  [
+    "archeion-wordmark-dark.png",
+    "e3f63c98a19f8afb557a01afae9ddee95dd7737647d77341da0c9b0659ab9a13",
+  ],
   [
     "archeion-wordmark-light.png",
     "19e96385494927c9c4c9b5d4da388eeb62b560c7db8dc5a620bca8dd1a26e915",
