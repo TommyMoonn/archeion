@@ -9,6 +9,12 @@ export default defineConfig({
   testDir: ".",
   testMatch: [
     "website-static.pw.ts",
+    "landing-download.pw.ts",
+    "landing-navigation.pw.ts",
+    "landing-hero.pw.ts",
+    "landing-local-first.pw.ts",
+    "landing-product-story.pw.ts",
+    "landing-visual-system.pw.ts",
     "website-docs-shell.pw.ts",
     "website-docs-interactions.pw.ts",
     "website-docs-accessibility.pw.ts",

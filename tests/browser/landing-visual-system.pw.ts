@@ -1,79 +1,58 @@
-import { installAnimationWaits } from "./animation-waits";
 import { expect, test } from "@playwright/test";
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(installAnimationWaits);
+test("keyboard skip and visible focus reach real content", async ({ page }) => {
+  await page.goto("/archeion/");
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "Skip to content" });
+  await expect(skip).toBeFocused();
+  await expect(skip).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("main")).toBeFocused();
 });
 
-for (const [name, width, height] of [
-  ["desktop", 1440, 900],
-  ["tablet", 768, 1024],
-  ["mobile", 390, 844],
-  ["minimum", 320, 800],
-] as const) {
-  test(`site roles and product controls remain readable at ${name}`, async ({ page }) => {
-    await page.setViewportSize({ width, height });
-    await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-    await expect(page.locator(".hero-product")).toBeVisible();
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    const metrics = await page.evaluate(() => {
-      const css = (selector: string) =>
-        getComputedStyle(document.querySelector<HTMLElement>(selector)!);
-      return {
-        overflow: document.documentElement.scrollWidth - innerWidth,
-        bodySize: parseFloat(css("body").fontSize),
-        sectionSize: parseFloat(css(".section-heading h2").fontSize),
-        localSize: parseFloat(css(".local-first-heading h2").fontSize),
-        getStartedSize: parseFloat(css(".get-started__copy h2").fontSize),
-        libraryControlSize: parseFloat(css(".app-library__search input").fontSize),
-        readerControlSize: parseFloat(css(".reader-mode-switch button").fontSize),
-        darkReaderBackground: css(".reader-scene").backgroundColor,
-      };
-    });
-    expect(metrics.overflow).toBeLessThanOrEqual(0);
-    expect(metrics.bodySize).toBeGreaterThanOrEqual(16);
-    expect(metrics.sectionSize).toBe(metrics.localSize);
-    expect(metrics.sectionSize).toBe(metrics.getStartedSize);
-    expect(metrics.libraryControlSize).toBeGreaterThanOrEqual(12);
-    expect(metrics.readerControlSize).toBeGreaterThanOrEqual(12);
-    expect(metrics.darkReaderBackground).toBe("rgb(23, 23, 23)");
+test("coarse pointer never tilts media or produces pointer glows", async ({ browser }) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
   });
-}
+  try {
+    const page = await context.newPage();
+    await page.goto("/archeion/");
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await page.mouse.move(150, 250);
+    await page.getByRole("region", { name: "Archeion application preview" }).tap();
+    await expect(page.locator("[data-landing] > svg")).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Archeion application preview" }).locator("div"),
+    ).toHaveCSS("transform", "none");
+    await page.locator("summary").tap();
+    await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+  } finally {
+    await context.close();
+  }
+});
 
-test("focus, Reader themes and reduced motion remain meaningful", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".hero-product")).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-
-  const search = page.locator(".app-library__search input");
-  await search.focus();
-  await expect(search).toBeFocused();
-  const searchFocus = await search.evaluate(
-    (element) => getComputedStyle(element.parentElement!).boxShadow,
-  );
-  expect(searchFocus).not.toBe("none");
-
-  const themeGroup = page.locator(".reader-theme-switch");
-  await themeGroup.getByRole("radio", { name: /sepia/i }).click();
-  await expect(page.locator(".reader-demo")).toHaveAttribute("data-theme", "sepia");
-
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator(".hero-product")).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-  const styles = await page
-    .locator("[data-reveal]")
-    .first()
-    .evaluate((element) => {
-      const style = getComputedStyle(element);
-      return {
-        opacity: style.opacity,
-        transform: style.transform,
-        duration: style.transitionDuration,
-      };
-    });
-  expect(styles.opacity).toBe("1");
-  expect(styles.transform).toBe("none");
-  expect(styles.duration.split(",").every((value) => parseFloat(value) <= 0.001)).toBe(true);
+test("200 percent zoom reflows full labels and usable menu", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/archeion/");
+  // CSS zoom exercises doubled text/control metrics and layout, unlike pinch scaling.
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = "2";
+  });
+  await expect(page.locator("h1")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  for (const link of await page.getByRole("contentinfo").getByRole("link").all()) {
+    expect(await link.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  }
+  // Browser zoom also halves the effective CSS viewport; exercise that reflow separately.
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = "1";
+  });
+  await page.setViewportSize({ width: 640, height: 450 });
+  await page.locator("summary").click();
+  const menu = page.getByRole("navigation", { name: "Mobile navigation" });
+  await expect(menu.getByRole("link", { name: "Library", exact: true })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("summary")).toBeFocused();
 });

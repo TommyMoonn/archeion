@@ -111,7 +111,7 @@ export function HeroSection() {
       id="top"
       tabIndex={-1}
       aria-labelledby="hero-title"
-      className="relative isolate overflow-hidden pt-19 pb-12 text-center landing-mobile:pt-15 landing-mobile:pb-8"
+      className="relative isolate scroll-mt-17 landing-mobile:scroll-mt-16 overflow-hidden pt-19 pb-12 text-center landing-mobile:pt-15 landing-mobile:pb-8"
       onPointerMove={(event) => {
         if (!pointer || event.pointerType !== "mouse") return;
         setHovered(true);

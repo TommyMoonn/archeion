@@ -6,7 +6,7 @@ export function ArchiveSection() {
       id="files"
       tabIndex={-1}
       aria-labelledby="files-title"
-      className="scroll-mt-22 landing-mobile:scroll-mt-18 border-0 border-t border-solid border-landing-divider py-26 landing-mobile:py-18"
+      className="-scroll-mt-3 landing-mobile:scroll-mt-4 border-0 border-t border-solid border-landing-divider py-26 landing-mobile:py-18"
     >
       <span
         id="local-first"

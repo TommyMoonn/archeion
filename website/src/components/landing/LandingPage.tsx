@@ -31,7 +31,11 @@ export function LandingPage() {
     };
   }, [pointer]);
   return (
-    <HtmlClassNameProvider className={menuOpen ? "overflow-hidden" : ""}>
+    <HtmlClassNameProvider
+      className={
+        menuOpen ? "motion-safe:scroll-smooth overflow-hidden" : "motion-safe:scroll-smooth"
+      }
+    >
       <div
         data-landing=""
         data-theme="dark"

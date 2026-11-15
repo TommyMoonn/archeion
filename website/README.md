@@ -1165,3 +1165,81 @@ Full production browser suite passed 72/72 (`--trace off`); final small glyph/CT
 refinements passed rebuild/artifact and affected browser 10/10. Independent round
 one APPROVE, no Required/Recommended findings; stopped early per supplied skill.
 F2 is Fixed. Prior Optional F1 remains deferred to B3.4. No push/PR at this boundary.
+
+## Integrated landing verification (B3.4)
+
+The production homepage is verified against the final approved HTML, including
+the owner's B3.4 navigation corrections. The wordmark and footer home action
+return to absolute scroll position zero. Your files aligns its content below
+the header rather than showing the previous section's trailing space; at
+1716×1045 the tree starts at 93px and the closing releases action is visible.
+This supersedes B3.3's conservative files-section anchor offset. The section's
+104/72px padding stays unchanged; its anchor margin is −12px desktop/tablet and
+16px mobile. Hero anchor margins match the 68/64px header. Native history,
+modified links and focus ownership remain unchanged.
+
+The framework HTML class provider owns landing-only `motion-safe:scroll-smooth`.
+Reduced motion uses immediate scrolling, and leaving the landing removes the
+class. No global documentation scrolling rule or parallel JS animation is added.
+
+### Regression migration and retirement ledger
+
+The seven original root suites now run unchanged as `tests/legacyLanding*.test.ts`.
+The five original browser suites run unchanged as `tests/browser/legacy-landing-*.pw.ts`
+in the existing Vite lane. Keep them while `main:/docs` remains the live publisher.
+Their renaming does not retire any assertion or desktop capability.
+
+| Original scenario family | Production replacement                                                                                                                        | Legacy-only scenarios retained until live cutover                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Download flow            | `landing-download.pw.ts`: actual anchors/download event, safe external destinations, exact metadata, responsive section navigation            | Developer setup disclosure, old navigation labels and full-height closing scene                                                                  |
+| Hero production          | `landing-hero.pw.ts`, `website/tests/landing.test.ts`: rendered centered copy, intrinsic static image, pre-hydration geometry and zero CLS    | H04 synthetic Library/Reader transition, cover carry and bridge geometry                                                                         |
+| Local-first ownership    | `landing-local-first.pw.ts`, rendered archive test: real EPUB/sidecar tree, released ownership claims, responsive containment                 | Separate application-data panel, Quick Actions/utility index                                                                                     |
+| Mobile navigation        | Existing `website-static.pw.ts` menu lifecycle plus responsive download/navigation tests                                                      | Imperative legacy menu fixture remains unchanged; production uses actual React focus/inertness/dismissal/breakpoint tests                        |
+| Product story            | `landing-product-story.pw.ts`, rendered six-card test: released Library/Reader claims, descriptive raster alt and absence of phantom controls | Library destinations/folders/search/filter/sort/counts and Reader settings/page/mode/theme/annotation interactions                               |
+| Reader keyboard          | Static Reader claim/control assertions plus real landing navigation keyboard tests                                                            | Passage identity/descriptions, Enter/Space highlight palette, note editing/deletion, bookmarks, theme radio keys, announcement/focus restoration |
+| Visual system            | `landing-visual-system.pw.ts`, existing pointer/preference tests and 20-width geometry test                                                   | Legacy selectors, Reader theme/control appearance and old hero layout                                                                            |
+
+Root tests remain Node-only; website SSR tests render the actual section components
+in the website package. The production website config includes all five migrated
+browser files plus `landing-navigation.pw.ts`; the Vite config excludes these new
+files while retaining every explicitly named legacy file.
+
+### Visual and runtime evidence
+
+Same Chromium engine, 1000px height, dark appearance and reduced motion were used
+for mock/production pairs at all 20 widths from the B3.1 matrix. The reference's
+Google font requests were replaced with the exact local Inter Variable bytes
+under its expected Inter family; both pages used the same Windows display-serif
+and mono fallback availability. The unused Tailwind CDN script was suppressed;
+the reference's authored CSS and inline SVG artwork remained intact. Production
+made no external font requests.
+
+Desktop 1440, tablet 768 and mobile 390 pairs were inspected in full; boundary
+contact sheets cover 320, 359/360/361, 639/640/641, 899/900/901, 1019/1020/1021
+and 1099/1100/1101. Hero line heights match throughout, Library/Reading section
+positions match, and neither page overflows. Archive tree/pre formatting accounts
+for a 2–4px lower-page offset (total height 3–5px); named Lucide glyphs replace
+the mock's hand-drawn equivalents, and the accessible menu retains its Menu icon.
+At 320px the footer deliberately reflows to preserve complete labels.
+Comparison captures/measurements are disposable `.scratch/landing-b34/` evidence;
+the navigation regression writes matching home/files destination screenshots.
+
+Production tests verify keyboard/pointer/coarse input, menu focus/inertness and
+cleanup, native downloads, section clearance, normal/reduced motion, zoomed
+metrics with an equivalent narrowed CSS viewport, exact metadata, local fonts,
+zero-CLS delayed hydration, and missing-resource/console checks. Optional F1 is
+fixed: rejected `document.fonts.load` reveals both landing and docs SSR headings
+with external React scripts blocked, and removes the loading attribute.
+The complete documentation route/search/theme/copy/changelog/static-resource
+suite remains active. Live Pages cutover remains a separate operation under
+`docs/DOCUMENTATION.md`; local artifact validation does not establish a deployment.
+
+B3.4 validation passed: website typecheck/lint/build/format, 10 rendered/unit tests,
+77 focused root landing/resource contracts, 191 CI/resource/deployment tests,
+documentation freshness and artifact checks, browser TypeScript/touched ESLint,
+and the full production browser suite (93/93, traces off). Retained legacy landing
+browser coverage passed 32/32. The full frontend gate passed 422 files / 4,626 tests
+with one skip before the final navigation corrections; affected website and browser
+checks passed again afterward. Full required CI is checked on the final PR head.
+Independent integrated review round one returned APPROVE with no Required,
+Recommended or Optional findings; stopped early per the supplied skill.
