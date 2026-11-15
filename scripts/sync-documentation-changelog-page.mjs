@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import * as prettier from "prettier";
 import { readAllReleaseNotes } from "./release-notes.mjs";
-import { syncDocumentationChangelog } from "./sync-documentation-changelog.mjs";
+import { syncDocumentationChangelog } from "./legacy-sync-documentation-changelog.mjs";
 
 const defaultProjectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataPath = "docs/documentation/assets/docs-changelog-data.json";
@@ -101,7 +101,7 @@ export async function syncDocumentationChangelogPage(
   const notesBefore = JSON.stringify(readAllReleaseNotes(projectRoot));
   if ((await syncDocumentationChangelog(projectRoot)).changed)
     throw new Error(
-      "Changelog data is stale. Run pnpm run docs:changelog:sync before generating the timeline.",
+      "Changelog data is stale. Run node scripts/legacy-sync-documentation-changelog.mjs --write before generating the timeline.",
     );
   const dataFile = path.join(projectRoot, dataPath);
   const target = path.join(projectRoot, pagePath);
@@ -157,7 +157,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = await syncDocumentationChangelogPage(root ?? defaultProjectRoot, { check });
     if (check && result.changed) {
       console.error(
-        "Documentation changelog timeline drift. Run pnpm run docs:sync and commit the generated HTML.",
+        "Documentation changelog timeline drift. Run node scripts/sync-documentation-changelog-page.mjs --write and commit the generated HTML.",
       );
       process.exitCode = 1;
     } else

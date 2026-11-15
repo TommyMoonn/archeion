@@ -1,0 +1,64 @@
+---
+id: "file-management"
+title: "Manage books and folders"
+sidebar_label: "File management"
+description: "Rename, move, reveal, export, and delete files in the active archive."
+slug: "/guides/file-management/"
+doc_type: "Guide"
+overview_title: "File management"
+overview_description: "rename, move, export, or delete files."
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+import { DocsNotice } from "@site/src/components/docs/DocsNotice";
+
+Archeion's file actions change the real EPUB files and folders inside the archive.
+
+## Manage a book {#manage-book}
+
+### Rename or move {#rename-move}
+
+Use the book action menu or Details drawer to rename an EPUB or move it to another folder in the same archive. Moving changes the file's location; it does not export a second copy or change the embedded title. Check the destination before confirming, especially when a file with that name already exists.
+
+To change the title or embedded image without renaming the file, use [Metadata and covers](/archeion/docs/guides/metadata-covers/). Those edits write into the EPUB; review their previews and backup guidance before saving.
+
+### Reveal or export {#reveal-export}
+
+Use **Reveal in folder** to open the file's location in Windows Explorer. Selection mode can export selected EPUB files to another location without changing the files in the archive. Export is a copy, not a complete archive backup: it does not include the archive's reading data or sidecars. Use the [Annotation export reference](/archeion/docs/reference/annotation-export/) for separate Markdown or JSON exports, or [Archive storage](/archeion/docs/reference/archive-storage/) to preserve the whole archive.
+
+### Delete a book {#delete-book}
+
+Deletion is shown as **Delete to Recycle Bin**. Review the confirmation before deleting one or more books. This removes the real files from their archive locations, not just cards from the current view. Check the reported result before assuming every selected item was deleted.
+
+If the file was already deleted outside Archeion, use **Remove metadata** to clear its old Library entry. Removing metadata is not file recovery and does not bring back the EPUB. If you want to restore the book or retain its reading data, consult [safe recovery steps](/archeion/docs/reference/troubleshooting/#safe-order) before removing the entry.
+
+## Manage folders {#manage-folder}
+
+<DocsAnchor id="folder-actions" />
+
+**Folder operations include their contents.**
+
+Folder actions work on real directories. Moving a folder also moves the EPUB files and subfolders inside it.
+
+<DocsAnchor id="delete-folder" />
+
+**Review a folder before deleting it.**
+
+Check the folder contents before deleting it. A folder deletion can include every book and subfolder inside that folder.
+
+## Changes made outside Archeion {#outside-changes}
+
+### Refresh the Library {#refresh-library}
+
+Archeion normally detects files added, moved, renamed, or removed with Windows Explorer. Use **Rescan archive** when the Library does not reflect an external change.
+
+### Back up before large changes {#backup-first}
+
+<DocsNotice title="Copy the complete archive">
+
+For a complete backup, copy the EPUB folders and the hidden `.archeion` folder together.
+
+</DocsNotice>
+
+If a file is missing or a move or scan fails, follow [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/) before removing metadata or modifying sidecars. For duplicate-file decisions, see [compare duplicate groups](/archeion/docs/guides/archive-health/#duplicates).

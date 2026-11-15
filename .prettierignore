@@ -14,3 +14,12 @@ src-tauri/gen/
 .agent-work/
 .planning/
 .project/
+
+# B2.8 preserves the legacy public resource/runtime bytes until the B3 landing port.
+website/static/index.html
+website/static/css/
+website/static/js/
+website/static/assets/
+website/static/schemas/
+website/static/examples/
+website/static/dictionaries/

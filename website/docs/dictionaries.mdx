@@ -1,0 +1,40 @@
+---
+id: "dictionaries"
+title: "Dictionaries and Define"
+sidebar_label: "Dictionaries and Define"
+description: "Discover and manage local dictionaries, define Reader text offline, and recover unavailable resources."
+slug: "/guides/dictionaries/"
+doc_type: "Guide"
+overview_title: "Dictionaries and Define"
+overview_description: "install, order, and repair local sources for offline Reader lookups."
+---
+
+## Find and install a dictionary {#manage}
+
+Open **Settings → Dictionaries**. **All** combines installed entries with catalog dictionaries not yet installed. **Installed** includes downloaded and imported resources; **Not installed** shows catalog choices you can download. **Search dictionaries** narrows the current view by name, source, or language.
+
+**Refresh** updates the downloadable catalog, not your definitions. Review the language pair, source, license, and size before choosing **Download**. Installation follows the requested download; nothing is acquired automatically. Cancel a running download if you no longer want it. A failed request offers **Retry download** or **Retry installation**, depending on what finished.
+
+## Import a compatible local StarDict package {#import}
+
+Choose **Import** and select the package's `.ifo` metadata file. Keep its matching `.idx` index and `.dict` or `.dict.dz` definitions together in the same folder. This is a compatible StarDict import, not a general PDF, text, or dictionary-archive importer. If validation rejects it, read the reported problem and use a complete supported package rather than renaming unrelated files.
+
+Archeion copies the dictionary into application data. Your original import files are not changed. Installed resources follow you across archives; they are not part of a book's EPUB or archive sidecars.
+
+## Enable, reorder, or remove installed resources {#order}
+
+In Installed, use **Enable** to include a ready dictionary in lookups. Disabling it keeps its installed files but excludes its results. **Move earlier** and **Move later** change the order in which dictionaries' definitions appear, so put preferred sources first.
+
+**Remove** asks for confirmation and permanently deletes Archeion's installed copy, not the original import files, EPUBs, or annotations. To reinstall a removed catalog dictionary, find it in Not installed and choose Download; to reinstall a local package, import its original `.ifo` again.
+
+## Recover an unavailable dictionary {#repair}
+
+An **Unavailable** entry cannot be enabled for lookup. For a catalog resource, use **Download again**; if the catalog entry is missing, Refresh the catalog first. For a manual import, choose **Import replacement** with a complete package, then remove any remaining unavailable copy. **Index required** offers **Rebuild index** to make the installed definitions searchable again. Installation and index work can take time for large dictionaries; wait for the result before retrying.
+
+## Define selected Reader text {#define}
+
+Select a word in Reader and choose **Define** from the text-selection actions. The anchored popover uses enabled, ready installed local dictionaries, so lookup works offline after installation and does not send selected text to a cloud dictionary service. Catalog refreshes and downloads still require a network connection.
+
+Lookup first checks an exact headword. If no exact result is found, it tries supported English base forms for inflected words; this is not general translation or inflection handling for every language. Results are grouped by dictionary with its **Source** attribution, in your configured order. A message appears when additional definitions are omitted to keep the lookup responsive.
+
+**No definitions found** means the current enabled dictionaries did not supply a match. Check the word and language, enable a suitable installed dictionary, or install another source. This is different from a load error: a retryable error offers **Try again**. If retry still fails, inspect the resource's status in Settings and repair it before repeating the lookup. Close the popover or press Escape to return to reading.

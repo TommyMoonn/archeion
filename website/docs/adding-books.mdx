@@ -1,0 +1,51 @@
+---
+id: "adding-books"
+title: "Add EPUB files"
+sidebar_label: "Add EPUB files"
+description: "Add books to the active archive by copying or moving them."
+slug: "/getting-started/adding-books/"
+doc_type: "Getting started"
+overview_title: "Add EPUB files"
+overview_description: "copy or move books into the archive."
+---
+
+import { DocsNotice } from "@site/src/components/docs/DocsNotice";
+
+Use **Add EPUB** when you want Archeion to place books in the archive for you.
+
+## Add books in Archeion {#add-in-archeion}
+
+### Choose files and a destination {#choose-files}
+
+1. **Select Add EPUB.** The button is in the Library toolbar.
+2. **Choose one or more files.** Select the `.epub` files you want to add.
+3. **Choose a destination.** Add EPUB starts at the archive root. Choose an existing folder if this import belongs there.
+4. **Choose what to do with filename conflicts.** Select the option you want when a file with the same name already exists.
+5. **Select Copy or Move.** Copy keeps the original file. Move transfers it into the archive.
+6. **Confirm Add EPUB.** Archeion adds the files and refreshes the Library.
+
+### Copy or move {#copy-or-move}
+
+Use **Copy** when you want to keep the original file. Use **Move** when the archive should become the file's new location. The default import mode and filename-conflict choice come from application-wide **Archives** settings. A destination chosen in the dialog applies to that import only.
+
+<DocsNotice title="Check the destination before moving files">
+
+A move removes the source file after it has been placed in the archive.
+
+</DocsNotice>
+
+## Handle existing filenames {#existing-filenames}
+
+When the destination already contains the same filename, use the conflict option shown in the dialog. Review replacement confirmations carefully because replacing a file is destructive.
+
+## Organize books {#organize-books}
+
+### Create a folder first {#create-folders}
+
+Use the plus button beside **Folders** in the Library sidebar. The new folder can then be selected as the destination when adding books.
+
+### Add files with Windows Explorer {#add-with-explorer}
+
+You can copy EPUB files directly into the archive folder. Archeion normally detects the change. Use **Rescan archive** from the Library toolbar when a new or moved file does not appear.
+
+If imported books do not appear, wait for the scan result, then check the intended archive and destination. Use [scan recovery](/archeion/docs/reference/troubleshooting/#failed-scan) if an error persists. [Scan and cache behavior](/archeion/docs/reference/archive-storage/#scanning) explains why a first import can take longer than reopening unchanged books.

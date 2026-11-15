@@ -1,0 +1,71 @@
+---
+id: "installing"
+title: "Install Archeion"
+sidebar_label: "Installation"
+description: "Download and install Archeion on Windows."
+slug: "/getting-started/installing/"
+doc_type: "Getting started"
+overview_title: "Install Archeion"
+overview_description: "choose and run the Windows installer."
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+import { DocsNotice } from "@site/src/components/docs/DocsNotice";
+
+Use the EXE installer for a normal installation. Use the MSI package when you specifically need Windows Installer.
+
+## Before installing {#before-installing}
+
+### Requirements {#requirements}
+
+- Windows 11 on an x64 computer.
+- Permission to install an app for the current Windows user.
+- A local or reliably mounted folder for your EPUB library.
+
+### Choose an installer {#choose-installer}
+
+- `Archeion-Setup-x64.exe`: recommended for most users.
+- `Archeion-x64.msi`: intended for MSI-based installation workflows.
+
+## Install Archeion {#install-archeion}
+
+### Download the installer {#download}
+
+1. **Open the latest release.** Use the official Archeion GitHub release page.
+2. **Download the package you need.** Choose the EXE or MSI file for x64 Windows.
+3. **Optional: verify the download.** Compare the file's SHA-256 value with `SHA256SUMS.txt`.
+
+[Open latest release ↗](https://github.com/TommyMoonn/archeion/releases/latest)
+
+### Run the installer {#run-installer}
+
+1. **Open the downloaded file.** Follow the Windows installation prompts.
+2. **Check any SmartScreen warning.** The installer is not code-signed. Continue only when the file came from the official release page.
+3. **Launch Archeion.** Archive Manager opens so you can choose your library folder.
+
+<DocsNotice title="Use the official release page">
+
+Do not install copies downloaded from mirrors or unrelated websites.
+
+</DocsNotice>
+
+<DocsAnchor id="after-installing" />
+
+Continue to [Open or create an archive](/archeion/docs/getting-started/archives/).
+
+Before putting existing books in a new archive, review [what data belongs to the archive](/archeion/docs/reference/archive-storage/#ownership). If startup or the chosen folder cannot load, follow [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/) instead of deleting saved data.
+
+## Update Archeion {#updating}
+
+If you use **1.5.x**, manually install **1.6.0** or a newer official release once. Older versions cannot update themselves. Starting with 1.6.0, Archeion can check for and install later stable updates from inside the app.
+
+**Automatically check for updates** is enabled by default. Archeion checks after startup and about every six hours while open. An available update appears at the bottom-right of the Library, not in Reader. Background check failures do not interrupt reading. Change this preference in [Settings → General](/archeion/docs/guides/settings/#automatic-updates).
+
+1. **Review the update.** **What's new** opens the version's entry in the [Changelog](/archeion/docs/changelog/) in your browser.
+2. **Choose Update now.** Archeion downloads and verifies the update while you continue using the app. Nothing downloads until you choose this action.
+3. **Choose Restart now when ready.** Archeion closes, the matching Windows installer runs, and the updated app reopens. The installer may show a small progress window.
+
+**Later** on an available update hides that version's Library notice for **24 hours**. A newer version can notify sooner. **Later** after downloading postpones the restart for the current session only; About still offers **Restart now**. If you close Archeion instead, the next session checks and downloads again when you choose to update.
+
+Open **About** to see the installed version and update status. When no update is available, choose **Check for updates**. Manual checks remain available even when automatic checks are disabled. Snoozing does not hide an available update in About. If a manual check or download fails, use **Try again** there.

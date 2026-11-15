@@ -1,0 +1,43 @@
+---
+id: "settings"
+title: "Settings"
+sidebar_label: "Settings"
+description: "Change application-wide preferences, understand active-archive actions, and recover a temporary Settings load failure."
+slug: "/guides/settings/"
+doc_type: "Guide"
+overview_title: "Settings"
+overview_description: "change preferences and active-archive options."
+---
+
+## Open the standalone Settings window {#open-settings}
+
+Open **Settings** from the Library sidebar or use your configured **Open Settings** shortcut. It opens in its own window beside the Library; opening it again focuses that existing window. Without an active archive, application-wide preferences remain available, while controls that require an archive are omitted.
+
+## Automatic update checks {#automatic-updates}
+
+Starting with Archeion 1.6.0, **General → Automatically check for updates** is enabled by default. Turn it off to stop startup and periodic checks. This does not prevent manual checks in About, downloading an available update, or restarting to finish an update you already downloaded. General reset restores automatic checks to on.
+
+**Later** on an available update snoozes its Library notice for 24 hours; it does not turn off checks or hide the update in About. A newer version can notify immediately. See [Update Archeion](/archeion/docs/getting-started/installing/#updating) for the download and restart steps.
+
+## Choose settings by their effect {#sections}
+
+- **General** determines whether startup opens the last archive or Archive Manager, whether the last Reader route is restored, and how window and destructive-action confirmation preferences behave. Review confirmations before file operations, especially if you change that preference.
+- **Appearance** changes app colors, Interface and Display fonts, spacing, and subtle transitions, not EPUB typography. See [application font settings](/archeion/docs/customization/appearance/#app-fonts), [density and reduced-motion behavior](/archeion/docs/customization/appearance/#density-motion) and [Theme Manager](/archeion/docs/customization/theme-manager/).
+- **Library** sets default Books, Folders, and Series view, sort, and card-size options. Smart View visibility adds or hides shortcuts; hiding a view does not delete its books. See [Smart Views](/archeion/docs/guides/library/#smart-views).
+- **Reader** sets default typography, Reader theme, Page Width, and progress placement. The active Reader also exposes its reading controls. See [Reader settings](/archeion/docs/guides/reading/#reader-settings) for layout effects.
+- **Archives** identifies the active folder and opens Archive Manager. Default import mode determines whether Add EPUB copies or moves its source; conflict handling determines what happens when a destination filename exists. Review both in the import dialog before proceeding.
+- **Storage** controls global monitoring and backup policies, while maintenance targets the active archive. Re-extraction, cover clearing, and recovery cleanup have different data effects. Consult [Archive storage](/archeion/docs/reference/archive-storage/) before choosing one.
+- **Dictionaries** installs local resources and controls which sources Define uses and their order. Disabling a dictionary keeps its files; removing it deletes the installed copy. See [Dictionaries and Define](/archeion/docs/guides/dictionaries/).
+- **Keyboard** changes supported command bindings, not fixed widget interaction keys. Clear disables a binding; Reset restores its default. See [Keyboard shortcuts](/archeion/docs/guides/keyboard-shortcuts/) for capture and conflict rules.
+
+## Know what follows you across archives {#ownership}
+
+Application preferences such as appearance, Reader defaults, keyboard shortcuts, dictionary installations, and theme selections are application-wide. Preferences are saved in the application's `settings.json`; installed resources have their own application-data folders. They remain available when you switch archives. Saved changes synchronize to other open windows, so you do not need to close and reopen Settings to use them.
+
+Maintenance acts on the active archive, not every registered archive. Check which archive is open before starting it. A Storage rescan refreshes that Library; other maintenance does not cancel an ongoing Library scan simply because it was started in Settings.
+
+Ordinary **Add EPUB** starts at the archive root. A folder target supplied for the current operation or chosen in the dialog applies only to that import. Default import mode and filename-conflict handling remain application-wide.
+
+## Recover a temporary load failure {#retry}
+
+If Settings cannot load, select **Retry** in the same window. The failure does not require recreating an archive or deleting its sidecars. If it persists, consult [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/) before resetting or removing data. [Archive and application data ownership](/archeion/docs/reference/archive-storage/#ownership) explains what to preserve.

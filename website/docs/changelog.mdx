@@ -1,0 +1,18 @@
+---
+id: "changelog"
+title: "Changelog"
+sidebar_label: "Changelog"
+description: "See what changed in each Archeion release."
+slug: "/changelog/"
+doc_type: "Changelog"
+custom_edit_url: "https://github.com/TommyMoonn/archeion/blob/main/release-notes/README.md"
+overview_title: "Changelog"
+overview_description: "see what changed in each release."
+---
+
+import { ReleaseTimeline } from "@/components/docs/ReleaseTimeline";
+import { releaseHeadings } from "@/data/releaseHistory";
+
+export const toc = releaseHeadings;
+
+<ReleaseTimeline />

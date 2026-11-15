@@ -1,0 +1,51 @@
+---
+id: "archive-health"
+title: "Archive health"
+sidebar_label: "Archive health"
+description: "Review Duplicates and EPUB Issues, compare files safely, and retry Reader-relevant diagnostics without changing your EPUBs."
+slug: "/guides/archive-health/"
+doc_type: "Guide"
+overview_title: "Archive health"
+overview_description: "review Duplicates and EPUB Issues before changing files."
+---
+
+## Enable the archive-health views {#enable}
+
+1. Open **Settings → Library → Smart Views** and turn on **Show Smart Views**.
+2. Select **Duplicates** and **EPUB Issues** among the visible views. They are hidden by default; enabling Smart Views alone does not select these two views.
+3. Return to the Library sidebar and open the view you want. It analyzes the active archive's current EPUB files. Wait for **Checking EPUB files** to finish.
+
+These views inspect files; they do not automatically delete duplicates or repair EPUB contents. Ordinary Library sorting and reading-state filters are separate from these diagnostic views.
+
+## Compare duplicate groups before changing files {#duplicates}
+
+- **Exact duplicate**: copies have the same file bytes, confirmed by a matching digest. This does not mean their archive-owned progress or annotations are interchangeable.
+- **Probable duplicate**: copies share the same EPUB identifier but can have different contents, covers, or metadata. An identifier is not proof that either file is redundant.
+
+For each entry, compare **Path**, **File** size, and **Modified** date. Open **Details** by selecting the cover or title. Use **Read** to inspect a copy and **Reveal** to locate it on disk before deciding which one to keep.
+
+The file-actions menu offers **Move to folder** and **Delete EPUB** for available files. These change real files, so review the [file-management consequences](/archeion/docs/guides/file-management/) and [back up the complete archive](/archeion/docs/reference/archive-storage/#backup) first. A duplicate result is not a recommendation to delete a particular copy.
+
+If an entry's file is missing, Read, Reveal, and Move are unavailable. Details remains available, and **Remove metadata** replaces Delete EPUB. Removing the entry is not file recovery; locate or restore the missing EPUB before discarding data you need.
+
+## Interpret EPUB Issues {#epub-issues}
+
+Each affected book separates **warnings** from **errors**. Expand its diagnostic issues to read the explanation and **EPUB resource** path when one is available. Common findings include:
+
+- An unreadable EPUB archive, missing or malformed package information, or unusable reading order.
+- Missing, unsupported, or encrypted reading resources, such as a chapter document.
+- Missing or unusable navigation resources.
+- Broken local links to missing documents, or unsafe targets resolving outside the EPUB archive.
+- Inspection stopped at a safety limit, so not every resource could be checked.
+
+**Reader unavailable** disables Read when diagnostics indicate a blocking archive, package, or reading-order problem. Not every error blocks the whole book: a damaged resource can affect only part of it. Use Reveal or Details to identify the affected file, then follow [Reader-unavailable recovery](/archeion/docs/reference/troubleshooting/#reader-unavailable).
+
+This is Reader-relevant inspection, not complete EPUB validation or a guarantee that every book feature is supported. A warning is not a repair instruction, and this view does not rewrite the file.
+
+## Refresh, empty results, and failed checks {#refresh}
+
+Select **Refresh** after resolving a problem or changing files. Existing results remain visible while refreshing. If a refresh fails after earlier success, previous results remain beside the refresh error; they are not confirmation that the latest check succeeded. Retry Refresh before relying on them.
+
+With no earlier results, a failure shows **Duplicates unavailable** or **EPUB Issues unavailable** and **Try again**. An empty successful check shows **No duplicate groups** or **No EPUB issues**. It means no current matching groups or Reader-relevant findings were found, not that every EPUB was independently certified.
+
+Results are tied to current file information. Changed or missing files can disappear from findings instead of retaining an obsolete diagnosis. If the Library itself is stale, [check the archive scan](/archeion/docs/reference/troubleshooting/#failed-scan) before refreshing these views again.

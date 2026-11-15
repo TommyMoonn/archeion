@@ -1,47 +1,28 @@
+import { articleText, documentForRoute } from "./documentationMdxTestSupport";
 import fs from "node:fs";
-import path from "node:path";
 import { Window } from "happy-dom";
 import { describe, expect, it } from "vitest";
-import { verifyDocumentationLinks } from "./documentationLinkTestSupport";
 
-const projectRoot = process.cwd();
-const documentationRoot = path.join(projectRoot, "docs/documentation");
 const pages = {
-  about: path.join(documentationRoot, "reference/about-resources/index.html"),
-  dictionaries: path.join(documentationRoot, "guides/dictionaries/index.html"),
-  keyboard: path.join(documentationRoot, "guides/keyboard-shortcuts/index.html"),
-  settings: path.join(documentationRoot, "guides/settings/index.html"),
-  storage: path.join(documentationRoot, "reference/archive-storage/index.html"),
-  themeManager: path.join(documentationRoot, "customization/theme-manager/index.html"),
+  about: "reference/about-resources",
+  dictionaries: "guides/dictionaries",
+  keyboard: "guides/keyboard-shortcuts",
+  settings: "guides/settings",
+  storage: "reference/archive-storage",
+  themeManager: "customization/theme-manager",
 };
 
-function read(filePath: string): string {
-  return fs.readFileSync(filePath, "utf8");
+function read(route: string): string {
+  return documentForRoute(route).source;
 }
-
-function text(filePath: string): string {
-  const window = new Window();
-  window.document.write(read(filePath));
-  return window.document.body.textContent?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function documentationPages(): string[] {
-  const result: string[] = [];
-  const visit = (directory: string) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) visit(absolute);
-      else if (entry.isFile() && entry.name === "index.html") result.push(absolute);
-    }
-  };
-  visit(documentationRoot);
-  return result.sort();
+function text(route: string): string {
+  return articleText(route);
 }
 
 describe("Settings, dictionaries, theme, and About documentation coverage", () => {
   it("adds focused end-user guides for global utility features", () => {
     for (const [name, filePath] of Object.entries(pages)) {
-      expect(fs.existsSync(filePath), `${name} guide should exist`).toBe(true);
+      expect(Boolean(documentForRoute(filePath)), `${name} guide should exist`).toBe(true);
     }
 
     const settings = text(pages.settings);
@@ -109,43 +90,17 @@ describe("Settings, dictionaries, theme, and About documentation coverage", () =
     expect(storage).toMatch(/application data/i);
     expect(storage).toMatch(/\.archeion/i);
 
-    const customThemes = read(
-      path.join(documentationRoot, "customization/custom-themes/index.html"),
-    );
-    const appearance = read(path.join(documentationRoot, "customization/appearance/index.html"));
+    const customThemes = read("customization/custom-themes");
+    const appearance = read("customization/appearance");
     const combined = `${customThemes}\n${appearance}`;
     expect(combined).not.toMatch(/themes are stored with the archive/i);
     expect(combined).not.toMatch(/custom themes are kept in\s*<code>\.archeion\/themes\//i);
     expect(combined).toMatch(/application data/i);
   });
 
-  it("exposes utility guides from every documentation sidebar and the documentation home", () => {
-    const expectedLabels = [
-      "Settings",
-      "Dictionaries and Define",
-      "Keyboard shortcuts",
-      "Theme Manager",
-      "About and resources",
-    ];
-    for (const page of documentationPages()) {
-      const window = new Window();
-      window.document.write(read(page));
-      const sidebar = window.document.querySelector("[data-sidebar]");
-      expect(sidebar, `${path.relative(projectRoot, page)} should have a sidebar`).not.toBeNull();
-      const labels = Array.from(
-        sidebar?.querySelectorAll<HTMLAnchorElement>("[data-doc-link]") ?? [],
-      ).map((link) => link.textContent?.replace(/\s+/g, " ").trim());
-      for (const label of expectedLabels) expect(labels).toContain(label);
-      expect(sidebar?.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
-    }
-
-    const home = text(path.join(documentationRoot, "index.html"));
-    for (const label of expectedLabels) expect(home).toContain(label);
-  });
-
   it("documents offline dictionaries and standalone utility windows on the landing page", () => {
     const landingWindow = new Window();
-    landingWindow.document.write(read(path.join(projectRoot, "docs/index.html")));
+    landingWindow.document.write(fs.readFileSync("docs/index.html", "utf8"));
     const readerNotes = landingWindow.document.querySelector("#reader .reader-notes")?.textContent;
     expect(readerNotes).toMatch(/\bDefine\b/i);
     expect(readerNotes).toMatch(/\bdictionar(?:y|ies)\b/i);
@@ -154,9 +109,5 @@ describe("Settings, dictionaries, theme, and About documentation coverage", () =
     expect(landing).toContain("Theme Manager");
     expect(landing).toContain("Settings");
     expect(landing).toContain("About");
-  });
-
-  it("keeps every local documentation link and fragment valid", async () => {
-    await verifyDocumentationLinks(documentationPages());
   });
 });

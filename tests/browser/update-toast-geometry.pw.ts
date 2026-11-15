@@ -183,20 +183,25 @@ for (const input of ["wheel", "keyboard"] as const) {
           available: { version: "1.8.0", notes: null, publishedAt: null },
         }),
       );
-      const recording = main.evaluate(async (element) => {
+      const recording = await main.evaluateHandle((element) => {
         const item = [...element.querySelectorAll<HTMLElement>("[data-reader-book-id]")].find(
           (item) => item.getBoundingClientRect().top >= element.getBoundingClientRect().top,
         )!;
-        const samples = [];
-        for (let i = 0; i < 30; i++) {
-          await new Promise(requestAnimationFrame);
-          samples.push({
-            top: element.scrollTop,
-            contentY: item.getBoundingClientRect().y + element.scrollTop,
-            connected: item.isConnected,
-          });
-        }
-        return samples;
+        const sample = () => ({
+          top: element.scrollTop,
+          contentY: item.getBoundingClientRect().y + element.scrollTop,
+          connected: item.isConnected,
+        });
+        // Await recorder setup and retain a baseline before native input can scroll.
+        const samples = [sample()];
+        const finished = (async () => {
+          for (let i = 0; i < 30; i++) {
+            await new Promise(requestAnimationFrame);
+            samples.push(sample());
+          }
+          return samples;
+        })();
+        return { finished };
       });
       if (input === "wheel") {
         const box = await main.boundingBox();
@@ -205,7 +210,8 @@ for (const input of ["wheel", "keyboard"] as const) {
       } else {
         await page.keyboard.press(position === "bottom" ? "ArrowUp" : "ArrowDown");
       }
-      const samples = await recording;
+      const samples = await recording.evaluate((recorder) => recorder.finished);
+      await recording.dispose();
       await info.attach("input-geometry", {
         body: JSON.stringify(samples),
         contentType: "application/json",

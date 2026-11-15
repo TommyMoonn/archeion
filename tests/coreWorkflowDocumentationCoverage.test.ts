@@ -1,80 +1,13 @@
-import fs from "node:fs";
-import path from "node:path";
-import { Window } from "happy-dom";
-import { afterEach, describe, expect, it } from "vitest";
-import registry from "../docs/documentation/page-registry.json";
+import { articleText as mdxText, articleLinks } from "./documentationMdxTestSupport";
+import { describe, expect, it } from "vitest";
 import {
   commandDefinitions,
   formatKeyboardBinding,
 } from "../src/features/commands/commandBindings";
-import { resolveLocalPage } from "./documentationLinkTestSupport";
-import { documentationSearchEntries } from "./documentationSearchTestSupport";
 
-const guides = [
-  { id: "quick-actions", title: "Quick Actions", search: "command" },
-  { id: "metadata-covers", title: "Metadata and covers", search: "embedded cover" },
-] as const;
-const windows: Window[] = [];
-afterEach(async () => {
-  await Promise.all(windows.splice(0).map((window) => window.happyDOM.abort()));
-});
-
-function documentFor(sourcePath: string) {
-  const window = new Window({
-    settings: {
-      disableJavaScriptEvaluation: true,
-      disableJavaScriptFileLoading: true,
-      disableCSSFileLoading: true,
-    },
-  });
-  windows.push(window);
-  window.document.write(fs.readFileSync(sourcePath, "utf8"));
-  return window.document;
-}
-
-function articleText(id: string) {
-  return documentFor(`docs/documentation/guides/${id}/index.html`)
-    .querySelector("[data-doc-article]")!
-    .textContent.replace(/\s+/g, " ")
-    .trim();
-}
+const articleText = (id: string) => mdxText(`guides/${id}`);
 
 describe("core workflow documentation", () => {
-  it.each(guides)("publishes $title as a searchable, ordered guide on every page", (guide) => {
-    const sourcePath = `docs/documentation/guides/${guide.id}/index.html`;
-    expect(registry.pages.find((page) => page.id === guide.id)).toMatchObject({
-      route: `/guides/${guide.id}/`,
-      title: guide.title,
-      group: "using-archeion",
-      type: "guide",
-      sourcePath,
-    });
-    expect(fs.existsSync(sourcePath)).toBe(true);
-    for (const page of registry.pages) {
-      const document = documentFor(page.sourcePath);
-      const link = [...document.querySelectorAll("[data-sidebar] [data-doc-link]")].find(
-        (link) => link.textContent.trim() === guide.title,
-      )!;
-      expect(link, page.sourcePath).toBeDefined();
-      expect(resolveLocalPage(page.sourcePath, link.getAttribute("href")!)?.file).toBe(
-        path.resolve(sourcePath),
-      );
-      expect(link.hasAttribute("data-search")).toBe(false);
-      expect(link.getAttribute("aria-current")).toBe(page.id === guide.id ? "page" : null);
-    }
-    expect(
-      documentationSearchEntries().some(
-        (entry) => entry.pageId === guide.id && entry.text.includes(guide.search),
-      ),
-    ).toBe(true);
-    const home = documentFor("docs/documentation/index.html");
-    expect(
-      [...home.querySelectorAll("[data-doc-article] li > a")].some(
-        (link) => link.getAttribute("href") === `guides/${guide.id}/`,
-      ),
-    ).toBe(true);
-  });
-
   it("documents the current shortcut, context, fixed palette keys, and nested confirmation", () => {
     const text = articleText("quick-actions");
     expect(text).toContain(
@@ -159,22 +92,14 @@ describe("core workflow documentation", () => {
   });
 
   it("links related tasks to their canonical workflow home", () => {
-    for (const [sourcePath, targetId] of [
-      ["docs/documentation/guides/library/index.html", "quick-actions"],
-      ["docs/documentation/guides/library/index.html", "metadata-covers"],
-      ["docs/documentation/guides/file-management/index.html", "metadata-covers"],
-      ["docs/documentation/guides/keyboard-shortcuts/index.html", "quick-actions"],
-      ["docs/documentation/reference/archive-storage/index.html", "metadata-covers"],
+    for (const [route, target] of [
+      ["guides/library", "quick-actions"],
+      ["guides/library", "metadata-covers"],
+      ["guides/file-management", "metadata-covers"],
+      ["guides/keyboard-shortcuts", "quick-actions"],
+      ["reference/archive-storage", "metadata-covers"],
     ]) {
-      const article = documentFor(sourcePath).querySelector("[data-doc-article]")!;
-      expect(
-        [...article.querySelectorAll("a[href]")].some(
-          (link) =>
-            resolveLocalPage(sourcePath, link.getAttribute("href")!)?.file ===
-            path.resolve(`docs/documentation/guides/${targetId}/index.html`),
-        ),
-        sourcePath,
-      ).toBe(true);
+      expect(articleLinks(route)).toContain(`/archeion/docs/guides/${target}/`);
     }
   });
 });

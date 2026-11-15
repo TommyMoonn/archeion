@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="src/assets/brand/archeion-wordmark-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="src/assets/brand/archeion-wordmark-light.png">
-    <img src="src/assets/brand/archeion-wordmark-dark.png" alt="Archeion" width="512" height="210">
+    <img src="src/assets/brand/archeion-wordmark-dark.png" alt="Archeion" width="280">
   </picture>
 </p>
 
@@ -14,12 +14,12 @@
   <a href="https://tommymoonn.github.io/archeion/"><img src="https://img.shields.io/badge/Website-Visit-238636?style=flat" alt="Website"></a>
   <a href="https://github.com/TommyMoonn/archeion/releases/latest"><img src="https://img.shields.io/badge/Download-Windows-0969da?style=flat&logo=windows11&logoColor=white" alt="Download for Windows"></a>
   <a href="https://github.com/TommyMoonn/archeion/releases"><img src="https://img.shields.io/badge/Releases-GitHub-57606a?style=flat&logo=github&logoColor=white" alt="GitHub Releases"></a>
-  <a href="https://tommymoonn.github.io/archeion/documentation/changelog/"><img src="https://img.shields.io/badge/Changelog-History-b45309?style=flat&logo=git&logoColor=white" alt="Changelog"></a>
+  <a href="https://tommymoonn.github.io/archeion/docs/changelog/"><img src="https://img.shields.io/badge/Changelog-History-b45309?style=flat&logo=git&logoColor=white" alt="Changelog"></a>
 </p>
 
 <p align="center">
   <img
-    src="docs/assets/archeion-preview.png"
+    src="website/static/assets/archeion-preview.png"
     alt="Archeion Library in the dark theme, showing a folder sidebar and EPUB cover grid"
     width="900"
   >
@@ -61,7 +61,7 @@ or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
 - **Library organization** - browse folders and series, search, sort, filter, select, and manage books in bulk.
 - **Bookmarks and highlights** - bookmark, highlight and write notes while reading.
 - **EPUB metadata editing** - update a book's metadata such as its title, author, publisher, and more.
-- **Customizable appearance** - you can customize the app's theme, refer to the [Custom theme documentation](https://tommymoonn.github.io/archeion/documentation/customization/custom-themes/).
+- **Customizable appearance** - you can customize the app's theme, refer to the [Custom theme documentation](https://tommymoonn.github.io/archeion/docs/customization/custom-themes/).
 - **Offline dictionaries** - install local dictionaries and look up words you don't know.
 
 ## Local-first
