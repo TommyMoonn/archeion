@@ -12,66 +12,44 @@ async function openSearch(page: Page) {
     dialog,
     input,
     links: dialog.getByRole("navigation", { name: "Documentation search results" }).locator("a"),
-    toggle: dialog.getByRole("button", { name: "Show details", exact: true }),
   };
 }
 
-test("input-first dialog preserves result identity, selection, and accessible names across modes", async ({
+test("search results stay compact with full accessible titles and keyboard selection", async ({
   page,
 }) => {
-  const { dialog, input, links, toggle } = await openSearch(page);
-  await expect(dialog.getByRole("heading", { name: "Search documentation" })).toHaveCount(1);
-  await expect(dialog.getByRole("button", { name: "Close search" })).toHaveCount(1);
-  await input.fill("archive health");
-  await expect(links.first().locator("mark").first()).toHaveText(/archive/i);
-  const before = await links.evaluateAll((nodes) =>
-    nodes.map((node) => ({
-      href: node.getAttribute("href"),
-      label: node.getAttribute("aria-labelledby"),
-      text: node.querySelector("span")?.textContent,
-    })),
-  );
-  await input.press("ArrowDown");
-  await links.first().press("ArrowDown");
-  await expect(links.nth(1)).toBeFocused();
-  const active = await links.nth(1).getAttribute("href");
-  await page.evaluate(() => {
-    (window as unknown as { searchNode: Element | null }).searchNode = document.querySelector(
-      'nav[aria-label="Documentation search results"] a',
-    );
+  const { dialog, input, links } = await openSearch(page);
+  await expect(dialog.getByRole("button", { name: "Show details" })).toHaveCount(0);
+  await expect(input).toHaveCSS("outline-style", "none");
+  await expect(dialog).toHaveCSS("backdrop-filter", "none");
+  const backdrop = await dialog.evaluate((node) => {
+    const style = getComputedStyle(node, "::backdrop");
+    return { blur: style.backdropFilter, background: style.backgroundColor };
   });
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(toggle).toBeFocused();
-  expect(
-    await links.evaluateAll((nodes) =>
-      nodes.map((node) => ({
-        href: node.getAttribute("href"),
-        label: node.getAttribute("aria-labelledby"),
-        text: node.querySelector("span")?.textContent,
-      })),
-    ),
-  ).toEqual(before);
-  expect(
-    await page.evaluate(
-      () =>
-        (window as unknown as { searchNode: Element }).searchNode ===
-        document.querySelector('nav[aria-label="Documentation search results"] a'),
-    ),
-  ).toBe(true);
-  await expect(dialog.locator('[data-active="true"]')).toHaveAttribute("href", active!);
-  await expect(links.first().locator("[data-search-excerpt]")).toBeVisible();
+  expect(backdrop).toEqual({ blur: "none", background: "rgba(0, 0, 0, 0.45)" });
+  await input.fill("archive health");
   await expect(links.first()).toHaveAccessibleName("Archive health Using Archeion");
-  await expect(links.first()).toHaveAccessibleDescription(/duplicates/i);
-  await toggle.press("Space");
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
-  await expect(links.first()).toHaveAccessibleName("Archive health Using Archeion");
-  await expect(links.first()).toHaveAccessibleDescription("");
+  expect(await links.first().locator(":scope > span").count()).toBe(2);
+  await expect(links.first()).toHaveAttribute("title", "Archive health \u2014 Using Archeion");
+  await expect(links.first().locator("mark").first()).toHaveText(/archive/i);
+  await input.press("ArrowDown");
+  await expect(links.first()).toBeFocused();
+  await expect(links.first()).toHaveCSS("outline-style", "solid");
+  await links.first().press("ArrowUp");
+  await expect(input).toBeFocused();
+  await expect(input).toHaveCSS("outline-style", "solid");
+  await input.click();
+  await expect(input).toHaveCSS("outline-style", "none");
+  await input.press("Escape");
+  await page.keyboard.press("Control+k");
+  await expect(input).toHaveCSS("outline-style", "solid");
+  await input.press("Escape");
+  await page.getByRole("button", { name: "Search documentation", exact: true }).click();
+  await input.fill("asd");
+  await expect(input).toHaveCSS("outline-style", "none");
 });
 
-test("arrows and Enter activate results while Tab reaches the toggle and native links", async ({
-  page,
-}) => {
+test("arrows and Enter activate results while Tab reaches native links", async ({ page }) => {
   const { dialog, input, links } = await openSearch(page);
   await input.fill("matching digest");
   await input.press("Tab");
@@ -156,22 +134,24 @@ test("modified result activation keeps the original dialog open", async ({ page,
 
 for (const theme of ["light", "dark"] as const) {
   for (const width of [320, 1280]) {
-    test(`${theme} search at ${width}px survives detailed results and doubled text`, async ({
+    test(`${theme} search at ${width}px survives compact results and doubled text`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 800 });
-      const { dialog, input, toggle, links } = await openSearch(page);
+      const { dialog, input, links } = await openSearch(page);
       await page.evaluate((value) => {
         document.documentElement.dataset.theme = value;
       }, theme);
       await input.fill("archive");
+      await expect(links.first()).toHaveCSS("font-family", /Inter Variable/);
+      await expect(links.first().locator(":scope > span").first()).toHaveCSS("font-size", "14px");
+      await expect(links.first().locator(":scope > span").nth(1)).toHaveCSS("font-size", "13px");
+      await expect(links.first().locator(":scope > span").nth(1)).toHaveCSS(
+        "letter-spacing",
+        "normal",
+      );
       await dialog.screenshot({
         path: test.info().outputPath(`search-${theme}-${width}-compact.png`),
-      });
-      await toggle.click();
-      await expect(links.first().locator("[data-search-excerpt]")).toBeVisible();
-      await dialog.screenshot({
-        path: test.info().outputPath(`search-${theme}-${width}-detailed.png`),
       });
       await dialog.evaluate((element) => {
         const nodes = [
@@ -189,7 +169,7 @@ for (const theme of ["light", "dark"] as const) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
-      await expect(toggle).toBeInViewport();
+      await expect(dialog.getByRole("button", { name: "Close search" })).toBeInViewport();
       await input.focus();
       await input.press("ArrowDown");
       await expect(links.first()).toBeFocused();
@@ -206,7 +186,7 @@ for (const theme of ["light", "dark"] as const) {
 
 test("reduced motion and forced colors retain visible keyboard state", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
-  const { dialog, input, links, toggle } = await openSearch(page);
+  const { dialog, input, links } = await openSearch(page);
   await expect(dialog).toHaveCSS("animation-name", "none");
   await input.fill("archive");
   await input.press("ArrowDown");
@@ -219,7 +199,5 @@ test("reduced motion and forced colors retain visible keyboard state", async ({ 
       .first()
       .evaluate((element) => parseFloat(getComputedStyle(element).transitionDuration)),
   ).toBeLessThanOrEqual(0.00001);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await dialog.screenshot({ path: test.info().outputPath("search-forced-colors.png") });
 });

@@ -117,12 +117,21 @@ for (const appearance of ["dark", "light"] as const) {
         date: "11px",
         headingLine: "18.3px",
         dateLine: "19.8px",
-        firstBulletMargin: "9px",
+        firstBulletMargin: "0px",
       });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
       await expect(first.locator("time")).toBeVisible();
+      if (width > 600) {
+        const alignment = await first.evaluate((entry) => {
+          const heading = entry.querySelector("h2");
+          const bullet = entry.querySelector("ul > li");
+          if (!heading || !bullet) throw new Error("Missing release entry");
+          return Math.abs(heading.getBoundingClientRect().top - bullet.getBoundingClientRect().top);
+        });
+        expect(alignment).toBeLessThanOrEqual(1);
+      }
       if (width === 1440 || width === 320)
         await page.screenshot({
           path: test.info().outputPath(`release-${appearance}-${width}.png`),
@@ -133,6 +142,7 @@ for (const appearance of ["dark", "light"] as const) {
         exact: true,
       });
       await link.focus();
+      await expect(link).toHaveCSS("display", "inline");
       await expect(link).toBeFocused();
       expect(await link.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe(
         "solid",

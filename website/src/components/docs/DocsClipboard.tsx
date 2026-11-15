@@ -15,15 +15,19 @@ export function DocsClipboard({
 }) {
   const generation = useRef(0);
   const trigger = useRef<HTMLButtonElement | null>(null);
+  const dismiss = useRef<HTMLButtonElement | null>(null);
+  const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [message, setMessage] = useState("");
   useEffect(
     () => () => {
       generation.current++;
+      clearTimeout(timeout.current);
     },
     [],
   );
   const copy: CopyRequest = async (text, opener, kind = "code") => {
     const request = ++generation.current;
+    clearTimeout(timeout.current);
     trigger.current = opener;
     setMessage(`Copying ${kind}…`);
     try {
@@ -33,6 +37,14 @@ export function DocsClipboard({
     } catch {
       if (request === generation.current)
         setMessage(`Could not copy ${kind}. Try Copy ${kind} again.`);
+    }
+    if (request === generation.current) {
+      timeout.current = setTimeout(() => {
+        setMessage("");
+        // Removing the focused dismiss control must not strand keyboard focus.
+        if (document.activeElement === dismiss.current && trigger.current?.isConnected)
+          trigger.current.focus();
+      }, 6000);
     }
   };
   return (
@@ -64,11 +76,13 @@ export function DocsClipboard({
         </span>
         {message && (
           <Button
+            ref={dismiss}
             variant="ghost"
             size="icon-sm"
             aria-label="Dismiss copy status"
             onClick={() => {
               generation.current++;
+              clearTimeout(timeout.current);
               setMessage("");
               if (trigger.current?.isConnected) trigger.current.focus();
             }}

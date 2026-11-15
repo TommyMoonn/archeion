@@ -79,8 +79,17 @@ borrow a status color for decoration or invent opacity values in components.
 
 Use `font-sans` for Inter UI/body text, `font-editorial` for the documentation's
 Literata headings, `font-display` for the landing mock's system serif stack, and
-`font-mono` for code. Inter 400/600/700 and Literata 400 are served locally with
-swap; code uses the declared system fallback when Fira Code is unavailable.
+`font-mono` for code. Inter Variable (100�900) and Literata 400 are embedded
+in the generated render-blocking stylesheet with a blocking font-display period
+for local decoding. This increases critical CSS size,
+but removes separate font requests and fallback-to-webfont reflow on slow loads.
+The generated head/body bootstrap reveals the server-rendered page after both
+typefaces decode, independently of React's deferred bundle. Font-load rejection
+reveals the fallback layout; with JavaScript disabled the page stays visible.
+The website-owned Inter Variable asset comes from the existing inter-ui package;
+public static font URLs remain unchanged. Code uses the declared system fallback
+when Fira Code is unavailable. Copy page reserves its server-rendered space before
+hydration so narrow breadcrumb rows do not move when it becomes available.
 Use `text-caption`, `text-body`, `text-lead`, `text-article-title`, `text-hero`,
 and `text-section` with their bundled line heights. Display headings pair with
 `tracking-display` and normal weight. Use standard Tailwind sizes for ordinary
@@ -199,8 +208,9 @@ with 3px offset. Link color transitions are generally 340ms, ordinary controls
 effectively removes transitions. Theme changes suppress palette transitions.
 
 The mock requests remote variable Inter and Fira Code as well as embedded local
-fonts. The foundation deliberately bundles Inter 400/600/700 and Literata 400,
-with a declared mono fallback. Keep that approved asset policy: do not introduce
+fonts. The foundation initially bundled Inter 400/600/700 and Literata 400;
+the documentation refinement replaces the static Inter faces with the existing
+local Inter Variable asset. Keep the local asset policy: do not introduce
 Google Fonts, CDN Tailwind, base64 artwork, or a Fira dependency. Mock weights
 such as 550/650 require comparison against the available local weights at B2.4;
 do not claim pixel-identical typography before that comparison.
@@ -573,10 +583,11 @@ Matching folds case and whitespace and accepts all query tokens within a field.
 Title/navigation-title hits precede section-heading, alias, and body hits;
 metadata group/summary matches join the page-body tier. Canonical page/section
 order breaks ties before the first ten results are selected. Empty queries
-browse pages only. Total and shown counts remain distinct. Summaries stay
-visible; Show details reveals separate excerpts of at most 240 characters
-without replacing/reordering links, resetting selection or changing the polite
-count announcement. Highlighting renders escaped React text and marks only.
+browse pages only. Total and shown counts remain distinct. Each result shows
+two lines: its title or section heading, then its page/category context. Full
+titles remain in accessible names and native tooltips when visually truncated.
+Descriptions and excerpts remain indexed without adding visible result rows.
+Highlighting renders escaped React text and marks only.
 
 DocsShell remains the exclusive modal/shortcut owner. Ctrl/Cmd+K opens search
 or refocuses/selects its input when already open; it does not steal the mobile
@@ -609,7 +620,8 @@ malformed/unsafe links keep their readable label. Image alternative text and
 keyboard labels remain readable. No HTML-string or innerText export is used.
 
 Code copy still writes rendered code text exactly. Both actions share one
-stable polite status, persistent success/error feedback, retry and dismiss,
+stable polite status, success/error feedback that dismisses six seconds after
+the latest completion, retry and manual dismissal,
 focus retention/restoration, newest-request ownership and route disposal.
 Copy controls are hidden before hydration and without JavaScript. Their names
 never change to temporary success/error labels. CodeBlock retains its language

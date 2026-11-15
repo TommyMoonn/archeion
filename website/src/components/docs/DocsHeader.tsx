@@ -9,7 +9,7 @@ export function DocsHeader({
   onNavigation,
   navigationOpen,
 }: {
-  onSearch: () => void;
+  onSearch: (keyboard: boolean) => void;
   onNavigation: () => void;
   navigationOpen: boolean;
 }) {
@@ -34,13 +34,13 @@ export function DocsHeader({
         </a>
         <Button
           variant="ghost"
-          onClick={onSearch}
+          onClick={(event) => onSearch(event.detail === 0)}
           aria-label="Search documentation"
           className="h-docs-icon w-docs-search justify-start rounded-control border border-solid border-border bg-surface-raised px-3 text-sm font-normal text-content-subtle docs-full:w-docs-search-full docs-wide:w-docs-search-wide docs-brand:w-docs-search-compact docs-navigation:w-docs-search-mobile docs-search:size-docs-icon docs-search:justify-center docs-search:px-0"
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="text-caption docs-search:hidden">Search docs</span>
-          <kbd className="ms-auto rounded-sm border border-solid border-border-strong px-1 font-mono text-xs docs-search:hidden">
+          <kbd className="ms-auto rounded-sm border border-solid border-border-strong bg-surface-sunken px-1 font-mono text-xs shadow-none docs-search:hidden">
             Ctrl K
           </kbd>
         </Button>

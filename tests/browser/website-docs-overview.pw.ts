@@ -48,6 +48,14 @@ test("overview cards keep measured columns, local containment and enlarged text 
       );
       expect(columns).toEqual(width <= 600 ? [1, 1, 1, 1, 1] : [3, 2, 2, 2, 2]);
       for (const card of await grids.locator("a").all()) {
+        const verticalAlignment = await card.evaluate((element) => {
+          const card = element.getBoundingClientRect();
+          const arrow = element.querySelector("svg");
+          if (!arrow) throw new Error("Overview card arrow is missing");
+          const icon = arrow.getBoundingClientRect();
+          return Math.abs(card.y + card.height / 2 - icon.y - icon.height / 2);
+        });
+        expect(verticalAlignment).toBeLessThanOrEqual(1);
         const bounds = await card.boundingBox();
         expect(bounds).not.toBeNull();
         expect(bounds!.x).toBeGreaterThanOrEqual(0);

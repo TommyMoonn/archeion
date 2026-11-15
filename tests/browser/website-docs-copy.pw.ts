@@ -1,6 +1,34 @@
 import { expect, test } from "@playwright/test";
 import { documents } from "../documentationMdxTestSupport";
 
+test("copy feedback expires after the latest completion without stealing focus", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => {} } }),
+  );
+  await page.goto("/archeion/docs/");
+  await page.clock.install();
+  const copy = page.getByRole("button", { name: "Copy page", exact: true });
+  const status = page.locator("main [role=status]");
+  await copy.click();
+  await expect(status).toHaveText("Page copied as Markdown.");
+  await page.clock.fastForward(5000);
+  await copy.click();
+  await page.clock.fastForward(1500);
+  await expect(status).toHaveText("Page copied as Markdown.");
+  const search = page.getByRole("button", { name: "Search documentation", exact: true });
+  await search.focus();
+  await page.clock.fastForward(4500);
+  await expect(status).toBeEmpty();
+  await expect(search).toBeFocused();
+  await copy.click();
+  await page.getByRole("button", { name: "Dismiss copy status" }).focus();
+  await page.clock.fastForward(6000);
+  await expect(status).toBeEmpty();
+  await expect(copy).toBeFocused();
+});
+
 test("all 24 MDX articles export their title and content without generated chrome", async ({
   page,
 }) => {

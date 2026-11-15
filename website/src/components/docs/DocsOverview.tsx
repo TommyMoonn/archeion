@@ -15,7 +15,7 @@ export function DocsOverview({ group }: { group: string }) {
           <li key={page.id} className="m-0 min-w-0">
             <Link
               to={page.href}
-              className="group flex h-full min-h-19 min-w-0 box-border items-start justify-between gap-3 rounded-control border border-solid border-border bg-surface px-3.25 pt-3.25 pb-3 text-content hover:border-border-strong hover:bg-surface-raised hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring motion-safe:transition motion-safe:duration-240 motion-safe:hover:-translate-y-px"
+              className="group flex h-full min-h-19 min-w-0 box-border items-center justify-between gap-3 rounded-control border border-solid border-border bg-surface px-3.25 pt-3.25 pb-3 text-content hover:border-border-strong hover:bg-surface-raised hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring motion-safe:transition motion-safe:duration-240 motion-safe:hover:-translate-y-px"
             >
               <span className="min-w-0">
                 <span className="block text-docs-card-title font-bold text-content-strong">
@@ -28,7 +28,7 @@ export function DocsOverview({ group }: { group: string }) {
               <ArrowRight
                 aria-hidden="true"
                 strokeWidth={1.5}
-                className="mt-0.5 size-3.5 shrink-0 text-content-subtle group-hover:text-accent motion-safe:transition motion-safe:duration-240 motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:-translate-y-0.5"
+                className="size-3.5 shrink-0 text-content-subtle group-hover:text-accent motion-safe:transition motion-safe:duration-240 motion-safe:group-hover:translate-x-0.5"
               />
             </Link>
           </li>

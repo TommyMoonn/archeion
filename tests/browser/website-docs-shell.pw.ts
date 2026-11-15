@@ -1,5 +1,66 @@
 import { expect, test } from "@playwright/test";
 
+for (const width of [320, 1280]) {
+  test(`critical fonts and delayed hydration do not reflow documentation at ${width}px`, async ({
+    page,
+  }) => {
+    test.skip(
+      process.env.ARCHEION_WEBSITE_MODE === "dev",
+      "Requires server-rendered production output",
+    );
+    await page.setViewportSize({ width, height: 900 });
+    await page.addInitScript(() => {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if ("value" in entry && typeof entry.value === "number") {
+            const previous = Number(document.documentElement.dataset.layoutShift || "0");
+            document.documentElement.dataset.layoutShift = String(previous + entry.value);
+          }
+        }
+      }).observe({ type: "layout-shift", buffered: true });
+    });
+    let releaseScripts: () => void = () => {};
+    const scripts = new Promise<void>((resolve) => {
+      releaseScripts = resolve;
+    });
+    let externalFonts = 0;
+    await page.route("**/*.woff2", (route) => {
+      externalFonts++;
+      return route.abort();
+    });
+    await page.route("**/*.js", async (route) => {
+      await scripts;
+      await route.continue();
+    });
+    await page.goto("/archeion/docs/", { waitUntil: "commit" });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect
+      .poll(() =>
+        page.evaluate(() => performance.getEntriesByName("first-contentful-paint").length),
+      )
+      .toBe(1);
+    expect(
+      await page.evaluate(() => [...document.fonts].every((font) => font.status === "loaded")),
+    ).toBe(true);
+    const geometry = () =>
+      page.locator("main h1, main article p, header").evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const box = node.getBoundingClientRect();
+          return { x: box.x, y: box.y, width: box.width, height: box.height };
+        }),
+      );
+    const before = await geometry();
+    releaseScripts();
+    await page.waitForLoadState("load");
+    await expect(page.getByRole("button", { name: "Copy page", exact: true })).toBeEnabled();
+    expect(await geometry()).toEqual(before);
+    expect(externalFonts).toBe(0);
+    expect(
+      await page.evaluate(() => Number(document.documentElement.dataset.layoutShift || "0")),
+    ).toBe(0);
+  });
+}
+
 test("article shell uses the approved desktop rails and local typography", async ({
   page,
 }, testInfo) => {

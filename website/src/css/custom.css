@@ -7,28 +7,20 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-@font-face {
-  font-family: "Inter";
-  src: url("../assets/fonts/inter-regular.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
+/* The head/body font bootstrap reveals the first layout after local decoding.
+   With scripting disabled this attribute is never set, preserving static reading. */
+html[data-site-fonts-loading] #__docusaurus {
+  visibility: hidden;
 }
 
+/* Embed critical fonts in the generated stylesheet to avoid a font-request
+   waterfall and prevent fallback text from reflowing after first paint. */
 @font-face {
-  font-family: "Inter";
-  src: url("../assets/fonts/inter-semibold.woff2") format("woff2");
+  font-family: "Inter Variable";
+  src: url("../assets/fonts/InterVariable.woff2") format("woff2");
   font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Inter";
-  src: url("../assets/fonts/inter-bold.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
+  font-weight: 100 900;
+  font-display: block;
 }
 
 @font-face {
@@ -36,7 +28,7 @@
   src: url("../assets/fonts/literata-regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  font-display: block;
 }
 
 /* Approved mock palette, matching the finalized brand refresh. Website-owned:
@@ -163,7 +155,7 @@
   --text-docs-release--line-height: 1.22;
   --text-docs-release-date: 11px;
   --text-docs-release-date--line-height: 1.8;
-  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-editorial: "Literata", Georgia, serif;
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-mono: "Fira Code", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
