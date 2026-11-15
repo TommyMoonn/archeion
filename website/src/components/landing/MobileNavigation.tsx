@@ -1,4 +1,5 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { GithubMark } from "@/components/shared/GithubMark";
 import { Menu } from "lucide-react";
 import { landingLinks, landingSections, type LandingSectionId } from "./content";
 import { DownloadAction } from "./DownloadAction";
@@ -76,7 +77,7 @@ export function MobileNavigation({
     <details
       ref={details}
       open={open}
-      className="hidden landing-menu:block"
+      className="hidden justify-self-end landing-menu:block"
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary
@@ -86,14 +87,14 @@ export function MobileNavigation({
           event.preventDefault();
           setOpen((value) => !value);
         }}
-        className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 rounded-button border border-solid border-border-strong px-3 text-sm font-semibold text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
         Menu <Menu aria-hidden="true" className="size-4" />
       </summary>
       <nav
         id="landing-mobile-navigation"
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 top-17 bottom-0 overflow-y-auto overscroll-contain bg-surface px-6 py-8 landing-mobile:top-16"
+        className="fixed inset-x-0 top-17 bottom-0 grid content-start gap-1 overflow-y-auto overscroll-contain border-0 border-t border-solid border-border bg-surface px-6 pt-6 pb-12 landing-mobile:top-16"
       >
         {landingSections.map(({ id, label }) => (
           <a
@@ -117,7 +118,7 @@ export function MobileNavigation({
                 document.getElementById(anchor)?.focus({ preventScroll: true }),
               );
             }}
-            className="mb-3 flex min-h-11 items-center text-xl text-content hover:text-accent focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="flex min-h-13.5 items-center border-0 border-b border-solid border-border text-lg text-content hover:text-accent focus-visible:outline-2 focus-visible:outline-focus-ring"
           >
             {label}
           </a>
@@ -138,8 +139,9 @@ export function MobileNavigation({
             setOpen(false);
             summary.current?.focus();
           }}
-          className="mb-6 flex min-h-11 items-center text-content-muted focus-visible:outline-2 focus-visible:outline-focus-ring"
+          className="mb-4.5 flex min-h-13.5 items-center gap-2 border-0 border-b border-solid border-border text-lg text-content-muted focus-visible:outline-2 focus-visible:outline-focus-ring"
         >
+          <GithubMark className="size-4" />
           GitHub
         </a>
         <DownloadAction />

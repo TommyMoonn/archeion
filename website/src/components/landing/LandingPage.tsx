@@ -1,5 +1,6 @@
 import { HtmlClassNameProvider } from "@docusaurus/theme-common";
 import { useEffect, useRef, useState } from "react";
+import { PointerGlow } from "./PointerDecoration";
 import { LandingHeader } from "./LandingHeader";
 import { HeroSection } from "./HeroSection";
 import { ProductPreview } from "./ProductPreview";
@@ -21,18 +22,20 @@ export function LandingPage() {
       cancelAnimationFrame(frame.current);
       setSpotlight(null);
     };
+    const reset = requestAnimationFrame(clear);
     window.addEventListener("blur", clear);
     return () => {
+      cancelAnimationFrame(reset);
       cancelAnimationFrame(frame.current);
       window.removeEventListener("blur", clear);
     };
-  }, []);
+  }, [pointer]);
   return (
     <HtmlClassNameProvider className={menuOpen ? "overflow-hidden" : ""}>
       <div
         data-landing=""
         data-theme="dark"
-        className="min-h-screen bg-surface font-sans text-content antialiased"
+        className="min-h-screen bg-surface font-sans leading-[1.55] text-content antialiased [&_a]:no-underline"
         onPointerLeave={() => {
           cancelAnimationFrame(frame.current);
           setSpotlight(null);
@@ -44,14 +47,7 @@ export function LandingPage() {
           frame.current = requestAnimationFrame(() => setSpotlight({ x, y }));
         }}
       >
-        {pointer && spotlight && (
-          <svg
-            aria-hidden="true"
-            className="pointer-events-none fixed inset-0 z-header h-screen w-screen opacity-5 mix-blend-screen"
-          >
-            <circle cx={spotlight.x} cy={spotlight.y} r={230} className="fill-accent" />
-          </svg>
-        )}
+        <PointerGlow point={pointer ? spotlight : null} radius={460} kind="page" />
         <a
           href="#main"
           onClick={focusLandingAnchor}
@@ -61,8 +57,17 @@ export function LandingPage() {
           Skip to content
         </a>
         <LandingHeader open={menuOpen} setOpen={setMenuOpen} />
-        <main id="main" tabIndex={-1} inert={menuOpen} className="scroll-mt-22">
-          <span id="main-content" tabIndex={-1} className="block scroll-mt-22" />
+        <main
+          id="main"
+          tabIndex={-1}
+          inert={menuOpen}
+          className="scroll-mt-22 landing-mobile:scroll-mt-18"
+        >
+          <span
+            id="main-content"
+            tabIndex={-1}
+            className="block scroll-mt-22 landing-mobile:scroll-mt-18"
+          />
           <HeroSection />
           <ProductPreview />
           <LibrarySection />

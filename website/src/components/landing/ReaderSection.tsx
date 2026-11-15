@@ -46,14 +46,14 @@ export function ReaderSection() {
       id="reading"
       tabIndex={-1}
       aria-labelledby="reading-title"
-      className="scroll-mt-22 border-0 border-t border-solid border-border-subtle px-8 py-24 landing-mobile:px-5 landing-mobile:py-18"
+      className="scroll-mt-22 landing-mobile:scroll-mt-18 border-0 border-t border-solid border-landing-divider py-28 landing-tablet:py-22 landing-mobile:py-18"
     >
-      <span id="reader" tabIndex={-1} className="block scroll-mt-22" />
-      <div className="mx-auto max-w-site">
+      <span id="reader" tabIndex={-1} className="block scroll-mt-22 landing-mobile:scroll-mt-18" />
+      <div className="mx-auto w-landing-content landing-tablet:w-landing-tablet landing-mobile:w-landing-mobile landing-tiny:w-landing-narrow">
         <h2
           ref={statement}
           id="reading-title"
-          className="mb-11 max-w-hero-copy font-display text-section font-normal tracking-display"
+          className="mb-11 max-w-landing-heading landing-mobile:mb-8 font-display text-section leading-[1.12] landing-mobile:text-landing-section-mobile landing-mobile:leading-[1.12] text-balance font-normal tracking-landing-reading"
         >
           {words.map((word, index) => (
             <span

@@ -7,12 +7,12 @@ export function LibrarySection() {
       id="library"
       tabIndex={-1}
       aria-labelledby="library-title"
-      className="scroll-mt-22 border-0 border-t border-solid border-border-subtle px-8 py-24 landing-mobile:px-5 landing-mobile:py-14"
+      className="scroll-mt-22 landing-mobile:scroll-mt-18 border-0 border-t border-solid border-landing-divider pt-22 pb-28 landing-tablet:py-22 landing-mobile:pt-14 landing-mobile:pb-18"
     >
-      <div className="mx-auto max-w-site">
+      <div className="mx-auto w-landing-content landing-tablet:w-landing-tablet landing-mobile:w-landing-mobile landing-tiny:w-landing-narrow">
         <h2
           id="library-title"
-          className="mb-11 max-w-hero-copy font-display text-section font-normal tracking-display text-content-strong"
+          className="mb-11 max-w-landing-heading landing-mobile:mb-8 font-display text-section landing-mobile:text-landing-section-mobile text-balance font-normal tracking-display text-content-strong"
         >
           Find and manage books in your collection.
         </h2>

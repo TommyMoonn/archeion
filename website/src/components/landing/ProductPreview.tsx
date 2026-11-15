@@ -7,19 +7,21 @@ export function ProductPreview() {
       aria-label="Archeion application preview"
       onPointerMove={onPointerMove}
       onPointerLeave={onPointerLeave}
-      className="mx-auto max-w-site px-8 pb-16 landing-mobile:px-4 landing-mobile:pb-11"
+      className="pb-16 landing-mobile:pb-11"
     >
-      <div ref={target}>
-        {/* B3.3 replaces this existing public preview with the approved 1480×906 image. */}
+      <div
+        ref={target}
+        className="mx-auto w-landing-content landing-tablet:w-landing-media-tablet landing-mobile:w-landing-media-mobile"
+      >
         <img
-          src="/archeion/assets/archeion-preview.png"
+          src="/archeion/assets/images/landing-library.png"
           alt="Archeion Library showing an EPUB collection, folders, search, filters, and book covers."
-          width={1544}
-          height={1012}
+          width={1480}
+          height={906}
           fetchPriority="high"
           loading="eager"
           decoding="async"
-          className="block h-auto w-full rounded-card border border-solid border-border"
+          className="block h-auto w-full rounded-xl border border-solid border-landing-preview-border shadow-landing-preview landing-mobile:rounded-card landing-pointer:hover:shadow-landing-preview-hover"
         />
       </div>
     </section>

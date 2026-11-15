@@ -341,7 +341,10 @@ test("landing pointer effects stop immediately when reduced motion changes", asy
   const preview = page.getByRole("region", { name: "Archeion application preview" });
   await preview.hover({ position: { x: 50, y: 50 } });
   await expect(preview.locator("div")).not.toHaveCSS("transform", "none");
+  const spotlight = landing.locator(":scope > svg");
+  await expect(spotlight).toHaveCount(1);
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(spotlight).toHaveCount(0);
   await expect(preview.locator("div")).toHaveCSS("transform", "none");
   await expect
     .poll(() =>
@@ -353,6 +356,16 @@ test("landing pointer effects stop immediately when reduced motion changes", asy
       ),
     )
     .toBe(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  // Wait for preference listeners and their bounded reset frame without moving the pointer.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(spotlight).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator("#reading-title")).toHaveText("Read and annotate your books.");
   await page
     .getByRole("navigation", { name: "Main navigation", exact: true })
@@ -371,4 +384,54 @@ test("landing pointer effects stop immediately when reduced motion changes", asy
       .getByRole("navigation", { name: "Main navigation", exact: true })
       .locator("[aria-current]"),
   ).toHaveCount(0);
+});
+
+test("landing measured layout preserves intrinsic media and responsive boundaries", async ({
+  page,
+}, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/archeion/");
+  const preview = page
+    .getByRole("region", { name: "Archeion application preview" })
+    .getByRole("img");
+  await expect(preview).toHaveAttribute("src", "/archeion/assets/images/landing-library.png");
+  expect(
+    await preview.evaluate(
+      (node) => node instanceof HTMLImageElement && [node.naturalWidth, node.naturalHeight],
+    ),
+  ).toEqual([1480, 906]);
+  for (const width of [
+    320, 359, 360, 361, 390, 639, 640, 641, 768, 899, 900, 901, 1019, 1020, 1021, 1099, 1100, 1101,
+    1280, 1440,
+  ]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      `${width}px overflow`,
+    ).toBe(true);
+    const geometry = await preview.boundingBox();
+    expect(geometry).not.toBeNull();
+    const expectedWidth =
+      width <= 640
+        ? width - 32
+        : width <= 900
+          ? Math.min(820, width - 48)
+          : Math.min(1280, width - 64);
+    expect(geometry?.width, `${width}px preview`).toBeCloseTo(expectedWidth, 0);
+    const heading = page.locator("#library-title");
+    const content = await heading.locator("..").boundingBox();
+    expect(content?.width, `${width}px content`).toBeCloseTo(
+      width <= 360
+        ? width - 32
+        : width <= 640
+          ? width - 40
+          : width <= 900
+            ? Math.min(760, width - 48)
+            : Math.min(1280, width - 64),
+      0,
+    );
+    await expect(page.getByRole("banner")).toHaveCSS("height", width <= 640 ? "64px" : "68px");
+    if ([390, 768, 1440].includes(width))
+      await page.screenshot({ path: testInfo.outputPath(`landing-${width}.png`), fullPage: true });
+  }
 });

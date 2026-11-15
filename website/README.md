@@ -1120,3 +1120,48 @@ website browser tests (`--trace off`). Independent review round one approved wit
 no Required or Recommended findings. Optional F2 carries to B3.3: clear spotlight
 coordinates when pointer motion is disabled and verify the disable/re-enable cycle.
 Final screenshot parity and full application/required CI gates remain B3.4 work.
+
+## Measured landing presentation (B3.3)
+
+B3.3 finishes the approved final cascade in the existing Tailwind foundation:
+centered three-track header, 68/64px chrome, content/media widths, 72px primary
+headings, responsive section typography and spacing, feature cards, archive tree,
+stacked actions and compact footer. The landing retains its dark token boundary;
+no documentation preference, font bootstrap, product copy or resource owner changes.
+The root README already points its Changelog badge and Custom theme link to the
+new public docs routes; its repository-local maintainer links remain intact.
+
+The visible preview is now `static/assets/images/landing-library.png`, extracted
+without recompression from the approved mock (1480x906, 893603 bytes, SHA-256
+`a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883`). Its intrinsic
+attributes match the full uncropped image. The separate 1544x1012 social preview
+and every pre-existing public resource retain their exact bytes and destinations.
+
+Six positioned Lucide glyphs float/parallax at the approved depths and periods.
+SVG radial gradients reproduce page/card/download glows through semantic colors;
+scoped animation ownership, reduced motion and pointer capability remain intact.
+The approved GitHub brand path is a small shared mark because the pinned Lucide
+release has no brand export. No dependency or second icon library was added.
+Optional review F2 is fixed: pointer preference changes cancel a pending spotlight
+frame and clear stored coordinates; a production regression verifies re-enabling
+motion without moving the pointer does not restore the old glow.
+
+Central named landing roles cover repeated measured sizes, borders and shadows.
+The few arbitrary utilities encode approved one-off grid ratios, glyph positions,
+line heights, heading measures, rotation-free opacity states and pressed scale;
+they introduce no JSX color values. The archive heading uses normal 88/72px anchor
+clearance instead of the mock's negative margin, keeping the sticky header clear.
+Footer identity and links may reflow at narrow/zoom widths to preserve full labels.
+
+B3.3 checks and independent review are recorded in the branch handoff. Production
+geometry coverage spans all 20 representative/boundary widths in the B3.1 map;
+1440/768/390 captures were inspected for the implementation. B3.4 still owns the
+integrated mock screenshot comparison, existing suite migration, deferred F1,
+final acceptance/required gates and publication. Legacy demo tests stay active.
+
+B3.3 validation passed: website typecheck/lint/build/formatting, 77 focused root tests,
+6 website unit tests, browser TS/touched ESLint, docs checks and artifact checker.
+Full production browser suite passed 72/72 (`--trace off`); final small glyph/CTA
+refinements passed rebuild/artifact and affected browser 10/10. Independent round
+one APPROVE, no Required/Recommended findings; stopped early per supplied skill.
+F2 is Fixed. Prior Optional F1 remains deferred to B3.4. No push/PR at this boundary.
