@@ -24,11 +24,14 @@ describe("website workspace boundaries", () => {
     ["desktop-build.yml", 1],
     ["coverage.yml", 1],
     ["release.yml", 1],
-  ])("installs only application dependencies in existing %s jobs", (workflow, count) => {
+  ])("keeps explicit package-filtered installs in %s", (workflow, count) => {
     const installs = read(`.github/workflows/${workflow}`).match(/run: pnpm install[^\r\n]*/g);
     const expected = Array(count).fill("run: pnpm install --filter archeion... --frozen-lockfile");
     if (workflow === "ci.yml") {
-      expected.push("run: pnpm install --filter @archeion/website... --frozen-lockfile");
+      expected.push(
+        "run: pnpm install --filter @archeion/website... --frozen-lockfile",
+        "run: pnpm install --filter @archeion/website... --frozen-lockfile",
+      );
     }
     expect(installs?.sort()).toEqual(expected.sort());
   });

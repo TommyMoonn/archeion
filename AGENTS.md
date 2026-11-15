@@ -117,7 +117,11 @@ The guide index is `docs/README.md`. Keep setup, architecture, design, testing, 
 
 Update user documentation when a supported workflow changes. Keep architecture documentation for decisions and constraints that are hard to recover from the source. Do not document every component, method, or implementation detail.
 
-The public documentation site uses source articles and `docs/documentation/page-registry.json`. Edit those sources, then run `pnpm run docs:sync` and `pnpm run docs:check`. Do not edit generated navigation, search, or release-history output by hand.
+Public documentation is authored in `website/docs/*.mdx`; front matter and `website/sidebars.ts` own metadata and sequence. Docusaurus owns routes, navigation and search. Run the website typecheck/build for MDX and link validation. Keep root maintainer guides in `docs/`.
+
+`release-notes/vX.Y.Z.md` owns user-facing history; `CHANGELOG.md` stays technical. After finalizing a release note, run `pnpm run docs:sync`, `pnpm run docs:check`, `pnpm run release:check --tag vX.Y.Z`, then `pnpm run verify`. Sync writes only `website/src/generated/release-history.json`; check validates freshness and Node-only source contracts without writing. Neither invokes Docusaurus or legacy generators. Do not hand-edit generated history. Use Node 22 and pnpm 10.33.0 with `pnpm install --frozen-lockfile`. Preserve the release parser API and exact publication body.
+
+The old public site and its generators remain available until the planned cutover; see `docs/DOCUMENTATION.md` for explicit legacy maintenance commands. Do not remove active consumers early.
 
 Update `docs/README.md` when you add, remove, or move an engineering guide.
 

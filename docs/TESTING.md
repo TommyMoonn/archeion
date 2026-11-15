@@ -16,7 +16,7 @@ pnpm run verify
 The command runs these checks:
 
 - Frontend architecture, Tauri command parity, settings mutation contracts, and
-  generated documentation.
+  canonical release-history freshness and Node-only documentation source contracts.
 - Prettier, ESLint, TypeScript, and the Vitest suite.
 - Rust formatting, Clippy, and Cargo tests.
 - The production frontend build and bundled Inter asset verification.
@@ -86,6 +86,42 @@ pnpm run lint:fix
 pnpm run rust:fmt:fix
 ```
 
+## Validate the website
+
+Root `pnpm run docs:check` is read-only and Node-only. It validates the committed
+`website/src/generated/release-history.json` against canonical release notes plus
+source metadata, sidebar, anchors and internal documentation links. It does not
+invoke old HTML/navigation/search generators or install/build the website.
+`pnpm run docs:sync` regenerates only history after release prose changes.
+
+```powershell
+pnpm --filter @archeion/website test
+pnpm --filter @archeion/website typecheck
+pnpm --filter @archeion/website lint
+pnpm --filter @archeion/website build
+node scripts/check-website-build.mjs
+pnpm exec playwright test --config tests/browser/website-foundation.config.ts
+```
+
+The build owns MDX/framework link validation and static rendering. The dedicated
+browser config owns a filesystem host for the production artifact, including
+HTTP 404 output without SPA rewrites, and stops it. These checks establish
+local artifact behavior; live Pages/CDN verification follows the
+[cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).
+Use
+`ARCHEION_WEBSITE_MODE=dev` for development checks; run dev/build and browser
+modes sequentially because generated output is shared. The default desktop
+config excludes website specs. CI runs this complete production suite once on
+browser shard 1 after an explicit website install and Docusaurus build. Eligible
+isolated website additions/modifications use the existing docs-only PR policy;
+shared dependencies, manifests, workflows, unknown paths and deletions/renames
+still require full validation. Legacy documentation tests remain active for the
+currently published site until cutover.
+
+For release preparation, run docs:sync after final prose, then docs:check,
+`pnpm run release:check --tag vX.Y.Z`, and `pnpm run verify`. The broad root verify
+chain does not replace the dedicated website build/browser checks.
+
 ## Run the Chromium browser suite
 
 The browser suite checks rendered navigation, focus, ARIA values, and responsive
@@ -102,7 +138,7 @@ pnpm run test:browser
 
 To apply the CI failure policy locally, run `pnpm run test:browser
 --fail-on-flaky-tests`. CI retains one diagnostic retry, but a test that passes
-only on retry fails the job. Both the source suite and built async-surface suite
+only on retry fails the job. The source, built async-surface and production website suites
 use this policy.
 
 `pnpm run test:browser` runs the browser-test TypeScript check before Playwright.
@@ -110,13 +146,16 @@ CI runs browser TypeScript validation once in `frontend-static`, then invokes
 Playwright directly in two shards with two workers and test-level parallelism.
 Both shards remain required `CI Gate` dependencies. Each test owns its browser
 context and uses `testInfo.outputPath` for artifacts. The first
-shard also builds and runs the separate async-surface browser contracts.
+shard also builds and runs the separate async-surface and website browser contracts.
 
 Browser failure artifacts are named `browser-contract-failure-1` and
 `browser-contract-failure-2`. They contain the HTML report, screenshots, and
 first-attempt and retry traces where available, including a successful retry.
 The first shard also uploads
-`async-surface-contract-failure` when those checks fail. Browser outputs are
+`async-surface-contract-failure` when those checks fail. Website failures upload
+`website-browser-contract-failure` with the dedicated HTML report, screenshots
+and traces from `playwright-report/website/` and `test-results/website-foundation/`.
+Browser outputs are
 ignored by Git.
 
 ### Optional browser diagnostics

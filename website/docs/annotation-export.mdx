@@ -1,0 +1,82 @@
+---
+id: "annotation-export"
+title: "Annotation export"
+sidebar_label: "Annotation export"
+description: "Choose Markdown or versioned JSON for bookmarks, highlights, attached notes, and detached annotations, with durable location references preserved."
+slug: "/reference/annotation-export/"
+doc_type: "Reference"
+overview_title: "Annotation export"
+overview_description: "understand Markdown, versioned JSON, and detached annotation records."
+---
+
+## Formats and filenames {#formats}
+
+- **Markdown** is a readable document for notes, review, and sharing. It groups annotations by book and chapter label, includes highlighted text and attached notes, and shows a location reference and detached status.
+- **JSON** is structured data for downstream tools. It preserves annotation fields inside a versioned document, including durable locations and detached status. Check `schema` and `version` before interpreting it.
+
+Save Markdown with `.md` and JSON with `.json`. Extension matching is case-insensitive. A missing, unsupported, or opposing extension is rejected without changing the chosen path or writing a file. Changing a filename extension does not convert one format into the other.
+
+Export the current book from its Annotations panel, or export several selected books from the Library. Export writes a separate document; it does not remove annotations or embed them into the EPUB. For the controls, see [export annotations in the Reader](/archeion/docs/guides/reading/#export).
+
+## What each annotation contains {#records}
+
+- A **bookmark** is one record, with its label and available location information.
+- A **highlight** is one record, with selected text, color, and an optional attached note. Notes are not standalone annotation records.
+- A **detached** record is still exported. JSON retains `anchorStatus: "detached"`; Markdown displays `Detached: Yes`. Its saved text and note remain useful even when the location no longer reconnects to the current EPUB.
+
+Each JSON record has `chapterLabel` beside its `annotation`. The label is display metadata resolved at export time, not a permanent location key. Use the annotation's `chapterHref` and `cfiRange` as durable location references when present. A bookmark need not have both. Replacing or editing an EPUB can still make an old location unusable; export does not repair anchors.
+
+## JSON schema and example {#json-contract}
+
+The current identifier is `archeion.annotation-export` and the version is `1`. The top level contains `exportedAt` and a `books` array; each book carries its identity, title, optional author, and annotation records. The example below includes a bookmark and a detached highlight with an attached note. Its identifiers and locations are illustrative.
+
+```json
+{
+  "schema": "archeion.annotation-export",
+  "version": 1,
+  "exportedAt": "2026-07-13T12:00:00.000Z",
+  "books": [
+    {
+      "id": "book-id",
+      "title": "Book title",
+      "author": "Book author",
+      "annotations": [
+        {
+          "annotation": {
+            "id": "bookmark-id",
+            "type": "bookmark",
+            "chapterHref": "chapter-one.xhtml",
+            "label": "Return here",
+            "createdAt": "2026-07-01T00:00:00.000Z",
+            "updatedAt": "2026-07-01T00:00:00.000Z"
+          },
+          "chapterLabel": "Chapter One"
+        },
+        {
+          "annotation": {
+            "id": "highlight-id",
+            "type": "highlight",
+            "chapterHref": "chapter-one.xhtml",
+            "cfiRange": "epubcfi(/6/2!/4/2/1:0)",
+            "selectedText": "Quoted passage",
+            "color": "yellow",
+            "note": "Review this passage",
+            "anchorStatus": "detached",
+            "createdAt": "2026-07-01T00:00:00.000Z",
+            "updatedAt": "2026-07-01T00:00:00.000Z"
+          },
+          "chapterLabel": "Chapter One"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Consumers that rewrite JSON should preserve fields they do not recognize. Incompatible future structures will increment the version. Read the [full annotation export format contract](https://github.com/TommyMoonn/archeion/blob/main/docs/annotation-export-format.md) for machine-readable field details; do not treat this example as a complete schema.
+
+## Portability and privacy limits {#portability}
+
+Keep the export beside a backup of the source EPUB if you need its location context later. It is a portable record of annotations, not a full archive backup or a promise of annotation import or round-trip restoration. For actual recovery, see [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/).
+
+Exports can contain book titles, quoted passages, personal notes, and location references. Review the document before sharing it. See [Archive storage](/archeion/docs/reference/archive-storage/#ownership) for the local-first data model.

@@ -44,9 +44,12 @@
 :root {
   color-scheme: dark;
   --surface: #0b0b0c;
+  --surface-header: color-mix(in srgb, var(--surface) 94%, transparent);
   --surface-raised: #1a1a1b;
   --surface-sunken: #080808;
   --surface-overlay: #252526;
+  --scrim: rgb(0 0 0 / 58%);
+  --scrim-navigation: rgb(0 0 0 / 45%);
   --surface-sidebar: #0a0a0b;
   --surface-article: #0b0b0c;
   --surface-article-raised: #1f1f1f;
@@ -99,7 +102,7 @@
   --content: #42484d;
   --content-strong: #20262b;
   --content-muted: #5b636a;
-  --content-subtle: #858c91;
+  --content-subtle: #697279;
   --content-inverted: #f7f8f7;
   --border: #dddedd;
   --border-strong: #c8c9c8;
@@ -120,6 +123,9 @@
 
 @theme inline {
   --color-surface: var(--surface);
+  --color-surface-header: var(--surface-header);
+  --color-scrim: var(--scrim);
+  --color-scrim-navigation: var(--scrim-navigation);
   --color-surface-raised: var(--surface-raised);
   --color-surface-sunken: var(--surface-sunken);
   --color-surface-overlay: var(--surface-overlay);
@@ -152,6 +158,11 @@
 }
 
 @theme {
+  --spacing-release-metadata: 116px;
+  --text-docs-release: 15px;
+  --text-docs-release--line-height: 1.22;
+  --text-docs-release-date: 11px;
+  --text-docs-release-date--line-height: 1.8;
   --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-editorial: "Literata", Georgia, serif;
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -172,6 +183,66 @@
   --container-site: 80rem;
   --container-docs: 85rem;
   --container-article: 48rem;
+  --container-docs-article: 43.75rem;
+  --container-docs-dialog: 42.5rem;
+  --spacing-docs-sidebar: 14.375rem;
+  --spacing-docs-rail: 10.625rem;
+  --spacing-docs-search: 440px;
+  --spacing-docs-search-full: 360px;
+  --spacing-docs-search-wide: 330px;
+  --spacing-docs-search-compact: 260px;
+  --spacing-docs-search-mobile: 240px;
+  --text-docs-code: 0.875rem;
+  --text-docs-code--line-height: 1.75;
+  --text-docs-sidebar: 0.875rem;
+  --text-docs-sidebar--line-height: 1.65;
+  --text-docs-outline: 0.875rem;
+  --text-docs-outline--line-height: 1.55;
+  --text-docs-body: 1rem;
+  --text-docs-body--line-height: 1.85;
+  --text-docs-lead: 1.0625rem;
+  --text-docs-lead--line-height: 1.75;
+  --text-docs-heading: 1.9375rem;
+  --text-docs-heading--line-height: 1.22;
+  --text-docs-subheading: 1.1875rem;
+  --text-docs-subheading--line-height: 1.4;
+  --text-docs-label: 0.6875rem;
+  --text-docs-card-title: 0.78125rem;
+  --text-docs-card-title--line-height: 1.4;
+  --text-docs-card-description: 0.71875rem;
+  --text-docs-card-description--line-height: 1.55;
+  /* Brand artwork and header chrome retain the mock's pixel geometry at text enlargement.
+     Article and control labels remain resizable; icons must not consume their space. */
+  --text-docs-brand: 22px;
+  --text-docs-brand-mobile: 20px;
+  --text-docs-brand-tiny: 18px;
+  --spacing-docs-mark: 31px;
+  --spacing-docs-mark-mobile: 28px;
+  --spacing-docs-mark-tiny: 26px;
+  --spacing-docs-brand: 10px;
+  --spacing-docs-icon: 38px;
+  --spacing-docs-glyph: 16px;
+  --spacing-docs-touch: 44px;
+  --spacing-docs-actions: 8px;
+  --spacing-docs-header-gap: 24px;
+  --spacing-docs-header-full: 20px;
+  --spacing-docs-header-wide: 16px;
+  --spacing-docs-header-compact: 14px;
+  --spacing-docs-header-mobile: 12px;
+  --spacing-docs-header-icon: 10px;
+  --spacing-docs-gutter: 28px;
+  --spacing-docs-gutter-full: 24px;
+  --spacing-docs-gutter-mobile: 22px;
+  --spacing-docs-gutter-narrow: 17px;
+  --text-docs-navigation: 0.9375rem;
+  --text-docs-title-mobile: 2.5rem;
+  --text-docs-title-mobile--line-height: 1.08;
+  --text-docs-heading-mobile: 1.6875rem;
+  --text-docs-heading-mobile--line-height: 1.22;
+  --tracking-docs-label: 0.11em;
+  --tracking-docs-group: 0.045em;
+  --shadow-docs-dialog: 0 24px 80px rgb(0 0 0 / 38%);
+  --shadow-docs-drawer: 18px 0 50px rgb(0 0 0 / 18%);
   --container-hero-copy: 35rem;
   --container-prose: 66ch;
   --spacing-gutter: 2rem;
@@ -194,4 +265,16 @@
   --breakpoint-navigation: 50rem;
   --breakpoint-wide: 67.5rem;
   --breakpoint-full: 77.5rem;
+  --breakpoint-brand: 56.25rem;
+  --breakpoint-search: 43.125rem;
+  --breakpoint-tiny: 25rem;
 }
+
+/* Inclusive boundaries are intentional: the approved mock changes at <= width. */
+@custom-variant docs-full (@media (max-width: 1240px));
+@custom-variant docs-wide (@media (max-width: 1080px));
+@custom-variant docs-brand (@media (max-width: 900px));
+@custom-variant docs-navigation (@media (max-width: 800px));
+@custom-variant docs-search (@media (max-width: 690px));
+@custom-variant docs-narrow (@media (max-width: 600px));
+@custom-variant docs-tiny (@media (max-width: 400px));

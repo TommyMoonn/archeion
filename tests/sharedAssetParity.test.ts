@@ -18,25 +18,40 @@ type ParityGroup = Readonly<{
 const requiredCopies: readonly ParityGroup[] = [
   {
     canonical: "src-tauri/icons/128x128.png",
-    copies: ["docs/assets/images/archeion-icon.png"],
+    copies: [
+      "docs/assets/images/archeion-icon.png",
+      "website/static/assets/images/archeion-icon.png",
+    ],
   },
   {
     canonical:
       "src/assets/fonts/atkinson-hyperlegible/atkinson-hyperlegible-latin-400-normal.woff2",
-    copies: ["docs/assets/fonts/atkinson-regular.woff2"],
+    copies: [
+      "docs/assets/fonts/atkinson-regular.woff2",
+      "website/static/assets/fonts/atkinson-regular.woff2",
+    ],
   },
   {
     canonical:
       "src/assets/fonts/atkinson-hyperlegible/atkinson-hyperlegible-latin-700-normal.woff2",
-    copies: ["docs/assets/fonts/atkinson-bold.woff2"],
+    copies: [
+      "docs/assets/fonts/atkinson-bold.woff2",
+      "website/static/assets/fonts/atkinson-bold.woff2",
+    ],
   },
   {
     canonical: "src/assets/fonts/literata/literata-latin-standard-normal.woff2",
-    copies: ["docs/assets/fonts/literata-regular.woff2"],
+    copies: [
+      "docs/assets/fonts/literata-regular.woff2",
+      "website/static/assets/fonts/literata-regular.woff2",
+    ],
   },
   {
     canonical: "src/assets/fonts/literata/literata-latin-standard-italic.woff2",
-    copies: ["docs/assets/fonts/literata-italic.woff2"],
+    copies: [
+      "docs/assets/fonts/literata-italic.woff2",
+      "website/static/assets/fonts/literata-italic.woff2",
+    ],
   },
 ];
 

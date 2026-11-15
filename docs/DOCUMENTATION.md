@@ -1,219 +1,199 @@
 # Public documentation guide
 
-> [!IMPORTANT]
-> All of the documentation here are written by LLMs.
+The public documentation replacement is authored in `website/docs/` and built
+by the private `@archeion/website` Docusaurus workspace. Root `docs/` retains
+maintainer guides. The existing static site under `docs/documentation/` remains
+published during migration; deployment and legacy removal are separate steps.
 
-The public documentation site is static HTML under `docs/documentation/`.
-GitHub Pages publishes the `docs/` directory. The site uses
-`docs/documentation/page-registry.json` as the source of truth for routes,
-navigation, and page metadata.
+## Add or update an article
 
-Use this guide when you add or edit a public documentation page. For maintainer
-documentation, start with the [documentation index](README.md).
-
-## Add or update a page
-
-Each page has a stable ID, a route relative to the documentation root, a title,
-a navigation group and order, a page type, and a project-relative source path.
-The article's `h1` and prose remain in its HTML file.
-
-1. Create or edit the page's `index.html`. Keep the shared shell and article
-   header.
-2. Add or update its entry in `page-registry.json`. Routes start and end with
-   `/`. The `/` route is the overview. Source paths must match
-   `docs/documentation<route>index.html`.
-3. Choose the page type by its content: `overview`, `getting-started`, `guide`,
-   `reference`, `troubleshooting`, or `changelog`. The `changelog` type does not
-   create a route until its content exists.
-4. Set a unique order within the navigation group. Group order followed by page
-   order controls the sidebar and previous or next links. Update the `first`
-   and `last` IDs when a sequence endpoint changes.
-5. Regenerate the site data and check for drift:
+1. Edit `website/docs/<stable-id>.mdx`. Front matter owns the ID, title,
+   sidebar label, description, route slug, article type and optional overview
+   label/summary. Keep values as single-line JSON strings for Node source checks.
+2. Add a new ID to the appropriate group in `website/sidebars.ts`. The framework
+   owns routing, navigation, group order, breadcrumbs, outline and neighbors.
+   Do not add entries to the legacy registry for the replacement site.
+3. Preserve published route suffixes and explicit h2/h3 fragment IDs:
+   `## Section title {#stable-id}`. Use `DocsAnchor` for retained nonheading
+   fragments. Heading and anchor components register with broken-link validation.
+4. Use semantic Markdown, native `kbd`, `DocsNotice` labels/advice, code fences,
+   tables and disclosures. Keep product claims limited to released behavior.
+   Preserve technical examples and safe recovery guidance.
+5. Run source checks and the separate website build:
 
    ```powershell
-   pnpm run docs:sync
    pnpm run docs:check
+   pnpm --filter @archeion/website typecheck
+   pnpm --filter @archeion/website build
+   pnpm exec playwright test --config tests/browser/website-foundation.config.ts
    ```
 
-Commit the registry, authored HTML, and generated assets together. Run the
-existing focused page checks after changing routes or article structure:
+The footer edits the correct MDX source and retains the issue-reporting link.
+Changelog's edit action targets `release-notes/README.md`. Native navigation,
+article text, outlines and release history remain readable without JavaScript.
+
+See [website conventions](../website/README.md) for the durable shell, design,
+search, clipboard and release-history contracts. Use Node 22 and pnpm 10.33.0;
+`pnpm install --frozen-lockfile` installs both workspace packages.
+
+## Search and overview
+
+The build-time search plugin derives sequence and metadata from the framework's
+loaded docs and sidebar. It parses MDX without evaluating components. It indexes
+one introduction plus explicit h2/h3 sections, excluding shell and hidden helpers.
+Changelog sections come from a typed adapter over canonical generated history,
+independent of React rendering. Overview cards use the same framework metadata.
+
+Matching normalizes whitespace/case. Page titles precede section headings,
+explicit aliases and body matches, with canonical order resolving ties before
+the ten-result limit. Empty queries browse pages; excerpts are at most 240
+characters. Show details preserves result identity, order and selection.
+Highlighting uses escaped text and marks. The dialog retains polite counts,
+typing focus, Ctrl/Cmd+K, arrows, Enter, Escape, outside dismissal and restoration.
+
+Prefer natural prose. For a justified alternative term, use an empty static
+`<span data-search-aliases="first alias|second alias" />` in the introduction or
+immediately after a section heading. Aliases must be nonempty and unique.
+There is no manually maintained search index or replacement page registry.
+
+## Release history and release preparation
+
+`release-notes/vX.Y.Z.md` is canonical user-facing prose. `CHANGELOG.md` remains
+technical. The unchanged `scripts/release-notes.mjs` parser validates metadata,
+dates and downloads and preserves the exact metadata-free publication body.
+The history projection uses its `readAllReleaseNotes` API, ordered by descending
+date then numeric version for same-day releases.
 
 ```powershell
-pnpm run test tests/documentationNavigation.test.ts tests/documentationArticles.test.ts tests/libraryReaderDocumentationCoverage.test.ts
+pnpm run docs:sync
+pnpm run docs:check
+pnpm run release:check --tag vX.Y.Z
+pnpm run verify
 ```
 
-The sync command generates the marked `docs-header`, `docs-navigation`,
-`docs-pager`, and `docs-footer` regions. It also generates the shared search
-dialog, the article's `data-page-type`, heading permalinks, and the search
-index. Keep generated chrome changes in the scripts that render them, not in
-individual pages.
+Run sync after the release note is final and again after any prose edit.
+`docs:sync` writes only `website/src/generated/release-history.json` atomically.
+Its schemaVersion 1 entries contain version, date, repository-relative sourcePath
+and LF-normalized changes, without timestamps or checkout paths. Both write and
+check modes validate the entire Changes vocabulary before any replacement.
+Supported content is flat `-`/`*` bullets, indented prose continuations, inline
+bold, single-backtick code and absolute HTTP(S) links. Unsupported blocks and
+unsafe/malformed links fail explicitly. Extend the vocabulary and tests before
+using a richer structure. Do not edit generated history or the Changelog MDX as
+another release-note source.
 
-The header's `Archeion Docs` link returns to the overview. `Home ↗` returns to
-the public landing page. Keep one article introduction. Omit a lead paragraph
-when it repeats the header summary. Use `.notice` for callouts and retain their
-labels and advice. The first page has no Previous link, and the last page has
-no Next link. Every interior page links to its adjacent pages.
+`docs:check` is read-only: it checks projection drift and Node-only metadata,
+identity, sidebar, stable-anchor and internal documentation-link contracts.
+Neither root command invokes legacy generators, MDX compilation or Docusaurus.
+Application-only installs can run them. Website typecheck/build separately own
+MDX compilation, framework route/fragment validation and static rendering.
+CI's root docs check rejects stale history. Website CI also runs typecheck,
+production build, artifact checks and the dedicated browser suite. Live Pages
+cutover remains pending under the procedure below.
 
-`docs:check` validates registry coverage and reports drift without writing
-files. It runs in the frontend quality checks and CI. Every documentation
-`index.html` must appear in the registry exactly once. Navigation uses ordinary
-links and remains usable before JavaScript runs.
+## Article copying
 
-The site shell and runtime focus behavior live in
-`docs/documentation/assets/docs.css` and `docs/documentation/assets/docs.js`.
-The search dialog lifecycle lives in
-`docs/documentation/assets/docs-search.js`.
+The route-scoped `DocsClipboard` owner shares one polite status for Copy page
+and Copy code. Page copying serializes only the rendered article to portable
+Markdown, preserving headings, emphasis, nested/numbered lists, links, tables,
+notes/quotes, disclosures and code language/whitespace. Relative links become
+safe absolute destinations; unsafe URLs keep their readable labels. Code copying
+preserves exact rendered bytes. Shell, outline, footer, pager, permalinks and
+controls are excluded. Actions retain stable names, focus, retry/dismissal and
+newest-request ownership; route changes dispose pending results. Controls remain
+hidden before hydration and without JavaScript.
 
-## Maintain the search index
+## Public resources during migration
 
-`scripts/sync-documentation-search.mjs` reads the page registry and each
-semantic `[data-doc-article]` element. It generates
-`docs/documentation/assets/docs-search-index.js`, which each page loads before
-`docs.js`. The deferred `docs-search.js` module reads that index. GitHub Pages
-does not need a fetch service or a build-time deployment step.
+The replacement build preserves the existing landing at `/archeion/` from
+`website/static/index.html` and serves public fonts/images, schema/examples and
+the existing dictionary catalog/packages from `website/static/`. Original
+`docs/` sources remain active until cutover. Resource changes before cutover must
+update both copies with identical bytes. Do not run formatters over the preserved
+landing/runtime/resources. Compatibility HTML under `static/documentation/`
+redirects the 24 old article URLs, retaining query/fragment and a visible fallback.
+See [the preservation contract](../website/README.md#static-landing-public-resources-and-compatibility-b28).
 
-The index contains one introduction entry per page and one entry for each
-`h2` and `h3`, in page and document order. Each section body ends at the next
-heading. Entries include the page title, heading, route, group, page type,
-section heading and fragment, normalized body text, aliases, and an excerpt of
-at most 240 characters. The generator excludes navigation, outlines,
-permalinks, footer content, hidden helpers, scripts, styles, and copy controls.
+## Legacy site during migration
 
-Search normalizes whitespace and ignores case. Page-title matches rank first,
-followed by section headings, explicit aliases, and body text. Page and section
-order break ties. A title match opens the page. A section match opens its
-fragment. An empty query lists pages without listing every section.
-
-Prefer natural article wording. Add
-`data-search-aliases="term|other term"` to an article or heading only when
-readers may use a justified term that does not appear in the content, such as
-an alternative spelling. Do not repeat headings or body text as aliases.
-Explain each alias in the review.
-
-To regenerate or check the index directly:
+The legacy HTML, registry, runtime and generated assets still serve the current
+public site. Their retained `legacyDocumentation*` tests and legacy browser
+contracts protect those consumers until cutover. They do not own replacement
+routing. Legacy generators are no longer root package aliases or part of sync/check.
+If a live-site maintenance task explicitly requires regeneration before cutover,
+run the retained Node scripts in dependency order:
 
 ```powershell
-pnpm run docs:search:sync
-pnpm run docs:search:check
+node scripts/legacy-sync-documentation-changelog.mjs --write
+node scripts/sync-documentation-changelog-page.mjs --write
+node scripts/sync-documentation-navigation.mjs --write
+node scripts/sync-documentation-search.mjs --write
 ```
 
-`docs:sync` and `docs:check` already include these commands. The focused
-existing tests are:
+Use `--check` for read-only legacy drift checks. Remove these files only after
+tracing their remaining tests, runtime, landing and deployment consumers at the
+planned cutover. Do not change release publication, signing, assets or updater
+behavior as part of documentation generation.
 
-```powershell
-pnpm run test tests/documentationSearchIndex.test.ts tests/documentationSearchAnnouncements.test.ts
-```
+See [testing](TESTING.md) and [release operations](RELEASING.md) for full gates.
 
-The search dialog is generated from the navigation script's template. Its
-accessible name remains "Search documentation". "Show details" reveals the
-existing excerpts without rebuilding or reordering results. Result links retain
-their accessible title and context names in both modes. Excerpts become
-descriptions. Search highlighting uses text nodes and marks, never HTML.
+## Production cutover and legacy retirement
 
-Arrow keys move focus among results. Enter opens the focused result or the
-active result from the input. Tab retains access to the input, toggle, and
-links. Escape or a pointer gesture wholly outside the dialog closes it and
-restores focus to the opener. Same-page navigation focuses the destination
-heading. Query updates retain input focus and use the existing polite
-result-count region.
+B2 prepares deployment in a stacked PR targeting `build/website-foundation`.
+The owner explicitly deferred live cutover and destructive retirement until
+after merge. Pages currently publishes `main:/docs`; leave those files and
+publisher paths operational until a tested deployment replaces them. Neither
+PR approval nor local artifact tests establish a successful live deployment.
 
-## Maintain release-history content
+1. Merge through the authorized stack procedure separately. The production
+   workflow runs only on main pushes or manual main dispatches. It validates
+   sources/history, website tooling, types, MDX links and the output artifact,
+   uploads only `website/build/`, then deploys via `github-pages`. PR validation
+   remains in the existing CI lanes. This workflow does not enable Pages or
+   mutate its settings.
+2. Record the exact main SHA, workflow run, artifact and deployment ID. Confirm
+   the v1.8.0 Release still has EXE/MSI, both signatures, SHA256SUMS.txt and
+   latest.json. All were verified published during B2.10 preparation.
+3. Obtain a successful deployed/tested artifact before changing Settings →
+   Pages → Build and deployment to GitHub Actions. If GitHub rejects the first
+   Actions deployment while the publishing source is legacy, stop and record
+   that failure. Resolve the bootstrap ordering with the owner; do not silently
+   enable Pages through `configure-pages` or the API to bypass this prerequisite.
+4. Verify the live root, docs overview, all nested docs and hard refreshes;
+   old compatibility URLs with queries/fragments; fonts, images, theme schema,
+   examples and dictionary catalog/package hashes; sitemap, robots, canonical,
+   social/icon metadata; and unknown nested paths returning HTTP 404 with the
+   branded document. Local tests emulate filesystem hosting but do not prove
+   GitHub's CDN behavior. Save network failures and actual response status.
+5. After the deployed artifact passes, change the publishing source and verify
+   it again. Keep the previous known-good deployment/run and Git revision for
+   rollback. A failed deployment must not trigger legacy deletion. Revert to
+   the known-good deployment or restore the original publishing source while
+   the legacy tree is retained.
+6. In a separately validated retirement change, use the inventory below. Preserve
+   root maintainer guides, historical/audit files, compatibility redirects and
+   the B3 temporary homepage until its React replacement passes. Run docs:check,
+   the website build/artifact/browser gates, root verification and affected
+   native dictionary/asset tests before removing consumers.
 
-The tracked `release-notes/vX.Y.Z.md` files are the authored release-history
-source. `scripts/release-notes.mjs` validates their metadata and download
-links, preserves the metadata-free GitHub Release body, and exposes the
-Changes Markdown. It orders history by date, then by descending numeric
-version for releases on the same date. Do not extract user-facing release
-history from `CHANGELOG.md`.
+### Retirement inventory and consumer replacements
 
-`scripts/sync-documentation-changelog.mjs` projects the shared parser output
-into `docs/documentation/assets/docs-changelog-data.json`. Each entry contains
-`version`, `date`, `sourcePath`, and LF-normalized `changes`. The generated
-data has no timestamp or checkout-specific paths. Edit the canonical release
-notes, then regenerate the data. Do not edit generated prose.
+| Retained owner                                                                                                                                           | Replacement / retirement condition                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/documentation/` HTML, registry and runtime/generated assets                                                                                        | 24 MDX files, framework metadata/sidebar, React shell/search/copy/timeline; remove only after live replacement verification                                                                                                                                                                 |
+| `sync-documentation-navigation.mjs`, `sync-documentation-search.mjs`, `sync-documentation-changelog-page.mjs`, `legacy-sync-documentation-changelog.mjs` | Framework build/search and the existing Node-only release projection; remove their legacy-only callers together                                                                                                                                                                             |
+| Ten `legacyDocumentation*` unit suites and legacy documentation browser suites                                                                           | Named migrated source/website suites already protect routes, content, shell, TOC, search, copying and history; reconcile each assertion before retiring duplicates                                                                                                                          |
+| `documentationLinkTestSupport.ts`, `documentationSearchTestSupport.ts`                                                                                   | Remove only after all retained legacy test imports move                                                                                                                                                                                                                                     |
+| `public-pages.pw.ts`, `public-navigation.pw.ts`, `font-preferences-documentation.pw.ts`                                                                  | Mixed legacy consumers: retain landing assertions and port docs/font claims to the dedicated website suite; do not delete entire mixed suites                                                                                                                                               |
+| `docs/index.html`, `docs/css/`, `docs/js/` and their landing suites                                                                                      | Temporary byte-preserved `website/static` copy, followed by B3 React port; retain all product/demo/keyboard contracts                                                                                                                                                                       |
+| `docs/assets/`, `docs/schemas/`, `docs/examples/`                                                                                                        | `website/static` exact-byte resources; retarget theme-contract/shared-parity tests, fixture cover imports, font manifest/verifier, brand commands, notices and maintainer source links before deleting copies                                                                               |
+| `docs/dictionaries/catalog-v1.json` and packages                                                                                                         | Existing exact-byte `website/static/dictionaries/` copy; retarget Python `DEFAULT_CATALOG`/`DEFAULT_OUTPUT`, Rust catalog `include_bytes!`/package paths and publisher instructions together. Preserve package-before-catalog publication, immutable conflicts, receipt checks and rollback |
+| Old paths in CI classifier tests                                                                                                                         | Retire obsolete root HTML/registry eligibility after source removal; keep unknown/shared/deleted paths selecting full and gate/job contracts unchanged                                                                                                                                      |
+| Old public `/documentation/` URLs in desktop About/update links                                                                                          | Intentional compatibility destinations; static redirects retain those URLs, queries and fragments                                                                                                                                                                                           |
+| Root `docs/*.md`, dictionary README, release notes, plans/audits                                                                                         | Intentional maintainer or historical sources; excluded from Pages output, not cleanup targets                                                                                                                                                                                               |
 
-Generation validates the full history before replacing the output. Check mode
-does not write files. It reports missing or stale data, including added or
-removed releases.
-
-```powershell
-pnpm run docs:changelog:sync
-pnpm run docs:changelog:check
-pnpm run test tests/releaseNotes.test.ts tests/documentationChangelogData.test.ts
-```
-
-`scripts/sync-documentation-changelog-page.mjs` renders the validated data into
-the marked timeline region in `docs/documentation/changelog/index.html`. It
-checks data freshness before rendering and rejects unsupported Markdown
-blocks instead of dropping prose. The committed page remains readable without
-JavaScript or the decorative timeline rail. Edit the canonical release notes,
-not the generated timeline.
-
-`docs:sync` runs changelog data, the timeline, navigation, and search generation
-in dependency order. `docs:check` checks the same outputs without writing. The
-registry controls the Changelog route, sidebar, pager, and search integration.
-Header generation adds "Release notes" only when the route is registered and
-validated.
-
-See [release-note authoring](../release-notes/README.md) for the supported
-release-note format.
-
-## Write and structure articles
-
-Choose the page type by the page's purpose:
-
-| Type              | Use it for                                                                         |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| `overview`        | A short entry point with grouped links.                                            |
-| `getting-started` | Ordered onboarding steps, prerequisites, expected results, and the next step.      |
-| `guide`           | Instructions for a task, including relevant limits and recovery steps.             |
-| `reference`       | Precise behavior, formats, ownership, limits, and terminology.                     |
-| `troubleshooting` | A symptom, its context, safe corrections, data-safety notes, and escalation steps. |
-| `changelog`       | Historical releases sourced from tracked release notes.                            |
-
-Use headings, paragraphs, lists, links, tables, code, and `.notice` callouts
-with `role="note"`. Keep diagrams and comparison tables when they help explain
-the task. Add related links when they help readers continue. Merge sections that repeat
-nearby content or contain only a next-step link. Keep claims limited to released
-behavior. Put feature-depth expansion in a separate task. Do not apply the same
-article template to every page.
-
-Every article `h2` and `h3` needs a unique, stable slug ID. The sync command
-places a permalink beside the heading. It does not place the permalink inside
-the heading. Write the heading and its inline markup only. The generator
-creates `.article-heading` wrappers and `.heading-permalink` links.
-
-Preserve published fragment IDs when merging sections. Move the ID to the
-content that remains.
-
-The footer's `Edit this page` link comes from the registry's `sourcePath`. The
-issue-reporting link remains beside it. Both work without JavaScript.
-
-## Keep article copying in sync
-
-`docs:sync` installs the route-relative `assets/docs-copy.js` module on every
-registered page. The module adds `Copy page` beside the article title and
-`Copy code` to fenced examples. Without JavaScript, the article and its native
-links remain usable. Inactive copy controls do not appear.
-
-The module owns article serialization and the shared clipboard and status
-lifecycle. It copies the article DOM, not the page shell or a second article
-corpus. It preserves headings, emphasis, lists, links, simple tables, code,
-and note or quote structure. It resolves links against the current page URL
-so copied Markdown remains portable. Update the existing serialization tests
-when the article gains a new content type or inline element.
-
-The serializer excludes hidden helpers, outlines, permalinks, copy controls,
-and footer or pager chrome. Clipboard actions retain their names and focus.
-A polite status region reports the newest request and keeps its result until
-dismissal or the next copy. Dismissal restores focus to the originating
-control and invalidates pending feedback. Leaving the page also clears it.
-
-Run the existing focused checks after changing article serialization:
-
-```powershell
-pnpm run test tests/documentationCopy.test.ts
-pnpm run test:browser tests/browser/documentation-copy.pw.ts
-```
-
-See [the testing guide](TESTING.md) for the other validation commands.
+The B2.10 tracked-reference audit classifies source references by these families.
+Historical references remain evidence, not runtime owners. Existing public
+resource and nine release-owner Git blobs remain protected by the immutable
+migration baseline. Do not edit release publication, signing, updater or exact
+parser/body contracts during retirement.

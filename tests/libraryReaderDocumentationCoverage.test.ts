@@ -1,41 +1,19 @@
-import fs from "node:fs";
-import path from "node:path";
-import { Window } from "happy-dom";
+import { articleText, documentForRoute } from "./documentationMdxTestSupport";
 import { describe, expect, it } from "vitest";
-import { resolveLocalPage, verifyDocumentationLinks } from "./documentationLinkTestSupport";
-
-const projectRoot = process.cwd();
-const documentationRoot = path.join(projectRoot, "docs/documentation");
 
 const focusedGuides = {
-  library: path.join(documentationRoot, "guides/library/index.html"),
-  reader: path.join(documentationRoot, "guides/reading/index.html"),
-  readerMedia: path.join(documentationRoot, "guides/reader-media/index.html"),
-  readerNavigation: path.join(documentationRoot, "guides/reader-navigation/index.html"),
-  series: path.join(documentationRoot, "guides/series/index.html"),
+  library: "guides/library",
+  reader: "guides/reading",
+  readerMedia: "guides/reader-media",
+  readerNavigation: "guides/reader-navigation",
+  series: "guides/series",
 };
 
-function read(filePath: string): string {
-  return fs.readFileSync(filePath, "utf8");
+function read(route: string): string {
+  return documentForRoute(route).source;
 }
-
-function text(filePath: string): string {
-  const window = new Window();
-  window.document.write(read(filePath));
-  return window.document.body.textContent?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function documentationPages(): string[] {
-  const pages: string[] = [];
-  const visit = (directory: string) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) visit(absolute);
-      else if (entry.isFile() && entry.name === "index.html") pages.push(absolute);
-    }
-  };
-  visit(documentationRoot);
-  return pages.sort();
+function text(route: string): string {
+  return articleText(route);
 }
 
 describe("Library and Reader documentation coverage", () => {
@@ -45,9 +23,7 @@ describe("Library and Reader documentation coverage", () => {
       focusedGuides.readerNavigation,
       focusedGuides.readerMedia,
     ]) {
-      expect(fs.existsSync(filePath), `${path.relative(projectRoot, filePath)} should exist`).toBe(
-        true,
-      );
+      expect(Boolean(documentForRoute(filePath)), `${filePath} should exist`).toBe(true);
     }
 
     const series = text(focusedGuides.series);
@@ -100,50 +76,9 @@ describe("Library and Reader documentation coverage", () => {
     expect(reader).not.toMatch(/bookmarks only|highlights only/i);
   });
 
-  it("exposes the focused guides from every documentation sidebar and the documentation home", () => {
-    for (const page of documentationPages()) {
-      const html = read(page);
-      const window = new Window();
-      window.document.write(html);
-      const sidebar = window.document.querySelector("[data-sidebar]");
-      expect(sidebar, `${path.relative(projectRoot, page)} should have a sidebar`).not.toBeNull();
-      const links = Array.from(
-        sidebar?.querySelectorAll<HTMLAnchorElement>("[data-doc-link]") ?? [],
-      );
-      const linksByLabel = new Map(
-        links.map((link) => [link.textContent?.replace(/\s+/g, " ").trim(), link] as const),
-      );
-      expect(linksByLabel.has("Series")).toBe(true);
-      expect(linksByLabel.has("Reader navigation and progress")).toBe(true);
-      expect(linksByLabel.has("Footnotes and illustrations")).toBe(true);
-      expect(links.filter((link) => link.getAttribute("aria-current") === "page")).toHaveLength(1);
-
-      for (const [label, expected] of [
-        ["Series", focusedGuides.series],
-        ["Reader and annotations", focusedGuides.reader],
-        ["Reader navigation and progress", focusedGuides.readerNavigation],
-        ["Footnotes and illustrations", focusedGuides.readerMedia],
-      ] as const) {
-        const link = linksByLabel.get(label);
-        expect(link, `${path.relative(projectRoot, page)} should link ${label}`).toBeDefined();
-        const target = resolveLocalPage(page, link?.getAttribute("href") ?? "");
-        expect(target?.file).toBe(expected);
-      }
-    }
-
-    const home = text(path.join(documentationRoot, "index.html"));
-    expect(home).toContain("Series");
-    expect(home).toContain("Reader navigation and progress");
-    expect(home).toContain("Footnotes and illustrations");
-  });
-
-  it("keeps local documentation links and fragments valid", async () => {
-    await verifyDocumentationLinks(documentationPages());
-  }, 15_000);
-
   it("does not present planned book-text search as released", () => {
     const phasePages = Object.values(focusedGuides)
-      .filter((filePath) => fs.existsSync(filePath))
+      .filter((filePath) => Boolean(documentForRoute(filePath)))
       .map(read)
       .join("\n");
 

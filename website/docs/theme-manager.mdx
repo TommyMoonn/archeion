@@ -1,0 +1,44 @@
+---
+id: "theme-manager"
+title: "Theme Manager"
+sidebar_label: "Theme Manager"
+description: "Import, preview, apply, update, and remove global custom themes, or recover a failed reload."
+slug: "/customization/theme-manager/"
+doc_type: "Guide"
+overview_title: "Theme Manager"
+overview_description: "import, preview, apply, and update themes."
+---
+
+## Open Theme Manager {#open}
+
+Open **Settings → Appearance** and select **Manage themes**. Theme Manager opens in a standalone window beside Library and Settings. Opening it again focuses the existing window. The catalog is global, so it does not depend on the active archive.
+
+## Import and inspect a package {#manage}
+
+**Import** accepts a `theme.json` file and adds its package to the global catalog. Select an entry to inspect its colors and diagnostics. Invalid entries cannot be applied; fix the listed problems, then reload. Built-in themes cannot be replaced by importing their IDs.
+
+Use **Open themes folder** to inspect application-data packages, and **Reload themes** after external edits. For package fields, supported tokens, and validation examples, consult [Custom themes](/archeion/docs/customization/custom-themes/) rather than adding CSS or scripts.
+
+## Preview before committing {#preview}
+
+Select a valid custom app theme and choose **Preview** to temporarily see its application colors. **Revert**, Escape, or closing Theme Manager restores the saved appearance. **Use theme** saves the selection; merely inspecting an entry does not apply it. A theme that only supplies Reader colors is selected through Reader settings instead of this app-color preview.
+
+If the preview reports a contrast warning, review the colors and acknowledge the warning before Use theme becomes available. Acknowledging does not fix the contrast. Import, reload, and removal are blocked while previewing; finish or revert the preview first. If saving fails, the preview remains active with an error, so retry Use theme or Revert instead of assuming the selection was saved.
+
+## Update or remove a custom theme {#update}
+
+Importing an existing custom package ID asks whether to **Update theme**. Confirm to replace its `theme.json`; other files in that package folder are retained. Cancel leaves the existing package unchanged. Keep a separate copy of the original JSON if you want to undo an update.
+
+Choose Remove on a custom entry and review the **Remove theme** confirmation. This deletes its installed package, not the JSON file you originally imported or any EPUB. Built-in themes do not offer removal. To use a removed custom theme again, import its package again.
+
+## Recover load, apply, or refresh failures {#reload}
+
+If the standalone window cannot load after a temporary error, choose **Retry** in that window. For a catalog load failure inside Theme Manager, use **Reload themes**. If an ordinary Use theme action fails, the previous saved appearance remains active.
+
+Read refresh errors carefully: a theme may already have been imported, updated, or removed even when the catalog could not refresh. Choose Reload themes to see the current package list instead of immediately repeating the file operation. Correct invalid-package diagnostics in the JSON before reloading; repeated reloads do not repair an invalid color or missing field.
+
+## Application-wide storage and legacy copies {#storage}
+
+Custom theme packages are stored in Archeion's application data, not in the active archive's `.archeion/themes/` folder. This keeps the same catalog available across archives and standalone windows.
+
+When Archeion finds compatible legacy theme packages in registered older archives, it can copy them into global application data. The original archive copies are left in place; migration does not delete or rewrite those legacy packages.

@@ -1,0 +1,68 @@
+---
+id: "archives"
+title: "Open or create an archive"
+sidebar_label: "Open or create an archive"
+description: "Choose the folder Archeion will use for your EPUB library."
+slug: "/getting-started/archives/"
+doc_type: "Getting started"
+overview_title: "Open or create an archive"
+overview_description: "choose your EPUB folder."
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+import { DocsNotice } from "@site/src/components/docs/DocsNotice";
+
+An archive is a normal folder. You can open a folder that already contains EPUB files or create an empty folder and add books later.
+
+## Set up an archive {#set-up-archive}
+
+### Open an existing folder {#open-existing}
+
+1. **Open Archive Manager.** Use it at startup or choose **Manage archives** from the Library archive switcher.
+2. **Select Open archive.** Choose the folder that contains, or will contain, your EPUB files.
+3. **Wait for the first scan.** Books and folders appear while Archeion loads metadata and covers.
+
+<DocsNotice title="Your folders stay in place">
+
+Archeion uses the existing folder structure. You do not need to move every book into one folder.
+
+</DocsNotice>
+
+### Create a new archive {#create-new}
+
+1. **Select Create empty archive.** Archive Manager opens the creation form.
+2. **Enter a name.** The name is used for the new folder.
+3. **Choose where to create it.** Check the final path shown before continuing.
+4. **Create the archive.** The new archive opens and is ready for books.
+
+## Manage archives {#manage-archives}
+
+### Switch or update an archive {#known-archives}
+
+Archive Manager keeps the archives you have opened. For each entry, you can:
+
+- Open the archive.
+- Change its display name.
+- Reveal its folder in Windows Explorer.
+- Forget the entry without deleting the folder.
+
+Changes to the archive list made in another Archeion window also appear here. Forget removes only the remembered entry, so you can reopen its existing folder later.
+
+### Handle a missing archive {#missing-archives}
+
+If an archive was moved or deleted outside Archeion, it is marked as missing. Open it from the new location, then forget the old entry when it is no longer needed.
+
+## Keep archive data together {#keep-data-together}
+
+<DocsAnchor id="sidecar-folder" />
+
+Archeion creates a hidden `.archeion` folder inside the archive for progress, annotations, covers, scan data, and recovery backups. Do not put books inside it. Include it when backing up or moving the archive. Application settings and current custom themes live separately in Archeion's application data.
+
+<DocsAnchor id="next-step" />
+
+Continue to [Add EPUB files](/archeion/docs/getting-started/adding-books/).
+
+If the folder is missing or fails to open, follow [missing-archive recovery](/archeion/docs/reference/troubleshooting/#missing-archive) before changing or forgetting its entry.
+
+See [Archive storage and ownership](/archeion/docs/reference/archive-storage/) for backup contents and the boundary between archive data and application data.

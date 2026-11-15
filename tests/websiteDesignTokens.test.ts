@@ -41,7 +41,6 @@ describe("website design foundation", () => {
         content: "text",
         "content-strong": "textStrong",
         "content-muted": "muted",
-        "content-subtle": "mutedSoft",
         border: "line",
         "border-strong": "lineStrong",
         "border-focus": "focus",
@@ -61,6 +60,10 @@ describe("website design foundation", () => {
       }
       // The approved website deliberately differs from the desktop light sidebar.
       expect(declarations.get("surface-sidebar")).toBe(theme === "light" ? "#f7f8f7" : "#0a0a0b");
+      // Website breadcrumbs and small labels need 4.5:1 contrast on the light canvas.
+      // The rendered-pair browser contract verifies this accessibility correction.
+      expect(declarations.get("content-subtle")).toBe(theme === "light" ? "#697279" : "#858d93");
+      expect(css).toContain("--color-content-subtle: var(--content-subtle);");
     },
   );
 
@@ -77,7 +80,7 @@ describe("website design foundation", () => {
       expect(
         fs
           .readFileSync(path.join(root, `website/src/assets/fonts/${name}.woff2`))
-          .equals(fs.readFileSync(path.join(root, `docs/assets/fonts/${name}.woff2`))),
+          .equals(fs.readFileSync(path.join(root, `website/static/assets/fonts/${name}.woff2`))),
       ).toBe(true);
     }
     for (const family of ["Inter", "Literata"]) {

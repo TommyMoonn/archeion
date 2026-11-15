@@ -1,0 +1,56 @@
+---
+id: "metadata-covers"
+title: "Metadata and covers"
+sidebar_label: "Metadata and covers"
+description: "Edit one book or selected books, review changes before writing metadata, and replace an embedded cover in the EPUB with a prepared image."
+slug: "/guides/metadata-covers/"
+doc_type: "Guide"
+overview_title: "Metadata and covers"
+overview_description: "review metadata changes and replace embedded EPUB covers."
+---
+
+## Open details and choose what to edit {#open-details}
+
+In the Library, leave selection mode and select a book's card or row to open **Book details** and inspect its summary and file path. Select **Edit metadata** from the book's action menu or Details drawer to open **Edit EPUB metadata**. Use the path to check that you are editing the intended copy of the book.
+
+The Details drawer provides a compact summary; the editor exposes the fuller metadata groups below. The current editor does not have separate Basic and Advanced tabs. Metadata and cover writes change the EPUB itself, not just an Archeion display preference.
+
+## Edit one EPUB's metadata {#single-book}
+
+1. Open **Edit EPUB metadata** and change the fields you need. **Core metadata** contains Title, Author, and Language; **Identifier** is read-only. **Publishing metadata** contains Publisher and Date; **Series metadata** contains Series and Volume; **Tags and description** contains Subjects and Description.
+2. Review **Pending changes** to see the changed fields. Subjects accept comma-separated entries or one entry per line. Clearing an editable value removes that value rather than leaving the old one unchanged.
+3. Select **Write metadata to EPUB**. The action is unavailable when no fields have changed or the file is missing. Wait for **Metadata written to EPUB.** before treating the changes as saved.
+
+This editor writes directly after you review Pending changes; it does not open the separate bulk review screen or require the cover confirmation checkbox. Closing without writing leaves your edits unsaved. The Library uses the metadata returned after a successful write; changing the title here does not rename the EPUB file. Use [File management](/archeion/docs/guides/file-management/#rename-move) to rename or move it.
+
+## Apply metadata to selected books {#bulk}
+
+1. Choose **Select books** in the Library toolbar, select the books you intend to edit, then choose **Edit metadata** in the selection bar.
+2. Enable only the fields to change: Series, Publisher, Language, or Tags. Unchecked fields remain untouched. A checked empty Series, Publisher, or Language clears that field. For Tags, choose **Replace**, **Add**, or **Remove**; an empty Replace clears tags, while Add and Remove require at least one tag.
+3. Select **Review changes** to open **Review metadata changes**. Check each book's before-and-after values and the count to be updated. Books marked **No changes** are skipped; **File unavailable** entries cannot be written.
+4. Use **Back** to revise the edits, or **Update N EPUBs** to write the available changed books. Each EPUB is written independently: a failed book does not undo successful writes to other books.
+
+Review failed or skipped items before retrying. Closing with selected fields asks whether to keep editing or discard changes; preparing a preview alone has not written any EPUB. Bulk editing does not offer the individual editor's Title, Author, Date, Description, or Volume fields.
+
+## Replace the embedded cover {#cover}
+
+1. Open Details and select **Replace cover** on the cover to open **Replace embedded cover**.
+2. Select **Choose image** and choose a JPG, JPEG, PNG, or WebP file. Review the prepared final **2:3** cover frame and the source/output information.
+3. Choose **Crop** to fill the frame with a centered crop, or **Fit** to keep the full image with transparent or white padding. Changing the image or framing prepares a new preview and clears confirmation.
+4. Confirm the checkbox acknowledging that the operation writes into this EPUB and replaces or adds its embedded cover. Then select **Write cover to EPUB** and wait for **Cover written to EPUB.**
+
+A preview is not yet saved. This changes the active embedded cover resource, or adds one when supported, rather than creating a separate display-only override. It is a single-book workflow, not a bulk cover replacement. Archeion can refuse unsupported cover structures instead of modifying an EPUB it cannot safely rewrite. A missing EPUB cannot be edited.
+
+If the EPUB write succeeds but refreshing the generated cover reports a warning, the new embedded cover is already saved. Read the warning before attempting another write. **Regenerate covers** refreshes derived covers; it is not a replacement-image editor. See [Generated cover cache maintenance](/archeion/docs/reference/archive-storage/#maintenance).
+
+## Handle changed files and retain recovery copies {#write-safety}
+
+If the source EPUB changed after an edit was prepared, Archeion refuses to replace it instead of overwriting newer changes. Cover writeback also checks that the selected image still matches the preview. Stop the external edit, reopen the metadata editor to review the latest source, or choose the image again to prepare a fresh cover preview. Do not repeatedly confirm an outdated preview.
+
+Before a large edit, [back up the complete archive](/archeion/docs/reference/archive-storage/#backup). **Settings → Storage → Keep EPUB writeback backup** is off by default. When enabled, supported successful metadata and cover writes can retain a recovery copy of the previous EPUB. This is not a version history or a substitute for your archive backup.
+
+Use **EPUB writeback backups** in Storage to review retained-copy counts and clear copies you no longer need. Clearing them removes those recovery copies, not the active EPUBs. See [Archive storage policies](/archeion/docs/reference/archive-storage/#storage-policies) and [backup maintenance](/archeion/docs/reference/archive-storage/#maintenance) for the current storage guidance.
+
+If a write fails, read whether the original was left unchanged, a backup was restored, or automatic restoration failed. If restoration failed, preserve the reported backup path and copy the recovery file to a safe location before further changes. Do not delete the archive's hidden `.archeion` folder to resolve an editing failure.
+
+For the full recovery procedure after an interrupted write or failed restoration, see [a metadata or cover edit fails](/archeion/docs/reference/troubleshooting/#interrupted-edit). Preserve the reported recovery copy before cleanup.

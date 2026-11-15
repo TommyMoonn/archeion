@@ -1,0 +1,94 @@
+---
+id: "reading"
+title: "Read and annotate"
+sidebar_label: "Reader and annotations"
+description: "Navigate books, adjust the Reader, and manage bookmarks, highlights, and notes."
+slug: "/guides/reading/"
+doc_type: "Guide"
+overview_title: "Reader and annotations"
+overview_description: "read, bookmark, highlight, and export notes."
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+## Read a book {#read-book}
+
+### Open and navigate {#navigation}
+
+The Reader toolbar includes:
+
+- Back to the Library.
+- Previous and next chapter controls when available.
+- **Back in reading history** and **Forward in reading history**.
+- **Find in book** and **Book navigation**.
+- **Annotations** and the bookmark control.
+- **Reader settings**.
+- Book and chapter progress.
+
+For search, Contents/Landmarks/Pages, history, and progress seeking, see [Reader navigation and progress](/archeion/docs/guides/reader-navigation/).
+
+### Change reading settings {#reader-settings}
+
+Open **Appearance** in the Reader to change the controls available for the book:
+
+- Paged or Continuous reading mode.
+- Reader colors.
+- Typeface and text size.
+- Line spacing.
+- Page width.
+- Book layout for reflowable EPUBs: Archeion or Publisher.
+- Top or Side progress bar placement.
+
+**Archeion** is the default book layout. It separates ordinary paragraphs without first-line indentation, centers their reading measure, and centers suitable standalone illustrations in both Paged and Continuous modes. Poetry, quotations, lists, tables, captions, and deliberate publisher compositions keep their structure.
+
+Choose **Publisher** to use the book's paragraph spacing, indentation, and flow placement. Your typeface, text size, line spacing, and Reader colors remain active, along with media safety limits. Book layout saves for this book in its archive; typography and colors remain shared Reader settings. You can switch back at any time. Fixed-layout EPUBs retain their designed pages and do not offer this selector.
+
+<DocsAnchor id="reader-typeface" />
+
+**Typeface** offers Book serif (Default), Clean sans, System, Literata, and Atkinson Hyperlegible, followed by font families installed in Windows. Open the picker and type to filter by family name, ignoring letter case. Arrow keys move through matches, Enter selects, and Escape closes the picker. These choices affect publication text only, not the Reader toolbar or application Interface and Display fonts. The same typeface control is available in **Settings → Reader**.
+
+Restart Archeion after installing or removing a Windows font to refresh the session's font list. A saved missing family is marked **Unavailable**; the book uses the Book serif fallback while keeping the saved choice. If the family returns, the choice resumes after restart. Font files are not imported, downloaded, or stored in archives. See [application font settings](/archeion/docs/customization/appearance/#app-fonts) for the separate Interface and Display roles.
+
+Page width options are **Narrow**, **Comfortable**, **Wide**, and **Full**. Comfortable is the default. Each step allows a wider reading measure; Full removes the reading-measure cap while retaining a small edge gutter. Paged mode remains a single-page presentation rather than turning a wider setting into a two-page spread.
+
+Changes save automatically. Successful saves are silent; the Reader shows an error when a setting could not be saved.
+
+## Create annotations {#create-annotations}
+
+### Bookmarks {#bookmarks}
+
+Use the bookmark button to add or remove a bookmark at the current location. Bookmarks appear in the Annotations panel and can have labels.
+
+### Highlights and notes {#highlights-notes}
+
+Select text to create a highlight, then choose yellow, green, blue, or rose. You can attach a note to a highlight.
+
+Removing a note keeps the highlight. Removing the highlight also removes its attached note.
+
+## Review and export annotations {#review-annotations}
+
+### Use the Annotations panel {#annotations-panel}
+
+**Annotations** is one searchable collection of the current book's bookmarks and highlights. From the panel you can:
+
+- Search annotation text and labels.
+- Sort by **Book order** or **Recently updated**.
+- Open an annotation in the book.
+- Edit labels, highlight colors, and notes.
+- Copy or remove annotations.
+
+### Export annotations {#export}
+
+Export the current book's annotations from the Annotations panel as Markdown or JSON. To export annotations from several books, select the books in the Library and use the bulk export action.
+
+See [Annotation export](/archeion/docs/reference/annotation-export/) for format differences, filename requirements, detached records, and durable locations. Export does not change the book's saved annotations or create an EPUB backup.
+
+<DocsAnchor id="supporting-content" />
+
+For supported linked notes and standalone images, use [Footnotes and illustrations](/archeion/docs/guides/reader-media/). That guide explains return navigation, zoom limits, and saving the original image without changing the EPUB.
+
+## If the EPUB file changes {#book-changes}
+
+When an EPUB is replaced or edited, Archeion tries to reconnect each annotation to its text. An annotation that cannot be matched remains available as a detached annotation so you can review, copy, export, recover, or remove it.
+
+If the EPUB cannot open, start with [Reader-unavailable recovery](/archeion/docs/reference/troubleshooting/#reader-unavailable).

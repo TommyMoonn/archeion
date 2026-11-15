@@ -47,17 +47,33 @@ the metadata header as part of a release description.
 version for same-day releases. Dates take precedence so a later maintenance
 release appears above an earlier release with a higher version.
 
-`pnpm run docs:changelog:sync` projects these validated notes into
-`docs/documentation/assets/docs-changelog-data.json`. Its `schemaVersion: 1`
-entries contain `version`, `date`, repository-relative `sourcePath`, and `changes`
-with LF line endings. This committed file is generated documentation input, not
-another prose source; edit the versioned note and regenerate it. `pnpm run
-docs:changelog:check` reports missing/stale data without writing, and is included
-in `docs:check`. `pnpm run docs:sync` then generates the static Changelog timeline,
-navigation, and section search index. `docs:check` checks all generated output
-without writing. Do not edit release prose in the generated HTML.
+`pnpm run docs:sync` projects these validated notes into
+`website/src/generated/release-history.json`. Its `schemaVersion: 1` entries
+contain `version`, `date`, repository-relative `sourcePath`, and LF-normalized
+`changes`, with no timestamp or checkout-specific paths. Edit the versioned
+note and regenerate; do not edit generated JSON or Changelog MDX prose.
+`pnpm run docs:check` checks freshness and Node-only documentation sources
+without writing. Neither command invokes legacy HTML/search generators or
+Docusaurus. The separate website build renders the React timeline and validates
+MDX, routes and fragments. The existing public site remains active until cutover;
+see [documentation maintenance](../docs/DOCUMENTATION.md#legacy-site-during-migration).
 
-The timeline renderer supports flat `-` or `*` bullets with indented prose
-continuations, inline bold, single-backtick code, and absolute HTTP(S) links.
-Unsupported block structures fail generation explicitly. If a release needs a
-richer format, extend the renderer and its tests before publishing the note.
+The shared timeline vocabulary supports flat `-` or `*` bullets with indented
+prose continuations, inline bold, single-backtick code, and absolute HTTP(S) links.
+Unsupported block structures and unsafe or malformed links fail before writing.
+If a release needs a richer format, extend the vocabulary and its tests first.
+React renders text safely, never raw HTML.
+
+Use Node 22 and pnpm 10.33.0. Prepare a release with
+`pnpm install --frozen-lockfile`, `pnpm run version:set X.Y.Z`, then author the
+technical changelog and tracked release note. After prose is final, run:
+
+```powershell
+pnpm run docs:sync
+pnpm run docs:check
+pnpm run release:check --tag vX.Y.Z
+pnpm run verify
+```
+
+Publication and Windows updater automation keep consuming the shared parser's
+exact metadata-free `body`; the documentation vocabulary does not rewrite it.

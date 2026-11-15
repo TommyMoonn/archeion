@@ -160,6 +160,60 @@ describe("CI workflow contract", () => {
     expect(job).not.toContain("--filter archeion...");
   });
 
+  it("runs production website contracts once in the browser lane with separate evidence", () => {
+    const job = jobLines("browser-contracts").join("\n");
+    const install = job.indexOf("      - name: Install website browser dependencies");
+    const build = job.indexOf("      - name: Build production website for browser contracts");
+    const run = job.indexOf(
+      "      - name: Run production website documentation and compatibility contracts",
+    );
+    const upload = job.indexOf("      - name: Upload website browser failure evidence");
+    expect(install).toBeGreaterThanOrEqual(0);
+    expect(build).toBeGreaterThan(install);
+    expect(run).toBeGreaterThan(build);
+    expect(upload).toBeGreaterThan(run);
+    for (const start of [install, build, run]) {
+      expect(job.slice(start).split("\n")[1]).toBe("        if: matrix.shard == 1");
+    }
+    expect(job.slice(install, build)).toContain(
+      "run: pnpm install --filter @archeion/website... --frozen-lockfile",
+    );
+    expect(job.slice(build, run)).toContain("run: pnpm --filter @archeion/website build");
+    expect(job.slice(run, upload)).toContain("ARCHEION_WEBSITE_MODE: production");
+    expect(job.slice(run, upload)).toContain(
+      "run: pnpm exec playwright test --config tests/browser/website-foundation.config.ts --fail-on-flaky-tests",
+    );
+    expect(job.slice(upload)).toContain(
+      "if: ${{ failure() && !cancelled() && matrix.shard == 1 }}",
+    );
+    expect(job.slice(upload)).toContain("name: website-browser-contract-failure");
+    expect(job.slice(upload)).toContain("test-results/website-foundation/");
+    expect(job.slice(upload)).toContain("playwright-report/website/");
+    const config = fs.readFileSync(
+      path.join(projectRoot, "tests/browser/website-foundation.config.ts"),
+      "utf8",
+    );
+    expect(config).toContain('"node tests/browser/serve-website-build.mjs"');
+    expect(config).toContain("reuseExistingServer: false");
+    expect(config).toContain("retries: process.env.CI ? 1 : 0");
+    expect(config).toContain('trace: "retain-on-failure-and-retries"');
+    expect(config).toContain('screenshot: "only-on-failure"');
+    expect(config).toContain('outputFolder: "../../playwright-report/website"');
+    for (const spec of [
+      "website-docs-articles",
+      "website-docs-search",
+      "website-docs-copy",
+      "website-docs-changelog",
+      "website-static",
+    ]) {
+      expect(config).toContain(`"${spec}.pw.ts"`);
+    }
+    expect(fs.readFileSync(path.join(projectRoot, "playwright.config.ts"), "utf8")).toContain(
+      '"**/website-*.pw.ts"',
+    );
+    expect(jobLines("frontend-static")).toContain("        run: pnpm run docs:check");
+  });
+
   it("cancels stale PR runs while giving each main push its own concurrency group", () => {
     expect(workflow).toContain(
       "group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}",
@@ -579,6 +633,29 @@ describe("CI change classifier", () => {
     "docs/documentation/index.html",
     "docs/documentation/guides/reader/index.html",
     "docs/documentation/page-registry.json",
+    "website/README.md",
+    "website/src/components/docs/DocsShell.tsx",
+    "website/src/css/custom.css",
+    "website/src/generated/release-history.json",
+    "website/src/assets/fonts/inter-regular.woff2",
+    "website/plugins/search.ts",
+    "website/plugins/mdxParser.cjs",
+    "website/plugins/mdxParser.d.cts",
+    "website/tests/search.test.ts",
+    "website/docs/reading.mdx",
+    "website/docs/nested/new-guide.md",
+    "website/static/index.html",
+    "website/static/documentation/guides/reading/index.html",
+    "website/static/assets/archeion-preview.png",
+    "website/static/schemas/archeion-theme-v1.schema.json",
+    "website/static/examples/themes/paper-light/theme.json",
+    "website/static/dictionaries/packages/existing.tar.xz",
+    "website/static/robots.txt",
+    "website/docusaurus.config.ts",
+    "website/sidebars.ts",
+    "website/tsconfig.json",
+    "website/components.json",
+    "website/vitest.config.ts",
   ])("allows authored documentation %s", (file) => {
     for (const status of ["A", "M"]) {
       const result = classify(`${status}\0${file}\0`);
@@ -600,6 +677,17 @@ describe("CI change classifier", () => {
     "tests/example.test.ts",
     "tests/fixtures/example.json",
     "package.json",
+    "website/package.json",
+    "website/pnpm-lock.yaml",
+    "website/unknown.ts",
+    "website/unknown/file.ts",
+    "website/src/unknown.xyz",
+    "website/static/unknown.xyz",
+    "website/docs/unknown.ts",
+    "website/.npmrc",
+    "website/build/docs/index.html",
+    "website/.docusaurus/routes.js",
+    "pnpm-workspace.yaml",
     "pnpm-lock.yaml",
     "src-tauri/Cargo.toml",
     "src-tauri/Cargo.lock",
@@ -608,6 +696,14 @@ describe("CI change classifier", () => {
     "src/types/appSettings.ts",
     "docs/../package.json",
     "docs/guide.MD",
+    "website/src/../package.json",
+    "website//src/example.ts",
+    "website/src/./example.ts",
+    "website/src/example.ts/",
+    "/website/src/example.ts",
+    "website/src/example\\file.ts",
+    "website/src/C:example.ts",
+    "website/src/example\nfile.ts",
   ])("keeps %s in full validation", (file) => {
     expect(classify(`M\0${file}\0`).mode).toBe("full");
     expect(classify(`M\0docs/guide.md\0M\0${file}\0`).mode).toBe("full");
@@ -622,6 +718,15 @@ describe("CI change classifier", () => {
     "T\0docs/guide.md\0",
     "C100\0docs/old.md\0docs/new.md\0",
     "M\0docs/guide.md\0M\0",
+    "D\0website/docs/reading.mdx\0",
+    "D\0website/static/assets/archeion-icon.png\0",
+    "R100\0website/docs/reading.mdx\0website/docs/read.mdx\0",
+    "R050\0website/src/old.ts\0src/new.ts\0",
+    "R100\0src/old.ts\0website/src/new.ts\0",
+    "C100\0website/docs/old.mdx\0website/docs/new.mdx\0",
+    "T\0website/src/example.ts\0",
+    "M\0website/docs/reading.mdx\0M\0website/docs/reading.mdx\0",
+    "M\0website/docs/reading.mdx\0\0",
   ])("fails open for empty, renamed, deleted or incomplete diffs %j", (diff) => {
     expect(classify(diff).mode).toBe("full");
   });
@@ -641,6 +746,26 @@ describe("CI change classifier", () => {
       head,
       "--",
     ]);
+  });
+
+  it("allows mixed eligible website and maintainer docs but never hides shared changes", () => {
+    const diff =
+      "A\0website/docs/new.mdx\0M\0website/src/components/docs/DocsShell.tsx\0M\0website/static/index.html\0M\0docs/TESTING.md\0";
+    expect(classify(diff).mode).toBe("docs-only");
+    for (const shared of [
+      "website/package.json",
+      "package.json",
+      "pnpm-workspace.yaml",
+      "pnpm-lock.yaml",
+      "release-notes/v1.8.0.md",
+      "scripts/check-documentation-sources.mjs",
+      ".github/workflows/ci.yml",
+      "unknown/file",
+    ]) {
+      const result = classify(`${diff}M\0${shared}\0`);
+      expect(result.mode, shared).toBe("full");
+      expect(JSON.parse(result.expected_jobs)).toEqual(allJobs);
+    }
   });
 
   it.each(["fetch", "merge-base", "cat-file", "diff", "rev-parse"])(
@@ -707,7 +832,7 @@ describe("CI change classifier", () => {
         `M 100644 inline ${name}\ndata ${Buffer.byteLength(content)}\n${content}\n`;
       const commit = (mark: number, parent: number | null, changes: string, branch = "main") =>
         `commit refs/heads/${branch}\nmark :${mark}\ncommitter CI test <ci@example.invalid> 1700000000 +0000\ndata 7\nfixture\n${parent === null ? "" : `from :${parent}\n`}${changes}\n`;
-      // Import the same real history in one process, without five working-tree
+      // Import real history in one process, without working-tree
       // commits, hooks, signing, or per-command startup competing with release tests.
       git(
         ["fast-import", "--quiet"],
@@ -717,6 +842,16 @@ describe("CI change classifier", () => {
           commit(3, 2, "R docs/guide.md docs/renamed.md\n"),
           commit(4, 3, "D docs/renamed.md\n"),
           commit(5, 1, file("src/main.tsx", "base-only code\n"), "base-side"),
+          commit(
+            6,
+            1,
+            file("website/docs/reading.mdx", "# Reading\n") +
+              file("website/static/robots.txt", "User-agent: *\n"),
+            "website",
+          ),
+          commit(7, 6, file("website/package.json", "{}\n"), "website-manifest"),
+          commit(8, 6, "R website/docs/reading.mdx website/docs/read.mdx\n", "website-rename"),
+          commit(9, 6, "D website/static/robots.txt\n", "website-delete"),
         ].join(""),
       );
       const [initial, docs, renamed, deleted, divergentBase] = git([
@@ -728,6 +863,14 @@ describe("CI change classifier", () => {
         "base-side",
       ]).split(/\r?\n/);
       revisions = { initial, docs, renamed, deleted, divergentBase, unavailable: "f".repeat(40) };
+      const [website, websiteManifest, websiteRename, websiteDelete] = git([
+        "rev-parse",
+        "website",
+        "website-manifest",
+        "website-rename",
+        "website-delete",
+      ]).split(/\r?\n/);
+      Object.assign(revisions, { website, websiteManifest, websiteRename, websiteDelete });
     });
 
     afterAll(() => {
@@ -762,6 +905,11 @@ describe("CI change classifier", () => {
     // share one five-second budget when release tests compete for subprocess time.
     it.each([
       ["authored docs", "initial", "docs", "docs-only"],
+      ["website MDX and static", "initial", "website", "docs-only"],
+      ["website manifest", "website", "websiteManifest", "full"],
+      ["website rename", "website", "websiteRename", "full"],
+      ["website deletion", "website", "websiteDelete", "full"],
+      ["website divergent base", "divergentBase", "website", "full"],
       ["empty diff", "docs", "docs", "full"],
       ["rename", "docs", "renamed", "full"],
       ["deletion", "renamed", "deleted", "full"],

@@ -1,0 +1,54 @@
+---
+id: "appearance"
+title: "Appearance and reader controls"
+sidebar_label: "Appearance"
+description: "Choose app colors and fonts, Display density and Animations, or adjust Reader colors and typography."
+slug: "/customization/appearance/"
+doc_type: "Guide"
+overview_title: "Appearance"
+overview_description: "choose app colors, density, and reduced-motion behavior, or adjust Reader settings."
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+## Choose app colors {#app-appearance}
+
+<DocsAnchor id="app-theme" />
+
+Open **Settings → Appearance** and use **App themes**. Built-in themes are available immediately; System follows the operating system's light or dark appearance. The app theme affects the interface, not the EPUB's text size or reading layout.
+
+<DocsAnchor id="custom-themes" />
+
+For custom packages, open [Theme Manager](/archeion/docs/customization/theme-manager/) to import, preview, and apply colors. Packages can provide supported app and Reader colors, but cannot add CSS, scripts, fonts, images, or layout changes. Authors can consult the [Custom themes format and tokens](/archeion/docs/customization/custom-themes/).
+
+## Choose Interface and Display fonts {#app-fonts}
+
+In **Settings → Appearance**, **Interface font** changes application controls, navigation, and ordinary text. **Display font** changes editorial headings such as the Library title. Neither changes the EPUB's typeface; use [Reader typeface](/archeion/docs/guides/reading/#reader-typeface) for publication text.
+
+- **Inter (Default)** uses Archeion's bundled interface font.
+- **Archeion Default** uses the established serif display stack.
+- **Use interface font** makes Display follow the effective Interface font, including its fallback when a saved family is unavailable.
+
+The pickers list font families installed in Windows. Open a picker and type to filter its plain list by family name, ignoring letter case. Use the arrow keys to move through matches, Enter to select, and Escape to close without changing the selection. Choices save automatically and synchronize to other open Archeion windows. **Reset appearance** restores both application font defaults along with the other Appearance preferences.
+
+Archeion keeps the installed-font list for the application session. Restart Archeion after installing or removing a Windows font. A missing saved family is marked **Unavailable** and uses its role's default fallback without erasing the choice. If the family is available again after restart, that saved choice resumes. Archeion does not import or download font files, and font files do not travel with archives.
+
+## Adjust spacing and motion {#density-motion}
+
+**Display density** changes spacing in the app interface. **Comfortable** gives controls more room; **Compact** brings controls and collection items closer together. Density does not change the EPUB's typography or Page Width. Use Reader settings for those.
+
+Motion is enabled only when **Animations** is on and the operating system is not requesting reduced motion. Turning Animations off suppresses motion; turning it on does not override the system's reduced-motion preference. This controls subtle application transitions, not Reader content animation or automatic page turning.
+
+## Adjust Reader colors and layout {#reader-appearance}
+
+<DocsAnchor id="reader-theme" />
+
+Choose a Reader theme from **Settings → Reader** or the Reader settings panel. Reader colors are separate from App themes, so changing one does not require changing the other.
+
+<DocsAnchor id="reader-typography" />
+
+Open Reader settings to change typeface, text size, line spacing, Page Width, reading mode, and progress placement. Custom theme files do not set these options. See [Reader settings and reading-width limits](/archeion/docs/guides/reading/#reader-settings) for their effects.
+
+## Change collection presentation {#library-layout}
+
+Use the Library toolbar to switch Grid and List views, sort, and filter without changing the files in the archive. **Settings → Library** sets default Books, Folders, and Series presentation and which Smart Views appear. See [Library browsing and selection](/archeion/docs/guides/library/) for the available workflows.

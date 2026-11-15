@@ -1,0 +1,40 @@
+---
+id: "reader-navigation"
+title: "Navigate and track reading progress"
+sidebar_label: "Reader navigation and progress"
+description: "Find text, move through EPUB navigation, retrace Reader jumps, and seek by progress."
+slug: "/guides/reader-navigation/"
+doc_type: "Guide"
+overview_title: "Reader navigation and progress"
+overview_description: "find text and retrace jumps."
+---
+
+## Find text in the open book {#find-in-book}
+
+Open **Find in Book** from the Reader toolbar or press <kbd>Ctrl</kbd> + <kbd>F</kbd>. Enter a word or phrase to search the active EPUB.
+
+- Result excerpts highlight the matching text.
+- Use **Previous match** and **Next match** to move through results.
+- Press <kbd>Enter</kbd> for the next result or <kbd>Shift</kbd> + <kbd>Enter</kbd> for the previous result while the query field is focused.
+- The status shows the active match position and tells you when more matches are available.
+
+## Use Book navigation {#book-navigation}
+
+Open **Book navigation** to use the navigation collections supplied by the EPUB. Depending on the book, these can include **Contents**, **Landmarks**, and **Pages**.
+
+Long Contents and Pages collections provide a search field. Publisher page labels can be searched directly when the EPUB includes a Page List.
+
+## Retrace Reader jumps {#reading-history}
+
+**Back in reading history** and **Forward in reading history** retrace Reader jumps without replacing normal page turns. History can include jumps from publication navigation, annotations, supported internal links, footnotes, Find in Book results, and progress seeking.
+
+- <kbd>Alt</kbd> + <kbd>Left Arrow</kbd>: Back in reading history.
+- <kbd>Alt</kbd> + <kbd>Right Arrow</kbd>: Forward in reading history.
+
+## Seek with Reading progress {#reading-progress}
+
+When the progress control is seekable, select or drag along it to preview another point in the book, then release to move there. Pointer hover can show a percentage and chapter label when chapter context is available.
+
+With **Reading progress** focused, Arrow keys seek immediately in small steps; there is no separate Enter-to-confirm step. <kbd>Home</kbd> seeks to the start and <kbd>End</kbd> to the end. Progress seeking participates in Reader history, so you can return to the location you left.
+
+Hovering or dragging shows a preview, not a saved reading position. The committed reading position changes only after Reader reaches the requested location; if seeking fails, the current position remains authoritative. When the control is not seekable, it displays progress without offering a jump. If navigation cannot reach a location, use [Reader-unavailable recovery](/archeion/docs/reference/troubleshooting/#reader-unavailable) rather than assuming the preview was saved.

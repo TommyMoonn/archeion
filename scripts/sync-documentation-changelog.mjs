@@ -3,10 +3,11 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import * as prettier from "prettier";
+import { parseReleaseChanges } from "./release-history-markdown.mjs";
 import { readAllReleaseNotes } from "./release-notes.mjs";
 
 const defaultProjectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const outputPath = "docs/documentation/assets/docs-changelog-data.json";
+const outputPath = "website/src/generated/release-history.json";
 
 export async function syncDocumentationChangelog(
   projectRoot = defaultProjectRoot,
@@ -14,6 +15,7 @@ export async function syncDocumentationChangelog(
 ) {
   // Release validation and publication own parsing. Docs only project their validated data.
   const notes = readAllReleaseNotes(projectRoot);
+  for (const note of notes) parseReleaseChanges(note.changes);
   const entries = notes.map(({ version, date, changes }) => ({
     version,
     date,
@@ -60,7 +62,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = await syncDocumentationChangelog(root ?? defaultProjectRoot, { check });
     if (check && result.changed) {
       console.error(
-        "Documentation changelog data drift. Run pnpm run docs:changelog:sync and commit the generated data.",
+        "Documentation changelog data drift. Run pnpm run docs:sync and commit the generated data.",
       );
       process.exitCode = 1;
     } else {
