@@ -105,12 +105,12 @@ hidden before hydration and without JavaScript.
 
 ## Public resources during migration
 
-The replacement build preserves the existing landing at `/archeion/` from
-`website/static/index.html` and serves public fonts/images, schema/examples and
+The replacement build generates the React landing at `/archeion/` from
+`website/src/pages/index.tsx` and serves public fonts/images, schema/examples and
 the existing dictionary catalog/packages from `website/static/`. Original
 `docs/` sources remain active until cutover. Resource changes before cutover must
-update both copies with identical bytes. Do not run formatters over the preserved
-landing/runtime/resources. Compatibility HTML under `static/documentation/`
+update both copies with identical bytes. Do not run formatters over preserved
+resources or the still-active legacy landing/runtime. Compatibility HTML under `static/documentation/`
 redirects the 24 old article URLs, retaining query/fragment and a visible fallback.
 See [the preservation contract](../website/README.md#static-landing-public-resources-and-compatibility-b28).
 

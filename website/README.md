@@ -689,30 +689,18 @@ in B2.7. Root maintainer guides remain in docs/.
 
 ## Static landing, public resources and compatibility (B2.8)
 
-`static/index.html` owns `/archeion/` until B3. It is the existing landing HTML
-with only its documentation link changed to `/archeion/docs/`. Its CSS, JavaScript,
-fonts, images, schema and theme examples retain their exact bytes and relative
-paths. The preserved landing runtime is the deliberate temporary exception to
-the React/Tailwind implementation rules; do not restyle it during the docs port.
-Prettier excludes these byte-preserved copies. The root React page,
-FoundationNotice, FoundationControls and their exclusive browser fixture were
-removed, and preset pages disabled before adding the static index. Shared
-Button/Input/Brand remain foundation primitives; docs tests exercise actual docs
-controls. Header Home/brand links use native anchors with the framework base URL
-so navigation loads the static document. The preset 404 navbar uses Docusaurus's
-`pathname:///` native-navigation escape hatch for the same boundary.
+B2.8 temporarily served the original landing from `static/index.html`, with only
+its documentation destination changed. B3.2 replaces that temporary homepage with
+`src/pages/index.tsx` and landing section components. Preset pages are enabled;
+the static homepage plugin, copied index, and unused copied CSS/JS are removed.
+Docusaurus owns the single root route and its sitemap entry. Shared Button/Brand
+and the existing semantic token system remain the foundation.
 
-Docusaurus 3 emits a development-only `index.html` shell even with preset pages
-disabled. `plugins/staticHomepage.ts` changes that existing HTML plugin's public
-filename option to `__docs-dev.html`. The dev server's `onListening` hook prepends
-a docs rule to the existing history middleware's shared rewrite list, before its
-catch-all. Core middleware and setup callbacks stay untouched. Static landing,
-resources and redirects retain their own paths; docs hard refresh loads the React
-shell. Types come from the pinned core's dev-server factory declaration. The
-plugin fails explicitly if the expected framework HTML emitter or fallback
-changes. Production config is untouched. No dependency, extra server, generated
-source file or error suppression is needed. B3 must remove this temporary plugin
-and static index and re-enable preset pages when React takes ownership.
+The original `docs/index.html`, CSS/JS and their legacy tests remain active until
+the separately authorized post-merge live publisher cutover. Permanent resources
+and compatibility redirects retain their exact URLs and bytes. B3.3 extracts the
+approved visible screenshot and completes measured visual/responsive styling;
+B3.4 owns integrated parity and landing test migration.
 
 The root README embeds `website/static/assets/archeion-preview.png` and links
 to the new Changelog and Custom themes articles. Maintainer guide links remain
@@ -1095,3 +1083,40 @@ No packaging/ZIPs. Final publication happens only after B3.4. The final PR targe
 and commit list for duplicated parent changes before pushing/opening that ready
 PR. Preserve the established branch ancestry; never flatten the stack. Link/watch
 through T3 until current-head CI is green, unwatch at handback, and never merge.
+
+## React landing composition (B3.2)
+
+`src/pages/index.tsx` owns the homepage metadata and composes `LandingPage`.
+Landing sections keep their markup and local effects; `content.ts` owns typed
+feature copy and destinations. Header navigation tracks only Library, Reading
+and Your files. The native mobile details menu adds focus cycling, Escape/outside
+and toggle dismissal, destination focus, background inertness and framework-owned
+scroll locking. It resets at the inclusive 1020px navigation boundary. Native
+modified links and script-free content remain available.
+
+Landing appearance scopes the existing dark semantic tokens without writing the
+documentation theme preference. The framework Root owns icons once per route:
+landing uses absolute production image-icon URLs, while docs retain their existing
+favicon and Apple artwork URLs. Existing social metadata and public resources
+are preserved. Critical fonts stay embedded in the shared stylesheet; no redundant
+font preload requests are added for those same bytes.
+
+Decorative effects use React events/state, SVG attributes and scoped Web Animations,
+with bounded animation frames and lifecycle/preference cleanup. Reading words use
+scroll progress, with readable static and reduced-motion fallback. Preview imagery
+is noninteractive and cards describe released behavior; the legacy demo tests and
+publisher sources remain intact.
+
+This phase establishes composition and behavior, not final visual parity. The
+existing 1544×1012 public preview is an explicit intermediate image. B3.3 must
+replace it with the approved 1480×906 screenshot, finish measured geometry/type,
+responsive boundary styling and decorative appearance. B3.4 must compare screenshots
+and migrate the existing landing suite using the B3.1 retirement ledger.
+
+B3.2 validation passed: website typecheck/lint/build, 6 website unit tests, 77 root
+landing/resource/deployment/workspace/token tests, browser TypeScript and touched
+ESLint, formatting, docs checks, exact artifact validation and all 71 production
+website browser tests (`--trace off`). Independent review round one approved with
+no Required or Recommended findings. Optional F2 carries to B3.3: clear spotlight
+coordinates when pointer motion is disabled and verify the disable/re-enable cycle.
+Final screenshot parity and full application/required CI gates remain B3.4 work.

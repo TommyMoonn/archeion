@@ -22,7 +22,9 @@ describe("website design foundation", () => {
         throw new Error("Expected the finalized application palette");
       }
       const block = css.match(
-        theme === "dark" ? /:root \{([^}]+)\}/ : /:root\[data-theme="light"\] \{([^}]+)\}/,
+        theme === "dark"
+          ? /:root,\s*\[data-landing\] \{([^}]+)\}/
+          : /:root\[data-theme="light"\] \{([^}]+)\}/,
       )?.[1];
       expect(block).toBeDefined();
       const declarations = new Map(

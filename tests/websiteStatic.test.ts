@@ -11,18 +11,20 @@ const files = (directory: string): string[] =>
     return entry.isDirectory() ? files(file) : [file];
   });
 
-describe("temporary public site preservation", () => {
-  it("retains exact resource/runtime bytes and changes only the landing documentation target", () => {
+describe("public site resources and React homepage ownership", () => {
+  it("retains exact public resource bytes while replacing the temporary runtime", () => {
     const resources = ["assets", "schemas", "examples", "dictionaries/packages"].flatMap(
       (directory) => files(`docs/${directory}`),
     );
-    resources.push("docs/css/styles.css", "docs/js/main.js", "docs/dictionaries/catalog-v1.json");
+    resources.push("docs/dictionaries/catalog-v1.json");
     for (const source of resources) {
       expect(read(`website/static/${source.slice(5)}`).equals(read(source)), source).toBe(true);
     }
-    expect(text("website/static/index.html")).toBe(
-      text("docs/index.html").replaceAll('href="documentation/"', 'href="/archeion/docs/"'),
-    );
+    expect(fs.existsSync("website/static/index.html")).toBe(false);
+    expect(fs.existsSync("website/plugins/staticHomepage.ts")).toBe(false);
+    expect(fs.existsSync("website/static/css/styles.css")).toBe(false);
+    expect(fs.existsSync("website/static/js/main.js")).toBe(false);
+    expect(fs.existsSync("website/src/pages/index.tsx")).toBe(true);
     expect(text("README.md")).toContain('src="website/static/assets/archeion-preview.png"');
   });
 
@@ -42,12 +44,8 @@ describe("temporary public site preservation", () => {
   });
 
   it("excludes maintainer and temporary implementation sources from the static artifact input", () => {
-    expect(text("website/docusaurus.config.ts")).toContain("pages: false");
-    for (const file of [
-      "pages/index.tsx",
-      "components/FoundationNotice.tsx",
-      "components/FoundationControls.tsx",
-    ]) {
+    expect(text("website/docusaurus.config.ts")).not.toMatch(/pages: false|staticHomepage/);
+    for (const file of ["components/FoundationNotice.tsx", "components/FoundationControls.tsx"]) {
       expect(fs.existsSync(`website/src/${file}`), file).toBe(false);
     }
     const published = files("website/static").map((file) => file.replaceAll("\\", "/"));
