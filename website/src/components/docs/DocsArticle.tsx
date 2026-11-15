@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { useDoc } from "@docusaurus/plugin-content-docs/client";
 import MDXContent from "@theme/MDXContent";
 import { DocsClipboard } from "./DocsClipboard";
@@ -9,6 +9,7 @@ import { DocsTableOfContents } from "./DocsTableOfContents";
 
 export function DocsArticle({ children }: { children: ReactNode }) {
   const { metadata } = useDoc();
+  const articleRef = useRef<HTMLElement>(null);
   const articleType =
     typeof metadata.frontMatter.doc_type === "string" ? metadata.frontMatter.doc_type : "Guide";
   return (
@@ -18,8 +19,8 @@ export function DocsArticle({ children }: { children: ReactNode }) {
         tabIndex={-1}
         className="mx-auto flex min-h-[calc(100vh-4.25rem)] w-full max-w-docs-article min-w-0 box-border flex-col pt-10.5 pb-9 focus:outline-none docs-navigation:min-h-0 docs-navigation:pt-7.5 docs-narrow:pt-6"
       >
-        <DocsClipboard key={metadata.permalink}>
-          <article className="min-w-0">
+        <DocsClipboard key={metadata.permalink} articleRef={articleRef}>
+          <article ref={articleRef} className="min-w-0">
             <DocsArticleHeader
               title={metadata.title}
               description={metadata.description}

@@ -546,3 +546,79 @@ to that active legacy site. Its generators, generated output, search/copy tests,
 legacy browser tests and existing landing links remain untouched until their
 replacement/cutover phases. Retire them only after tracing those consumers at
 B2.7/B2.8/B2.10. B2.9 owns CI/browser integration; no deployment changed here.
+
+## Local search, overview and portable copying (B2.6)
+
+`plugins/search.ts` consumes the docs plugin's loaded metadata and resolved
+sidebar sequence. It publishes one typed global-data payload for search and
+overview cards. `plugins/searchContent.ts` parses MDX without compiling or
+executing its imports/components. Search and overview do not import the release
+timeline or a release projection. The two direct build dependencies, MDX and
+GFM parsers, already existed in the workspace lockfile. `mdxParser.cjs` keeps
+their native ESM imports outside the framework's Jiti 1 configuration loader;
+its declaration preserves the parser's public type.
+
+The index contains one introduction and each explicit h2/h3 section, with
+exclusive bodies and stable fragment destinations. It includes semantic prose,
+code, table cells, notice labels/advice and metadata-derived overview text;
+imports, anchors, controls and hidden helpers are excluded. Headings retain
+their required explicit IDs; fenced examples are never interpreted as headings.
+For explicit search aliases, put an empty static
+`<span data-search-aliases="first alias|second alias" />` in the introduction or
+immediately after the relevant section heading. Aliases must be nonempty and
+unique. No manually duplicated index or page registry is maintained.
+
+Matching folds case and whitespace and accepts all query tokens within a field.
+Title/navigation-title hits precede section-heading, alias, and body hits;
+metadata group/summary matches join the page-body tier. Canonical page/section
+order breaks ties before the first ten results are selected. Empty queries
+browse pages only. Total and shown counts remain distinct. Summaries stay
+visible; Show details reveals separate excerpts of at most 240 characters
+without replacing/reordering links, resetting selection or changing the polite
+count announcement. Highlighting renders escaped React text and marks only.
+
+DocsShell remains the exclusive modal/shortcut owner. Ctrl/Cmd+K opens search
+or refocuses/selects its input when already open; it does not steal the mobile
+drawer. The input retains focus while typing. Arrows focus native result links,
+ArrowUp from the first result returns to the input, and Enter activates the
+selected result. IME/modifier input stays native. Escape, close and complete
+outside gestures dismiss with focus restoration. Native modified links preserve
+their browser behavior. The existing dialog and route owners retain Tab
+containment, inertness, scroll locking and destination focus.
+
+Overview MDX keeps its factual introduction, notices, prose and explicit section
+IDs. `DocsOverview` derives each group's destinations/order from the same
+framework metadata. The original compact-link labels and factual summaries now
+live beside each destination's existing front matter as `overview_title` and
+`overview_description`, still single-line JSON strings. All 23 other articles
+remain reachable, with Overview itself in the breadcrumb/sidebar. Cards match
+the mock's three onboarding columns, two other columns, 9px gaps, 7px corners,
+13px/12px padding and 76px minimum height; all collapse at the inclusive 600px
+boundary. Named card typography preserves the measured 12.5px/11.5px roles.
+
+Copy page extends the existing article-local `DocsClipboard` owner, keyed by
+the document permalink. It serializes the rendered article ref through
+`serializeArticle.ts`. Breadcrumb/type/action chrome and heading permalinks have
+explicit copy exclusions; footer, neighbors, outline and shell are outside the
+article boundary. Markdown retains headings, emphasis, nested/numbered lists
+and starts/item values, tables, notices/quotes, disclosures, inline code,
+fences/language/whitespace and escaped authored syntax. Relative links resolve
+against the document URL to safe absolute HTTP(S)/mailto destinations;
+malformed/unsafe links keep their readable label. Image alternative text and
+keyboard labels remain readable. No HTML-string or innerText export is used.
+
+Code copy still writes rendered code text exactly. Both actions share one
+stable polite status, persistent success/error feedback, retry and dismiss,
+focus retention/restoration, newest-request ownership and route disposal.
+Copy controls are hidden before hydration and without JavaScript. Their names
+never change to temporary success/error labels. CodeBlock retains its language
+class so portable fences keep their language without modifying code bytes.
+
+Root search/copy source tests remain Node-only. Their original legacy runtime
+tests are preserved as `legacyDocumentation{SearchIndex,SearchAnnouncements,Copy}`
+while the old public site is active. Website parser/ranking tests run in the
+website package; production/development Playwright covers real MDX search,
+overview and clipboard behavior, including all 24 article exports and the
+supported serializer vocabulary. Legacy browser tests remain active for their
+existing site. B2.7 still owns release projection/tooling; B2.8 resources and
+compatibility; B2.9 CI integration; B2.10 final legacy removal/deployment.

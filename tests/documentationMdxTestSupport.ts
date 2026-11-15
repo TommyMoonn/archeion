@@ -39,7 +39,14 @@ export function articleText(route: string) {
 }
 
 export function articleLinks(route: string) {
-  return [...documentForRoute(route).body.matchAll(/\]\(([^)]+)\)/g)].map((match) => match[1]);
+  const doc = documentForRoute(route);
+  const links = [...doc.body.matchAll(/\]\(([^)]+)\)/g)].map((match) => match[1]);
+  for (const [, label] of doc.body.matchAll(/<DocsOverview group="([^"]+)" \/>/g)) {
+    const group = sidebarGroups().find((item) => item.label === label);
+    if (!group) throw new Error(`Unknown overview group ${label}`);
+    for (const id of group.items) links.push(`/archeion/docs${readDocument(id).metadata.slug}`);
+  }
+  return links;
 }
 
 export function sidebarGroups() {

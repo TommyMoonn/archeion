@@ -1,6 +1,8 @@
 import { Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocsBreadcrumbs } from "./DocsBreadcrumbs";
+import { useDocsClipboard } from "./useDocsClipboard";
+import useIsBrowser from "@docusaurus/useIsBrowser";
 
 export function DocsArticleHeader({
   title,
@@ -11,23 +13,31 @@ export function DocsArticleHeader({
   description: string;
   articleType: string;
 }) {
+  const { copyPage } = useDocsClipboard();
+  const isBrowser = useIsBrowser();
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3.5 docs-narrow:mb-5">
+      <div
+        data-copy-exclude
+        className="mb-6 flex min-h-9 flex-wrap items-center justify-between gap-3.5 docs-narrow:mb-5 docs-narrow:min-h-7.5 pointer-coarse:min-h-11 docs-narrow:pointer-coarse:min-h-11"
+      >
         <DocsBreadcrumbs />
         <Button
-          disabled
           variant="ghost"
           size="sm"
-          title="Article copying follows in B2.6"
-          className="h-auto min-h-9 max-w-full shrink-0 text-caption font-normal whitespace-normal disabled:bg-transparent disabled:text-content-subtle docs-narrow:min-h-7.5"
+          onClick={(event) => copyPage(event.currentTarget)}
+          hidden={!isBrowser}
+          className="h-auto min-h-9 max-w-full shrink-0 text-caption font-normal whitespace-normal docs-narrow:min-h-7.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11 docs-narrow:pointer-coarse:min-h-11 [&[hidden]]:hidden"
         >
           <Copy aria-hidden="true" className="size-3.25" />
           Copy page
         </Button>
       </div>
       <header className="mb-6.5">
-        <div className="mb-2.75 flex items-center gap-1.5 text-docs-label font-bold tracking-docs-label text-accent uppercase">
+        <div
+          data-copy-exclude
+          className="mb-2.75 flex items-center gap-1.5 text-docs-label font-bold tracking-docs-label text-accent uppercase"
+        >
           {articleType !== "Overview" && (
             <span aria-hidden="true" className="size-1.25 rounded-full bg-accent" />
           )}

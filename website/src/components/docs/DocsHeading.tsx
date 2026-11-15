@@ -18,6 +18,7 @@ export function DocsHeading({
       {children}
       {props.id && (
         <a
+          data-copy-exclude
           href={`#${props.id}`}
           aria-label={`Link to ${typeof children === "string" ? children : props.id.replaceAll("-", " ")}`}
           className="ms-2 inline-flex size-6 items-center justify-center align-middle text-content-subtle opacity-0 group-hover:opacity-100 focus:opacity-100 focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:opacity-100"

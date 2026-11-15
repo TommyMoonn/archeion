@@ -154,6 +154,9 @@ importers:
       '@docusaurus/types':
         specifier: 3.10.2
         version: 3.10.2(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.33))(html-minifier-terser@7.2.0)(postcss@8.5.33)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@mdx-js/mdx':
+        specifier: ^3.1.1
+        version: 3.1.1
       '@tailwindcss/postcss':
         specifier: ^4.3.5
         version: 4.3.5
@@ -166,6 +169,9 @@ importers:
       postcss:
         specifier: ^8.5.33
         version: 8.5.33
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1
       tailwindcss:
         specifier: ^4.3.5
         version: 4.3.5

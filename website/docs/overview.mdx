@@ -7,6 +7,8 @@ slug: "/"
 doc_type: "Overview"
 ---
 
+import { DocsOverview } from "@site/src/components/docs/DocsOverview";
+
 import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
 
 import { DocsNotice } from "@site/src/components/docs/DocsNotice";
@@ -23,30 +25,15 @@ These guides cover Archeion on Windows 11 x64. Archeion supports EPUB files.
 
 Follow these guides in order to set up your first library.
 
-- [Install Archeion](/archeion/docs/getting-started/installing/): choose and run the Windows installer.
-- [Open or create an archive](/archeion/docs/getting-started/archives/): choose your EPUB folder.
-- [Add EPUB files](/archeion/docs/getting-started/adding-books/): copy or move books into the archive.
+<DocsOverview group="Getting started" />
 
 ## Using Archeion {#library-reader-guides}
 
-- [Library](/archeion/docs/guides/library/): find, filter, select, and organize books.
-- [Archive health](/archeion/docs/guides/archive-health/): review Duplicates and EPUB Issues before changing files.
-- [Quick Actions](/archeion/docs/guides/quick-actions/): find commands and choose options from the keyboard.
-- [Metadata and covers](/archeion/docs/guides/metadata-covers/): review metadata changes and replace embedded EPUB covers.
-- [Series](/archeion/docs/guides/series/): review volume order and continue reading.
-- [Reader and annotations](/archeion/docs/guides/reading/): read, bookmark, highlight, and export notes.
-- [Reader navigation and progress](/archeion/docs/guides/reader-navigation/): find text and retrace jumps.
-- [Footnotes and illustrations](/archeion/docs/guides/reader-media/): inspect supporting content without losing your place.
-- [File management](/archeion/docs/guides/file-management/): rename, move, export, or delete files.
-- [Settings](/archeion/docs/guides/settings/): change preferences and active-archive options.
-- [Dictionaries and Define](/archeion/docs/guides/dictionaries/): install, order, and repair local sources for offline Reader lookups.
-- [Keyboard shortcuts](/archeion/docs/guides/keyboard-shortcuts/): consult configurable commands and fixed interaction keys.
+<DocsOverview group="Using Archeion" />
 
 ## Customization {#utility-guides}
 
-- [Appearance](/archeion/docs/customization/appearance/): choose app colors, density, and reduced-motion behavior, or adjust Reader settings.
-- [Custom themes](/archeion/docs/customization/custom-themes/): write a theme using the supported format and color tokens.
-- [Theme Manager](/archeion/docs/customization/theme-manager/): import, preview, apply, and update themes.
+<DocsOverview group="Customization" />
 
 ## Reference {#find-a-guide}
 
@@ -60,11 +47,8 @@ Archeion opens one archive at a time. <DocsAnchor id="archeion-data" />
 
 The storage reference explains which data travels with it.
 
-- [Archive storage](/archeion/docs/reference/archive-storage/): understand data ownership, scan behavior, backups, and maintenance.
-- [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/): choose safe actions for missing archives, stale metadata, failed scans, and interrupted edits.
-- [Annotation export](/archeion/docs/reference/annotation-export/): understand Markdown, versioned JSON, and detached annotation records.
-- [About and resources](/archeion/docs/reference/about-resources/): find version information and public project links.
+<DocsOverview group="Reference" />
 
 ## Changelog {#release-history}
 
-- [Changelog](/archeion/docs/changelog/): see what changed in each release.
+<DocsOverview group="Changelog" />

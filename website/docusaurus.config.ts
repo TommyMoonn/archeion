@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/postcss";
 import type { Config, Plugin } from "@docusaurus/types";
+import docsSearchPlugin from "./plugins/search";
 
 const config: Config = {
   title: "Archeion",
@@ -23,6 +24,7 @@ const config: Config = {
     colorMode: { defaultMode: "dark", respectPrefersColorScheme: false },
   },
   plugins: [
+    docsSearchPlugin,
     function tailwindPlugin(): Plugin {
       return {
         name: "archeion-tailwind",

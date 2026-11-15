@@ -15,6 +15,29 @@ export function DocsShell({ children }: { children: ReactNode }) {
   const previousRoute = useRef<string | null>(null);
   useDocsDialog(search, modal === "search");
   useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.keyCode === 229 ||
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        event.key.toLowerCase() !== "k" ||
+        modal === "navigation"
+      )
+        return;
+      event.preventDefault();
+      if (modal === null) setModal("search");
+      else {
+        const input = search.current?.querySelector("input");
+        input?.focus();
+        input?.select();
+      }
+    };
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, [modal]);
+  useEffect(() => {
     const initial = previousRoute.current === null;
     if (!initial && previousRoute.current === pathname + hash) return;
     previousRoute.current = pathname + hash;

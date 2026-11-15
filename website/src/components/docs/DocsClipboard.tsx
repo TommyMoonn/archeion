@@ -1,11 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { serializeArticle } from "./serializeArticle";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { ClipboardContext, type CopyRequest } from "./useDocsClipboard";
 
-export function DocsClipboard({ children }: { children: ReactNode }) {
+export function DocsClipboard({
+  children,
+  articleRef,
+}: {
+  children: ReactNode;
+  articleRef: RefObject<HTMLElement | null>;
+}) {
   const generation = useRef(0);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const [message, setMessage] = useState("");
@@ -15,19 +22,35 @@ export function DocsClipboard({ children }: { children: ReactNode }) {
     },
     [],
   );
-  const copy: CopyRequest = async (text, opener) => {
+  const copy: CopyRequest = async (text, opener, kind = "code") => {
     const request = ++generation.current;
     trigger.current = opener;
-    setMessage("Copying code…");
+    setMessage(`Copying ${kind}…`);
     try {
-      await navigator.clipboard.writeText(text);
-      if (request === generation.current) setMessage("Code copied.");
+      await navigator.clipboard.writeText(typeof text === "function" ? text() : text);
+      if (request === generation.current)
+        setMessage(kind === "page" ? "Page copied as Markdown." : "Code copied.");
     } catch {
-      if (request === generation.current) setMessage("Could not copy code. Try Copy code again.");
+      if (request === generation.current)
+        setMessage(`Could not copy ${kind}. Try Copy ${kind} again.`);
     }
   };
   return (
-    <ClipboardContext.Provider value={copy}>
+    <ClipboardContext.Provider
+      value={{
+        copy,
+        copyPage: (opener) => {
+          void copy(
+            () => {
+              if (!articleRef.current) throw new Error("Article is no longer available");
+              return serializeArticle(articleRef.current);
+            },
+            opener,
+            "page",
+          );
+        },
+      }}
+    >
       {children}
       <div
         className={cn(

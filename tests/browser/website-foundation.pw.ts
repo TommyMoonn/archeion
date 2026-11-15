@@ -131,6 +131,6 @@ test("native primitives support keyboard input, activation, focus and slotted na
   await expect(page).toHaveURL(/\/archeion\/docs\/getting-started\/installing\/$/);
   await expect(page.getByRole("heading", { name: "Install Archeion", exact: true })).toBeVisible();
   await expect(
-    page.getByText("Download and install Archeion on Windows.", { exact: true }),
+    page.locator("article").getByText("Download and install Archeion on Windows.", { exact: true }),
   ).toBeVisible();
 });

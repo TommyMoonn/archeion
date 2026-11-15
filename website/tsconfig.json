@@ -16,6 +16,6 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["docusaurus.config.ts", "sidebars.ts", "src/**/*"],
+  "include": ["docusaurus.config.ts", "sidebars.ts", "plugins/**/*", "src/**/*"],
   "exclude": ["node_modules", "build", ".docusaurus"]
 }

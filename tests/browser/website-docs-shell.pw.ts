@@ -115,7 +115,7 @@ test("native routes, framework neighbors, and static article output stay coheren
   }
 });
 
-test("search surface is a keyboard-dismissible fixture with framework links", async ({
+test("search is keyboard-dismissible and follows framework article links", async ({
   page,
 }, testInfo) => {
   await page.goto("/archeion/docs/");
@@ -124,15 +124,17 @@ test("search surface is a keyboard-dismissible fixture with framework links", as
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Search documentation" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("textbox", { name: "Search documentation" })).toBeFocused();
-  await expect(dialog.getByRole("link")).toHaveCount(24);
+  await expect(dialog.getByRole("searchbox", { name: "Search documentation" })).toBeFocused();
+  await expect(dialog.getByRole("link")).toHaveCount(10);
+  await expect(dialog.locator("footer")).toContainText("10 of 24 results");
   await expect(dialog.locator("section")).toHaveCSS("max-width", "680px");
   await page.screenshot({ path: testInfo.outputPath("search-surface.png") });
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await dialog.getByRole("link", { name: "Custom themes Temporary document" }).click();
+  await dialog.getByRole("searchbox").fill("custom themes");
+  await dialog.getByRole("link", { name: "Custom themes Customization", exact: true }).click();
   await expect(page).toHaveURL(/\/docs\/customization\/custom-themes\/$/);
   await expect(dialog).toBeHidden();
 });

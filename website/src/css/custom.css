@@ -202,6 +202,10 @@
   --text-docs-subheading: 1.1875rem;
   --text-docs-subheading--line-height: 1.4;
   --text-docs-label: 0.6875rem;
+  --text-docs-card-title: 0.78125rem;
+  --text-docs-card-title--line-height: 1.4;
+  --text-docs-card-description: 0.71875rem;
+  --text-docs-card-description--line-height: 1.55;
   /* Brand artwork and header chrome retain the mock's pixel geometry at text enlargement.
      Article and control labels remain resizable; icons must not consume their space. */
   --text-docs-brand: 22px;
