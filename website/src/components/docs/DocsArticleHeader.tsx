@@ -13,21 +13,21 @@ export function DocsArticleHeader({
 }) {
   return (
     <>
-      <div className="mb-6 flex items-center justify-between gap-3.5">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3.5 docs-narrow:mb-5">
         <DocsBreadcrumbs />
         <Button
           disabled
           variant="ghost"
           size="sm"
           title="Article copying follows in B2.6"
-          className="shrink-0 text-caption font-normal disabled:bg-transparent disabled:text-content-subtle"
+          className="h-auto min-h-9 max-w-full shrink-0 text-caption font-normal whitespace-normal disabled:bg-transparent disabled:text-content-subtle docs-narrow:min-h-7.5"
         >
           <Copy aria-hidden="true" className="size-3.25" />
           Copy page
         </Button>
       </div>
       <header className="mb-6.5">
-        <div className="mb-2.75 flex items-center gap-1.5 text-docs-label font-semibold tracking-docs-label text-accent uppercase">
+        <div className="mb-2.75 flex items-center gap-1.5 text-docs-label font-bold tracking-docs-label text-accent uppercase">
           {articleType !== "Overview" && (
             <span aria-hidden="true" className="size-1.25 rounded-full bg-accent" />
           )}

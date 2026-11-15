@@ -17,7 +17,7 @@ const MDXComponents: MDXComponentsObject = {
     />
   ),
   strong: (props: ComponentProps<"strong">) => (
-    <strong {...props} className="font-semibold text-content-strong" />
+    <strong {...props} className="font-bold text-content-strong" />
   ),
   ul: (props: ComponentProps<"ul">) => <ul {...props} className="mt-0 mb-4.5 list-disc ps-6" />,
   ol: (props: ComponentProps<"ol">) => <ol {...props} className="mt-0 mb-4.5 list-decimal ps-6" />,
@@ -39,7 +39,7 @@ const MDXComponents: MDXComponentsObject = {
   th: (props: ComponentProps<"th">) => (
     <th
       {...props}
-      className="border-0 border-b border-solid border-border bg-surface-raised px-3.25 py-2.75 text-start font-semibold text-content-strong"
+      className="border-0 border-b border-solid border-border bg-surface-raised px-3.25 py-2.75 text-start font-bold text-content-strong"
     />
   ),
   td: (props: ComponentProps<"td">) => (

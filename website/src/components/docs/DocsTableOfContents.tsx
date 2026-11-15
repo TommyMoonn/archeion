@@ -15,7 +15,7 @@ export function DocsTableOfContents() {
       aria-label="On this page"
       className="sticky top-docs-header max-h-[calc(100vh-4.25rem)] overflow-y-auto pt-10.5 pb-8 docs-wide:hidden"
     >
-      <div className="mb-3 text-sm font-semibold tracking-docs-group text-content-strong uppercase">
+      <div className="mb-3 text-sm font-bold tracking-docs-group text-content-strong uppercase">
         On this page
       </div>
       <nav aria-label="Table of contents">
@@ -27,7 +27,7 @@ export function DocsTableOfContents() {
                 <a
                   href={`#${heading.id}`}
                   aria-current={active === heading.id ? "location" : undefined}
-                  className={`block border-0 border-s border-solid py-1.25 pe-1 text-sm leading-relaxed hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring ${active === heading.id ? "border-accent text-accent" : "border-transparent text-content-muted"} ${heading.level === 3 ? "ps-5.25" : "ps-2.5"}`}
+                  className={`block border-0 border-s border-solid py-1.25 pe-1 text-docs-outline hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring ${active === heading.id ? "border-accent text-accent" : "border-transparent text-content-muted"} ${heading.level === 3 ? "ps-5.25" : "ps-2.5"}`}
                 >
                   {heading.value}
                 </a>

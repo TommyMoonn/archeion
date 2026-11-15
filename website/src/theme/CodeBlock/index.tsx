@@ -12,7 +12,7 @@ export default function CodeBlock({ children }: Props) {
       <pre
         tabIndex={0}
         aria-label="Code example"
-        className="m-0 min-w-0 overflow-x-auto rounded-button border border-solid border-border bg-surface-raised px-5 py-4.5 text-sm leading-7 text-content focus-visible:outline-2 focus-visible:outline-focus-ring"
+        className="m-0 min-w-0 overflow-x-auto rounded-button border border-solid border-border bg-surface-raised px-5 py-4.5 text-docs-code text-content focus-visible:outline-2 focus-visible:outline-focus-ring"
       >
         <code ref={code} className="border-0 bg-transparent p-0 font-mono text-inherit">
           {children}

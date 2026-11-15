@@ -15,7 +15,7 @@ export default defineConfig({
     "**/async-surfaces.pw.ts",
     "**/ui-stability.pw.ts",
     "**/visual-refinement-diagnostics.pw.ts",
-    "**/website-foundation.pw.ts",
+    "**/website-*.pw.ts",
   ],
   fullyParallel: true,
   timeout: 30_000,

@@ -5,7 +5,6 @@ import { useLocation } from "@docusaurus/router";
 import { useDocsSidebar, isActiveSidebarItem } from "@docusaurus/plugin-content-docs/client";
 import type { PropSidebarItem } from "@docusaurus/plugin-content-docs";
 import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 function SidebarItem({
   item,
@@ -27,10 +26,7 @@ function SidebarItem({
         if (onNavigate) handleDocsNavigation(event, onNavigate);
       }}
       aria-current={active ? "page" : undefined}
-      className={cn(
-        "block min-h-8.75 box-border py-1.75 text-sm leading-5 hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:min-h-11",
-        active ? "font-semibold text-accent" : "text-content-muted",
-      )}
+      className={`block min-h-8.75 box-border py-1.75 text-docs-sidebar hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:min-h-11 ${active ? "font-semibold text-accent forced-colors:underline" : "text-content-muted"}`}
     >
       {item.label}
     </Link>
@@ -67,7 +63,7 @@ function SidebarGroup({
             /* Preference storage is optional. */
           }
         }}
-        className="flex min-h-8.75 cursor-pointer list-none items-center justify-between py-1.25 pe-2.5 text-sm leading-snug font-semibold tracking-docs-group text-content-strong uppercase focus-visible:outline-2 focus-visible:outline-focus-ring [&::-webkit-details-marker]:hidden"
+        className="flex min-h-8.75 cursor-pointer list-none items-center justify-between py-1.25 pe-2.5 text-sm leading-snug font-bold tracking-docs-group text-content-strong uppercase focus-visible:outline-2 focus-visible:outline-focus-ring [&::-webkit-details-marker]:hidden"
       >
         {item.label}
         <ChevronDown aria-hidden="true" className="size-3.25 -rotate-90 group-[[open]]:rotate-0" />
@@ -97,7 +93,7 @@ export function DocsSidebar() {
   return (
     <aside
       aria-label="Documentation navigation"
-      className="sticky top-docs-header h-[calc(100vh-4.25rem)] box-border overflow-y-auto border-0 border-e border-solid border-border bg-surface-sidebar pt-7 pe-5 pb-9 docs-navigation:hidden"
+      className="sticky top-docs-header h-[calc(100vh-4.25rem)] box-border overflow-y-auto border-0 border-e border-solid border-border bg-surface-sidebar pt-7 pe-4 pb-9 docs-navigation:hidden"
     >
       <DocsSidebarContents />
     </aside>

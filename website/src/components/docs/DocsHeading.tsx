@@ -11,7 +11,7 @@ export function DocsHeading({
     <Heading
       {...props}
       tabIndex={-1}
-      className={`group scroll-mt-24 text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring ${level === 2 ? "mt-12 mb-4.25 font-editorial text-docs-heading font-normal tracking-display text-balance docs-narrow:text-docs-heading-mobile" : "mt-7.5 mb-3 text-docs-subheading font-semibold tracking-tight"}`}
+      className={`group scroll-mt-24 text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring ${level === 2 ? "mt-12 mb-4.25 font-editorial text-docs-heading font-normal tracking-display text-balance docs-narrow:text-docs-heading-mobile" : "mt-7.5 mb-3 text-docs-subheading font-bold tracking-tight"}`}
     >
       {children}
       {props.id && (

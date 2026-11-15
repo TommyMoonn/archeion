@@ -19,7 +19,7 @@ function SearchFixtureLinks({ items, close }: { items: PropSidebarItem[]; close:
         onClick={(event) => handleDocsNavigation(event, close)}
         className="grid gap-1 rounded-control border border-solid border-transparent px-3.5 py-3.25 hover:border-border hover:bg-surface hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring"
       >
-        <span className="text-sm font-semibold text-content-strong">{item.label}</span>
+        <span className="text-sm font-bold text-content-strong">{item.label}</span>
         <span className="text-xs tracking-docs-label text-accent uppercase">
           Temporary document
         </span>
@@ -52,10 +52,10 @@ export function DocsSearchDialog({
       onClick={(event) => {
         if (outsidePress.current && event.target === event.currentTarget) close();
       }}
-      className="fixed inset-0 z-dialog m-0 h-screen max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-content backdrop:bg-scrim backdrop:backdrop-blur-sm"
+      className="fixed inset-0 z-dialog m-0 h-screen max-h-none w-screen max-w-none border-0 overflow-y-auto bg-transparent p-0 text-content backdrop:bg-scrim backdrop:backdrop-blur-sm"
     >
       {/* Measured mock inset and viewport-bound result height are not spacing-scale values. */}
-      <section className="mx-auto mt-[min(16vh,130px)] w-[calc(100%-36px)] max-w-docs-dialog overflow-hidden rounded-xl border border-solid border-border-strong bg-surface-raised shadow-docs-dialog docs-narrow:mt-[9vh]">
+      <section className="mx-auto mb-4.5 mt-[min(16vh,130px)] w-[calc(100%-36px)] max-w-docs-dialog overflow-hidden rounded-xl border border-solid border-border-strong bg-surface-raised shadow-docs-dialog docs-narrow:mt-[9vh]">
         <h2 id="docs-search-title" className="sr-only">
           Search documentation
         </h2>
@@ -65,7 +65,7 @@ export function DocsSearchDialog({
             aria-label="Search documentation"
             placeholder="Search guides, features, and topics..."
             readOnly
-            className="h-8 border-0 bg-transparent px-0 text-base shadow-none"
+            className="min-w-0 h-8 border-0 bg-transparent px-0 text-base shadow-none"
           />
           <Button variant="ghost" size="icon-sm" aria-label="Close search" onClick={close}>
             <X aria-hidden="true" />

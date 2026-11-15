@@ -10,6 +10,7 @@ export default defineConfig({
     "website-foundation.pw.ts",
     "website-docs-shell.pw.ts",
     "website-docs-interactions.pw.ts",
+    "website-docs-accessibility.pw.ts",
   ],
   workers: 1,
   reporter: "list",

@@ -15,21 +15,27 @@ export function DocsHeader({
 }) {
   return (
     <header className="sticky top-0 z-header h-docs-header border-0 border-b border-solid border-border bg-surface-header backdrop-blur-lg docs-narrow:h-15.5">
+      {/* Fixed chrome geometry keeps icon targets separate when article text is enlarged. */}
       {/* The three tracks preserve the mock's centered search independently of action width. */}
-      <div className="mx-auto grid h-full max-w-docs box-border grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-6 px-7 docs-full:gap-5 docs-full:px-6 docs-wide:gap-4 docs-brand:gap-3.5 docs-navigation:gap-3 docs-navigation:px-5.5 docs-search:gap-2.5 docs-narrow:px-4.25">
+      <div className="mx-auto grid h-full max-w-docs box-border grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-docs-header-gap px-docs-gutter docs-full:gap-docs-header-full docs-full:px-docs-gutter-full docs-wide:gap-docs-header-wide docs-brand:gap-docs-header-compact docs-navigation:gap-docs-header-mobile docs-navigation:px-docs-gutter-mobile docs-search:gap-docs-header-icon docs-narrow:px-docs-gutter-narrow [&_nav_button]:size-docs-icon [&_nav_a]:min-w-docs-icon [&_nav_a]:min-h-docs-icon [&_nav_svg]:size-docs-glyph pointer-coarse:[&_nav_button]:min-h-docs-touch pointer-coarse:[&_nav_button]:min-w-docs-touch pointer-coarse:[&_nav_a]:min-h-docs-touch pointer-coarse:[&_nav_a]:min-w-docs-touch">
         <Link
           to="/"
-          className="flex w-fit items-center gap-3.5 text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring"
+          className="flex w-fit min-w-0 max-w-full items-center gap-docs-header-compact text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring"
         >
-          <Brand className="[&_img]:size-7.75 [&_span]:text-docs-brand docs-narrow:[&_img]:size-7 docs-narrow:[&_span]:text-xl docs-tiny:[&_img]:size-6.5 docs-tiny:[&_span]:text-lg" />
-          <span aria-hidden="true" className="h-5 w-px bg-border-strong docs-brand:hidden" />
-          <span className="text-caption text-content-subtle docs-brand:hidden">Documentation</span>
+          <Brand className="gap-docs-brand shrink-0 [&_img]:size-docs-mark [&_span]:text-docs-brand docs-narrow:[&_img]:size-docs-mark-mobile docs-narrow:[&_span]:text-docs-brand-mobile docs-tiny:[&_img]:size-docs-mark-tiny docs-tiny:[&_span]:text-docs-brand-tiny" />
+          <span
+            aria-hidden="true"
+            className="h-5 w-px shrink-0 bg-border-strong docs-brand:hidden"
+          />
+          <span className="min-w-0 text-caption wrap-anywhere text-content-subtle docs-brand:hidden">
+            Documentation
+          </span>
         </Link>
         <Button
           variant="ghost"
           onClick={onSearch}
           aria-label="Search documentation"
-          className="h-9.5 w-docs-search justify-start rounded-control border border-solid border-border bg-surface-raised px-3 text-sm font-normal text-content-subtle docs-full:w-docs-search-full docs-wide:w-docs-search-wide docs-brand:w-docs-search-compact docs-navigation:w-docs-search-mobile docs-search:size-9.5 docs-search:justify-center docs-search:p-0"
+          className="h-docs-icon w-docs-search justify-start rounded-control border border-solid border-border bg-surface-raised px-3 text-sm font-normal text-content-subtle docs-full:w-docs-search-full docs-wide:w-docs-search-wide docs-brand:w-docs-search-compact docs-navigation:w-docs-search-mobile docs-search:size-docs-icon docs-search:justify-center docs-search:px-0"
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="text-caption docs-search:hidden">Search docs</span>
@@ -39,7 +45,7 @@ export function DocsHeader({
         </Button>
         <nav
           aria-label="Website"
-          className="flex items-center justify-end gap-4 docs-navigation:gap-2"
+          className="flex items-center justify-end gap-docs-header-wide docs-navigation:gap-docs-actions"
         >
           <Link
             to="/"
@@ -48,7 +54,7 @@ export function DocsHeader({
             Home
             <ArrowUpRight aria-hidden="true" className="size-3" />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-docs-actions">
             <ThemeToggle />
             <Button variant="ghost" size="icon" asChild className="docs-tiny:hidden">
               <a
@@ -79,7 +85,7 @@ export function DocsHeader({
               aria-label="Open documentation navigation"
               aria-expanded={navigationOpen}
               aria-controls="docs-mobile-navigation"
-              className="hidden docs-navigation:inline-flex pointer-coarse:min-h-11 pointer-coarse:min-w-11"
+              className="hidden docs-navigation:inline-flex pointer-coarse:min-h-docs-touch pointer-coarse:min-w-docs-touch"
             >
               <Menu aria-hidden="true" className={navigationOpen ? "invisible" : undefined} />
             </Button>

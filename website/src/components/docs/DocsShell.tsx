@@ -1,4 +1,5 @@
 import { useLocation } from "@docusaurus/router";
+import { HtmlClassNameProvider } from "@docusaurus/theme-common";
 import { DocsMobileNavigation } from "./DocsMobileNavigation";
 import { useDocsDialog } from "./useDocsDialog";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -34,7 +35,7 @@ export function DocsShell({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(frame);
   }, [pathname, hash, close]);
   return (
-    <>
+    <HtmlClassNameProvider className={modal === null ? "" : "overflow-hidden"}>
       <a
         href="#main-content"
         className="fixed start-4 top-3 z-skip-link -translate-y-24 rounded-button bg-accent px-4 py-2 text-accent-foreground focus:translate-y-0"
@@ -56,6 +57,6 @@ export function DocsShell({ children }: { children: ReactNode }) {
       </div>
       <DocsSearchDialog dialogRef={search} onClose={close} />
       <DocsMobileNavigation open={modal === "navigation"} onClose={close} />
-    </>
+    </HtmlClassNameProvider>
   );
 }

@@ -435,3 +435,59 @@ appear on hover or focus and remain visible for coarse pointers. B2.6 will add
 portable Markdown page copying to this owner. No public article corpus has been
 migrated. The dedicated browser config includes the interaction fixture suite;
 B2.4 still owns the complete visual and accessibility checkpoint.
+
+## Fixture visual and accessibility checkpoint (B2.4)
+
+The dedicated browser config also runs `website-docs-accessibility.pw.ts`.
+It checks both themes at 1440, 1241/1240, 1081/1080, 901/900, 801/800,
+691/690, 601/600, 401/400, 390, and 320px, including actual header target
+containment and overlap rather than relying on the document's scroll width.
+The default desktop config excludes every `website-*.pw.ts` file; website
+checks require their own Docusaurus server. B2.9 still owns CI integration.
+
+The checkpoint compares the production shell and approved HTML in the same
+Chromium engine with remote fonts blocked and the same bundled Inter
+400/600/700 and Literata 400 available in both. Wait for layout frames and font
+completion after resizing before comparing computed typography. Inter 650 in
+the mock selects the available 700 face; matching labels, strong text, table
+headers, and subheadings use `font-bold`. Active sidebar links retain 600.
+Code, sidebar, and outline line heights have named docs typography roles.
+Keep custom typography roles intact when composing classes: the merge helper
+does not recognize every named `text-docs-*` size and can mistake it for a text
+color. Sidebar links compose their fixed/conditional classes directly; browser
+checks assert both active and inactive links at 14px/23.1px in desktop and drawer.
+Reference and fixture article text differ deliberately; this checkpoint does
+not establish real-corpus coverage or pixel identity between whole articles.
+
+Header width caps, icon/mark dimensions, and internal gaps use named pixel
+tokens to preserve the approved chrome geometry when root text is doubled.
+The brand name is treated as part of that fixed identity; article and control
+labels remain resizable. The Documentation label can wrap, article breadcrumbs
+can shrink, and the Copy page fixture can wrap onto another line when enlarged
+text leaves insufficient space. The normal narrow topline retains truncated
+breadcrumbs beside the action. Search's full-screen dialog can scroll in short
+viewports; its input can shrink without pushing Close search out of reach.
+No new sizing observer or inline visual style is needed.
+Modal scroll locking is composed through Docusaurus's `HtmlClassNameProvider`
+at DocsShell. Imperative root classes can be replaced by deferred route metadata
+updates; the provider keeps the lock and framework route classes under the same
+owner and removes the lock when the shell closes or unmounts.
+
+Light `content-subtle` intentionally differs from the mock/desktop muted-soft
+color: `#697279` keeps small breadcrumbs and labels readable against the light
+canvas. All other existing palette mappings remain unchanged. Browser tests
+measure rendered foreground/background text pairs in both themes at 4.5:1 or
+better, and inspect Chromium's actual font use for Inter and Literata. Forced
+colors adds an underline to the current sidebar link. Coarse-pointer header
+actions retain separate 44px targets even with doubled text.
+
+Additional checks exercise skip navigation, native disclosures and visible
+keyboard focus, local scrolling for long code/table values, doubled root text
+at desktop/mobile widths and 480px viewport height, reduced motion, forced
+colors, and touch. Existing interaction tests retain theme prepaint/persistence,
+drawer inertness/Tab/Escape/resize/route cleanup, native links, outline reflow,
+and exact/stale clipboard behavior. Screenshots and comparison measurements live
+under `.plans/website-migration/b2.4/`; Playwright also writes checkpoint captures
+to its ignored test output. Browser evidence does not establish Windows display
+scaling or screen-reader speech. Real content, search/indexing, overview, page
+copy, releases, resource relocation, and deployment remain in B2.5–B2.10.

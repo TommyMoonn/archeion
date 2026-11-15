@@ -4,7 +4,10 @@ import { useSidebarBreadcrumbs } from "@docusaurus/plugin-content-docs/client";
 export function DocsBreadcrumbs() {
   const breadcrumbs = useSidebarBreadcrumbs() ?? [];
   return (
-    <nav aria-label="Breadcrumb" className="min-w-0 text-caption text-content-subtle">
+    <nav
+      aria-label="Breadcrumb"
+      className="max-w-full min-w-0 flex-auto basis-24 text-caption text-content-subtle"
+    >
       <ol className="m-0 flex list-none items-center gap-2 overflow-hidden p-0 whitespace-nowrap">
         <li className="min-w-0">
           <Link

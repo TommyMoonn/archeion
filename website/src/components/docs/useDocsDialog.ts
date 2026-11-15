@@ -4,8 +4,6 @@ export function useDocsDialog(ref: RefObject<HTMLDialogElement | null>, open: bo
   useEffect(() => {
     const dialog = ref.current;
     if (!open || !dialog) return;
-    const wasLocked = document.documentElement.classList.contains("overflow-hidden");
-    document.documentElement.classList.add("overflow-hidden");
     dialog.showModal();
     // Native modality makes the background inert, but browsers may still Tab
     // into their own chrome. Keep the documented modal cycle inside the surface.
@@ -36,7 +34,6 @@ export function useDocsDialog(ref: RefObject<HTMLDialogElement | null>, open: bo
     return () => {
       dialog.removeEventListener("keydown", trapTab);
       dialog.close();
-      if (!wasLocked) document.documentElement.classList.remove("overflow-hidden");
     };
   }, [ref, open]);
 }
