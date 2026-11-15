@@ -79,8 +79,17 @@ borrow a status color for decoration or invent opacity values in components.
 
 Use `font-sans` for Inter UI/body text, `font-editorial` for the documentation's
 Literata headings, `font-display` for the landing mock's system serif stack, and
-`font-mono` for code. Inter 400/600/700 and Literata 400 are served locally with
-swap; code uses the declared system fallback when Fira Code is unavailable.
+`font-mono` for code. Inter Variable (100�900) and Literata 400 are embedded
+in the generated render-blocking stylesheet with a blocking font-display period
+for local decoding. This increases critical CSS size,
+but removes separate font requests and fallback-to-webfont reflow on slow loads.
+The generated head/body bootstrap reveals the server-rendered page after both
+typefaces decode, independently of React's deferred bundle. Font-load rejection
+reveals the fallback layout; with JavaScript disabled the page stays visible.
+The website-owned Inter Variable asset comes from the existing inter-ui package;
+public static font URLs remain unchanged. Code uses the declared system fallback
+when Fira Code is unavailable. Copy page reserves its server-rendered space before
+hydration so narrow breadcrumb rows do not move when it becomes available.
 Use `text-caption`, `text-body`, `text-lead`, `text-article-title`, `text-hero`,
 and `text-section` with their bundled line heights. Display headings pair with
 `tracking-display` and normal weight. Use standard Tailwind sizes for ordinary
@@ -199,8 +208,9 @@ with 3px offset. Link color transitions are generally 340ms, ordinary controls
 effectively removes transitions. Theme changes suppress palette transitions.
 
 The mock requests remote variable Inter and Fira Code as well as embedded local
-fonts. The foundation deliberately bundles Inter 400/600/700 and Literata 400,
-with a declared mono fallback. Keep that approved asset policy: do not introduce
+fonts. The foundation initially bundled Inter 400/600/700 and Literata 400;
+the documentation refinement replaces the static Inter faces with the existing
+local Inter Variable asset. Keep the local asset policy: do not introduce
 Google Fonts, CDN Tailwind, base64 artwork, or a Fira dependency. Mock weights
 such as 550/650 require comparison against the available local weights at B2.4;
 do not claim pixel-identical typography before that comparison.
@@ -573,10 +583,11 @@ Matching folds case and whitespace and accepts all query tokens within a field.
 Title/navigation-title hits precede section-heading, alias, and body hits;
 metadata group/summary matches join the page-body tier. Canonical page/section
 order breaks ties before the first ten results are selected. Empty queries
-browse pages only. Total and shown counts remain distinct. Summaries stay
-visible; Show details reveals separate excerpts of at most 240 characters
-without replacing/reordering links, resetting selection or changing the polite
-count announcement. Highlighting renders escaped React text and marks only.
+browse pages only. Total and shown counts remain distinct. Each result shows
+two lines: its title or section heading, then its page/category context. Full
+titles remain in accessible names and native tooltips when visually truncated.
+Descriptions and excerpts remain indexed without adding visible result rows.
+Highlighting renders escaped React text and marks only.
 
 DocsShell remains the exclusive modal/shortcut owner. Ctrl/Cmd+K opens search
 or refocuses/selects its input when already open; it does not steal the mobile
@@ -609,7 +620,8 @@ malformed/unsafe links keep their readable label. Image alternative text and
 keyboard labels remain readable. No HTML-string or innerText export is used.
 
 Code copy still writes rendered code text exactly. Both actions share one
-stable polite status, persistent success/error feedback, retry and dismiss,
+stable polite status, success/error feedback that dismisses six seconds after
+the latest completion, retry and manual dismissal,
 focus retention/restoration, newest-request ownership and route disposal.
 Copy controls are hidden before hydration and without JavaScript. Their names
 never change to temporary success/error labels. CodeBlock retains its language
@@ -677,30 +689,18 @@ in B2.7. Root maintainer guides remain in docs/.
 
 ## Static landing, public resources and compatibility (B2.8)
 
-`static/index.html` owns `/archeion/` until B3. It is the existing landing HTML
-with only its documentation link changed to `/archeion/docs/`. Its CSS, JavaScript,
-fonts, images, schema and theme examples retain their exact bytes and relative
-paths. The preserved landing runtime is the deliberate temporary exception to
-the React/Tailwind implementation rules; do not restyle it during the docs port.
-Prettier excludes these byte-preserved copies. The root React page,
-FoundationNotice, FoundationControls and their exclusive browser fixture were
-removed, and preset pages disabled before adding the static index. Shared
-Button/Input/Brand remain foundation primitives; docs tests exercise actual docs
-controls. Header Home/brand links use native anchors with the framework base URL
-so navigation loads the static document. The preset 404 navbar uses Docusaurus's
-`pathname:///` native-navigation escape hatch for the same boundary.
+B2.8 temporarily served the original landing from `static/index.html`, with only
+its documentation destination changed. B3.2 replaces that temporary homepage with
+`src/pages/index.tsx` and landing section components. Preset pages are enabled;
+the static homepage plugin, copied index, and unused copied CSS/JS are removed.
+Docusaurus owns the single root route and its sitemap entry. Shared Button/Brand
+and the existing semantic token system remain the foundation.
 
-Docusaurus 3 emits a development-only `index.html` shell even with preset pages
-disabled. `plugins/staticHomepage.ts` changes that existing HTML plugin's public
-filename option to `__docs-dev.html`. The dev server's `onListening` hook prepends
-a docs rule to the existing history middleware's shared rewrite list, before its
-catch-all. Core middleware and setup callbacks stay untouched. Static landing,
-resources and redirects retain their own paths; docs hard refresh loads the React
-shell. Types come from the pinned core's dev-server factory declaration. The
-plugin fails explicitly if the expected framework HTML emitter or fallback
-changes. Production config is untouched. No dependency, extra server, generated
-source file or error suppression is needed. B3 must remove this temporary plugin
-and static index and re-enable preset pages when React takes ownership.
+The original `docs/index.html`, CSS/JS and their legacy tests remain active until
+the separately authorized post-merge live publisher cutover. Permanent resources
+and compatibility redirects retain their exact URLs and bytes. B3.3 extracts the
+approved visible screenshot and completes measured visual/responsive styling;
+B3.4 owns integrated parity and landing test migration.
 
 The root README embeds `website/static/assets/archeion-preview.png` and links
 to the new Changelog and Custom themes articles. Maintainer guide links remain
@@ -817,3 +817,429 @@ reference/file audit and verification evidence live under
 `.plans/website-migration/b2.10/`. B3 retains its own homepage scope; it must
 remove the temporary static-homepage plugin/index and the sitemap's manual root
 entry when framework pages own the homepage.
+
+## Landing migration map (B3.1)
+
+This is the pre-implementation contract for B3.2–B3.4, inspected on
+`feat/landing-page` at `caade9e038979fa41f895e8444a80df5fd6a4a59` with a clean tree.
+B3.1 changes documentation only. It does not introduce React landing components,
+extract production assets, remove the static homepage, or alter public behavior.
+The authoritative plan is `.plans/archeion-website-react-migration-plan.md`
+(SHA-256 `55445FDA898C0F642AA5003D9B32513E2FC9F6E05DFA6BCB5068AF4152FC5393`).
+The complete approved reference is `.project/experiments/archeion-landing-page.html`
+(SHA-256 `FEB4457958C46F0865E168C0BC4E7AE80D3EE5CFE9520D128BC534BA4A0FC1C7`).
+Its final CSS cascade, body, embedded images and both interaction scripts were
+inspected. Source-derived dimensions below are implementation targets, not a
+claim of rendered screenshot parity. B3.4 owns that comparison.
+
+`docs/index.html`, `docs/css/styles.css` and `docs/js/main.js` remain the legacy
+publisher's active sources pending the separately documented live cutover.
+`website/static/index.html` differs only by its `/archeion/docs/` link; the copied
+CSS and JavaScript have identical bytes to those sources. Retained docs articles
+and current MDX are factual references; the mock owns presentation, not new product
+capabilities. `docs/DESIGN.md` explicitly excludes website layout and typography.
+
+### Section and component ownership
+
+The following are responsibility boundaries, not a requirement for one file per
+row. `src/pages/index.tsx` stays a thin composition and metadata layer. Components
+belong under `src/components/landing/`; typed feature copy and destinations can
+live beside their owner. Do not import desktop application runtime or create a
+second token, icon, button, theme-preference or routing system.
+
+| Order / mock region  | Proposed owner                                 | Content and responsibility                                                                                                                                                                                                 |
+| -------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skip link, header    | `LandingHeader`, focused `MobileNavigation`    | First focusable skip link to `#main`; home to `#top`; centered Library / Reading / Your files links; quiet Download and GitHub links. Mobile menu owns its open state and focus lifecycle.                                 |
+| `#top` centered hero | `HeroSection`, local decorative effects        | One h1: “The EPUB library for Windows.” Lead: “Open an existing folder of EPUBs to browse, search, organize, and read your books.” Stacked Windows download and View on GitHub actions, six noninteractive floating icons. |
+| Application preview  | `ProductPreview`                               | One informative Library screenshot, eager/high-priority decoding with intrinsic dimensions, restrained pointer tilt. This is an image, not an interactive app or a link.                                                   |
+| `#library`           | `LibrarySection`, shared landing `FeatureCard` | “Find and manage books in your collection.” Three cards: Folders and series; Search and filters; Batch actions. Preserve the mock's concrete search/filter fields and move/details/covers/annotation-export claims.        |
+| `#reading`           | `ReaderSection`, local word-highlight effect   | “Read and annotate your books.” Five words progressively brighten; final “books.” uses accent. Three cards: Reader settings; Bookmarks and highlights; Offline dictionaries. No embedded Reader controls.                  |
+| `#files`             | `ArchiveSection`                               | “Your EPUB files stay in their folders.” Two-column explanation and static accessible archive tree. A real `Series/` folder is an example filesystem folder, not the virtual Series view.                                  |
+| `#download`          | `DownloadSection`                              | “Download Archeion for Windows.” Existing-folder lead, Windows installer action, View all releases text link.                                                                                                              |
+| Footer               | `LandingFooter`                                | Compact mark / © 2026 Khoa Luong identity, Documentation / Source code / Releases links; mark returns to `#top`.                                                                                                           |
+
+Reuse `components/ui/button.tsx` with `asChild` for download anchors and existing
+`cn`, semantic tokens and named `lucide-react` imports. Extend the existing Button
+only for a concrete missing variant/size; do not build a parallel button system.
+Use native anchors for text links. Reuse Brand's finalized artwork and font-role
+conventions; its current Literata wordmark styling needs the landing's display
+serif role. Footer is a mark only, not a duplicate full wordmark component.
+Feature cards are articles, never tab stops or fake buttons. Decorative SVGs are
+hidden from assistive technology and cannot intercept pointers.
+
+The mock's unused split hero, fact strip, feature rows, archive disclosure/popover,
+large footer, earlier horizontal CTAs, and intermediate tree palettes are
+superseded by later CSS/body markup. Do not port dead selectors or controls.
+
+### Final visual and responsive contract
+
+Values are CSS pixels at default browser text size. Use existing semantic tokens
+and standard utilities first. Add named landing tokens/variants centrally in
+`src/css/custom.css` only for measured differences; preserve docs tokens and
+breakpoints. Do not copy mock CSS selectors, CDN configuration, raw JSX colors or
+inline visual style objects. The mock uses inclusive max-width boundaries, which
+must be tested on both sides rather than rounded to a nearby default breakpoint.
+
+| Region            | Final desktop target                                                                                                                                                                      | Responsive target / final overrides                                                                                                                                                                                                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Main wrapper      | `min(1280px, 100% - 64px)`                                                                                                                                                                | At ≤900: `min(760px, 100% - 48px)` for normal content; ≤640: `100% - 40px`; ≤360: `100% - 32px`. Preview/footer have their own widths below.                                                                                                                                                         |
+| Header            | Sticky, 68px; three grid tracks `1fr auto 1fr`, 24px gap; brand left, nav centered, actions right; nav gap 30px                                                                           | At ≤1020: two tracks, desktop nav/actions hidden, Menu visible. At ≤640: 64px. Open panel fills from header to viewport bottom. Mock's inherited 72px menu inset must adapt to actual 68px header; 64px on mobile.                                                                                   |
+| Hero              | Centered, padding 76px top / 48px bottom; copy max 920px; h1 max 18ch, 72px / 1.02, normal display serif, tracking −.035em                                                                | At ≤640: padding 60px / 32px; h1 max 14ch, `clamp(42px, 10vw, 58px)` / 1.04. Earlier 39px tiny rule is overridden.                                                                                                                                                                                   |
+| Hero lead/actions | Lead max 62ch, 17px / 1.65, margins 18px auto 24px. Actions vertical, 12px gap; primary and secondary hit areas share centered `min(224px, 100vw - 40px)` width                           | At ≤640: lead max 42ch, 16px. Primary min-height 48px, 8px corners; secondary min-height 40px, muted 14px semibold text with 12px diagonal arrow. No secondary outlined button.                                                                                                                      |
+| Preview           | Direct image, `min(1280px, 100% - 64px)`, 12px corners, subtle outline/shadow; no extra frame                                                                                             | At ≤900: `min(820px, 100% - 48px)`; ≤640: `100% - 32px`, 10px corners. Bottom spacing 64px / 44px mobile. Preserve full image, no crop.                                                                                                                                                              |
+| Sections/cards    | Section padding 112px; first Library section top 88px; heading margin-bottom 44px; max heading width 17ch. Three equal cards with 12px gaps, min-height 196px, padding 26px, corners 10px | At ≤900: sections 88px, two columns. At ≤640: sections 72px, Library top 56px, heading margin 32px, one column, card padding 22px and no fixed minimum height.                                                                                                                                       |
+| Type/icons        | Section h2 `clamp(36px, 4.1vw, 56px)` / 1.08; normal display serif; card h3 18px / 1.3, weight 600, tracking −.015em; body 15px / 1.65; icon slot 38px, glyph 19px                        | At ≤640: h2 `clamp(34px, 9vw, 44px)`. Reading statement retains its own 1.12 line height and −.03em tracking; archive h2 1.06. Their final sizes share the section scale.                                                                                                                            |
+| Archive           | Padding 104px; columns .9fr / 1.1fr, gap `clamp(44px, 6vw, 84px)`; explanation max 520px; heading max 16ch, 20px bottom margin. Tree padding 20px 22px, corners 10px, sunken surface      | At ≤1020: one column, 34px gap. At ≤640: padding 72px; tree padding 18px 14px. Tree text 13px / 1.5 mono, 11px mobile, locally scrollable if needed. No disclosure/popover.                                                                                                                          |
+| Download          | Centered h2 72px, final padding 64px top / 88px bottom; paragraph max 58ch, 16px / 1.65, margins 18px auto 28px; same stacked actions as hero                                             | At ≤640: h2 `clamp(40px, 9vw, 52px)`, padding 48px / 64px. Earlier 120px padding is superseded.                                                                                                                                                                                                      |
+| Footer            | Flex row, min-height 68px, wrapper `min(1280px, 100% - 64px)`; 22px mark, 12px copyright; links 13px with 22px gap                                                                        | At ≤900: wrapper `min(820px, 100% - 48px)`; ≤640: width `100% - 32px`, min-height 64px plus footer 10px vertical padding, nowrap identity and row links, 20px mark, 10.5px copyright / 11px links / 10px gap. At narrow/zoom widths preserve labels and allow reflow if exact nowrap would overflow. |
+| Dividers          | Header 4%, sections/CTA 4%, footer 7%, preview 8% white-derived borders in the mock                                                                                                       | Define any needed semantic border roles centrally; use theme tokens, not per-component opacity/color literals.                                                                                                                                                                                       |
+
+Required boundary samples: 359/360/361, 639/640/641, 899/900/901,
+1019/1020/1021 and 1099/1100/1101, plus representative 320, 390, 768,
+1280 and 1440 widths. The 1100 boundary hides hero decorations only.
+Use the same Chromium engine, system serif availability and viewport for mock
+and production captures. Load the reference with its intended Inter available;
+record font fallback rather than treating it as a matching font. Source inspection
+alone cannot prove clipping, contrast, zoom, focus visibility or screenshot parity.
+
+### Public behavior and content migration matrix
+
+Preserve means retain the public contract; adapt means retain its purpose through
+the approved design; retire means deliberately remove that landing behavior,
+with the replacement and test disposition specified. Retirement applies to the
+new homepage only. It never removes desktop application functionality or coverage
+for the still-published legacy page.
+
+| Existing public behavior / source                                                                                                     | Decision                           | Replacement / reason / verification                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skip to `#main-content`, home `#top`                                                                                                  | Adapt                              | Skip to `#main`, retain `#top`. One main/h1; test keyboard destination focus and no-JS anchors.                                                                                                                                                                                                                                                                                                                                                                                    |
+| Library / Reader / Local-first / Get Started navigation                                                                               | Adapt                              | Mock's Library `#library`, Reading `#reading`, Your files `#files`; Download is a direct installer link. Preserve old inbound `#reader`, `#local-first`, `#get-started`, and `#main-content` as unobtrusive aliases to new destinations. No second section/navigation model.                                                                                                                                                                                                       |
+| Mobile menu at ≤900, toggle icon/expanded label, closed inert links                                                                   | Adapt                              | Approved Menu summary/full-height panel at ≤1020. Native details is suitable; expose real open state, hide closed links from Tab, keep a usable script-free menu. Do not silently retain the old 900px switch.                                                                                                                                                                                                                                                                     |
+| First-link focus on open; Escape/outside/toggle dismissal; chosen-section focus; breakpoint cleanup                                   | Preserve/adapt                     | Keep the legacy keyboard contract with the approved menu: focus first destination on open, return to summary on Escape/outside/explicit close; same-page activation focuses destination, not opener. Close/reset on desktop transition; preserve native modified/external link behavior. Full-height overlay must prevent background focus/scroll while open and clean up on close/unmount. Mock supplies link-close and Escape; fill its outside/focus gaps from legacy behavior. |
+| Active section tracking, `aria-current`, reflow/resize/font metrics                                                                   | Preserve/adapt                     | Track only the three approved section links, with no selected link outside those sections. Keep current-section semantics and restrained visual state. Recalculate after content/font/viewport changes; no polling or stale route listeners.                                                                                                                                                                                                                                       |
+| Scrolled header after 12px                                                                                                            | Retire visual state                | Mock header is a constant opaque sticky bar; preserve sticky behavior and offsets, drop the old shadow/background state and its scroll work.                                                                                                                                                                                                                                                                                                                                       |
+| Smooth anchors/header clearance                                                                                                       | Adapt                              | Mock scroll-padding 88px desktop / 72px ≤640; `#files` has −24px scroll-margin. Verify actual heading clearance with 68/64px header, use measured correction if the negative margin clips the heading. Keep direct fragments and reduced-motion instant scrolling.                                                                                                                                                                                                                 |
+| Generic reveal observer (.14 threshold, −7% margin), H04 Library→cover→Reader hero animation                                          | Retire/adapt                       | Replace H04 illustration with the approved screenshot and hero rise/settle. Generic hidden-on-scroll reveals are absent from the mock; retain complete static content. Reading word effect replaces the section reveal.                                                                                                                                                                                                                                                            |
+| Library destinations: Library, Series, Favorites, Folders; folder sidebar/card selection                                              | Retire demo controls               | Final mock has a noninteractive screenshot and Folders and series card. No fake clickable screenshot regions. Preserve factual view/folder distinction in claims/docs and test screenshot semantics rather than clicking raster controls.                                                                                                                                                                                                                                          |
+| Library search (title/author, series/folder context), in-progress filter/disabled state, title/recent sort                            | Retire demo controls               | Static image plus Search and filters card describes released capabilities. No client demo state remains for query/filter/sort. Preserve claim accuracy and readable preview alternative text.                                                                                                                                                                                                                                                                                      |
+| Library selected states, changing title/kicker/placeholders, singular/plural result counts, empty results and 160ms surface animation | Retire demo runtime                | These are outputs of removed controls; the screenshot is not a live result count/status. Test intrinsic image geometry, no pseudo-controls/live regions and responsive presentation instead.                                                                                                                                                                                                                                                                                       |
+| Reader four sample pages, previous/next bounds, chapter/count/progress, 140ms guarded transitions                                     | Retire demo controls               | Approved Reading section is three static feature cards. Keep reading/progress capability factual in docs; no landing page-turn model or synthetic progress.                                                                                                                                                                                                                                                                                                                        |
+| Reader paged/continuous mode, dark/sepia/light radios, arrows/Home/End roving selection, font-size slider/output                      | Retire demo controls; adapt claims | Reader settings card describes paged/continuous reading, typeface, line spacing, page width and colors. Test released copy and no phantom keyboard controls. The website theme remains separate from Reader settings.                                                                                                                                                                                                                                                              |
+| Reader bookmark toggle, stable accessible identity/pressed state, page-specific bookmarks                                             | Retire demo controls; adapt claim  | Bookmarks and highlights card preserves saved-position capability; no landing bookmark store or fake state.                                                                                                                                                                                                                                                                                                                                                                        |
+| Passage click/Enter/Space, palette positioning, four highlight colors and remove, selected-color focus                                | Retire demo controls; adapt claim  | Preserve four-color highlighting claim in the card. No passage buttons or palette are present in the approved markup.                                                                                                                                                                                                                                                                                                                                                              |
+| Notes: create/edit, trimmed content, 420ms saving feedback, delete note keeping highlight, return to list                             | Retire demo controls; adapt claim  | Keep “add notes” copy; no demo notes, timers or persistence implication.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Annotation list/group/count/empty state, all/bookmark/highlight filters, jump/focus pulse                                             | Retire demo controls               | No annotation panel in the final mock. Keep annotation export claim in Batch actions, not an invented export control.                                                                                                                                                                                                                                                                                                                                                              |
+| Passage accessible descriptions, polite annotation/note statuses, palette outside dismissal, nested Escape and focus restoration      | Retire demo-specific lifecycle     | Remove only with its controls. Keep generic focus/keyboard quality on actual navigation/actions. Preserve legacy tests while the legacy publisher still exposes those controls.                                                                                                                                                                                                                                                                                                    |
+| Archive `.archeion/` ownership and normal files                                                                                       | Adapt                              | Static tree shows EPUBs, real Series folder, annotations/library/progress/scanner-cache JSON, covers and backups (annotations, epub-writeback, library, progress, scanner-cache). No Favorites/Filters virtual folders. Accessible textual equivalent; local overflow only.                                                                                                                                                                                                        |
+| Separate application data card, No account/cloud sync/telemetry badges, Quick Actions and utility-window feature index                | Retire landing presentation        | Approved mock narrows this section to archive ownership. Keep factual guidance in docs; never relocate installed dictionaries/preferences/themes into `.archeion/` or imply encryption/security guarantees. Metadata retains existing local-first claim.                                                                                                                                                                                                                           |
+| Installer CTA and documentation route                                                                                                 | Preserve/adapt                     | Same latest Windows installer URL in header/menu/hero/closing CTA; footer Documentation goes to `/archeion/docs/` (correct mock's outdated root link). Keep a visible docs entry despite the new secondary CTA choices.                                                                                                                                                                                                                                                            |
+| Explore library hero secondary / closing docs button / developer disclosure with setup commands                                       | Adapt/retire                       | Mock uses View on GitHub and View all releases text links. Source setup disclosure retires from homepage; repository development guide and contributor workflow remain accessible through Source code.                                                                                                                                                                                                                                                                             |
+| Footer GitHub link                                                                                                                    | Adapt                              | Source code and Releases retain destinations; add approved copyright/back-to-top and correct Documentation. Preserve safe new-tab rel values and native anchor behavior.                                                                                                                                                                                                                                                                                                           |
+| Local fonts, intrinsic cover dimensions, no external dependencies                                                                     | Preserve/adapt                     | Local Inter Variable and shared font-ready bootstrap; full screenshot replaces synthetic covers. No Google Fonts/Tailwind CDN from mock, no font swapping or hidden SSR copy-control regression. Public font/cover URLs stay intact.                                                                                                                                                                                                                                               |
+
+B3.1 item 6 permits deliberate mock-driven retirement. B3.4's instruction to keep
+Library/Reader interaction tests therefore means retaining coverage for the still
+active legacy publisher and adapting the new-homepage suite to the explicitly
+approved static representation; it does not justify deleting tests or reintroducing
+an interactive Reader absent from the approved design. Record every retired test
+scenario against the rows above when migrating the suite.
+
+### Approved hover, focus, pointer and motion behavior
+
+- Native links/buttons/summary have visible 2px semantic focus outlines with
+  offsets. Header section links gain a one-pixel accent underline on hover and
+  keyboard focus. Quiet header/footer/text actions brighten over 340ms; secondary
+  diagonal arrows move 2px right/up. Footer mark opacity changes .72 → 1.
+- Primary downloads use accent fill/dark text, min-height 48px, subtle inset and
+  outer shadow, 2px hover lift and .985 pressed scale. The mouse magnet moves at
+  most ±2.5px horizontally and ±2px vertically, with a 170px pointer highlight.
+  Keep the clickable area stable and the action a native installer anchor.
+- Cards lift 4px, icon 2px, strengthen border/surface/shadow, and show a 300px
+  cursor highlight on fine hover; decorative cards remain noninteractive.
+- Preview uses perspective 1600px, mouse tilt ±.35deg on each axis, −2px lift and
+  stronger shadow, resetting on leave. The page spotlight is a fixed 460px radial
+  glow, 10% accent, screen blend, pointer-events none, hidden on blur/leave.
+- Six hero glyphs (book, bookmark, page, folder, archive, search) are 40px with
+  1.5 strokes; base opacity .34, active .5. They float on 7–8.5-second cycles.
+  Pointer parallax uses normalized x/y × −18/−14 × per-icon depth
+  (1.1, −.85, .7, −1.05, .9, −.75). Hide hero effects at ≤1100 or coarse/no-hover.
+- Hero copy entry is a 650ms rise from 12px / .88 opacity. The earlier 850ms
+  media-settle rule targets absent hero-art/preview-frame descendants, so it is
+  dormant in the final direct-image markup; do not invent a preview entrance.
+  Preserve complete readable SSR/no-JS base states.
+- Reading words brighten by scroll progress between 84% and 42% viewport height,
+  including statement height, rounded to the five-word count; all activate at
+  page end. No-JS/reduced-motion shows full text with final word accented.
+- Enable pointer decoration only for mouse/fine-hover and no reduced motion.
+  Reduced motion removes floats/parallax/tilt/magnet, spotlight/card glow,
+  transforms and animated scrolling; keep static copy and actions. Respond to
+  preference changes and reset effects, beyond the mock's initial-only check.
+- React owns interaction state and listener cleanup. Keep animation-frame work
+  bounded and cancel it on unmount/disable; no repeated polling. For continuous
+  decorative coordinates, use SVG presentation attributes and/or browser animation
+  effects on scoped refs; do not port `style.setProperty`, `classList`, global
+  template mutation or inline visual style objects. Implement static Tailwind
+  states first; verify effect composition does not override focus/pressed states.
+
+### Asset, typography and metadata decisions
+
+Embedded data URIs were decoded for inspection only into `.scratch/landing-b31/`.
+No production assets were written in B3.1. The mock contains three unique PNGs:
+
+| Purpose                    | Verified bytes / identity                                                                                 | Production decision                                                                                                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OG image                   | 915148 bytes, 1544×1012, SHA-256 `b92299461f51717bd4052d217b61b08051ae66b8aa888557dbc0e0614221c321`       | Identical to `static/assets/archeion-preview.png`; retain this public social image and URL, not the new visible screenshot.                                                                                  |
+| Favicon/header/footer mark | 44272 bytes, 500×500, SHA-256 `89832875ec9f7ce1fe0ef821fef0f6c8e484450ee8c6b058879170ae94e6902d`          | Identical to `src/assets/brand/archeion-logo-dark.png`; reuse finalized artwork. Keep public icon URLs/bytes.                                                                                                |
+| Visible Library screenshot | 893603 bytes, actual 1480×906, SHA-256 `a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883` | B3.3 extracts a named static asset such as `assets/images/landing-library.png`. Preserve bytes/full image; correct mock's inaccurate 1544 width attribute to intrinsic 1480×906 to avoid aspect-ratio shift. |
+
+The screenshot was visually inspected: actual Windows Library chrome, 14 books,
+folders, search/filter/sort and collection controls. Preserve its descriptive alt,
+not a claim that its raster controls work. Finalized brand source bytes already
+exist in the website; no regeneration/rebranding or application asset changes.
+
+Use `font-sans` (local Inter Variable) for UI/copy and `font-display` for the
+mock's Iowan/Palatino/Georgia headings and brand text. Use existing `font-mono`
+for the archive tree; the established system fallback is intentional when Fira
+Code is unavailable. The mock's Google Inter/Fira requests and local-only Inter
+face stubs are reference scaffolding, not a production font-loading contract.
+Keep the prerequisite's embedded critical fonts and independent font-ready reveal.
+Do not globally change docs typography. The landing is the mock's dark design;
+implement a scoped centralized dark token boundary without overwriting the user's
+persisted docs light/dark preference, and verify docs-light → landing → docs-light.
+Do not expose app theme packages as website themes.
+
+| Head contract from existing landing     | B3.2 migration decision                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Title                                   | Preserve `Archeion - Local-first EPUB Library and Reader` exactly; mock h1 may differ. Avoid Docusaurus appending another site title.                                                                                                                                                                                                                                                   |
+| Description / OG / Twitter descriptions | Preserve `Archeion is a local-first Windows desktop app for organizing and reading EPUB libraries. Keep your books as normal files, with no account, cloud service, or telemetry.`                                                                                                                                                                                                      |
+| Canonical / `og:url`                    | `https://tommymoonn.github.io/archeion/`, exactly once, absolute production URL.                                                                                                                                                                                                                                                                                                        |
+| OG type/site/title                      | `website`, `Archeion`, same preserved page title; include matching Twitter title and `summary_large_image` card.                                                                                                                                                                                                                                                                        |
+| OG/Twitter image                        | `https://tommymoonn.github.io/archeion/assets/archeion-preview.png`; OG dimensions 1544×1012. Never use data URIs or the 1480×906 visible image here.                                                                                                                                                                                                                                   |
+| Favicon / Apple touch icon              | Preserve existing landing `assets/images/archeion-icon.png` destination, base-aware absolute production URLs for landing head output; reconcile global Apple head tag to prevent duplicates without changing docs artwork.                                                                                                                                                              |
+| Theme color                             | Adapt legacy `#171717` to approved/foundation dark canvas `#0b0b0c`; single tag. This is intentional presentation metadata adaptation.                                                                                                                                                                                                                                                  |
+| Font preloads                           | Preserve local font availability and migrate critical preload intent to the actually consumed local/embedded fonts. Existing preloads name Inter regular/semibold/bold and Literata regular under `assets/fonts/`; keep those public files byte-identical, avoid duplicate/unused requests when Inter Variable is embedded. Check generated head and network, not source strings alone. |
+
+Installer destination everywhere:
+`https://github.com/TommyMoonn/archeion/releases/latest/download/Archeion-Setup-x64.exe`.
+Source destination: `https://github.com/TommyMoonn/archeion`.
+Releases destination: `https://github.com/TommyMoonn/archeion/releases`.
+Documentation destination: `/archeion/docs/`.
+External new-tab links retain `noopener noreferrer`; installer anchors stay native.
+
+### Implementation seams, test migration and phase exits
+
+B3.2 owns TSX composition, typed static content, React interactions and metadata.
+Introducing `src/pages/index.tsx` requires re-enabling preset pages and removing
+`plugins/staticHomepage.ts`, its registration and `static/index.html` atomically;
+this satisfies B3.3's “same change” requirement at the earlier route-introduction
+boundary. Remove the sitemap's manual static root entry so the framework emits
+one root URL. Never leave two homepage owners between commits. B3.3 owns final
+measured Tailwind visual/responsive implementation and production screenshot
+extraction; B3.4 owns integrated screenshot/behavior/metadata/resource validation.
+Keep each intermediate phase coherent with focused checks for its changed seams.
+
+Before any static runtime removal, audit tracked consumers of `docs/index.html`,
+`docs/css/styles.css`, `docs/js/main.js`, `website/static/index.html`, the static
+homepage plugin, legacy selectors and asset paths. Preserve all public resources
+(including fonts, cover SVGs, schema, example themes, dictionary catalog/packages,
+compatibility redirects, robots and social preview) unchanged. Remove temporary
+`static/css/styles.css` / `static/js/main.js` only once they have no active website
+consumers; do not delete original `docs/` sources or their active legacy tests
+before the separate post-merge live cutover in `docs/DOCUMENTATION.md`.
+
+| Existing coverage / seam                                                                   | Required migration or retention                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/landingDownloadFlow.test.ts`                                                        | Rendered navigation/destinations, native installer, source/releases/docs links, preserved metadata and concise CTA; explicitly retire source-disclosure assumptions.                                                                                                         |
+| `tests/landingHeroProduction.test.ts`                                                      | Approved centered copy/screenshot, local fonts, intrinsic dimensions, static/no-JS/reduced-motion base; retire H04 geometry only.                                                                                                                                            |
+| `tests/landingLocalFirst.test.ts`                                                          | Archive ownership/tree, no virtual views as filesystem entries, no unsupported security claims, responsive local overflow; keep richer application-data guidance contracts with docs/legacy owner.                                                                           |
+| `tests/landingMobileNavigation.test.ts`                                                    | Render actual React menu; closed focus exclusion, first link, Escape/outside/toggle restoration, destination focus, responsive transition and native modified links. No string/eval fixture.                                                                                 |
+| `tests/landingProductStory.test.ts`                                                        | Assert approved six cards and released capabilities, preview alt and noninteractive raster; move legacy-only demo expectations intact to an explicitly named legacy suite while legacy page is active.                                                                       |
+| `tests/landingReaderDemoKeyboard.test.ts`                                                  | Keep legacy demo keyboard regressions running against legacy publisher until cutover; new rendered landing coverage verifies static Reader claims and no phantom controls. Document retirement by matrix row, never weaken assertions to pass.                               |
+| `tests/landingVisualSystem.test.ts`                                                        | Shared semantic tokens, typography, readable focus, pointer capabilities and reduced-motion; replace legacy selector/string assertions with rendered output where possible.                                                                                                  |
+| `tests/browser/landing-{download,hero,local-first,product-story,visual-system}.pw.ts`      | Port all five to production Docusaurus host and approved sections/states; keep a scenario ledger for retired demo cases, preserve legacy cases separately while their owner is live. Include all five in the dedicated website config/CI lane, not the desktop Vite fixture. |
+| `tests/websiteStatic.test.ts`, `tests/browser/website-static.pw.ts`                        | Split temporary homepage/runtime assumptions from permanent exact-resource/redirect/no-JS contracts; update home/docs round trips and menu selectors. Keep all resource-byte/404/fallback assertions.                                                                        |
+| `scripts/check-website-build.mjs`, `tests/websiteDeployment.test.ts`, config/tooling tests | Framework-generated root metadata and sitemap exactly once; static resource bytes still exact; no dev shell/source/internal artifacts. Trace all `pages: false` / static plugin expectations.                                                                                |
+| Prerequisite docs browser coverage                                                         | Retain search pointer-vs-keyboard focus, 14/13px Inter Variable results, copy SSR reserved space/toast expiry, and strict zero-CLS first paint. Add deferred F1 font-load rejection reveal test at B3.4.                                                                     |
+
+Root tests must remain Node-only and independent of website installation; actual
+website rendered-component tests belong in `website/tests/` with its existing
+Vitest config. Retain meaningful root factual contracts without importing website
+runtime into the desktop suite. Run production browser work sequentially with
+other builds/dev servers and always pass `--trace off`.
+
+B3.4 exit requires desktop/tablet/mobile and boundary screenshots compared with
+the approved mock, keyboard/pointer/coarse/reduced-motion/zoom checks, no console
+or missing-resource errors, correct head/base paths, no fallback-font shift or
+page overflow, all 24 docs routes/search/themes/changelog and public resources
+unaffected, migrated landing coverage and actual required CI gates. This map
+records no completed visual/browser verification for the React landing.
+
+The user explicitly authorizes phase commits and autonomous fresh top-level
+GPT-6.1 Sol Medium threads for B3.2, then B3.3, then B3.4; each phase runs relevant
+checks and up to three fresh read-only peer-review rounds, stopping on APPROVE.
+No packaging/ZIPs. Final publication happens only after B3.4. The final PR targets
+`main` per the user's follow-up, never the other branch. Refresh actual remote
+`main` ancestry, apply the plan's parent-merged rebase rule, and inspect the diff
+and commit list for duplicated parent changes before pushing/opening that ready
+PR. Preserve the established branch ancestry; never flatten the stack. Link/watch
+through T3 until current-head CI is green, unwatch at handback, and never merge.
+
+## React landing composition (B3.2)
+
+`src/pages/index.tsx` owns the homepage metadata and composes `LandingPage`.
+Landing sections keep their markup and local effects; `content.ts` owns typed
+feature copy and destinations. Header navigation tracks only Library, Reading
+and Your files. The native mobile details menu adds focus cycling, Escape/outside
+and toggle dismissal, destination focus, background inertness and framework-owned
+scroll locking. It resets at the inclusive 1020px navigation boundary. Native
+modified links and script-free content remain available.
+
+Landing appearance scopes the existing dark semantic tokens without writing the
+documentation theme preference. The framework Root owns icons once per route:
+landing uses absolute production image-icon URLs, while docs retain their existing
+favicon and Apple artwork URLs. Existing social metadata and public resources
+are preserved. Critical fonts stay embedded in the shared stylesheet; no redundant
+font preload requests are added for those same bytes.
+
+Decorative effects use React events/state, SVG attributes and scoped Web Animations,
+with bounded animation frames and lifecycle/preference cleanup. Reading words use
+scroll progress, with readable static and reduced-motion fallback. Preview imagery
+is noninteractive and cards describe released behavior; the legacy demo tests and
+publisher sources remain intact.
+
+This phase establishes composition and behavior, not final visual parity. The
+existing 1544×1012 public preview is an explicit intermediate image. B3.3 must
+replace it with the approved 1480×906 screenshot, finish measured geometry/type,
+responsive boundary styling and decorative appearance. B3.4 must compare screenshots
+and migrate the existing landing suite using the B3.1 retirement ledger.
+
+B3.2 validation passed: website typecheck/lint/build, 6 website unit tests, 77 root
+landing/resource/deployment/workspace/token tests, browser TypeScript and touched
+ESLint, formatting, docs checks, exact artifact validation and all 71 production
+website browser tests (`--trace off`). Independent review round one approved with
+no Required or Recommended findings. Optional F2 carries to B3.3: clear spotlight
+coordinates when pointer motion is disabled and verify the disable/re-enable cycle.
+Final screenshot parity and full application/required CI gates remain B3.4 work.
+
+## Measured landing presentation (B3.3)
+
+B3.3 finishes the approved final cascade in the existing Tailwind foundation:
+centered three-track header, 68/64px chrome, content/media widths, 72px primary
+headings, responsive section typography and spacing, feature cards, archive tree,
+stacked actions and compact footer. The landing retains its dark token boundary;
+no documentation preference, font bootstrap, product copy or resource owner changes.
+The root README already points its Changelog badge and Custom theme link to the
+new public docs routes; its repository-local maintainer links remain intact.
+
+The visible preview is now `static/assets/images/landing-library.png`, extracted
+without recompression from the approved mock (1480x906, 893603 bytes, SHA-256
+`a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883`). Its intrinsic
+attributes match the full uncropped image. The separate 1544x1012 social preview
+and every pre-existing public resource retain their exact bytes and destinations.
+
+Six positioned Lucide glyphs float/parallax at the approved depths and periods.
+SVG radial gradients reproduce page/card/download glows through semantic colors;
+scoped animation ownership, reduced motion and pointer capability remain intact.
+The approved GitHub brand path is a small shared mark because the pinned Lucide
+release has no brand export. No dependency or second icon library was added.
+Optional review F2 is fixed: pointer preference changes cancel a pending spotlight
+frame and clear stored coordinates; a production regression verifies re-enabling
+motion without moving the pointer does not restore the old glow.
+
+Central named landing roles cover repeated measured sizes, borders and shadows.
+The few arbitrary utilities encode approved one-off grid ratios, glyph positions,
+line heights, heading measures, rotation-free opacity states and pressed scale;
+they introduce no JSX color values. The archive heading uses normal 88/72px anchor
+clearance instead of the mock's negative margin, keeping the sticky header clear.
+Footer identity and links may reflow at narrow/zoom widths to preserve full labels.
+
+B3.3 checks and independent review are recorded in the branch handoff. Production
+geometry coverage spans all 20 representative/boundary widths in the B3.1 map;
+1440/768/390 captures were inspected for the implementation. B3.4 still owns the
+integrated mock screenshot comparison, existing suite migration, deferred F1,
+final acceptance/required gates and publication. Legacy demo tests stay active.
+
+B3.3 validation passed: website typecheck/lint/build/formatting, 77 focused root tests,
+6 website unit tests, browser TS/touched ESLint, docs checks and artifact checker.
+Full production browser suite passed 72/72 (`--trace off`); final small glyph/CTA
+refinements passed rebuild/artifact and affected browser 10/10. Independent round
+one APPROVE, no Required/Recommended findings; stopped early per supplied skill.
+F2 is Fixed. Prior Optional F1 remains deferred to B3.4. No push/PR at this boundary.
+
+## Integrated landing verification (B3.4)
+
+The production homepage is verified against the final approved HTML, including
+the owner's B3.4 navigation corrections. The wordmark and footer home action
+return to absolute scroll position zero. Your files aligns its content below
+the header rather than showing the previous section's trailing space; at
+1716×1045 the tree starts at 93px and the closing releases action is visible.
+This supersedes B3.3's conservative files-section anchor offset. The section's
+104/72px padding stays unchanged; its anchor margin is −12px desktop/tablet and
+16px mobile. Hero anchor margins match the 68/64px header. Native history,
+modified links and focus ownership remain unchanged.
+
+The framework HTML class provider owns landing-only `motion-safe:scroll-smooth`.
+Reduced motion uses immediate scrolling, and leaving the landing removes the
+class. No global documentation scrolling rule or parallel JS animation is added.
+
+### Regression migration and retirement ledger
+
+The seven original root suites now run unchanged as `tests/legacyLanding*.test.ts`.
+The five original browser suites run unchanged as `tests/browser/legacy-landing-*.pw.ts`
+in the existing Vite lane. Keep them while `main:/docs` remains the live publisher.
+Their renaming does not retire any assertion or desktop capability.
+
+| Original scenario family | Production replacement                                                                                                                        | Legacy-only scenarios retained until live cutover                                                                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Download flow            | `landing-download.pw.ts`: actual anchors/download event, safe external destinations, exact metadata, responsive section navigation            | Developer setup disclosure, old navigation labels and full-height closing scene                                                                  |
+| Hero production          | `landing-hero.pw.ts`, `website/tests/landing.test.ts`: rendered centered copy, intrinsic static image, pre-hydration geometry and zero CLS    | H04 synthetic Library/Reader transition, cover carry and bridge geometry                                                                         |
+| Local-first ownership    | `landing-local-first.pw.ts`, rendered archive test: real EPUB/sidecar tree, released ownership claims, responsive containment                 | Separate application-data panel, Quick Actions/utility index                                                                                     |
+| Mobile navigation        | Existing `website-static.pw.ts` menu lifecycle plus responsive download/navigation tests                                                      | Imperative legacy menu fixture remains unchanged; production uses actual React focus/inertness/dismissal/breakpoint tests                        |
+| Product story            | `landing-product-story.pw.ts`, rendered six-card test: released Library/Reader claims, descriptive raster alt and absence of phantom controls | Library destinations/folders/search/filter/sort/counts and Reader settings/page/mode/theme/annotation interactions                               |
+| Reader keyboard          | Static Reader claim/control assertions plus real landing navigation keyboard tests                                                            | Passage identity/descriptions, Enter/Space highlight palette, note editing/deletion, bookmarks, theme radio keys, announcement/focus restoration |
+| Visual system            | `landing-visual-system.pw.ts`, existing pointer/preference tests and 20-width geometry test                                                   | Legacy selectors, Reader theme/control appearance and old hero layout                                                                            |
+
+Root tests remain Node-only; website SSR tests render the actual section components
+in the website package. The production website config includes all five migrated
+browser files plus `landing-navigation.pw.ts`; the Vite config excludes these new
+files while retaining every explicitly named legacy file.
+
+### Visual and runtime evidence
+
+Same Chromium engine, 1000px height, dark appearance and reduced motion were used
+for mock/production pairs at all 20 widths from the B3.1 matrix. The reference's
+Google font requests were replaced with the exact local Inter Variable bytes
+under its expected Inter family; both pages used the same Windows display-serif
+and mono fallback availability. The unused Tailwind CDN script was suppressed;
+the reference's authored CSS and inline SVG artwork remained intact. Production
+made no external font requests.
+
+Desktop 1440, tablet 768 and mobile 390 pairs were inspected in full; boundary
+contact sheets cover 320, 359/360/361, 639/640/641, 899/900/901, 1019/1020/1021
+and 1099/1100/1101. Hero line heights match throughout, Library/Reading section
+positions match, and neither page overflows. Archive tree/pre formatting accounts
+for a 2–4px lower-page offset (total height 3–5px); named Lucide glyphs replace
+the mock's hand-drawn equivalents, and the accessible menu retains its Menu icon.
+At 320px the footer deliberately reflows to preserve complete labels.
+Comparison captures/measurements are disposable `.scratch/landing-b34/` evidence;
+the navigation regression writes matching home/files destination screenshots.
+
+Production tests verify keyboard/pointer/coarse input, menu focus/inertness and
+cleanup, native downloads, section clearance, normal/reduced motion, zoomed
+metrics with an equivalent narrowed CSS viewport, exact metadata, local fonts,
+zero-CLS delayed hydration, and missing-resource/console checks. Optional F1 is
+fixed: rejected `document.fonts.load` reveals both landing and docs SSR headings
+with external React scripts blocked, and removes the loading attribute.
+The complete documentation route/search/theme/copy/changelog/static-resource
+suite remains active. Live Pages cutover remains a separate operation under
+`docs/DOCUMENTATION.md`; local artifact validation does not establish a deployment.
+
+B3.4 validation passed: website typecheck/lint/build/format, 10 rendered/unit tests,
+77 focused root landing/resource contracts, 191 CI/resource/deployment tests,
+documentation freshness and artifact checks, browser TypeScript/touched ESLint,
+and the full production browser suite (93/93, traces off). Retained legacy landing
+browser coverage passed 32/32. The full frontend gate passed 422 files / 4,626 tests
+with one skip before the final navigation corrections; affected website and browser
+checks passed again afterward. Full required CI is checked on the final PR head.
+Independent integrated review round one returned APPROVE with no Required,
+Recommended or Optional findings; stopped early per the supplied skill.

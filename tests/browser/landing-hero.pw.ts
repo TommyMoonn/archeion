@@ -1,166 +1,82 @@
-import { installAnimationWaits } from "./animation-waits";
 import { expect, test } from "@playwright/test";
 
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(installAnimationWaits);
-});
-
-const viewports = [
-  { name: "minimum", width: 320, height: 800 },
-  { name: "mobile", width: 390, height: 844 },
-  { name: "tablet", width: 768, height: 1024 },
-  { name: "desktop", width: 1440, height: 900 },
-  { name: "wide", width: 1600, height: 900 },
-] as const;
-
-for (const viewport of viewports) {
-  test(`production Hero remains legible without clipping at ${viewport.name}`, async ({ page }) => {
-    await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-    await expect(page.locator(".hero-product")).toBeVisible();
-    await page.evaluate(() => document.fonts.ready.then(() => undefined));
-
-    const hero = page.locator(".hero");
-    const product = page.locator(".hero-product");
-    const reader = page.locator(".hero-product__reader");
-    const bridge = page.locator(".hero-product__bridge");
-
-    await expect(hero).toBeVisible();
-    await expect(product).toBeVisible();
-    await expect(reader).toBeVisible();
-    await expect(bridge).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("Your EPUB library");
-    await expect(hero.getByRole("link", { name: "Download for Windows" })).toBeVisible();
-    await expect(hero.getByRole("link", { name: "Explore the library" })).toBeVisible();
-
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-      const product = document.querySelector(".hero-product");
-      if (!product) throw new Error("Hero product missing");
-      await window.animationWaits.finish([product]);
+for (const width of [320, 1280]) {
+  test(`landing first paint is stable before hydration at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries())
+          if ("value" in entry && typeof entry.value === "number") {
+            document.documentElement.dataset.shift = String(
+              Number(document.documentElement.dataset.shift || 0) + entry.value,
+            );
+          }
+      }).observe({ type: "layout-shift", buffered: true });
     });
-
-    const metrics = await page.evaluate(() => {
-      const hero = document.querySelector<HTMLElement>(".hero");
-      const product = document.querySelector<HTMLElement>(".hero-product");
-      const reader = document.querySelector<HTMLElement>(".hero-product__reader");
-      const bridge = document.querySelector<HTMLElement>(".hero-product__bridge");
-      if (!hero || !product || !reader || !bridge) throw new Error("Hero production nodes missing");
-
-      const heroRect = hero.getBoundingClientRect();
-      const productRect = product.getBoundingClientRect();
-      const readerRect = reader.getBoundingClientRect();
-      const bridgeRect = bridge.getBoundingClientRect();
-      const contained = (outer: DOMRect, inner: DOMRect) =>
-        inner.left >= outer.left - 1 &&
-        inner.right <= outer.right + 1 &&
-        inner.top >= outer.top - 1 &&
-        inner.bottom <= outer.bottom + 1;
-
-      return {
-        overflow: document.documentElement.scrollWidth - innerWidth,
-        productInHero: contained(heroRect, productRect),
-        readerInProduct: contained(productRect, readerRect),
-        bridgeInHero: contained(heroRect, bridgeRect),
-        heroHeight: heroRect.height,
-        productHeight: productRect.height,
-      };
+    let release = () => {};
+    const scripts = new Promise<void>((resolve) => {
+      release = resolve;
     });
-
-    expect(metrics.overflow).toBeLessThanOrEqual(0);
-    expect(metrics.productInHero).toBe(true);
-    expect(metrics.readerInProduct).toBe(true);
-    expect(metrics.bridgeInHero).toBe(true);
-    expect(metrics.heroHeight).toBeGreaterThan(metrics.productHeight);
+    const fonts: string[] = [];
+    await page.route("**/*.woff2", (route) => {
+      fonts.push(route.request().url());
+      return route.abort();
+    });
+    await page.route("**/*.js", async (route) => {
+      await scripts;
+      await route.continue();
+    });
+    try {
+      await page.goto("/archeion/", { waitUntil: "commit" });
+      await expect(page.locator("h1")).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      await expect
+        .poll(() =>
+          page.evaluate(() => performance.getEntriesByName("first-contentful-paint").length),
+        )
+        .toBe(1);
+      const geometry = () =>
+        page.locator("header, h1, #top p, main img").evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const { x, y, width, height } = node.getBoundingClientRect();
+            return { x, y, width, height };
+          }),
+        );
+      const before = await geometry();
+      release();
+      await page.waitForLoadState("load");
+      await page.locator("summary").count();
+      expect(await geometry()).toEqual(before);
+      expect(await page.evaluate(() => Number(document.documentElement.dataset.shift || 0))).toBe(
+        0,
+      );
+      expect(fonts).toEqual([]);
+      expect(await page.evaluate(() => document.fonts.check('16px "Inter Variable"'))).toBe(true);
+    } finally {
+      release();
+    }
   });
 }
 
-test("production Hero has bounded full motion and a complete reduced-motion state", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".hero-product")).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-
-  const fullMotion = await page.evaluate(() =>
-    [".hero-product__library", ".hero-product__bridge", ".hero-product__reader"].map((selector) => {
-      const style = getComputedStyle(document.querySelector(selector)!);
-      return { name: style.animationName, count: style.animationIterationCount };
-    }),
-  );
-  expect(fullMotion.map(({ name }) => name)).toEqual([
-    "hero-library-recede",
-    "hero-cover-carry",
-    "hero-reader-open",
-  ]);
-  expect(fullMotion.every(({ count }) => count === "1")).toBe(true);
-
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator(".hero-product")).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-  const reducedMotion = await page.evaluate(() =>
-    [".hero-product__library", ".hero-product__bridge", ".hero-product__reader"].map((selector) => {
-      const element = document.querySelector<HTMLElement>(selector)!;
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        animation: style.animationName,
-        visible:
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          rect.width > 0 &&
-          rect.height > 0,
+for (const route of ["/archeion/", "/archeion/docs/"]) {
+  test(`font rejection reveals static content without React at ${route}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      document.fonts.load = () => {
+        document.documentElement.dataset.fontLoadRejected = "true";
+        return Promise.reject(new Error("fixture font rejection"));
       };
-    }),
-  );
-  expect(reducedMotion.every(({ animation }) => animation === "none")).toBe(true);
-  expect(reducedMotion.every(({ visible }) => visible)).toBe(true);
-});
-
-test("Hero actions are keyboard reachable and no-animation rendering keeps the product story", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".hero-product")).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-
-  const hero = page.locator(".hero");
-  const primary = hero.getByRole("link", { name: "Download for Windows" });
-  await primary.focus();
-  await expect(primary).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(hero.getByRole("link", { name: "Explore the library" })).toBeFocused();
-
-  await page.addStyleTag({
-    content:
-      ".hero-product *, .hero-product *::before, .hero-product *::after { animation: none !important; transition: none !important; }",
+    });
+    await page.route("**/*.js", (route) => route.abort());
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("h1")).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-font-load-rejected", "true");
+    await expect(page.locator("html")).not.toHaveAttribute("data-site-fonts-loading");
+    expect(
+      await page.locator("h1").evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        return box.width > 0 && box.height > 0 && getComputedStyle(node).visibility === "visible";
+      }),
+    ).toBe(true);
   });
-  await expect(page.locator(".hero-product__library")).toBeVisible();
-  await expect(page.locator(".hero-product__bridge")).toBeVisible();
-  await expect(page.locator(".hero-product__reader")).toBeVisible();
-});
-
-test("coarse pointer keeps the complete H04 product relationship", async ({ browser, baseURL }) => {
-  const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-    baseURL,
-  });
-  const page = await context.newPage();
-  await page.goto("/docs/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".hero-product")).toBeVisible();
-  await page.evaluate(() => document.fonts.ready.then(() => undefined));
-
-  expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-  await expect(page.locator(".hero-product__library")).toBeVisible();
-  await expect(page.locator(".hero-product__bridge")).toBeVisible();
-  await expect(page.locator(".hero-product__reader")).toBeVisible();
-  const hero = page.locator(".hero");
-  await expect(hero.getByRole("link", { name: "Download for Windows" })).toBeVisible();
-  await expect(hero.getByRole("link", { name: "Explore the library" })).toBeVisible();
-
-  await context.close();
-});
+}

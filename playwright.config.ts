@@ -16,6 +16,7 @@ export default defineConfig({
     "**/ui-stability.pw.ts",
     "**/visual-refinement-diagnostics.pw.ts",
     "**/website-*.pw.ts",
+    "**/landing-*.pw.ts",
   ],
   fullyParallel: true,
   timeout: 30_000,

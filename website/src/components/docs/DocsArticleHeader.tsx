@@ -23,11 +23,11 @@ export function DocsArticleHeader({
       >
         <DocsBreadcrumbs />
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={(event) => copyPage(event.currentTarget)}
-          hidden={!isBrowser}
-          className="h-auto min-h-9 max-w-full shrink-0 text-caption font-normal whitespace-normal docs-narrow:min-h-7.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11 docs-narrow:pointer-coarse:min-h-11 [&[hidden]]:hidden"
+          disabled={!isBrowser}
+          className={`h-auto min-h-9 max-w-full shrink-0 bg-control text-caption font-normal whitespace-normal docs-narrow:min-h-7.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11 docs-narrow:pointer-coarse:min-h-11 ${isBrowser ? "" : "invisible"}`}
         >
           <Copy aria-hidden="true" className="size-3.25" />
           Copy page

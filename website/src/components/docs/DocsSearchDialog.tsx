@@ -11,16 +11,19 @@ import { SearchHighlight } from "./SearchHighlight";
 export function DocsSearchDialog({
   dialogRef,
   onClose,
+  keyboardNavigation,
+  onKeyboardNavigationChange,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
   onClose: () => void;
+  keyboardNavigation: boolean;
+  onKeyboardNavigationChange: (keyboard: boolean) => void;
 }) {
   const { entries } = useDocsSearchData();
   const outsidePress = useRef(false);
   const input = useRef<HTMLInputElement>(null);
   const results = useRef<HTMLElement>(null);
   const [query, setQuery] = useState("");
-  const [detailed, setDetailed] = useState(false);
   const [active, setActive] = useState(0);
   const found = searchEntries(entries, query);
   const close = onClose;
@@ -33,6 +36,7 @@ export function DocsSearchDialog({
         close();
       }}
       onPointerDown={(event) => {
+        onKeyboardNavigationChange(false);
         outsidePress.current = event.target === event.currentTarget;
       }}
       onPointerCancel={() => {
@@ -44,6 +48,7 @@ export function DocsSearchDialog({
         if (dismiss) close();
       }}
       onKeyDown={(event) => {
+        if (["Tab", "ArrowDown", "ArrowUp"].includes(event.key)) onKeyboardNavigationChange(true);
         if (
           event.nativeEvent.isComposing ||
           event.nativeEvent.keyCode === 229 ||
@@ -82,7 +87,7 @@ export function DocsSearchDialog({
           links[active].click();
         }
       }}
-      className="fixed inset-0 z-dialog m-0 h-screen max-h-none w-screen max-w-none border-0 overflow-y-auto bg-transparent p-0 text-content backdrop:bg-scrim backdrop:backdrop-blur-sm"
+      className="fixed inset-0 z-dialog m-0 h-screen max-h-none w-screen max-w-none border-0 overflow-y-auto bg-transparent p-0 font-sans text-content backdrop:bg-scrim-navigation"
     >
       {/* Measured mock inset and viewport-bound result height are not spacing-scale values. */}
       <section className="mx-auto mb-4.5 mt-[min(16vh,130px)] w-[calc(100%-36px)] max-w-docs-dialog overflow-hidden rounded-xl border border-solid border-border-strong bg-surface-raised shadow-docs-dialog docs-narrow:mt-[9vh]">
@@ -102,7 +107,7 @@ export function DocsSearchDialog({
               setActive(0);
               if (results.current) results.current.scrollTop = 0;
             }}
-            className="min-w-0 h-8 border-0 bg-transparent px-0 text-base md:text-base shadow-none"
+            className={`min-w-0 h-8 border-0 bg-transparent px-0 text-base md:text-base shadow-none ${keyboardNavigation ? "focus-visible:outline-2" : "focus-visible:outline-none"}`}
           />
           <Button variant="ghost" size="icon-sm" aria-label="Close search" onClick={close}>
             <X aria-hidden="true" />
@@ -123,34 +128,20 @@ export function DocsSearchDialog({
                 key={id}
                 to={`${entry.href}${entry.sectionId ? `#${entry.sectionId}` : ""}`}
                 aria-labelledby={`${id}-title ${id}-context`}
-                aria-describedby={detailed ? `${id}-excerpt` : undefined}
                 data-active={active === index}
                 onFocus={() => setActive(index)}
                 onClick={(event) => handleDocsNavigation(event, close)}
-                className="grid gap-1 rounded-control border border-solid border-transparent px-3.5 py-3.25 hover:border-border hover:bg-surface hover:no-underline data-[active=true]:border-border data-[active=true]:bg-surface focus-visible:outline-2 focus-visible:outline-focus-ring"
+                title={`${entry.sectionHeading || entry.title} — ${entry.sectionId ? `${entry.title} · ` : ""}${entry.group}`}
+                className="grid min-w-0 gap-1 rounded-control border border-solid border-transparent px-3.5 py-3.25 hover:border-border hover:bg-surface hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring"
               >
-                <span id={`${id}-title`} className="text-sm font-bold text-content-strong">
+                <span id={`${id}-title`} className="truncate text-sm font-bold text-content-strong">
                   <SearchHighlight text={entry.sectionHeading || entry.title} query={query} />
                 </span>
-                <span
-                  id={`${id}-context`}
-                  className="text-xs tracking-docs-label text-accent uppercase"
-                >
+                <span id={`${id}-context`} className="truncate text-caption text-content-muted">
                   <SearchHighlight
                     text={entry.sectionId ? `${entry.title} · ${entry.group}` : entry.group}
                     query={query}
                   />
-                </span>
-                <span className="text-caption leading-relaxed text-content-muted">
-                  <SearchHighlight text={entry.description} query={query} />
-                </span>
-                <span
-                  data-search-excerpt
-                  id={`${id}-excerpt`}
-                  hidden={!detailed}
-                  className="text-caption leading-relaxed text-content-muted"
-                >
-                  <SearchHighlight text={entry.excerpt} query={query} />
                 </span>
               </Link>
             );
@@ -165,14 +156,6 @@ export function DocsSearchDialog({
           <span>
             {found.entries.length} of {found.total} results
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-pressed={detailed}
-            onClick={() => setDetailed(!detailed)}
-          >
-            Show details
-          </Button>
           <span>↑ ↓ to navigate · Enter to open · Esc to close</span>
         </footer>
       </section>

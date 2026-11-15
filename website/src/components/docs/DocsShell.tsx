@@ -10,6 +10,7 @@ import { DocsSearchDialog } from "./DocsSearchDialog";
 export function DocsShell({ children }: { children: ReactNode }) {
   const search = useRef<HTMLDialogElement>(null);
   const [modal, setModal] = useState<"navigation" | "search" | null>(null);
+  const [keyboardSearch, setKeyboardSearch] = useState(false);
   const close = useCallback(() => setModal(null), []);
   const { pathname, hash } = useLocation();
   const previousRoute = useRef<string | null>(null);
@@ -27,6 +28,7 @@ export function DocsShell({ children }: { children: ReactNode }) {
       )
         return;
       event.preventDefault();
+      setKeyboardSearch(true);
       if (modal === null) setModal("search");
       else {
         const input = search.current?.querySelector("input");
@@ -66,7 +68,8 @@ export function DocsShell({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       <DocsHeader
-        onSearch={() => {
+        onSearch={(keyboard) => {
+          setKeyboardSearch(keyboard);
           if (modal === null) setModal("search");
         }}
         onNavigation={() => {
@@ -78,7 +81,12 @@ export function DocsShell({ children }: { children: ReactNode }) {
         <DocsSidebar />
         {children}
       </div>
-      <DocsSearchDialog dialogRef={search} onClose={close} />
+      <DocsSearchDialog
+        dialogRef={search}
+        onClose={close}
+        keyboardNavigation={keyboardSearch}
+        onKeyboardNavigationChange={setKeyboardSearch}
+      />
       <DocsMobileNavigation open={modal === "navigation"} onClose={close} />
     </HtmlClassNameProvider>
   );

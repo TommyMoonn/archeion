@@ -22,7 +22,9 @@ describe("website design foundation", () => {
         throw new Error("Expected the finalized application palette");
       }
       const block = css.match(
-        theme === "dark" ? /:root \{([^}]+)\}/ : /:root\[data-theme="light"\] \{([^}]+)\}/,
+        theme === "dark"
+          ? /:root,\s*\[data-landing\] \{([^}]+)\}/
+          : /:root\[data-theme="light"\] \{([^}]+)\}/,
       )?.[1];
       expect(block).toBeDefined();
       const declarations = new Map(
@@ -76,13 +78,22 @@ describe("website design foundation", () => {
           .equals(fs.readFileSync(path.join(root, `src/assets/brand/${name}`))),
       ).toBe(true);
     }
-    for (const name of ["inter-regular", "inter-semibold", "inter-bold", "literata-regular"]) {
+    for (const name of ["literata-regular"]) {
       expect(
         fs
           .readFileSync(path.join(root, `website/src/assets/fonts/${name}.woff2`))
           .equals(fs.readFileSync(path.join(root, `website/static/assets/fonts/${name}.woff2`))),
       ).toBe(true);
     }
+    expect(
+      fs
+        .readFileSync(path.join(root, "website/src/assets/fonts/InterVariable.woff2"))
+        .equals(
+          fs.readFileSync(path.join(root, "node_modules/inter-ui/variable/InterVariable.woff2")),
+        ),
+    ).toBe(true);
+    expect(css).toContain('font-family: "Inter Variable"');
+    expect(css).toContain("font-weight: 100 900");
     for (const family of ["Inter", "Literata"]) {
       const name = `${family}-OFL-1.1.txt`;
       expect(read(`website/static/licenses/fonts/${name}`)).toBe(

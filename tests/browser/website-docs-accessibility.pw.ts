@@ -187,7 +187,7 @@ test("rendered shell text has readable contrast and uses the bundled fonts", asy
   const { root } = await session.send("DOM.getDocument");
   for (const [selector, family] of [
     ["h1", "Literata"],
-    ["article p", "Inter"],
+    ["article p", "Inter Variable"],
   ]) {
     const { nodeId } = await session.send("DOM.querySelector", { nodeId: root.nodeId, selector });
     const { fonts } = await session.send("CSS.getPlatformFontsForNode", { nodeId });

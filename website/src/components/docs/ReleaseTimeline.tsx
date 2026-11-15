@@ -59,7 +59,7 @@ export function ReleaseTimeline() {
             <h2
               id={release.id}
               tabIndex={-1}
-              className="group mt-0 mb-1.25 scroll-mt-24 font-sans text-docs-release font-bold tracking-tight text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+              className="group mt-0 mb-1.25 flex min-h-7.5 items-center scroll-mt-24 font-sans text-docs-release font-bold tracking-tight text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
             >
               v{release.version}
               <a
@@ -81,7 +81,7 @@ export function ReleaseTimeline() {
           <div className="min-w-0">
             <ul className="mt-0 mb-4.5 list-disc ps-6">
               {release.items.map((nodes, index) => (
-                <li key={index} className="my-2.25 ps-1 marker:text-content-subtle">
+                <li key={index} className="my-2.25 ps-1 marker:text-content-subtle first:mt-0">
                   <Inline nodes={nodes} />
                 </li>
               ))}
@@ -89,9 +89,11 @@ export function ReleaseTimeline() {
             <p className="m-0">
               <a
                 href={`https://github.com/TommyMoonn/archeion/releases/tag/v${release.version}`}
-                className="inline-flex items-center gap-1.25 text-caption font-semibold text-accent underline underline-offset-3 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+                className="text-caption font-semibold text-accent underline underline-offset-3 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
               >
-                Full release notes for v{release.version} <span aria-hidden="true">↗</span>
+                Full release notes for v{release.version}
+                {"\u00a0"}
+                <span aria-hidden="true">↗</span>
               </a>
             </p>
           </div>

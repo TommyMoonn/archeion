@@ -7,28 +7,20 @@
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-@font-face {
-  font-family: "Inter";
-  src: url("../assets/fonts/inter-regular.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
+/* The head/body font bootstrap reveals the first layout after local decoding.
+   With scripting disabled this attribute is never set, preserving static reading. */
+html[data-site-fonts-loading] #__docusaurus {
+  visibility: hidden;
 }
 
+/* Embed critical fonts in the generated stylesheet to avoid a font-request
+   waterfall and prevent fallback text from reflowing after first paint. */
 @font-face {
-  font-family: "Inter";
-  src: url("../assets/fonts/inter-semibold.woff2") format("woff2");
+  font-family: "Inter Variable";
+  src: url("../assets/fonts/InterVariable.woff2") format("woff2");
   font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Inter";
-  src: url("../assets/fonts/inter-bold.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
+  font-weight: 100 900;
+  font-display: block;
 }
 
 @font-face {
@@ -36,12 +28,13 @@
   src: url("../assets/fonts/literata-regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  font-display: block;
 }
 
 /* Approved mock palette, matching the finalized brand refresh. Website-owned:
    no runtime dependency on the desktop theme resolver or installable themes. */
-:root {
+:root,
+[data-landing] {
   color-scheme: dark;
   --surface: #0b0b0c;
   --surface-header: color-mix(in srgb, var(--surface) 94%, transparent);
@@ -158,12 +151,56 @@
 }
 
 @theme {
+  /* Measured landing roles from the final approved cascade. Docs keep their own scale. */
+  --spacing-landing-content: min(80rem, calc(100% - 4rem));
+  --spacing-landing-tablet: min(47.5rem, calc(100% - 3rem));
+  --spacing-landing-media-tablet: min(51.25rem, calc(100% - 3rem));
+  --spacing-landing-mobile: calc(100% - 2.5rem);
+  --spacing-landing-narrow: calc(100% - 2rem);
+  --spacing-landing-media-mobile: calc(100% - 2rem);
+  --spacing-landing-archive-gap: clamp(44px, 6vw, 84px);
+  --container-landing-copy: 920px;
+  --container-landing-title: 18ch;
+  --container-landing-title-mobile: 14ch;
+  --container-landing-heading: 17ch;
+  --container-landing-archive-heading: 16ch;
+  --container-landing-lead: 62ch;
+  --container-landing-lead-mobile: 42ch;
+  --text-landing-hero: 4.5rem;
+  --text-landing-hero--line-height: 1.02;
+  --text-landing-hero-mobile: clamp(2.625rem, 10vw, 3.625rem);
+  --text-landing-hero-mobile--line-height: 1.04;
+  --text-landing-cta-mobile: clamp(2.5rem, 9vw, 3.25rem);
+  --text-landing-cta-mobile--line-height: 1.08;
+  --text-landing-section-mobile: clamp(2.125rem, 9vw, 2.75rem);
+  --text-landing-section-mobile--line-height: 1.08;
+  --text-landing-card: 0.9375rem;
+  --text-landing-card--line-height: 1.65;
+  --text-landing-tree-mobile: 0.6875rem;
+  --text-landing-copyright-mobile: 0.65625rem;
+  --text-landing-brand: 1.3125rem;
+  --tracking-landing-card: -0.015em;
+  --tracking-landing-reading: -0.03em;
+  --shadow-landing-preview: 0 14px 40px rgb(0 0 0 / 14%);
+  --shadow-landing-preview-hover: 0 24px 64px rgb(0 0 0 / 30%), 0 0 0 1px rgb(139 189 224 / 12%);
+  --shadow-landing-card-hover: 0 14px 32px rgb(0 0 0 / 24%), 0 0 0 1px rgb(139 189 224 / 7%);
+  --shadow-landing-button: inset 0 1px rgb(255 255 255 / 24%), 0 6px 18px rgb(0 0 0 / 18%);
+  --shadow-landing-button-hover: 0 12px 30px rgb(0 0 0 / 25%), 0 0 0 1px rgb(139 189 224 / 12%);
+  --color-landing-divider: rgb(255 255 255 / 4%);
+  --color-landing-footer-border: rgb(255 255 255 / 7%);
+  --color-landing-preview-border: rgb(255 255 255 / 8%);
+  --color-landing-decoration: #b7c5cf;
+  --color-landing-card-hover: #1c1e20;
+  --color-landing-card-border-hover: rgb(139 189 224 / 46%);
+  --color-landing-icon-hover: rgb(139 189 224 / 10%);
+  --color-landing-button-foreground: #111315;
+  --color-landing-highlight: #ffffff;
   --spacing-release-metadata: 116px;
   --text-docs-release: 15px;
   --text-docs-release--line-height: 1.22;
   --text-docs-release-date: 11px;
   --text-docs-release-date--line-height: 1.8;
-  --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-editorial: "Literata", Georgia, serif;
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --font-mono: "Fira Code", "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
@@ -278,3 +315,11 @@
 @custom-variant docs-search (@media (max-width: 690px));
 @custom-variant docs-narrow (@media (max-width: 600px));
 @custom-variant docs-tiny (@media (max-width: 400px));
+
+/* Landing boundaries are independent of the documentation shell. */
+@custom-variant landing-menu (@media (max-width: 1020px));
+@custom-variant landing-tablet (@media (max-width: 900px));
+@custom-variant landing-mobile (@media (max-width: 640px));
+@custom-variant landing-tiny (@media (max-width: 360px));
+@custom-variant landing-pointer (@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine));
+@custom-variant landing-effects (@media (min-width: 1101px) and (hover: hover) and (pointer: fine));

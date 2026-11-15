@@ -105,12 +105,12 @@ hidden before hydration and without JavaScript.
 
 ## Public resources during migration
 
-The replacement build preserves the existing landing at `/archeion/` from
-`website/static/index.html` and serves public fonts/images, schema/examples and
+The replacement build generates the React landing at `/archeion/` from
+`website/src/pages/index.tsx` and serves public fonts/images, schema/examples and
 the existing dictionary catalog/packages from `website/static/`. Original
 `docs/` sources remain active until cutover. Resource changes before cutover must
-update both copies with identical bytes. Do not run formatters over the preserved
-landing/runtime/resources. Compatibility HTML under `static/documentation/`
+update both copies with identical bytes. Do not run formatters over preserved
+resources or the still-active legacy landing/runtime. Compatibility HTML under `static/documentation/`
 redirects the 24 old article URLs, retaining query/fragment and a visible fallback.
 See [the preservation contract](../website/README.md#static-landing-public-resources-and-compatibility-b28).
 
@@ -185,7 +185,7 @@ PR approval nor local artifact tests establish a successful live deployment.
 | Ten `legacyDocumentation*` unit suites and legacy documentation browser suites                                                                           | Named migrated source/website suites already protect routes, content, shell, TOC, search, copying and history; reconcile each assertion before retiring duplicates                                                                                                                          |
 | `documentationLinkTestSupport.ts`, `documentationSearchTestSupport.ts`                                                                                   | Remove only after all retained legacy test imports move                                                                                                                                                                                                                                     |
 | `public-pages.pw.ts`, `public-navigation.pw.ts`, `font-preferences-documentation.pw.ts`                                                                  | Mixed legacy consumers: retain landing assertions and port docs/font claims to the dedicated website suite; do not delete entire mixed suites                                                                                                                                               |
-| `docs/index.html`, `docs/css/`, `docs/js/` and their landing suites                                                                                      | Temporary byte-preserved `website/static` copy, followed by B3 React port; retain all product/demo/keyboard contracts                                                                                                                                                                       |
+| `docs/index.html`, `docs/css/`, `docs/js/` and their landing suites                                                                                      | Verified B3 React landing and migrated production coverage; unchanged `legacyLanding*` unit and `legacy-landing-*` browser suites retain the old publisher and all demo/keyboard contracts until separately validated live cutover                                                          |
 | `docs/assets/`, `docs/schemas/`, `docs/examples/`                                                                                                        | `website/static` exact-byte resources; retarget theme-contract/shared-parity tests, fixture cover imports, font manifest/verifier, brand commands, notices and maintainer source links before deleting copies                                                                               |
 | `docs/dictionaries/catalog-v1.json` and packages                                                                                                         | Existing exact-byte `website/static/dictionaries/` copy; retarget Python `DEFAULT_CATALOG`/`DEFAULT_OUTPUT`, Rust catalog `include_bytes!`/package paths and publisher instructions together. Preserve package-before-catalog publication, immutable conflicts, receipt checks and rollback |
 | Old paths in CI classifier tests                                                                                                                         | Retire obsolete root HTML/registry eligibility after source removal; keep unknown/shared/deleted paths selecting full and gate/job contracts unchanged                                                                                                                                      |
