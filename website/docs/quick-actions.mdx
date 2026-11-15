@@ -1,0 +1,45 @@
+---
+id: "quick-actions"
+title: "Quick Actions"
+sidebar_label: "Quick Actions"
+description: "Find and run commands for the current Library, Reader, or Settings window, switch archives, and choose collection or appearance options without leaving the keyboard."
+slug: "/guides/quick-actions/"
+doc_type: "Guide"
+---
+
+## Open Quick Actions {#open}
+
+Press <kbd>Ctrl + Shift + P</kbd> to open Quick Actions in the Library or Reader. Focus starts in **Search Quick Actions**, ready for you to type a command or destination.
+
+The shortcut is configurable under **Settings → Keyboard**. If you have changed it, use your current binding. If you have cleared it, assign a new binding or reset it in Keyboard settings. See [Keyboard shortcuts](/archeion/docs/guides/keyboard-shortcuts/#customize) for rebinding, conflicts, and resets.
+
+## Find and run a command {#run}
+
+1. Type part of an action or destination, such as **Search books** or **Go to Library**. An empty search shows commands, including recently used actions.
+2. Use <kbd>Up Arrow</kbd> and <kbd>Down Arrow</kbd> to move through results. <kbd>Home</kbd> and <kbd>End</kbd> select the first and last result; <kbd>Page Up</kbd> and <kbd>Page Down</kbd> move by a visible group of results.
+3. Press <kbd>Enter</kbd> to run the selected command, or select its result with a pointer. A navigation command takes you to its destination; other commands can open an existing dialog or a list of options.
+
+An unavailable command shows a reason and cannot run. Availability changes with the active archive, Library view, Reader state, and operations already in progress. If there are no matching commands, shorten or clear the search.
+
+Press <kbd>Escape</kbd> in the command list to close the palette. Dismissal returns focus to the originating control when it is still available; running a command lets its destination or dialog take focus. Selecting the backdrop also closes the palette.
+
+## Choose an action for the current context {#context}
+
+- **Archive and settings**: **Open current archive folder**, **Switch archive…**, **Open Archive Manager**, and **Open Settings**. Revealing the current archive requires an open archive; switching offers other registered archives.
+- **Library**: navigation to Library, Favorites, Folders, and Series; **Search books**, **Add EPUBs**, **Create folder**, and **Rescan archive**. Continue, Duplicates, and EPUB Issues navigation appears only when those destinations are enabled. Search and collection display commands depend on the current view.
+- **Collection display**: **Change view…**, **Change sort…**, and **Change card size…** for books, with Folder and Series variants in their respective views. Card size is offered in Grid view, not List view.
+- **Reader**: navigation back to Library destinations, book navigation, annotations, bookmarks, and Reader settings. Commands that need a usable book location are unavailable until that state exists. Reading-history and page-turn controls stay in the Reader rather than palette results. See [Reader navigation and progress](/archeion/docs/guides/reader-navigation/) for the reading actions themselves.
+- **Settings window**: the opening shortcut also works in standalone Settings after it has loaded. Shared archive and appearance actions remain available where their requirements are met; Library and Reader commands are absent. To find a setting rather than run a command, use the window's settings search.
+- **Appearance**: **Change theme…**, **Change display density…**, and **Turn animations on** or **Turn animations off**. Theme selection requires an active archive.
+
+The palette is not a fixed inventory of every app control. Its commands follow the active Library, Reader, or Settings window. **Open Settings** opens the standalone Settings window; **Search shortcuts** in its Keyboard section finds bindings, not commands to execute.
+
+## Select options and confirm previews {#options}
+
+Commands ending in an ellipsis can open a nested option list. Search and navigate it with the same keys, then press <kbd>Enter</kbd> to select an option. <kbd>Escape</kbd> returns to the command list; press it again to close the palette. <kbd>Backspace</kbd> also returns to the command list when the option search is empty.
+
+**Change theme…** previews the highlighted theme. A preview is not a saved choice: confirm the option to keep it. Leaving the theme list or dismissing the palette discards an unconfirmed preview. If contrast warnings appear on confirmation, review the warning and select the same theme again only if you intend to apply it anyway. See [Theme Manager](/archeion/docs/customization/theme-manager/) for managing installed themes.
+
+Collection display and density options commit on selection rather than merely on highlighting. If an archive cannot open, check that its folder is available and retry. If a setting works for this session but cannot be saved, read the feedback and retry before closing if you want it retained. The palette keeps retryable failures visible instead of reporting success.
+
+The keys used inside the palette are fixed interaction keys, separate from configurable command shortcuts. The [Keyboard shortcuts reference](/archeion/docs/guides/keyboard-shortcuts/#fixed) explains that distinction.

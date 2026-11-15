@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const guide = "/archeion/docs/fixtures/sample-guide";
+const guide = "/archeion/docs/customization/custom-themes/";
 
 async function contained(locator: Locator, width: number) {
   const box = await locator.boundingBox();
@@ -132,10 +132,13 @@ test("skip navigation, keyboard disclosure, and long code/table content keep vis
   await expect(skip).toBeInViewport();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("main")).toBeFocused();
-  await page.locator("pre code").evaluate((code) => {
-    code.textContent = "unbroken-example-".repeat(80);
-  });
-  const pre = page.locator("pre");
+  await page
+    .locator("pre code")
+    .first()
+    .evaluate((code) => {
+      code.textContent = "unbroken-example-".repeat(80);
+    });
+  const pre = page.locator("pre").first();
   await pre.focus();
   await expect(pre).toHaveCSS("outline-style", "solid");
   await contained(pre, 320);
@@ -146,7 +149,7 @@ test("skip navigation, keyboard disclosure, and long code/table content keep vis
     .evaluate((cell) => {
       cell.textContent = "unbroken-table-value".repeat(30);
     });
-  await contained(page.locator("table").locator(".."), 320);
+  await contained(page.locator("table").first().locator(".."), 320);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   await page.getByRole("button", { name: "Open documentation navigation" }).focus();
   await page.keyboard.press("Enter");
@@ -193,7 +196,7 @@ test("rendered shell text has readable contrast and uses the bundled fonts", asy
     ).toBe(true);
   }
   await session.detach();
-  await expect(page.locator("pre")).toHaveCSS("line-height", "24.5px");
+  await expect(page.locator("pre").first()).toHaveCSS("line-height", "24.5px");
   for (const theme of ["dark", "light"]) {
     const toggle = page.getByRole("button", { name: `Switch to ${theme} theme` });
     if (await toggle.count()) await toggle.click();

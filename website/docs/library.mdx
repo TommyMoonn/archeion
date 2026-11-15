@@ -1,0 +1,96 @@
+---
+id: "library"
+title: "Browse and organize the Library"
+sidebar_label: "Library"
+description: "Find books, use folders and series, change the layout, and manage one or more books."
+slug: "/guides/library/"
+doc_type: "Guide"
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+The Library shows the EPUB files and folders in the active archive.
+
+## Navigate the Library {#navigate-library}
+
+### Main views {#main-views}
+
+- **Library** shows the active collection.
+- **Series** groups books that contain EPUB series metadata. See [Series](/archeion/docs/guides/series/) for volume ordering and continuation.
+- **Favorites** shows books marked as favorites.
+- **Folders** follows the archive's folder structure.
+
+### Smart Views {#smart-views}
+
+Enable Smart Views in **Settings → Library** and choose which appear. These are views of existing books, not folders or copies. Hiding a view leaves its books unchanged.
+
+- **Unread**, **In progress**, and **Completed** group books by reading status.
+- **Needs metadata** finds books missing a title or author; **Needs cover** finds books without cover artwork. Use [Metadata and covers](/archeion/docs/guides/metadata-covers/) to fix them.
+- **Duplicates** and **EPUB Issues** help review archive health. They are optional and hidden until selected in Settings; see [Archive health](/archeion/docs/guides/archive-health/) for comparison, diagnostic limits, and safe next steps.
+
+## Find books {#find-books}
+
+### Search and filter {#search-filter}
+
+Use **Search books** to narrow the current view. Filters can be combined for series, subject, language, publisher, reading status, favorites, and missing information.
+
+### Sort and change the layout {#sort-layout}
+
+Use the sort selector to change the order. Switch between Grid and List view without changing the books included in the current view.
+
+Use [Quick Actions](/archeion/docs/guides/quick-actions/) to navigate or choose collection display options from the keyboard.
+
+## Manage books {#manage-books}
+
+### Work with one book {#single-book}
+
+Outside selection mode, select a book's card or row to open Book details. Open its action menu to:
+
+- Read the book.
+- Add or remove it from Favorites.
+- Choose **Edit metadata**.
+- Rename or move the file.
+- Reveal it in Windows Explorer.
+- Delete it, or remove its old Library entry when the file is already missing.
+
+### Work with multiple books {#multiple-books}
+
+Select **Select books** in the toolbar to enter selection mode. Select individual books, or use **Select all** to select every book in the current filtered view, including books below the visible area. **Clear** removes the selection and **Done** exits selection mode.
+
+Book details open in a slide-over by default. Select **Pin book details** in its header to keep details beside the collection on wide windows. Selecting another book updates the pinned panel. Narrow windows use the slide-over. Select **Unpin book details** to return to the slide-over, or **Close book details** to close the slide-over. Your pin choice is saved across navigation, archive switches, and restarts.
+
+Drag the left edge of Book details to resize it. You can also focus the resize edge and use the arrow keys, Shift for larger steps, or Home and End for the width limits. The width is saved and shared by the pinned panel and slide-over.
+
+The pinned panel prompts you to select a book when no book is available. Selecting multiple books shows their count; use the selection bar for bulk actions. Metadata and cover editors open separately and keep the Library unavailable until closed.
+
+The selection bar provides these bulk workflows:
+
+- Add selected books to favorites or **Remove favorites**.
+- Move selected books to another archive folder.
+- **Edit metadata** shared across selected books.
+- **Re-extract metadata** or **Regenerate covers**.
+- Export selected EPUB files.
+- Export **Annotations (Markdown)** or **Annotations (JSON)**.
+- **Delete to Recycle Bin** after reviewing the confirmation.
+
+Bulk operations report failed or skipped items instead of treating one failed book as a successful result for the whole selection.
+
+See [Metadata and covers](/archeion/docs/guides/metadata-covers/) for individual editing, bulk previews, embedded cover replacement, and writeback safety.
+
+### Manage folders {#folders}
+
+Folder actions work on the real folders inside the archive. You can create, rename, move, reveal, or delete folders when the action is available. Do not place books or personal files inside `.archeion`.
+
+## Rescan the active archive {#rescan-archive}
+
+Select **Rescan archive** in the Library toolbar when books or folders changed outside Archeion. Confirm the action to refresh book and missing-file records; the scan does not change EPUB files. If a scan is already running, wait for it to finish before starting another manual rescan.
+
+<DocsAnchor id="quick-actions" />
+
+Use [Quick Actions](/archeion/docs/guides/quick-actions/) for the available Library, Folder, and Series view, sort, and card-size commands. Commands depend on the current screen and selection; an unavailable command explains why it cannot run.
+
+## What to expect while scrolling {#large-libraries}
+
+Large collections display books in the visible area and a small area around it, rather than drawing every card at once. Archeion loads nearby covers as you scroll; artwork may appear after the book's text. Books outside that area still belong to the filtered results and can be selected with Select all. This limits work while browsing, but does not promise a fixed loading time or library-size limit on every computer.
+
+Opening an archive and refreshing changed EPUBs are separate from scrolling. See [scan and cover-cache behavior](/archeion/docs/reference/archive-storage/#scanning) if books or artwork are slow to appear.

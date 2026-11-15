@@ -1,0 +1,27 @@
+---
+id: "keyboard-shortcuts"
+title: "Keyboard shortcuts"
+sidebar_label: "Keyboard shortcuts"
+description: "Find configurable commands, resolve binding conflicts, and consult fixed interaction keys."
+slug: "/guides/keyboard-shortcuts/"
+doc_type: "Reference"
+---
+
+## Searchable commands {#search}
+
+Open **Settings → Keyboard** and use **Search shortcuts** to filter commands by label or shortcut-related terms. A no-match message means the current search has no results; clear it to see the full groups.
+
+For commands available on the current Library or Reader screen, use [Quick Actions](/archeion/docs/guides/quick-actions/). Its default opening shortcut is <kbd>Ctrl + Shift + P</kbd>. Changing that configurable command does not change the palette's fixed search, selection, or dismissal keys.
+
+## Configurable bindings {#customize}
+
+- **Change** opens a capture dialog. Press the desired combination and read its validation result before choosing **Save shortcut**. **Cancel** or Escape leaves the previous binding unchanged.
+- A conflict names the competing command. Choose another combination or change the conflicting binding first; a rejected combination is not saved. Fixed interaction keys and reserved operating-system, text-editing, or assistive-technology combinations cannot be reassigned.
+- **Clear** disables that command's shortcut and shows **Unassigned**. It does not remove the command from the interface or make an unavailable command usable.
+- **Reset** restores one command's default binding. Reset all keyboard shortcuts with **Reset all** beside **Restore default shortcuts**. This discards all custom bindings, including cleared ones.
+
+## Fixed Interaction Keys {#fixed}
+
+The **Fixed Interaction Keys** group is a reference, not a set of editable rows. These keys belong to the focused interface: for example, Enter activates the current choice, Escape dismisses a supported transient surface, and Arrow keys navigate its options. They do not become global commands simply because they appear in Keyboard settings.
+
+Reader history also retains <kbd>Alt + Left Arrow</kbd> and <kbd>Alt + Right Arrow</kbd>. Consult [Reader navigation and progress](/archeion/docs/guides/reader-navigation/) for history and progress-control keys. Keyboard behavior depends on the focused surface, so leave a text input or dialog before using a command intended for the page.

@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("fixture shell uses the approved desktop rails and local typography", async ({
+test("article shell uses the approved desktop rails and local typography", async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/archeion/docs/fixtures/sample-guide");
+  await page.goto("/archeion/docs/customization/custom-themes/");
   await page.evaluate(() => document.fonts.ready);
   const header = page.locator("header").first();
   const sidebar = page.getByRole("complementary", { name: "Documentation navigation" });
@@ -37,21 +37,19 @@ test("fixture shell uses the approved desktop rails and local typography", async
   await expect(main.locator("article > div p").first()).toHaveCSS("line-height", "29.6px");
   await expect(main.getByRole("link", { name: "Edit this page" })).toHaveAttribute(
     "href",
-    /website\/docs\/shell-guide.mdx$/,
+    /website\/docs\/custom-themes.mdx$/,
   );
-  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText(
-    "Getting started",
-  );
-  await expect(sidebar.getByRole("link", { name: "A sample guide", exact: true })).toHaveAttribute(
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText("Customization");
+  await expect(sidebar.getByRole("link", { name: "Custom themes", exact: true })).toHaveAttribute(
     "aria-current",
     "page",
   );
   await expect(
     page
       .getByRole("navigation", { name: "Table of contents" })
-      .getByRole("link", { name: "Check the details" }),
-  ).toHaveAttribute("href", "#check-the-details");
-  await expect(sidebar.getByRole("link", { name: "Website foundation", exact: true })).toHaveCSS(
+      .getByRole("link", { name: "Folder structure" }),
+  ).toHaveAttribute("href", "#package-layout");
+  await expect(sidebar.getByRole("link", { name: "Installation", exact: true })).toHaveCSS(
     "color",
     "rgb(189, 195, 200)",
   );
@@ -83,34 +81,34 @@ test("native routes, framework neighbors, and static article output stay coheren
   await page.goto("/archeion/docs/");
   const pager = page.getByRole("navigation", { name: "Documentation pages" });
   await expect(pager.getByRole("link")).toHaveCount(1);
-  await pager.getByRole("link", { name: "Next Website foundation" }).click();
-  await expect(page).toHaveURL(/\/docs\/foundation$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Website foundation");
+  await pager.getByRole("link", { name: "Next Installation" }).click();
+  await expect(page).toHaveURL(/\/docs\/getting-started\/installing\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Install Archeion");
   await page
     .getByRole("navigation", { name: "Documentation pages" })
-    .getByRole("link", { name: "Next A sample guide" })
+    .getByRole("link", { name: "Next Open or create an archive" })
     .click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A sample guide");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Open or create an archive");
   await page.reload();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A sample guide");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Open or create an archive");
   await page.goBack();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Website foundation");
-  await page.goto("/archeion/docs/fixtures/sample-reference");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Install Archeion");
+  await page.goto("/archeion/docs/changelog/");
   await expect(pager.getByRole("link")).toHaveCount(1);
-  await expect(pager.getByRole("link")).toHaveText("PreviousA sample guide");
+  await expect(pager.getByRole("link")).toHaveText("PreviousAbout and resources");
   // Development serves a client-rendered entry; production owns static readability.
   if (process.env.ARCHEION_WEBSITE_MODE === "dev") return;
   const noScript = await browser.newContext({ javaScriptEnabled: false });
   try {
     const staticPage = await noScript.newPage();
-    await staticPage.goto(new URL("/archeion/docs/fixtures/sample-guide", page.url()).href);
-    await expect(staticPage.getByRole("heading", { level: 1 })).toHaveText("A sample guide");
+    await staticPage.goto(new URL("/archeion/docs/customization/custom-themes/", page.url()).href);
+    await expect(staticPage.getByRole("heading", { level: 1 })).toHaveText("Custom themes");
     await expect(
       staticPage.getByRole("navigation", { name: "Documentation pages" }).getByRole("link"),
     ).toHaveCount(2);
-    await expect(staticPage.getByRole("heading", { name: "Check the details" })).toHaveAttribute(
+    await expect(staticPage.getByRole("heading", { name: "Folder structure" })).toHaveAttribute(
       "id",
-      "check-the-details",
+      "package-layout",
     );
   } finally {
     await noScript.close();
@@ -127,22 +125,22 @@ test("search surface is a keyboard-dismissible fixture with framework links", as
   const dialog = page.getByRole("dialog", { name: "Search documentation" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Search documentation" })).toBeFocused();
-  await expect(dialog.getByRole("link")).toHaveCount(4);
+  await expect(dialog.getByRole("link")).toHaveCount(24);
   await expect(dialog.locator("section")).toHaveCSS("max-width", "680px");
   await page.screenshot({ path: testInfo.outputPath("search-surface.png") });
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await dialog.getByRole("link", { name: "A sample guide Temporary document" }).click();
-  await expect(page).toHaveURL(/\/docs\/fixtures\/sample-guide$/);
+  await dialog.getByRole("link", { name: "Custom themes Temporary document" }).click();
+  await expect(page).toHaveURL(/\/docs\/customization\/custom-themes\/$/);
   await expect(dialog).toBeHidden();
 });
 
 test("shell presentation switches at the mapped inclusive width boundaries", async ({
   page,
 }, testInfo) => {
-  await page.goto("/archeion/docs/fixtures/sample-guide");
+  await page.goto("/archeion/docs/customization/custom-themes/");
   const search = page.getByRole("button", { name: "Search documentation", exact: true });
   for (const [width, searchWidth] of [
     [1240, 360],

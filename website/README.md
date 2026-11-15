@@ -23,8 +23,9 @@ Inside `website/`, use `pnpm run dev`, `pnpm run typecheck`, `pnpm run lint`,
 `pnpm run serve`.
 Lint and formatting reuse the repository's installed tools and configuration.
 The development server watches TSX, Tailwind class strings, and MDX. Open
-`/archeion/` for the component tooling sample and `/archeion/docs/foundation`
-for the temporary document. Production output goes to `website/build/`;
+`/archeion/` for the retained component tooling sample and
+`/archeion/docs/getting-started/installing/` for the installation article.
+Production output goes to `website/build/`;
 `serve` previews that static output under the same project base path.
 
 The dedicated CI website job installs only `@archeion/website...`, then runs
@@ -491,3 +492,57 @@ under `.plans/website-migration/b2.4/`; Playwright also writes checkpoint captur
 to its ignored test output. Browser evidence does not establish Windows display
 scaling or screen-reader speech. Real content, search/indexing, overview, page
 copy, releases, resource relocation, and deployment remain in B2.5–B2.10.
+
+## Public MDX corpus (B2.5)
+
+The 24 public documents now live in `website/docs/`, one file per stable page
+ID. Front matter owns each ID, article title, navigation label, description,
+route suffix, and explicit article type. `sidebars.ts` owns the six groups and
+their sequence; Docusaurus derives routes, breadcrumbs, active links, TOC and
+neighbors. There is no website registry. Navigation labels can differ from
+article titles, for example Installation / Install Archeion. The factual current
+article titles and summaries are retained; the mock supplies the matching
+navigation model and shell presentation.
+
+Every old route suffix is retained under `/archeion/docs/`, including trailing
+slashes. All authored h2/h3 IDs are explicit. `DocsAnchor` preserves nonheading
+fragments, including `after-installing`, and registers them with the same
+Docusaurus broken-link collector used by `DocsHeading`. Both retain native
+fragment links and the shell's scroll clearance. Article links use the new
+base-aware routes. Links to repository-only format contracts use GitHub source
+URLs; public schema/example resources retain their existing absolute published
+URLs until B2.8 preserves them in the new artifact. No resource bytes moved.
+
+MDX contains semantic Markdown lists, tables, code fences and native keyboard
+markup, plus the existing `DocsNotice` and fragment components. The seven
+notice labels and advice are preserved, with note semantics. Code copying still
+copies rendered text exactly, including the MDX compiler's final newline.
+Edit actions resolve to each `website/docs/<id>.mdx`; Changelog deliberately
+uses `release-notes/README.md`. Issue actions retain the repository issue tracker.
+
+The overview currently preserves its factual introduction and compact article
+links. B2.6 owns its approved cards and real search/page copying. Changelog is a
+static MDX snapshot of the current published history, including v1.8.0; B2.7
+owns replacing that snapshot with the canonical release projection and React
+timeline. Do not edit the snapshot as a second release-note source.
+
+All four temporary docs fixtures were removed after tracing their consumers.
+Tooling links now open Installation; the temporary React homepage and its
+component sample remain until B2.8. Shell, interaction and accessibility tests
+now use Custom themes (real nested headings, four code examples and three
+tables), with actual neighbors and groups. The dedicated browser config also
+runs `website-docs-articles.pw.ts`: all 24 direct routes, metadata, active links,
+TOCs/fragments, neighbors, edit/issue targets and production no-JavaScript output.
+The complete B2.4 boundary, text scaling, contrast, fonts, local overflow and
+focus assertions remain in place.
+
+Root documentation source/factual contracts read MDX without importing website
+runtime modules or needing a website install/build. Keep front matter values as
+single-line JSON strings so these Node-only checks can read them without another
+parser dependency. Five `legacyDocumentation*` suites retain the old generator
+and runtime regression contracts while the old public site is active; they do
+not supply website routing. The old JSON registry remains exclusively an input
+to that active legacy site. Its generators, generated output, search/copy tests,
+legacy browser tests and existing landing links remain untouched until their
+replacement/cutover phases. Retire them only after tracing those consumers at
+B2.7/B2.8/B2.10. B2.9 owns CI/browser integration; no deployment changed here.

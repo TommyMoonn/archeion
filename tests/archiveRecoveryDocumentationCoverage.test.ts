@@ -1,8 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { Window } from "happy-dom";
-import { afterEach, describe, expect, it } from "vitest";
-import registry from "../docs/documentation/page-registry.json";
+import { articleText, articleLinks, documentForRoute } from "./documentationMdxTestSupport";
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
   LIBRARY_INTEGRITY_SMART_VIEW_DEFINITIONS,
@@ -15,106 +12,16 @@ import {
   serializeReaderAnnotationExport,
 } from "../src/features/reader/readerAnnotationExport";
 import type { Annotation } from "../src/types/annotation";
-import { resolveLocalPage } from "./documentationLinkTestSupport";
-import { documentationSearchEntries } from "./documentationSearchTestSupport";
 
-const topics = [
-  {
-    id: "archive-health",
-    route: "guides/archive-health",
-    title: "Archive health",
-    type: "guide",
-    search: "duplicates",
-  },
-  {
-    id: "troubleshooting",
-    route: "reference/troubleshooting",
-    title: "Troubleshooting and recovery",
-    type: "troubleshooting",
-    search: "interrupted",
-  },
-  {
-    id: "annotation-export",
-    route: "reference/annotation-export",
-    title: "Annotation export",
-    type: "reference",
-    search: "json",
-  },
-] as const;
-const windows: Window[] = [];
-afterEach(async () => {
-  await Promise.all(windows.splice(0).map((window) => window.happyDOM.abort()));
-});
-function documentFor(route: string) {
-  const window = new Window({
-    settings: {
-      disableJavaScriptEvaluation: true,
-      disableJavaScriptFileLoading: true,
-      disableCSSFileLoading: true,
-    },
-  });
-  windows.push(window);
-  window.document.write(
-    fs.readFileSync(`docs/documentation/${route ? route + "/" : ""}index.html`, "utf8"),
-  );
-  return window.document;
-}
-function textFor(route: string) {
-  return documentFor(route)
-    .querySelector("[data-doc-article]")!
-    .textContent.replace(/\s+/g, " ")
-    .trim();
-}
+const textFor = articleText;
 function sectionText(route: string, id: string) {
-  const heading = documentFor(route).getElementById(id)!;
-  expect(heading, `${route}#${id}`).not.toBeNull();
-  let next = heading.parentElement!.nextElementSibling;
-  let text = "";
-  while (next && !next.querySelector("h2")) {
-    text += ` ${next.textContent}`;
-    next = next.nextElementSibling;
-  }
-  return text.replace(/\s+/g, " ");
+  const body = documentForRoute(route).body;
+  const start = body.indexOf(`{#${id}}`);
+  expect(start).toBeGreaterThanOrEqual(0);
+  return body.slice(start).split(/\n## /)[0].replace(/[*`]/g, "").replace(/\s+/g, " ");
 }
 
 describe("archive health, recovery, and export documentation", () => {
-  it.each(topics)(
-    "integrates $title into native navigation, overview, and generated search",
-    (topic) => {
-      const sourcePath = `docs/documentation/${topic.route}/index.html`;
-      expect(registry.pages.find((page) => page.id === topic.id)).toMatchObject({
-        sourcePath,
-        route: `/${topic.route}/`,
-        title: topic.title,
-        type: topic.type,
-      });
-      const article = documentFor(topic.route).querySelector("[data-doc-article]")!;
-      expect(article.getAttribute("data-page-type")).toBe(topic.type);
-      for (const page of registry.pages) {
-        const document = documentFor(page.route.slice(1, -1));
-        const link = [...document.querySelectorAll("[data-sidebar] [data-doc-link]")].find(
-          (link) => link.textContent.trim() === topic.title,
-        )!;
-        expect(link, page.sourcePath).toBeDefined();
-        expect(resolveLocalPage(page.sourcePath, link.getAttribute("href")!)?.file).toBe(
-          path.resolve(sourcePath),
-        );
-        expect(link.hasAttribute("data-search")).toBe(false);
-        expect(link.getAttribute("aria-current")).toBe(page.id === topic.id ? "page" : null);
-      }
-      expect(
-        documentationSearchEntries().some(
-          (entry) => entry.pageId === topic.id && entry.text.includes(topic.search),
-        ),
-      ).toBe(true);
-      expect(
-        [...documentFor("").querySelectorAll("[data-doc-article] li > a")].some(
-          (link) => link.getAttribute("href") === `${topic.route}/`,
-        ),
-      ).toBe(true);
-    },
-  );
-
   it("explains optional integrity views, safe duplicate decisions, and diagnostic limits", () => {
     const text = textFor("guides/archive-health");
     for (const definition of LIBRARY_INTEGRITY_SMART_VIEW_DEFINITIONS) {
@@ -192,7 +99,7 @@ describe("archive health, recovery, and export documentation", () => {
 
   it("starts recovery with symptoms and preserves data before manual intervention", () => {
     const route = "reference/troubleshooting";
-    const document = documentFor(route);
+    const document = documentForRoute(route);
     const text = textFor(route);
     for (const id of [
       "safe-order",
@@ -203,7 +110,7 @@ describe("archive health, recovery, and export documentation", () => {
       "interrupted-edit",
       "settings-load",
     ])
-      expect(document.getElementById(id)).not.toBeNull();
+      expect(document.body).toContain(`{#${id}}`);
     expect(sectionText(route, "safe-order")).toMatch(/do not delete[^.]*\.archeion/i);
     expect(sectionText(route, "safe-order")).toMatch(
       /close Archeion[^.]*copy[^.]*complete archive/i,
@@ -220,8 +127,8 @@ describe("archive health, recovery, and export documentation", () => {
   });
 
   it("publishes a JSON example produced by the actual versioned export owner", () => {
-    const document = documentFor("reference/annotation-export");
-    const example = JSON.parse(document.querySelector("pre code.language-json")!.textContent);
+    const source = documentForRoute("reference/annotation-export").body;
+    const example = JSON.parse(source.split("```json\n")[1].split("```")[0]);
     expect(example.schema).toBe(READER_ANNOTATION_EXPORT_SCHEMA);
     expect(example.version).toBe(READER_ANNOTATION_EXPORT_VERSION);
     const expected = createReaderAnnotationExportDocument(
@@ -264,11 +171,9 @@ describe("archive health, recovery, and export documentation", () => {
       "detached",
     ])
       expect(text).toContain(term);
-    expect(
-      [...document.querySelectorAll("[data-doc-article] a[href]")].some(
-        (link) => link.getAttribute("href") === "../../../annotation-export-format.md",
-      ),
-    ).toBe(true);
+    expect(articleLinks("reference/annotation-export")).toContain(
+      "https://github.com/TommyMoonn/archeion/blob/main/docs/annotation-export-format.md",
+    );
   });
 
   it("makes recovery and export reachable from failure-prone workflows", () => {
@@ -281,15 +186,10 @@ describe("archive health, recovery, and export documentation", () => {
       ["guides/library", "guides/archive-health"],
       ["guides/reading", "reference/annotation-export"],
     ]) {
-      const sourcePath = `docs/documentation/${route}/index.html`;
       expect(
-        [...documentFor(route).querySelectorAll("[data-doc-article] a[href]")].some(
-          (link) =>
-            resolveLocalPage(sourcePath, link.getAttribute("href")!)?.file ===
-            path.resolve(`docs/documentation/${target}/index.html`),
-        ),
+        articleLinks(route).map((href) => href.split("#")[0]),
         route,
-      ).toBe(true);
+      ).toContain(`/archeion/docs/${target}/`);
     }
   });
 });

@@ -1,0 +1,36 @@
+---
+id: "series"
+title: "Organize and continue a series"
+sidebar_label: "Series"
+description: "Browse EPUB series metadata, review volume order, and continue where you left off."
+slug: "/guides/series/"
+doc_type: "Guide"
+---
+
+Open **Series** from the Library sidebar to group books that contain series metadata. Archeion uses the metadata already present in your EPUBs and does not rewrite files just to build the Series view.
+
+## Browse series {#browse-series}
+
+### Search and sort {#search-series}
+
+Use **Search series** to narrow the overview. Sort by **Title**, **Recently opened**, or **Most volumes**, and switch between Grid and List view without changing which series are included.
+
+Each series entry shows its volume count and a reading summary such as books in progress, complete, or unread.
+
+## Open a series {#series-detail}
+
+### Continue reading {#continue-series}
+
+A series detail page lists its known volumes in series order. Select a volume to **Read**, **Continue**, or **Open** it according to its reading state.
+
+When available, **Continue Series** resumes the current in-progress volume. If nothing is in progress, it opens the first unread volume instead.
+
+### Review ordering hints {#series-hints}
+
+**Possible gaps** and **Repeated volumes** are advisory hints based on the volume metadata Archeion can interpret. They do not rename, delete, or reorder your EPUB files on disk.
+
+## Move to the next volume from Reader {#next-volume}
+
+Near the end of a volume, Reader can show **Open next volume** when the current book is effectively complete and the next known volume is unambiguous. If the series order is unclear, Archeion leaves that action unavailable rather than guessing.
+
+If continuation or ordering is unexpected, review each book's series name and volume value in [Metadata and covers](/archeion/docs/guides/metadata-covers/). A gap hint does not prove that a file was deleted, and repeated volume values do not prove that EPUBs are identical. Use [duplicate comparison](/archeion/docs/guides/archive-health/#duplicates) before deleting a suspected copy. Correcting metadata changes grouping; it does not acquire missing volumes.

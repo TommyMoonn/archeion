@@ -1,29 +1,13 @@
-import fs from "node:fs";
-import { Window } from "happy-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { articleText, articleLinks } from "./documentationMdxTestSupport";
+import { describe, expect, it } from "vitest";
 import { LIBRARY_SMART_VIEW_DEFINITIONS } from "../src/types/librarySmartViews";
 
-const windows: Window[] = [];
-afterEach(async () => {
-  await Promise.all(windows.splice(0).map((window) => window.happyDOM.abort()));
-});
-function article(route: string) {
-  const window = new Window({
-    settings: {
-      disableJavaScriptEvaluation: true,
-      disableJavaScriptFileLoading: true,
-      disableCSSFileLoading: true,
-    },
-  });
-  windows.push(window);
-  window.document.write(fs.readFileSync(`docs/documentation/${route}/index.html`, "utf8"));
-  return window.document.querySelector("[data-doc-article]")!;
-}
-function text(route: string) {
-  return article(route).textContent.replace(/\s+/g, " ");
-}
+const text = articleText;
 function link(route: string, href: string) {
-  expect(article(route).querySelector(`a[href="${href}"]`), `${route} -> ${href}`).not.toBeNull();
+  const expected = new URL(href, `https://archeion.test/archeion/docs/${route}/`).href;
+  expect(articleLinks(route).map((link) => new URL(link, "https://archeion.test").href)).toContain(
+    expected,
+  );
 }
 
 describe("released behavior documentation depth", () => {

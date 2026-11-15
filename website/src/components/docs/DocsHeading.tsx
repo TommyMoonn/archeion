@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { Link as LinkIcon } from "lucide-react";
+import useBrokenLinks from "@docusaurus/useBrokenLinks";
 
 export function DocsHeading({
   level,
@@ -7,6 +8,7 @@ export function DocsHeading({
   ...props
 }: ComponentProps<"h2"> & { level: 2 | 3 }) {
   const Heading = level === 2 ? "h2" : "h3";
+  useBrokenLinks().collectAnchor(props.id);
   return (
     <Heading
       {...props}

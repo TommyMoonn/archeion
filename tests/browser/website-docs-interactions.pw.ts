@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const guide = "/archeion/docs/fixtures/sample-guide";
+const guide = "/archeion/docs/customization/custom-themes/";
 
 test("theme migration precedes hydration, toggles persist, and storage failures are nonfatal", async ({
   page,
@@ -122,16 +122,16 @@ test("drawer traps focus, blocks background, dismisses safely and releases scrol
   await expect(
     page
       .getByRole("complementary", { name: "Documentation navigation" })
-      .getByRole("link", { name: "A sample guide", exact: true }),
+      .getByRole("link", { name: "Custom themes", exact: true }),
   ).toBeFocused();
   await page.setViewportSize({ width: 800, height: 700 });
   await opener.click();
-  await drawer.getByRole("link", { name: "A sample guide", exact: true }).click();
+  await drawer.getByRole("link", { name: "Custom themes", exact: true }).click();
   await expect(drawer).toBeHidden();
   await expect(page.getByRole("main")).toBeFocused();
   await opener.click();
-  await drawer.getByRole("link", { name: "A sample reference", exact: true }).click();
-  await expect(page).toHaveURL(/sample-reference$/);
+  await drawer.getByRole("link", { name: "Theme Manager", exact: true }).click();
+  await expect(page).toHaveURL(/theme-manager\/$/);
   await expect(drawer).toBeHidden();
   await expect(page.getByRole("main")).toBeFocused();
   await expect(page.locator("html")).not.toHaveCSS("overflow-y", "hidden");
@@ -147,11 +147,11 @@ test("modified drawer links preserve native behavior and modal ownership stays e
   const drawer = page.getByRole("dialog", { name: "Documentation menu" });
   const newPage = context.waitForEvent("page");
   await drawer
-    .getByRole("link", { name: "A sample reference", exact: true })
+    .getByRole("link", { name: "Theme Manager", exact: true })
     .click({ modifiers: ["Control"] });
   const tab = await newPage;
   await tab.waitForLoadState();
-  await expect(tab).toHaveURL(/sample-reference$/);
+  await expect(tab).toHaveURL(/theme-manager\/$/);
   await tab.close();
   await expect(drawer).toBeVisible();
   await page.keyboard.press("Control+k");
@@ -166,11 +166,11 @@ test("modified drawer links preserve native behavior and modal ownership stays e
 test("sidebar collapse persists while the current group reopens on navigation and reload", async ({
   page,
 }) => {
-  await page.goto(guide);
+  await page.goto("/archeion/docs/guides/keyboard-shortcuts/");
   const sidebar = page.getByRole("complementary", { name: "Documentation navigation" });
   const reference = sidebar
     .locator("details")
-    .filter({ has: page.locator("summary", { hasText: "Reference" }) });
+    .filter({ has: page.locator("summary", { hasText: "Customization" }) });
   await reference.locator("summary").focus();
   await page.keyboard.press("Enter");
   await expect(reference).not.toHaveAttribute("open", "");
@@ -178,7 +178,7 @@ test("sidebar collapse persists while the current group reopens on navigation an
   await expect(reference).not.toHaveAttribute("open", "");
   await page
     .getByRole("navigation", { name: "Documentation pages" })
-    .getByRole("link", { name: "Next A sample reference" })
+    .getByRole("link", { name: "Next Appearance" })
     .click();
   await expect(reference).toHaveAttribute("open", "");
   await reference.locator("summary").click();
@@ -193,27 +193,27 @@ test("outline follows fragments, reverse scrolling, reflow and the final short s
   await page.goto(guide);
   const toc = page.getByRole("navigation", { name: "Table of contents" });
   const active = toc.locator('[aria-current="location"]');
-  await expect(active).toHaveText("Before you begin");
-  await toc.getByRole("link", { name: "Check the details", exact: true }).click();
-  await expect(page).toHaveURL(/#check-the-details$/);
-  await expect(active).toHaveText("Check the details");
-  await expect(page.locator("#check-the-details")).toBeFocused();
+  await expect(active).toHaveText("Create a theme package");
+  await toc.getByRole("link", { name: "Folder structure", exact: true }).click();
+  await expect(page).toHaveURL(/#package-layout$/);
+  await expect(active).toHaveText("Folder structure");
+  await expect(page.locator("#package-layout")).toBeFocused();
   await page.reload();
-  await expect(active).toHaveText("Check the details");
+  await expect(active).toHaveText("Folder structure");
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await expect(active).toHaveText("Continue reading");
+  await expect(active).toHaveText("Examples");
   await page.evaluate(() => window.scrollTo(0, 0));
-  await expect(active).toHaveText("Before you begin");
+  await expect(active).toHaveText("Create a theme package");
   await page.locator("article").evaluate((node) => {
     node.style.fontSize = "24px";
   });
-  await toc.getByRole("link", { name: "Work through an example", exact: true }).click();
-  await expect(active).toHaveText("Work through an example");
+  await toc.getByRole("link", { name: "Theme file fields", exact: true }).click();
+  await expect(active).toHaveText("Theme file fields");
   await expect(active).toHaveCount(1);
-  const permalink = page.locator("#work-through-an-example").getByRole("link");
+  const permalink = page.locator("#theme-fields").getByRole("link");
   await permalink.focus();
   await expect(permalink).toHaveCSS("opacity", "1");
-  await expect(permalink).toHaveAttribute("href", "#work-through-an-example");
+  await expect(permalink).toHaveAttribute("href", "#theme-fields");
 });
 
 test("code copy preserves exact text, stable labels, focus and persistent failure recovery", async ({
@@ -230,14 +230,14 @@ test("code copy preserves exact text, stable labels, focus and persistent failur
       },
     });
   });
-  const copy = page.getByRole("button", { name: "Copy code", exact: true });
+  const copy = page.getByRole("button", { name: "Copy code", exact: true }).first();
   await copy.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("status")).toHaveText("Code copied.");
   await expect(copy).toBeFocused();
   await page.screenshot({ path: testInfo.outputPath("code-copy-feedback.png") });
   expect(await page.evaluate(() => document.documentElement.dataset.copied)).toBe(
-    await page.locator("pre code").textContent(),
+    await page.locator("pre code").first().textContent(),
   );
   await page.getByRole("button", { name: "Dismiss copy status" }).click();
   await expect(copy).toBeFocused();
@@ -256,7 +256,7 @@ test("code copy preserves exact text, stable labels, focus and persistent failur
   await expect(page.getByRole("status")).toHaveText("Code copied.");
   await page
     .getByRole("navigation", { name: "Documentation pages" })
-    .getByRole("link", { name: "Next A sample reference" })
+    .getByRole("link", { name: "Next Theme Manager" })
     .click();
   await expect(page.getByRole("status")).toBeEmpty();
 });
@@ -276,11 +276,11 @@ test("a clipboard completion after leaving the article cannot publish stale feed
       },
     });
   });
-  await page.getByRole("button", { name: "Copy code" }).click();
+  await page.getByRole("button", { name: "Copy code" }).first().click();
   await expect(page.getByRole("status")).toHaveText("Copying code…");
   await page
     .getByRole("navigation", { name: "Documentation pages" })
-    .getByRole("link", { name: "Next A sample reference" })
+    .getByRole("link", { name: "Next Theme Manager" })
     .click();
   await page.evaluate(() => document.dispatchEvent(new Event("finish-copy")));
   await expect(page.getByRole("status")).toBeEmpty();
@@ -304,7 +304,7 @@ test("newer clipboard requests retain ownership when an older request fails", as
       },
     });
   });
-  const copy = page.getByRole("button", { name: "Copy code" });
+  const copy = page.getByRole("button", { name: "Copy code" }).first();
   await copy.click();
   await expect(page.getByRole("status")).toHaveText("Copying code…");
   await copy.click();
@@ -326,7 +326,7 @@ test("coarse pointer controls remain visible and usable in reduced motion and fo
   try {
     const page = await context.newPage();
     await page.goto(`${baseURL}${guide}`);
-    const copy = page.getByRole("button", { name: "Copy code" });
+    const copy = page.getByRole("button", { name: "Copy code" }).first();
     await expect(copy).toHaveCSS("opacity", "1");
     await expect(copy).toHaveCSS("min-width", "44px");
     await copy.focus();
@@ -338,8 +338,8 @@ test("coarse pointer controls remain visible and usable in reduced motion and fo
     await expect(drawer).toBeVisible();
     await expect(drawer.locator("section")).toHaveCSS("width", "268px");
     await expect(drawer.locator("section")).toHaveCSS("transition-duration", "0s");
-    await drawer.getByRole("link", { name: "A sample reference", exact: true }).tap();
-    await expect(page).toHaveURL(/sample-reference$/);
+    await drawer.getByRole("link", { name: "Theme Manager", exact: true }).tap();
+    await expect(page).toHaveURL(/theme-manager\/$/);
     await expect(drawer).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,

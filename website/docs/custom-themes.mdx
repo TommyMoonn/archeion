@@ -1,0 +1,171 @@
+---
+id: "custom-themes"
+title: "Custom themes"
+sidebar_label: "Custom themes"
+description: "Create and manage JSON color themes for the app and Reader."
+slug: "/customization/custom-themes/"
+doc_type: "Guide"
+---
+
+import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
+
+import { DocsNotice } from "@site/src/components/docs/DocsNotice";
+
+A custom theme is a `theme.json` file that changes supported colors. It does not change layout, fonts, motion, images, or app behavior.
+
+<DocsNotice title="Themes are application-wide">
+
+Current custom theme packages are stored in Archeion's application data and are available across archives. Compatible legacy packages found in older registered archives can be copied into global storage without deleting the archive originals.
+
+</DocsNotice>
+
+## Create a theme package {#create-package}
+
+### Folder structure {#package-layout}
+
+Use **Open themes folder** in Theme Manager to open Archeion's application-data theme directory, then create one folder for each package there:
+
+```text
+themes/
+└── my-theme/
+    └── theme.json
+```
+
+The theme folder name must match the `id` in `theme.json`.
+
+### Basic theme file {#basic-theme}
+
+```json
+{
+  "$schema": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json",
+  "schemaVersion": 1,
+  "id": "my-theme",
+  "name": "My Theme",
+  "base": "dark",
+  "app": {
+    "accent": "#8FC1E3"
+  }
+}
+```
+
+### Use the theme schema {#schema}
+
+Add the published schema URL to get completion and validation in editors that support JSON Schema:
+
+```text
+https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json
+```
+
+[Open the theme schema](https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json)
+
+## Theme file fields {#theme-fields}
+
+### Fields and requirements {#manifest-fields}
+
+| Field           | Required | Value                                                                                            |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------ |
+| `$schema`       | No       | The version 1 schema URL.                                                                        |
+| `schemaVersion` | Yes      | `1`.                                                                                             |
+| `id`            | Yes      | 3 to 64 lowercase letters, digits, dots, underscores, or hyphens. It must match the folder name. |
+| `name`          | Yes      | A one-line display name from 1 to 80 characters.                                                 |
+| `author`        | No       | A one-line author name from 1 to 80 characters.                                                  |
+| `description`   | No       | A one-line description from 1 to 240 characters.                                                 |
+| `base`          | Yes      | `dark` or `light`.                                                                               |
+| `app`           | Yes      | At least one supported app color.                                                                |
+| `reader`        | No       | A `dark`, `light`, or `sepia` base and at least one supported Reader color.                      |
+
+### Color format {#color-format}
+
+Use `#RRGGBB` or `#RRGGBBAA`. Do not use CSS variables, color names, functions, gradients, or URLs. Unknown fields and token names make the theme invalid.
+
+### Change only the colors you need {#partial-overrides}
+
+You only need to include the colors you want to replace. The selected `base` provides the remaining app colors. Use `reader.base` for the remaining Reader colors.
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "blue-accent",
+  "name": "Blue Accent",
+  "base": "light",
+  "app": {
+    "accent": "#285F88"
+  }
+}
+```
+
+A custom theme cannot inherit from another custom theme.
+
+## Available colors {#available-colors}
+
+### App colors {#application-tokens}
+
+| Token           | Used for                                        |
+| --------------- | ----------------------------------------------- |
+| `canvas`        | Background behind the main app surfaces.        |
+| `canvasDeep`    | Darker or deeper background areas.              |
+| `surface`       | Standard controls and content surfaces.         |
+| `surfaceRaised` | Raised controls, cards, and secondary surfaces. |
+| `surfaceHover`  | Hover state for raised surfaces.                |
+| `frame`         | Window frame and title bar.                     |
+| `sidebar`       | Library sidebar.                                |
+| `main`          | Main app area.                                  |
+| `mainRaised`    | Raised surfaces in the main app area.           |
+| `line`          | Standard borders and separators.                |
+| `lineStrong`    | Stronger borders and separators.                |
+| `text`          | Normal text.                                    |
+| `textStrong`    | Headings and emphasized text.                   |
+| `muted`         | Secondary labels and metadata.                  |
+| `mutedSoft`     | Less prominent text and inactive controls.      |
+| `accent`        | Main interactive color.                         |
+| `accentStrong`  | Active controls and stronger accent text.       |
+| `focus`         | Keyboard focus outline.                         |
+| `success`       | Successful actions.                             |
+| `warning`       | Warnings.                                       |
+| `error`         | Errors and destructive actions.                 |
+| `info`          | Information messages.                           |
+
+### Reader colors {#reader-tokens}
+
+| Token            | Used for                                  |
+| ---------------- | ----------------------------------------- |
+| `background`     | Reader page background.                   |
+| `surface`        | Reader controls, panels, and code blocks. |
+| `line`           | Reader borders and separators.            |
+| `text`           | Book text and normal Reader text.         |
+| `strong`         | Book headings and emphasized Reader text. |
+| `muted`          | Secondary Reader text.                    |
+| `focus`          | Reader keyboard focus outline.            |
+| `danger`         | Reader errors and destructive actions.    |
+| `link`           | Links inside a book.                      |
+| `codeBackground` | Code and preformatted text background.    |
+| `selection`      | Selected text background.                 |
+
+Reader fonts, text size, spacing, and page width are controlled in Reader settings.
+
+### Colors that themes do not change {#fixed-colors}
+
+- The Windows close button keeps its normal white-on-red hover state.
+- Annotation highlights stay yellow, green, blue, and rose.
+- Controls shown over cover images keep a white-on-black style for readability.
+
+## Add and apply a theme {#use-theme}
+
+<DocsAnchor id="manage-themes" />
+
+Use [Theme Manager](/archeion/docs/customization/theme-manager/) to import a package, inspect diagnostics, preview application colors, and apply it. This reference defines the file format; the manager guide owns those workflows. Reader-compatible colors are selected separately in Settings → Reader or Reader settings.
+
+<DocsAnchor id="update-theme" />
+
+To replace a package with the same ID or reload files edited outside Archeion, follow [update and removal guidance](/archeion/docs/customization/theme-manager/#update). Keep IDs stable for an intended update; a different ID represents a different package.
+
+### Fix an invalid theme {#fix-theme}
+
+Theme Manager shows the problems found in invalid packages. Fix the listed fields or colors, save the file, then reload themes.
+
+Low-contrast color combinations are shown as warnings. Review them before keeping the preview.
+
+## Examples {#examples}
+
+- [Moon Ink dark theme](https://tommymoonn.github.io/archeion/examples/themes/moon-ink/theme.json)
+- [Paper Light theme](https://tommymoonn.github.io/archeion/examples/themes/paper-light/theme.json)

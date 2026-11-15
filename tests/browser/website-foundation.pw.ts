@@ -128,11 +128,9 @@ test("native primitives support keyboard input, activation, focus and slotted na
   const link = page.getByRole("link", { name: "Open the component documentation" });
   await expect(link).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/archeion\/docs\/foundation$/);
+  await expect(page).toHaveURL(/\/archeion\/docs\/getting-started\/installing\/$/);
+  await expect(page.getByRole("heading", { name: "Install Archeion", exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Website foundation", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("The Archeion website foundation is running.", { exact: true }),
+    page.getByText("Download and install Archeion on Windows.", { exact: true }),
   ).toBeVisible();
 });

@@ -36,7 +36,7 @@ export default function FoundationControls() {
         </p>
       </form>
       <Button asChild variant="outline">
-        <Link to="/docs/foundation">Open the component documentation</Link>
+        <Link to="/docs/getting-started/installing/">Open the component documentation</Link>
       </Button>
     </section>
   );

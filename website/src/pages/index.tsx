@@ -8,7 +8,7 @@ export default function FoundationPage() {
       <h1>Archeion website foundation</h1>
       <FoundationNotice />
       <FoundationControls />
-      <Link to="/docs/foundation">Open the temporary documentation</Link>
+      <Link to="/docs/getting-started/installing/">Open the documentation</Link>
     </main>
   );
 }

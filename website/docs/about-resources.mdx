@@ -1,0 +1,37 @@
+---
+id: "about-resources"
+title: "About Archeion and resources"
+sidebar_label: "About and resources"
+description: "Open the standalone About window for the installed version and direct links to Archeion's public resources."
+slug: "/reference/about-resources/"
+doc_type: "Reference"
+---
+
+## About window and version {#open}
+
+Choose **About Archeion** from the Library sidebar. About opens in its own compact window without replacing the current Library view. Opening it again focuses the existing About window. The window shows the current Archeion version.
+
+## Public resources {#resources}
+
+About includes four external destinations:
+
+- **Website**: the Archeion project site.
+- **Documentation**: these user guides.
+- **Changelog**: release history and changes for each version.
+- **Source code**: the public GitHub repository.
+
+If the operating system cannot open a selected destination, About reports an error in the window.
+
+Starting with 1.6.0, About also shows update status. **Check for updates** checks manually when no update is available, even with automatic checks turned off. An available update replaces that button with **Update now** and a **What's new** link. A downloaded update offers **Restart now**. Snoozing a Library notice does not hide this information. Development builds show that updates are unavailable. See [Update Archeion](/archeion/docs/getting-started/installing/#updating).
+
+## Identify the installed version and supported platform {#identify}
+
+About shows **Version** followed by the installed app version; it does not show a source commit or build hash. When reporting an issue, include that version and whether you installed an official release EXE/MSI or are running a local build. For a local build, provide its source revision separately if known. Do not infer that two builds are identical from their version number alone.
+
+The supported release target is **Windows 11, 64-bit**, for EPUB libraries. Other operating systems and book formats are not covered by this release's support claim. See [Installation](/archeion/docs/getting-started/installing/) for installer choice and verification.
+
+## Find support and understand privacy {#help}
+
+Use the [GitHub issues page](https://github.com/TommyMoonn/archeion/issues) for reproducible problems and requests, the [Source code repository](https://github.com/TommyMoonn/archeion) for implementation and releases, or [Documentation](/archeion/docs/) for workflows. Include the action, expected result, actual result, and error message. Review screenshots and sample EPUBs for private information before posting publicly.
+
+Archeion is local-first: books and archive sidecars stay in folders you control. [Data ownership and privacy](/archeion/docs/reference/archive-storage/#ownership) explains what belongs to an archive, what lives in application data, and which explicit actions use the network. A plain EPUB export is not a backup of annotations or app preferences.
