@@ -8,7 +8,7 @@ lives in `website/docs/`; the old static site remains here until cutover.
 
 Use these guides for development, architecture, design, testing, and release work.
 User-facing instructions are published in the
-[Archeion documentation site](documentation/index.html).
+[Archeion documentation site](https://tommymoonn.github.io/archeion/docs/).
 
 ## Core guides
 

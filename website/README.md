@@ -23,7 +23,7 @@ Inside `website/`, use `pnpm run dev`, `pnpm run typecheck`, `pnpm run lint`,
 `pnpm run serve`.
 Lint and formatting reuse the repository's installed tools and configuration.
 The development server watches TSX, Tailwind class strings, and MDX. Open
-`/archeion/` for the retained component tooling sample and
+`/archeion/` for the preserved static landing page and
 `/archeion/docs/getting-started/installing/` for the installation article.
 Production output goes to `website/build/`;
 `serve` previews that static output under the same project base path.
@@ -122,9 +122,8 @@ the destination link and may set the text's inherited font role for each site.
 
 The one-off token gallery was removed after dark/light verification. Source
 palette tests and browser checks of resolved tokens and shared controls retain
-coverage. The root page and component tooling sample remain temporary route and
-tooling fixtures, not a landing-page implementation. B2.8 owns removing the
-temporary root route before the static homepage cutover.
+coverage. B2.8 removed the temporary root page and its exclusive component sample.
+The static landing page owns `/archeion/` until the approved B3 React port.
 
 ## Documentation migration map (B2.1)
 
@@ -673,3 +672,70 @@ legacy tests likewise remain available, with explicit maintenance commands in
 never invoke them. B2.10 must trace remaining consumers before removal. No
 release automation, public-resource, compatibility or deployment change occurs
 in B2.7. Root maintainer guides remain in docs/.
+
+## Static landing, public resources and compatibility (B2.8)
+
+`static/index.html` owns `/archeion/` until B3. It is the existing landing HTML
+with only its documentation link changed to `/archeion/docs/`. Its CSS, JavaScript,
+fonts, images, schema and theme examples retain their exact bytes and relative
+paths. The preserved landing runtime is the deliberate temporary exception to
+the React/Tailwind implementation rules; do not restyle it during the docs port.
+Prettier excludes these byte-preserved copies. The root React page,
+FoundationNotice, FoundationControls and their exclusive browser fixture were
+removed, and preset pages disabled before adding the static index. Shared
+Button/Input/Brand remain foundation primitives; docs tests exercise actual docs
+controls. Header Home/brand links use native anchors with the framework base URL
+so navigation loads the static document. The preset 404 navbar uses Docusaurus's
+`pathname:///` native-navigation escape hatch for the same boundary.
+
+Docusaurus 3 emits a development-only `index.html` shell even with preset pages
+disabled. `plugins/staticHomepage.ts` changes that existing HTML plugin's public
+filename option to `__docs-dev.html`. The dev server's `onListening` hook prepends
+a docs rule to the existing history middleware's shared rewrite list, before its
+catch-all. Core middleware and setup callbacks stay untouched. Static landing,
+resources and redirects retain their own paths; docs hard refresh loads the React
+shell. Types come from the pinned core's dev-server factory declaration. The
+plugin fails explicitly if the expected framework HTML emitter or fallback
+changes. Production config is untouched. No dependency, extra server, generated
+source file or error suppression is needed. B3 must remove this temporary plugin
+and static index and re-enable preset pages when React takes ownership.
+
+The root README embeds `website/static/assets/archeion-preview.png` and links
+to the new Changelog and Custom themes articles. Maintainer guide links remain
+repository links. MDX article links already use `/archeion/docs/`; schema and
+example URLs retain their original public destinations. Theme authoring source
+links and physical-copy/font tests now include the static owner.
+
+The full current `docs/` audit found four public resources beyond the plan's
+22-file snapshot: `dictionaries/catalog-v1.json` and its three tracked versioned
+packages. Their existing catalog URLs, sizes and SHA-256 values are authoritative.
+They are copied unchanged to `static/dictionaries/`; its maintainer README is
+excluded. No dictionary path or package was invented. The original 22-resource
+baseline stays immutable. GitHub Release installers, signatures, checksums and
+`latest.json` remain on GitHub Releases; none is copied into the site.
+
+`static/documentation/` contains 24 compatibility HTML pages: Overview plus the
+23 other registered articles. Their destinations preserve the route suffix under
+`/archeion/docs/`. One small deferred script updates the visible fallback link and
+uses `location.replace` with the original query and fragment. Without JavaScript,
+the fallback remains visible and navigable. There is no timed meta refresh to
+race fragment restoration. These frozen old paths are compatibility output,
+not a second website route registry. New docs routes remain framework-owned.
+
+The audit classifies every current `docs/` file as a public resource, legacy site
+implementation/generated output, maintainer guide, or temporary file. Only
+explicit static resources, landing runtime and compatibility pages enter
+`static/`; no blanket copy of `docs/` occurs. Maintainer Markdown, registry,
+legacy documentation runtime/generated data, project files, plans and test output
+are excluded. Detailed per-file/reference and immutable-byte evidence lives in
+`.plans/website-migration/b2.8/`. Desktop About/update links intentionally keep
+old URLs to exercise compatibility; legacy tests/generators and historical
+material retain their old paths until B2.10 traces and retires them.
+
+All old site sources/assets remain under `docs/` until the B2.10 cutover. Before
+that boundary, an explicitly authorized live-site resource update must keep the
+static copy byte-identical; `websiteStatic.test.ts` checks those pairs, and the
+browser suite checks every served static file. Dictionary publication still owns
+the original catalog/package paths until that boundary; no publisher change is
+part of B2.8. B2.9 owns CI/browser-lane integration; B2.10 owns deployment,
+legacy removal and final artifact validation. B3 alone replaces the static landing.

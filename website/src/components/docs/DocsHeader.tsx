@@ -1,4 +1,4 @@
-import Link from "@docusaurus/Link";
+import useBaseUrl from "@docusaurus/useBaseUrl";
 import { ArrowUpRight, Menu, Search } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { Brand } from "@/components/shared/Brand";
@@ -13,13 +13,14 @@ export function DocsHeader({
   onNavigation: () => void;
   navigationOpen: boolean;
 }) {
+  const homeUrl = useBaseUrl("/");
   return (
     <header className="sticky top-0 z-header h-docs-header border-0 border-b border-solid border-border bg-surface-header backdrop-blur-lg docs-narrow:h-15.5">
       {/* Fixed chrome geometry keeps icon targets separate when article text is enlarged. */}
       {/* The three tracks preserve the mock's centered search independently of action width. */}
       <div className="mx-auto grid h-full max-w-docs box-border grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-docs-header-gap px-docs-gutter docs-full:gap-docs-header-full docs-full:px-docs-gutter-full docs-wide:gap-docs-header-wide docs-brand:gap-docs-header-compact docs-navigation:gap-docs-header-mobile docs-navigation:px-docs-gutter-mobile docs-search:gap-docs-header-icon docs-narrow:px-docs-gutter-narrow [&_nav_button]:size-docs-icon [&_nav_a]:min-w-docs-icon [&_nav_a]:min-h-docs-icon [&_nav_svg]:size-docs-glyph pointer-coarse:[&_nav_button]:min-h-docs-touch pointer-coarse:[&_nav_button]:min-w-docs-touch pointer-coarse:[&_nav_a]:min-h-docs-touch pointer-coarse:[&_nav_a]:min-w-docs-touch">
-        <Link
-          to="/"
+        <a
+          href={homeUrl}
           className="flex w-fit min-w-0 max-w-full items-center gap-docs-header-compact text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring"
         >
           <Brand className="gap-docs-brand shrink-0 [&_img]:size-docs-mark [&_span]:text-docs-brand docs-narrow:[&_img]:size-docs-mark-mobile docs-narrow:[&_span]:text-docs-brand-mobile docs-tiny:[&_img]:size-docs-mark-tiny docs-tiny:[&_span]:text-docs-brand-tiny" />
@@ -30,7 +31,7 @@ export function DocsHeader({
           <span className="min-w-0 text-caption wrap-anywhere text-content-subtle docs-brand:hidden">
             Documentation
           </span>
-        </Link>
+        </a>
         <Button
           variant="ghost"
           onClick={onSearch}
@@ -47,13 +48,13 @@ export function DocsHeader({
           aria-label="Website"
           className="flex items-center justify-end gap-docs-header-wide docs-navigation:gap-docs-actions"
         >
-          <Link
-            to="/"
+          <a
+            href={homeUrl}
             className="inline-flex items-center text-sm text-content-muted hover:text-content-strong docs-brand:hidden"
           >
             Home
             <ArrowUpRight aria-hidden="true" className="size-3" />
-          </Link>
+          </a>
           <div className="flex items-center gap-docs-actions">
             <ThemeToggle />
             <Button variant="ghost" size="icon" asChild className="docs-tiny:hidden">

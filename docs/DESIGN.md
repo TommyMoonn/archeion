@@ -85,6 +85,7 @@ Regenerate platform icons from the approved 500 x 500 desktop composition:
 ```powershell
 pnpm exec tauri icon src/assets/brand/archeion-logo-dark.png --output src-tauri/icons
 Copy-Item src-tauri/icons/128x128.png docs/assets/images/archeion-icon.png
+Copy-Item src-tauri/icons/128x128.png website/static/assets/images/archeion-icon.png
 Copy-Item src-tauri/icons/32x32.png public/favicon.png
 ```
 

@@ -7,7 +7,7 @@ const baseURL = `http://127.0.0.1:${port}`;
 export default defineConfig({
   testDir: ".",
   testMatch: [
-    "website-foundation.pw.ts",
+    "website-static.pw.ts",
     "website-docs-shell.pw.ts",
     "website-docs-interactions.pw.ts",
     "website-docs-accessibility.pw.ts",

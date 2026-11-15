@@ -80,7 +80,7 @@ describe("website design foundation", () => {
       expect(
         fs
           .readFileSync(path.join(root, `website/src/assets/fonts/${name}.woff2`))
-          .equals(fs.readFileSync(path.join(root, `docs/assets/fonts/${name}.woff2`))),
+          .equals(fs.readFileSync(path.join(root, `website/static/assets/fonts/${name}.woff2`))),
       ).toBe(true);
     }
     for (const family of ["Inter", "Literata"]) {

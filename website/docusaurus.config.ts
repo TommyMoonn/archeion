@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/postcss";
 import type { Config, Plugin } from "@docusaurus/types";
 import docsSearchPlugin from "./plugins/search";
+import staticHomepagePlugin from "./plugins/staticHomepage";
 
 const config: Config = {
   title: "Archeion",
@@ -21,10 +22,20 @@ const config: Config = {
     },
   ],
   themeConfig: {
+    // The preset 404 navbar also crosses to the temporary static homepage.
+    navbar: {
+      logo: {
+        src: "assets/images/archeion-icon.png",
+        alt: "Archeion",
+        href: "pathname:///",
+        target: "_self",
+      },
+    },
     colorMode: { defaultMode: "dark", respectPrefersColorScheme: false },
   },
   plugins: [
     docsSearchPlugin,
+    staticHomepagePlugin,
     function tailwindPlugin(): Plugin {
       return {
         name: "archeion-tailwind",
@@ -48,6 +59,7 @@ const config: Config = {
           editUrl: "https://github.com/TommyMoonn/archeion/edit/main/website/",
         },
         blog: false,
+        pages: false,
         theme: { customCss: "./src/css/custom.css" },
       },
     ],

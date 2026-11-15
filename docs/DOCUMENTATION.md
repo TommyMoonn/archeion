@@ -102,6 +102,17 @@ controls are excluded. Actions retain stable names, focus, retry/dismissal and
 newest-request ownership; route changes dispose pending results. Controls remain
 hidden before hydration and without JavaScript.
 
+## Public resources during migration
+
+The replacement build preserves the existing landing at `/archeion/` from
+`website/static/index.html` and serves public fonts/images, schema/examples and
+the existing dictionary catalog/packages from `website/static/`. Original
+`docs/` sources remain active until cutover. Resource changes before cutover must
+update both copies with identical bytes. Do not run formatters over the preserved
+landing/runtime/resources. Compatibility HTML under `static/documentation/`
+redirects the 24 old article URLs, retaining query/fragment and a visible fallback.
+See [the preservation contract](../website/README.md#static-landing-public-resources-and-compatibility-b28).
+
 ## Legacy site during migration
 
 The legacy HTML, registry, runtime and generated assets still serve the current
