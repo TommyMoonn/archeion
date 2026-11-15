@@ -99,11 +99,16 @@ pnpm --filter @archeion/website test
 pnpm --filter @archeion/website typecheck
 pnpm --filter @archeion/website lint
 pnpm --filter @archeion/website build
+node scripts/check-website-build.mjs
 pnpm exec playwright test --config tests/browser/website-foundation.config.ts
 ```
 
 The build owns MDX/framework link validation and static rendering. The dedicated
-browser config owns the Docusaurus server and stops it. Use
+browser config owns a filesystem host for the production artifact, including
+HTTP 404 output without SPA rewrites, and stops it. These checks establish
+local artifact behavior; live Pages/CDN verification follows the
+[cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).
+Use
 `ARCHEION_WEBSITE_MODE=dev` for development checks; run dev/build and browser
 modes sequentially because generated output is shared. The default desktop
 config excludes website specs. CI runs this complete production suite once on

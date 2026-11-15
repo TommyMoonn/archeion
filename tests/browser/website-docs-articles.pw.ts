@@ -8,6 +8,10 @@ test("all 24 MDX articles publish coherent metadata, native navigation, outlines
   browser,
 }) => {
   test.setTimeout(120_000);
+  const networkFailures: string[] = [];
+  page.on("response", (response) => {
+    if (response.status() >= 400) networkFailures.push(response.url());
+  });
   const staticContext =
     process.env.ARCHEION_WEBSITE_MODE === "dev"
       ? null
@@ -24,6 +28,33 @@ test("all 24 MDX articles publish coherent metadata, native navigation, outlines
         "content",
         doc.metadata.description,
       );
+      await expect(page).toHaveTitle(`${doc.metadata.title} | Archeion`);
+      const canonical = `https://tommymoonn.github.io${url}`;
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", canonical);
+      await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", canonical);
+      await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+        "content",
+        doc.metadata.description,
+      );
+      await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+        "content",
+        "https://tommymoonn.github.io/archeion/assets/archeion-preview.png",
+      );
+      await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+        "content",
+        "summary_large_image",
+      );
+      await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+        "href",
+        "/archeion/assets/images/archeion-icon.png",
+      );
+      await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+        "href",
+        "/archeion/assets/archeion-icon.png",
+      );
+      await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1);
+      await page.reload();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(doc.metadata.title);
       const sidebar = page.getByRole("complementary", { name: "Documentation navigation" });
       await expect(sidebar.locator("a")).toHaveCount(24);
       await expect(sidebar.locator('a[aria-current="page"]')).toHaveText(
@@ -77,4 +108,5 @@ test("all 24 MDX articles publish coherent metadata, native navigation, outlines
   } finally {
     await staticContext?.close();
   }
+  expect(networkFailures).toEqual([]);
 });

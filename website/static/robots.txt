@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /archeion/
+
+Sitemap: https://tommymoonn.github.io/archeion/sitemap.xml

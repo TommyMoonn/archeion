@@ -19,6 +19,11 @@ Use Node 22 and pnpm 10.33.0. `pnpm run docs:sync` calls
 legacy HTML generators, or search generation. Website compilation/link checking
 runs separately in `pnpm --filter @archeion/website build`.
 
+After that build, `node scripts/check-website-build.mjs` validates exact static
+copies, canonical project URLs, sitemap/robots/404 output and excluded internal
+files before the production workflow uploads only `website/build/`. It does not
+change live Pages settings or retire the still-published legacy sources.
+
 The shared release parser and exact publication body remain unchanged. Finalize
 the technical changelog and canonical note, run docs:sync, docs:check,
 `pnpm run release:check --tag vX.Y.Z`, then verify. See the

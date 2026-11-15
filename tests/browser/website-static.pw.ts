@@ -59,18 +59,8 @@ test("docs home and brand cross the static boundary and landing links return to 
     await expect(page).toHaveURL(/\/archeion\/docs\/$/);
     await expect(page.locator("article h1")).toHaveText("Archeion documentation");
   }
-  if (process.env.ARCHEION_WEBSITE_MODE !== "dev") {
-    // Local serve normalizes 404.html to the landing fallback. Exercise the
-    // exact generated document here; Pages/unknown-route hosting is B2.10.
-    await page.route("**/archeion/404.html", (route) =>
-      route.fulfill({
-        contentType: "text/html",
-        body: fs.readFileSync("website/build/404.html"),
-      }),
-    );
-  }
   await page.goto("/archeion/404.html");
-  const homeLogo = page.locator(".navbar__brand");
+  const homeLogo = page.getByRole("link", { name: "Archeion home", exact: true });
   await expect(homeLogo).toHaveAttribute("href", "/archeion/");
   await expect(homeLogo).toHaveAttribute("target", "_self");
   await homeLogo.click();
@@ -114,4 +104,62 @@ test("landing mobile navigation retains keyboard focus and reduced motion", asyn
   );
   await page.screenshot({ path: testInfo.outputPath("static-landing-desktop.png") });
   expect(failures).toEqual([]);
+});
+
+test("filesystem hosting returns the branded 404 at unknown nested URLs", async ({
+  page,
+  request,
+  browser,
+}, testInfo) => {
+  test.skip(
+    process.env.ARCHEION_WEBSITE_MODE === "dev",
+    "HTTP status contract requires the production artifact host",
+  );
+  const unknown = "/archeion/docs/missing/nested/page/?source=404#retained";
+  const response = await page.goto(unknown);
+  expect(response?.status()).toBe(404);
+  await expect(page).toHaveURL(new RegExp("/docs/missing/nested/page/\\?source=404#retained$"));
+  await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+  const home = page
+    .getByRole("navigation", { name: "Find a page" })
+    .getByRole("link", { name: "Home", exact: true });
+  await expect(home).toHaveAttribute("href", "/archeion/");
+  await home.focus();
+  await expect(home).toBeFocused();
+  await expect(home).toHaveCSS("outline-style", "solid");
+  await page.getByRole("link", { name: "Documentation", exact: true }).click();
+  await expect(page.locator("article h1")).toHaveText("Archeion documentation");
+  await page.reload();
+  await expect(page.locator("article h1")).toHaveText("Archeion documentation");
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const fallback = await context.newPage();
+    expect((await fallback.goto(unknown))?.status()).toBe(404);
+    await expect(fallback.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    await expect(
+      fallback.getByRole("link", { name: "Documentation", exact: true }),
+    ).toHaveAttribute("href", "/archeion/docs/");
+  } finally {
+    await context.close();
+  }
+  for (const url of [
+    "/archeion/missing.js",
+    "/archeion/assets/missing.png",
+    "/archeion/docs/foundation/",
+  ]) {
+    expect((await request.get(url)).status(), url).toBe(404);
+  }
+  for (const theme of ["dark", "light"]) {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto(unknown);
+    await page.evaluate(
+      (value) => document.documentElement.setAttribute("data-theme", value),
+      theme,
+    );
+    await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: testInfo.outputPath(`404-${theme}.png`) });
+  }
 });

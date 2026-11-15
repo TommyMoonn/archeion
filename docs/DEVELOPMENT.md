@@ -61,6 +61,10 @@ published until the separate cutover. Root `pnpm run docs:sync` writes canonical
 release history to `website/src/generated/release-history.json`; `pnpm run
 docs:check` checks freshness and Node-only source contracts. Neither requires
 website dependencies. Run website typecheck/build separately for MDX and links.
+After building, `node scripts/check-website-build.mjs` checks the Pages output.
+The main-only deployment workflow is independent from releases. Live settings
+and destructive retirement remain subject to the
+[post-merge cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).
 For releases, finalize prose, sync, docs:check, release:check, then verify; see
 the release operator guide.
 

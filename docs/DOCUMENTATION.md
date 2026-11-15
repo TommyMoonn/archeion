@@ -87,8 +87,9 @@ identity, sidebar, stable-anchor and internal documentation-link contracts.
 Neither root command invokes legacy generators, MDX compilation or Docusaurus.
 Application-only installs can run them. Website typecheck/build separately own
 MDX compilation, framework route/fragment validation and static rendering.
-CI's existing root docs check rejects stale history; website CI/browser policy
-integration and Pages cutover remain later migration work.
+CI's root docs check rejects stale history. Website CI also runs typecheck,
+production build, artifact checks and the dedicated browser suite. Live Pages
+cutover remains pending under the procedure below.
 
 ## Article copying
 
@@ -135,3 +136,64 @@ planned cutover. Do not change release publication, signing, assets or updater
 behavior as part of documentation generation.
 
 See [testing](TESTING.md) and [release operations](RELEASING.md) for full gates.
+
+## Production cutover and legacy retirement
+
+B2 prepares deployment in a stacked PR targeting `build/website-foundation`.
+The owner explicitly deferred live cutover and destructive retirement until
+after merge. Pages currently publishes `main:/docs`; leave those files and
+publisher paths operational until a tested deployment replaces them. Neither
+PR approval nor local artifact tests establish a successful live deployment.
+
+1. Merge through the authorized stack procedure separately. The production
+   workflow runs only on main pushes or manual main dispatches. It validates
+   sources/history, website tooling, types, MDX links and the output artifact,
+   uploads only `website/build/`, then deploys via `github-pages`. PR validation
+   remains in the existing CI lanes. This workflow does not enable Pages or
+   mutate its settings.
+2. Record the exact main SHA, workflow run, artifact and deployment ID. Confirm
+   the v1.8.0 Release still has EXE/MSI, both signatures, SHA256SUMS.txt and
+   latest.json. All were verified published during B2.10 preparation.
+3. Obtain a successful deployed/tested artifact before changing Settings →
+   Pages → Build and deployment to GitHub Actions. If GitHub rejects the first
+   Actions deployment while the publishing source is legacy, stop and record
+   that failure. Resolve the bootstrap ordering with the owner; do not silently
+   enable Pages through `configure-pages` or the API to bypass this prerequisite.
+4. Verify the live root, docs overview, all nested docs and hard refreshes;
+   old compatibility URLs with queries/fragments; fonts, images, theme schema,
+   examples and dictionary catalog/package hashes; sitemap, robots, canonical,
+   social/icon metadata; and unknown nested paths returning HTTP 404 with the
+   branded document. Local tests emulate filesystem hosting but do not prove
+   GitHub's CDN behavior. Save network failures and actual response status.
+5. After the deployed artifact passes, change the publishing source and verify
+   it again. Keep the previous known-good deployment/run and Git revision for
+   rollback. A failed deployment must not trigger legacy deletion. Revert to
+   the known-good deployment or restore the original publishing source while
+   the legacy tree is retained.
+6. In a separately validated retirement change, use the inventory below. Preserve
+   root maintainer guides, historical/audit files, compatibility redirects and
+   the B3 temporary homepage until its React replacement passes. Run docs:check,
+   the website build/artifact/browser gates, root verification and affected
+   native dictionary/asset tests before removing consumers.
+
+### Retirement inventory and consumer replacements
+
+| Retained owner                                                                                                                                           | Replacement / retirement condition                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/documentation/` HTML, registry and runtime/generated assets                                                                                        | 24 MDX files, framework metadata/sidebar, React shell/search/copy/timeline; remove only after live replacement verification                                                                                                                                                                 |
+| `sync-documentation-navigation.mjs`, `sync-documentation-search.mjs`, `sync-documentation-changelog-page.mjs`, `legacy-sync-documentation-changelog.mjs` | Framework build/search and the existing Node-only release projection; remove their legacy-only callers together                                                                                                                                                                             |
+| Ten `legacyDocumentation*` unit suites and legacy documentation browser suites                                                                           | Named migrated source/website suites already protect routes, content, shell, TOC, search, copying and history; reconcile each assertion before retiring duplicates                                                                                                                          |
+| `documentationLinkTestSupport.ts`, `documentationSearchTestSupport.ts`                                                                                   | Remove only after all retained legacy test imports move                                                                                                                                                                                                                                     |
+| `public-pages.pw.ts`, `public-navigation.pw.ts`, `font-preferences-documentation.pw.ts`                                                                  | Mixed legacy consumers: retain landing assertions and port docs/font claims to the dedicated website suite; do not delete entire mixed suites                                                                                                                                               |
+| `docs/index.html`, `docs/css/`, `docs/js/` and their landing suites                                                                                      | Temporary byte-preserved `website/static` copy, followed by B3 React port; retain all product/demo/keyboard contracts                                                                                                                                                                       |
+| `docs/assets/`, `docs/schemas/`, `docs/examples/`                                                                                                        | `website/static` exact-byte resources; retarget theme-contract/shared-parity tests, fixture cover imports, font manifest/verifier, brand commands, notices and maintainer source links before deleting copies                                                                               |
+| `docs/dictionaries/catalog-v1.json` and packages                                                                                                         | Existing exact-byte `website/static/dictionaries/` copy; retarget Python `DEFAULT_CATALOG`/`DEFAULT_OUTPUT`, Rust catalog `include_bytes!`/package paths and publisher instructions together. Preserve package-before-catalog publication, immutable conflicts, receipt checks and rollback |
+| Old paths in CI classifier tests                                                                                                                         | Retire obsolete root HTML/registry eligibility after source removal; keep unknown/shared/deleted paths selecting full and gate/job contracts unchanged                                                                                                                                      |
+| Old public `/documentation/` URLs in desktop About/update links                                                                                          | Intentional compatibility destinations; static redirects retain those URLs, queries and fragments                                                                                                                                                                                           |
+| Root `docs/*.md`, dictionary README, release notes, plans/audits                                                                                         | Intentional maintainer or historical sources; excluded from Pages output, not cleanup targets                                                                                                                                                                                               |
+
+The B2.10 tracked-reference audit classifies source references by these families.
+Historical references remain evidence, not runtime owners. Existing public
+resource and nine release-owner Git blobs remain protected by the immutable
+migration baseline. Do not edit release publication, signing, updater or exact
+parser/body contracts during retirement.

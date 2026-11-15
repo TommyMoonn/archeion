@@ -75,3 +75,7 @@ active until their planned migration/cutover boundaries.
 Use [Public documentation](DOCUMENTATION.md) to edit articles, regenerate the
 canonical release-history JSON, and run Node-only source/drift checks. Root
 maintainer guides stay here and are excluded from the replacement site artifact.
+
+The production workflow is prepared for main. Live Pages settings and legacy
+retirement are explicitly deferred until after merge and a verified deployment;
+follow the [cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).

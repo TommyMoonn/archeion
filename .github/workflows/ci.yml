@@ -279,6 +279,9 @@ jobs:
       - name: Build website
         run: pnpm --filter @archeion/website build
 
+      - name: Validate Pages artifact
+        run: node scripts/check-website-build.mjs
+
   rust-checks:
     needs: classify-changes
     if: ${{ always() && !cancelled() && (github.event_name != 'pull_request' || needs.classify-changes.result != 'success' || needs.classify-changes.outputs.mode != 'docs-only' || needs.classify-changes.outputs.expected_jobs != '["frontend-static","frontend-tests","browser-contracts","frontend-build","website-build"]') }}

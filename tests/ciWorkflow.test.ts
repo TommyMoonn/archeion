@@ -193,7 +193,7 @@ describe("CI workflow contract", () => {
       path.join(projectRoot, "tests/browser/website-foundation.config.ts"),
       "utf8",
     );
-    expect(config).toContain('"serve --no-open"');
+    expect(config).toContain('"node tests/browser/serve-website-build.mjs"');
     expect(config).toContain("reuseExistingServer: false");
     expect(config).toContain("retries: process.env.CI ? 1 : 0");
     expect(config).toContain('trace: "retain-on-failure-and-retries"');

@@ -1,5 +1,6 @@
 import tailwindcss from "@tailwindcss/postcss";
 import type { Config, Plugin } from "@docusaurus/types";
+import type { Options as ClassicOptions } from "@docusaurus/preset-classic";
 import docsSearchPlugin from "./plugins/search";
 import staticHomepagePlugin from "./plugins/staticHomepage";
 
@@ -7,6 +8,8 @@ const config: Config = {
   title: "Archeion",
   url: "https://tommymoonn.github.io",
   baseUrl: "/archeion/",
+  trailingSlash: true,
+  favicon: "assets/images/archeion-icon.png",
   organizationName: "TommyMoonn",
   projectName: "archeion",
   onBrokenLinks: "throw",
@@ -15,6 +18,10 @@ const config: Config = {
   headTags: [
     { tagName: "meta", attributes: { name: "theme-color", content: "#0b0b0c" } },
     {
+      tagName: "link",
+      attributes: { rel: "apple-touch-icon", href: "/archeion/assets/archeion-icon.png" },
+    },
+    {
       tagName: "script",
       attributes: {},
       // Runs in head, before Docusaurus's pre-body theme initialization and paint.
@@ -22,6 +29,8 @@ const config: Config = {
     },
   ],
   themeConfig: {
+    image: "assets/archeion-preview.png",
+    metadata: [{ name: "twitter:card", content: "summary_large_image" }],
     // The preset 404 navbar also crosses to the temporary static homepage.
     navbar: {
       logo: {
@@ -60,8 +69,18 @@ const config: Config = {
         },
         blog: false,
         pages: false,
+        sitemap: {
+          ignorePatterns: ["**/404.html"],
+          // The temporary homepage is static, so it is absent from framework routes.
+          async createSitemapItems({ defaultCreateSitemapItems, ...params }) {
+            return [
+              ...(await defaultCreateSitemapItems(params)),
+              { url: "https://tommymoonn.github.io/archeion/", changefreq: "weekly", priority: 1 },
+            ];
+          },
+        },
         theme: { customCss: "./src/css/custom.css" },
-      },
+      } satisfies ClassicOptions,
     ],
   ],
 };

@@ -32,7 +32,8 @@ The dedicated CI website job installs only `@archeion/website...`, then runs
 website tooling tests, strict typechecking, and the production build (including
 MDX and broken-link validation). The existing application jobs keep their application-only installs.
 Eligible isolated website changes select the existing frontend/docs validation
-set described in B2.9 below. No Pages deployment is configured yet.
+set described in B2.9 below. The B2.10 production workflow is prepared for main;
+live cutover and legacy retirement remain pending after merge.
 
 The root `package.json` scopes a tinypool 2.1.2 override to Docusaurus. Docusaurus
 3.10.2 still requests 1.x, which is affected by GHSA-85c8-ppgw-ccpr and
@@ -773,3 +774,46 @@ CI explicitly sets `ARCHEION_WEBSITE_MODE=production`. Local development mode
 remains available, and dev/build/browser modes must run sequentially.
 
 No deployment, legacy retirement or React homepage work belongs to this phase.
+
+## Production deployment preparation (B2.10)
+
+`.github/workflows/website-deploy.yml` builds only the website package on main
+pushes or a manual main dispatch. Existing CI validates pull requests, including
+the dedicated production browser suite; PRs cannot deploy. Actions are pinned
+to full SHAs. The build job has only contents-read permission and uploads only
+`website/build/` after source/history checks, website tests, typecheck, build and
+the Node-only artifact check. The separate deploy job has pages-write and
+id-token-write, depends on that build, and uses the `github-pages` environment.
+Production deployments serialize without cancelling a deployment in progress.
+No release workflow, signing, updater, parser or publication-body owner changes.
+
+Project-site canonical URLs use `https://tommymoonn.github.io/archeion/`, with
+explicit trailing slashes. Docusaurus generates the sitemap; its callback adds
+the temporary static homepage, which is absent from framework routes. The sitemap
+contains the homepage and 24 docs only. Robots points to that production sitemap.
+Docs retain individual titles/descriptions and receive absolute social image
+URLs, the favicon, Apple icon and theme color. The static homepage retains its
+exact existing SEO/social metadata and font preloads.
+
+The focused NotFound override reuses Brand and semantic Tailwind tokens with
+native Home/Documentation links. Production browser tests now serve the actual
+artifact through `tests/browser/serve-website-build.mjs`, a local filesystem
+host with custom 404 status/output, directory redirects and no SPA fallback.
+They exercise unknown nested paths without intercepted responses, including
+no-JavaScript output, direct routes, reloads and network failures. This proves
+the artifact's local hosting contract; live GitHub Pages behavior remains a
+separate post-merge check. `pnpm --filter @archeion/website serve` remains useful
+for previews but normalizes missing URLs differently.
+
+The user explicitly deferred live cutover and destructive legacy retirement
+until after merge. Live Pages was verified as `main:/docs` with `build_type:
+legacy`; it has not been changed. Original HTML, registry, runtime, generators,
+their tests and duplicate public resources remain active for that publisher.
+Dictionary publication still targets `docs/dictionaries/` for the same reason.
+Do not describe this preparation PR as a completed production deployment.
+The ordered [cutover and retirement procedure](../docs/DOCUMENTATION.md#production-cutover-and-legacy-retirement)
+records prerequisites, rollback and every remaining consumer family. The
+reference/file audit and verification evidence live under
+`.plans/website-migration/b2.10/`. B3 retains its own homepage scope; it must
+remove the temporary static-homepage plugin/index and the sitemap's manual root
+entry when framework pages own the homepage.

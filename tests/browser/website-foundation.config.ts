@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 const development = process.env.ARCHEION_WEBSITE_MODE === "dev";
 const port = development ? 4191 : 4192;
@@ -32,7 +33,10 @@ export default defineConfig({
     trace: "retain-on-failure-and-retries",
   },
   webServer: {
-    command: `pnpm --filter @archeion/website ${development ? "dev --no-open" : "serve --no-open"} --host 127.0.0.1 --port ${port}`,
+    cwd: fileURLToPath(new URL("../../", import.meta.url)),
+    command: development
+      ? `pnpm --filter @archeion/website dev --no-open --host 127.0.0.1 --port ${port}`
+      : "node tests/browser/serve-website-build.mjs",
     url: `${baseURL}/archeion/`,
     reuseExistingServer: false,
     timeout: 90_000,
