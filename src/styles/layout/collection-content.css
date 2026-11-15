@@ -38,7 +38,11 @@
   content-visibility: visible;
 }
 
-.library-content--books:has(> .collection-content__items[data-return-preparing]) {
+/* Override the results entrance while return geometry is being measured. */
+html[data-motion="on"]
+  .library-content--books[data-surface-state="results"]:has(
+    > .collection-content__items[data-return-preparing]
+  ) {
   animation: none;
 }
 

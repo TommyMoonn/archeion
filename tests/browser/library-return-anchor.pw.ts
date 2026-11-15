@@ -3,6 +3,24 @@ import { expect, test } from "@playwright/test";
 // The production-route fixture has a substantial cold Vite module graph on Windows.
 if (process.platform === "win32") test.setTimeout(120_000);
 
+test("return preparation suppresses the collection entrance animation", async ({ page }) => {
+  await page.goto("/tests/browser/fixtures/ui-stability.html?count=48");
+  const boundary = page.locator(".library-content--books");
+  await expect(page.locator(".book-grid")).toBeVisible();
+  const animation = await boundary.evaluate((node) => {
+    const items = node.querySelector<HTMLElement>(".collection-content__items");
+    if (!items) throw new Error("Book collection is missing");
+    document.documentElement.dataset.motion = "on";
+    node.removeAttribute("data-entrance-complete");
+    items.setAttribute("data-return-preparing", "true");
+    const preparing = getComputedStyle(node).animationName;
+    items.removeAttribute("data-return-preparing");
+    return { preparing, revealed: getComputedStyle(node).animationName };
+  });
+  expect(animation.preparing).toBe("none");
+  expect(animation.revealed).toBe("app-motion-view-content-in");
+});
+
 for (const view of ["grid", "list"] as const) {
   // Each view covers every count and position. Middle at 500 additionally covers
   // resize/density restoration; middle at 3000 covers retained virtual rows.
