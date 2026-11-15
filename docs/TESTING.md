@@ -16,7 +16,7 @@ pnpm run verify
 The command runs these checks:
 
 - Frontend architecture, Tauri command parity, settings mutation contracts, and
-  generated documentation.
+  canonical release-history freshness and Node-only documentation source contracts.
 - Prettier, ESLint, TypeScript, and the Vitest suite.
 - Rust formatting, Clippy, and Cargo tests.
 - The production frontend build and bundled Inter asset verification.
@@ -85,6 +85,34 @@ pnpm run fmt:fix
 pnpm run lint:fix
 pnpm run rust:fmt:fix
 ```
+
+## Validate the website
+
+Root `pnpm run docs:check` is read-only and Node-only. It validates the committed
+`website/src/generated/release-history.json` against canonical release notes plus
+source metadata, sidebar, anchors and internal documentation links. It does not
+invoke old HTML/navigation/search generators or install/build the website.
+`pnpm run docs:sync` regenerates only history after release prose changes.
+
+```powershell
+pnpm --filter @archeion/website test
+pnpm --filter @archeion/website typecheck
+pnpm --filter @archeion/website lint
+pnpm --filter @archeion/website build
+pnpm exec playwright test --config tests/browser/website-foundation.config.ts
+```
+
+The build owns MDX/framework link validation and static rendering. The dedicated
+browser config owns the Docusaurus server and stops it. Use
+`ARCHEION_WEBSITE_MODE=dev` for development checks; run dev/build and browser
+modes sequentially because generated output is shared. The default desktop
+config excludes website specs. CI classifier/browser integration remains a
+separate migration phase. Legacy documentation tests remain active for the
+currently published site until cutover.
+
+For release preparation, run docs:sync after final prose, then docs:check,
+`pnpm run release:check --tag vX.Y.Z`, and `pnpm run verify`. The broad root verify
+chain does not replace the dedicated website build/browser checks.
 
 ## Run the Chromium browser suite
 

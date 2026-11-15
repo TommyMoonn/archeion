@@ -45,9 +45,9 @@ dependency requirements. Website runtime tests live under
 website modules or require Docusaurus dependencies.
 
 Root `pnpm run docs:sync` and `pnpm run docs:check` remain Node-only and do not
-invoke Docusaurus. They continue to own the current public site's generated
-content until B2.7 moves the release-history projection. Run the website build
-separately to compile MDX.
+invoke Docusaurus. Sync writes canonical release-history JSON; check validates its freshness and
+Node-only documentation sources. Neither invokes legacy generators. Run the
+website build separately to compile MDX and validate framework links.
 
 Foundation browser contracts run from the root after a website build:
 
@@ -622,3 +622,54 @@ overview and clipboard behavior, including all 24 article exports and the
 supported serializer vocabulary. Legacy browser tests remain active for their
 existing site. B2.7 still owns release projection/tooling; B2.8 resources and
 compatibility; B2.9 CI integration; B2.10 final legacy removal/deployment.
+
+## Canonical release history and root tooling (B2.7)
+
+`release-notes/vX.Y.Z.md` remains the sole user-facing history source;
+`CHANGELOG.md` remains technical. The unchanged root release parser still owns
+metadata, date/version ordering, Changes extraction and exact metadata-free
+publication/updater bodies. `docs:sync` atomically writes only
+`website/src/generated/release-history.json` using that API. SchemaVersion 1
+entries retain version, date, repository-relative sourcePath and LF-normalized
+changes. There are no timestamps or checkout paths.
+
+`scripts/release-history-markdown.mjs` is a small shared pure vocabulary for
+Node validation and typed React rendering: flat dash/star bullets, indented
+prose continuations, bold, single-backtick code and absolute HTTP(S) links.
+Unsupported blocks, malformed inline syntax and unsafe links fail before any
+write. React renders text nodes, strong/code and native links; no HTML injection.
+The declaration beside the module keeps website consumers typed without adding
+a dependency or coupling root commands to the website install.
+
+`src/data/releaseHistory.ts` adapts the projection once outside React render.
+`ReleaseTimeline` composes the measured rail/dots, 116px metadata column, 22px
+gap and native headings/time/change lists/GitHub Release links. At inclusive
+600px entries become one column with 8px gap and 25px bottom spacing. New named
+release type/column tokens are centralized; metadata line heights retain the
+measured 18.3px/19.8px roles and change bullets keep their 9px margins. It registers stable release anchors
+with the existing framework collector. Changelog MDX only composes the component
+and exports its framework TOC from the same typed headings; no authored history
+snapshot remains. Static production HTML retains every release without JS.
+
+`plugins/releaseSearch.ts` adapts canonical sections/fragments to the existing
+search entry contract without executing the timeline component. The MDX parser
+still does not evaluate imports/components. Framework metadata still owns the
+Changelog page and introduction, sequence, routing and sidebar. Overview remains
+independent; no additional route, clipboard or modal owner was added.
+
+`docs:check` is read-only: Node-only source metadata/identity/sidebar/anchor/link
+contracts plus canonical projection freshness. Website build separately owns
+MDX compilation and framework routes/broken links. Root CI already runs docs:check
+and rejects stale history. B2.9 owns classifier/browser integration. Release prep
+uses pnpm 10.33.0: install frozen, version:set, finalize technical changelog and
+canonical note, docs:sync, docs:check, release:check --tag vX.Y.Z, then verify.
+
+Legacy HTML/registry/runtime/generated assets remain active until cutover.
+The old changelog projection is preserved as
+`scripts/legacy-sync-documentation-changelog.mjs`; the retained HTML timeline
+script consumes that legacy owner only. Old navigation/search scripts and their
+legacy tests likewise remain available, with explicit maintenance commands in
+`docs/DOCUMENTATION.md`. Their root package aliases were retired; docs:sync/check
+never invoke them. B2.10 must trace remaining consumers before removal. No
+release automation, public-resource, compatibility or deployment change occurs
+in B2.7. Root maintainer guides remain in docs/.

@@ -3,8 +3,8 @@
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
-This directory contains Archeion's engineering documentation and the source for
-its public documentation site.
+This directory contains Archeion's engineering documentation. Public MDX source
+lives in `website/docs/`; the old static site remains here until cutover.
 
 Use these guides for development, architecture, design, testing, and release work.
 User-facing instructions are published in the
@@ -20,8 +20,8 @@ User-facing instructions are published in the
   running the app, and local installer builds.
 - [Testing and validation](TESTING.md) lists the existing local and CI validation
   lanes, including browser and Windows smoke tests.
-- [Public documentation](DOCUMENTATION.md) explains the page registry, navigation,
-  search data, release history, and article maintenance.
+- [Public documentation](DOCUMENTATION.md) explains MDX authoring, framework navigation,
+  local search, canonical release history, and legacy maintenance.
 - [Release operations](RELEASING.md) covers version changes, release notes,
   signing, installer staging, and publication.
 
@@ -67,9 +67,11 @@ owns the pinned source archives and license inputs.
 
 ## Public documentation site
 
-The static public site lives under [`documentation/`](documentation/). Its page
-registry is `documentation/page-registry.json`. The public landing page and
-shared website assets live in `index.html`, `assets/`, `css/`, and `js/`.
+The replacement site lives in [`website/`](../website/), with articles in
+`website/docs/` and sidebar ordering in `website/sidebars.ts`. The legacy
+[`documentation/`](documentation/) site, landing page and public assets remain
+active until their planned migration/cutover boundaries.
 
-Use [Public documentation](DOCUMENTATION.md) to edit pages or regenerate the
-site's navigation, search index, and release history.
+Use [Public documentation](DOCUMENTATION.md) to edit articles, regenerate the
+canonical release-history JSON, and run Node-only source/drift checks. Root
+maintainer guides stay here and are excluded from the replacement site artifact.

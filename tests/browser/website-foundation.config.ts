@@ -16,6 +16,7 @@ export default defineConfig({
     "website-docs-search-interaction.pw.ts",
     "website-docs-copy.pw.ts",
     "website-docs-overview.pw.ts",
+    "website-docs-changelog.pw.ts",
   ],
   workers: 1,
   reporter: "list",

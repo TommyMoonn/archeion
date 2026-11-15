@@ -9,6 +9,23 @@ Public flags use Git-style `--kebab-case`. Existing PowerShell-style flags and r
 
 Every command supports `-h` / `--help`.
 
+## Documentation projection
+
+Use Node 22 and pnpm 10.33.0. `pnpm run docs:sync` calls
+`sync-documentation-changelog.mjs --write` to atomically project canonical
+`release-notes/vX.Y.Z.md` into `website/src/generated/release-history.json`.
+`pnpm run docs:check` runs `check-documentation-sources.mjs` and projection
+`--check` without writing. These Node-only commands do not invoke Docusaurus,
+legacy HTML generators, or search generation. Website compilation/link checking
+runs separately in `pnpm --filter @archeion/website build`.
+
+The shared release parser and exact publication body remain unchanged. Finalize
+the technical changelog and canonical note, run docs:sync, docs:check,
+`pnpm run release:check --tag vX.Y.Z`, then verify. See the
+[release operator guide](../docs/RELEASING.md). Legacy generators remain only for
+the still-published old site; explicit commands and removal boundaries are in
+[documentation maintenance](../docs/DOCUMENTATION.md#legacy-site-during-migration).
+
 ## Commands
 
 | Script                        | Purpose                                                          | Example                                                 |

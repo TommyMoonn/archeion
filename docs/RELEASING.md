@@ -50,10 +50,19 @@ Run from a clean clone with the toolchains in the
 
 ```powershell
 pnpm install --frozen-lockfile
+# After the technical changelog and tracked release note are final:
+pnpm run docs:sync
+pnpm run docs:check
 pnpm run release:check --tag vX.Y.Z
 pnpm run verify
 git diff --check
 ```
+
+Commit `website/src/generated/release-history.json` with the canonical note.
+Sync/check are Node-only and do not compile MDX or invoke the legacy site
+pipeline. The separate website build owns rendering/link validation. Re-run
+sync after changing release prose. This does not alter GitHub Release bodies,
+asset/signing behavior or updater publication.
 
 `release:check` validates the four aligned version sources, the expected tag,
 the dated changelog section and comparison link, and the tracked release note.

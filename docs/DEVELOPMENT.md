@@ -53,11 +53,16 @@ Jobs that need both packages must select both or use the full workspace
 install. Do not create a lockfile or duplicate package-manager configuration
 inside `website/`.
 
-The website workspace is being bootstrapped separately from the published site.
+The website workspace contains the replacement MDX documentation experience.
 Its package scripts are available through `pnpm --filter @archeion/website`
 or from inside `website/`. See [website development](../website/README.md#local-development)
-for commands, temporary routes, and browser checks. The existing public site
-under `docs/` remains the published source during foundation work.
+for commands and browser checks. The existing public site under `docs/` remains
+published until the separate cutover. Root `pnpm run docs:sync` writes canonical
+release history to `website/src/generated/release-history.json`; `pnpm run
+docs:check` checks freshness and Node-only source contracts. Neither requires
+website dependencies. Run website typecheck/build separately for MDX and links.
+For releases, finalize prose, sync, docs:check, release:check, then verify; see
+the release operator guide.
 
 ## Run Archeion
 
@@ -162,7 +167,7 @@ command flags and safety behavior.
 - [Testing and validation](TESTING.md) lists the existing local and CI validation
   lanes.
 - [Public documentation](DOCUMENTATION.md) explains how to edit and publish the
-  static documentation site.
+  MDX documentation site and maintain the legacy site until cutover.
 - The [release operator guide](RELEASING.md) covers release preparation and
   publication.
 - The [performance measurement guide](performance/measuring.md) documents

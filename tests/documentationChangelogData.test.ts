@@ -2,16 +2,17 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readAllReleaseNotes, readReleaseNote } from "../scripts/release-notes.mjs";
 import { syncDocumentationChangelog } from "../scripts/sync-documentation-changelog.mjs";
 
 const projectRoot = process.cwd();
 const noteCount = readAllReleaseNotes(projectRoot).length;
 const currentVersion = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
-const targetPath = "docs/documentation/assets/docs-changelog-data.json";
+const targetPath = "website/src/generated/release-history.json";
 const roots: string[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const root of roots.splice(0)) {
     if (
       path.dirname(root) !== path.resolve(os.tmpdir()) ||
@@ -125,6 +126,32 @@ describe("documentation release-history data", () => {
     expect(fs.readFileSync(target, "utf8")).toBe(before);
   });
 
+  it.each([
+    "- Item\nParagraph",
+    "- Item\n  - Nested",
+    "- Item\n  > Quote",
+    "- Item\n  ```code",
+    "- [unsafe](javascript:alert)",
+    "- [relative](/help)",
+    "- Item\n  | table |",
+    "- Item\n  <div>block</div>",
+  ])("rejects unsupported Changes before replacing or creating data: %s", async (changes) => {
+    const root = fixture();
+    const note = path.join(root, "release-notes/v99.0.0.md");
+    await syncDocumentationChangelog(root, { check: false });
+    const target = path.join(root, targetPath);
+    const before = fs.readFileSync(target, "utf8");
+    fs.writeFileSync(
+      note,
+      `<!-- release-note: v99.0.0; date: 2099-01-01 -->\n\n## Changes\n\n${changes}\n`,
+    );
+    await expect(syncDocumentationChangelog(root, { check: false })).rejects.toThrow();
+    expect(fs.readFileSync(target, "utf8")).toBe(before);
+    fs.rmSync(target);
+    await expect(syncDocumentationChangelog(root, { check: false })).rejects.toThrow();
+    expect(fs.existsSync(target)).toBe(false);
+  });
+
   it("normalizes source line endings without changing authored note bytes", async () => {
     const root = fixture();
     const sources = fs
@@ -157,6 +184,34 @@ describe("documentation release-history data", () => {
     );
     expect(fs.existsSync(path.join(root, targetPath))).toBe(false);
   });
+
+  it.each(["note", "projection"])(
+    "rejects concurrent %s edits before replacing output",
+    async (owner) => {
+      const root = fixture();
+      await syncDocumentationChangelog(root, { check: false });
+      const target = path.join(root, targetPath);
+      const note = path.join(root, "release-notes/v1.5.4.md");
+      const before = fs.readFileSync(target, "utf8");
+      fs.writeFileSync(target, before + " ");
+      const read = fs.readFileSync;
+      let scheduled = false;
+      vi.spyOn(fs, "readFileSync").mockImplementation((file, options) => {
+        const result = read(file, options);
+        if (String(file) === target && !scheduled) {
+          scheduled = true;
+          queueMicrotask(() => fs.appendFileSync(owner === "note" ? note : target, "\n"));
+        }
+        return result;
+      });
+      await expect(syncDocumentationChangelog(root, { check: false })).rejects.toThrow(
+        /changed during/,
+      );
+      expect(fs.readFileSync(target, "utf8")).toBe(
+        before + " " + (owner === "projection" ? "\n" : ""),
+      );
+    },
+  );
 
   it("CLI check fails for missing or stale data and never rewrites it", async () => {
     const root = fixture();

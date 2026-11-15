@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { LoadContext, Plugin } from "@docusaurus/types";
 import type { LoadedContent } from "@docusaurus/plugin-content-docs";
+import { releaseSearchSections } from "./releaseSearch";
 import { extractSections } from "./searchContent";
 import type { DocsSearchData, SearchPage } from "../src/search/types";
 
@@ -47,8 +48,10 @@ export default function docsSearchPlugin(context: LoadContext): Plugin {
           sources.push({ source, page });
         }
       }
-      for (const { source, page } of sources)
+      for (const { source, page } of sources) {
         data.entries.push(...(await extractSections(source, page, data.pages)));
+        if (page.id === "changelog") data.entries.push(...releaseSearchSections(page));
+      }
       actions.setGlobalData(data);
     },
   };

@@ -16,6 +16,30 @@ const workflows = [
 ];
 
 describe("tracked release documentation and toolchain sources", () => {
+  it("keeps both release-preparation skill files on the canonical pnpm projection workflow", () => {
+    for (const file of [
+      ".agents/skills/release-prepare/SKILL.md",
+      ".agents/skills/release-prepare/references/archeion-release-workflow.md",
+    ]) {
+      const source = read(file);
+      expect(source).toContain("pnpm 10.33.0");
+      expect(source).toContain("website/src/generated/release-history.json");
+      expect(source).not.toMatch(/\bnpm (?:ci|run)|package-lock\.json|docs:changelog:page:sync/);
+      const commands = [
+        "pnpm run version:set X.Y.Z",
+        "pnpm run docs:sync",
+        "pnpm run docs:check",
+        "pnpm run release:check --tag vX.Y.Z",
+        "pnpm run verify",
+      ];
+      let offset = -1;
+      for (const command of commands) {
+        const next = source.indexOf(command, offset + 1);
+        expect(next, `${file}: ${command}`).toBeGreaterThan(offset);
+        offset = next;
+      }
+    }
+  });
   it("keeps every setup-node step on the shared major-version file", () => {
     const major = read(".node-version").trim();
     const engine = JSON.parse(read("package.json")) as { engines: { node: string } };

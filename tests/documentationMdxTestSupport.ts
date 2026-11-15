@@ -12,7 +12,22 @@ export function readDocument(id: string) {
       JSON.parse(value),
     ]),
   ) as Record<string, string>;
-  return { sourcePath, source, metadata, body: source.split("---").slice(2).join("---") };
+  let body = source.split("---").slice(2).join("---");
+  // Source-only expectations for the component-owned history; never execute MDX/React here.
+  if (metadata.id === "changelog") {
+    const projection = JSON.parse(
+      fs.readFileSync("website/src/generated/release-history.json", "utf8"),
+    ) as {
+      entries: { version: string; changes: string }[];
+    };
+    body += projection.entries
+      .map(
+        ({ version, changes }) =>
+          `\n## v${version} {#release-${version.replaceAll(".", "-")}}\n\n${changes}\n`,
+      )
+      .join("");
+  }
+  return { sourcePath, source, metadata, body };
 }
 
 export const documents = fs

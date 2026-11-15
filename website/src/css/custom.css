@@ -158,6 +158,11 @@
 }
 
 @theme {
+  --spacing-release-metadata: 116px;
+  --text-docs-release: 15px;
+  --text-docs-release--line-height: 1.22;
+  --text-docs-release-date: 11px;
+  --text-docs-release-date--line-height: 1.8;
   --font-sans: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-editorial: "Literata", Georgia, serif;
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
