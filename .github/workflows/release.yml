@@ -103,7 +103,7 @@ jobs:
           ./scripts/check-release.ps1 --tag "v$env:CANDIDATE_VERSION" --require-changelog
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --filter archeion... --frozen-lockfile
 
       - name: Build NSIS and MSI installers
         shell: pwsh

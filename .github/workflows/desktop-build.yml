@@ -49,7 +49,7 @@ jobs:
             src-tauri -> target
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --filter archeion... --frozen-lockfile
 
       - name: Run pre-build checks
         run: pnpm run check:all
