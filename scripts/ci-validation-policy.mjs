@@ -23,7 +23,28 @@ function decision(mode) {
 }
 
 function documentationPath(file) {
+  if (/[\\\x00-\x1f\x7f:]/.test(file)) return false;
   if (file.split("/").some((part) => !part || part === "." || part === "..")) return false;
+  if (file.startsWith("website/")) {
+    // Only known website owners qualify; manifests and unknown tooling stay full.
+    return (
+      /^website\/(?:src|plugins|tests)\/.+\.(?:ts|tsx|cts|js|cjs|mjs|css|json|png|svg|woff2)$/.test(
+        file,
+      ) ||
+      /^website\/docs\/.+\.mdx?$/.test(file) ||
+      /^website\/static\/.+\.(?:html|css|js|json|png|svg|woff2|txt|tar\.xz|ico|xml|webmanifest|jpe?g|webp|gif|avif)$/.test(
+        file,
+      ) ||
+      [
+        "website/README.md",
+        "website/docusaurus.config.ts",
+        "website/sidebars.ts",
+        "website/tsconfig.json",
+        "website/components.json",
+        "website/vitest.config.ts",
+      ].includes(file)
+    );
+  }
   // Runtime assets and the generated release-history page always require full validation.
   if (
     file.startsWith("docs/documentation/assets/") ||
@@ -63,9 +84,12 @@ export function classifyChanges(eventName, event, git) {
     if (!diff || !diff.endsWith("\0")) throw new Error("Empty or incomplete diff");
     const fields = diff.slice(0, -1).split("\0");
     if (fields.length % 2 !== 0) throw new Error("Ambiguous diff");
+    const paths = new Set();
     for (let index = 0; index < fields.length; index += 2) {
-      if (!["A", "M"].includes(fields[index]) || !documentationPath(fields[index + 1]))
+      const file = fields[index + 1];
+      if (!["A", "M"].includes(fields[index]) || paths.has(file) || !documentationPath(file))
         return decision("full");
+      paths.add(file);
     }
     return decision("docs-only");
   } catch (error) {

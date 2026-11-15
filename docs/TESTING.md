@@ -106,8 +106,11 @@ The build owns MDX/framework link validation and static rendering. The dedicated
 browser config owns the Docusaurus server and stops it. Use
 `ARCHEION_WEBSITE_MODE=dev` for development checks; run dev/build and browser
 modes sequentially because generated output is shared. The default desktop
-config excludes website specs. CI classifier/browser integration remains a
-separate migration phase. Legacy documentation tests remain active for the
+config excludes website specs. CI runs this complete production suite once on
+browser shard 1 after an explicit website install and Docusaurus build. Eligible
+isolated website additions/modifications use the existing docs-only PR policy;
+shared dependencies, manifests, workflows, unknown paths and deletions/renames
+still require full validation. Legacy documentation tests remain active for the
 currently published site until cutover.
 
 For release preparation, run docs:sync after final prose, then docs:check,
@@ -130,7 +133,7 @@ pnpm run test:browser
 
 To apply the CI failure policy locally, run `pnpm run test:browser
 --fail-on-flaky-tests`. CI retains one diagnostic retry, but a test that passes
-only on retry fails the job. Both the source suite and built async-surface suite
+only on retry fails the job. The source, built async-surface and production website suites
 use this policy.
 
 `pnpm run test:browser` runs the browser-test TypeScript check before Playwright.
@@ -138,13 +141,16 @@ CI runs browser TypeScript validation once in `frontend-static`, then invokes
 Playwright directly in two shards with two workers and test-level parallelism.
 Both shards remain required `CI Gate` dependencies. Each test owns its browser
 context and uses `testInfo.outputPath` for artifacts. The first
-shard also builds and runs the separate async-surface browser contracts.
+shard also builds and runs the separate async-surface and website browser contracts.
 
 Browser failure artifacts are named `browser-contract-failure-1` and
 `browser-contract-failure-2`. They contain the HTML report, screenshots, and
 first-attempt and retry traces where available, including a successful retry.
 The first shard also uploads
-`async-surface-contract-failure` when those checks fail. Browser outputs are
+`async-surface-contract-failure` when those checks fail. Website failures upload
+`website-browser-contract-failure` with the dedicated HTML report, screenshots
+and traces from `playwright-report/website/` and `test-results/website-foundation/`.
+Browser outputs are
 ignored by Git.
 
 ### Optional browser diagnostics

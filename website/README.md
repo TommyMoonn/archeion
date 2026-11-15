@@ -31,8 +31,8 @@ Production output goes to `website/build/`;
 The dedicated CI website job installs only `@archeion/website...`, then runs
 website tooling tests, strict typechecking, and the production build (including
 MDX and broken-link validation). The existing application jobs keep their application-only installs.
-Website changes still select full CI validation until the Branch 2 classifier
-integration. No Pages deployment is configured by this foundation.
+Eligible isolated website changes select the existing frontend/docs validation
+set described in B2.9 below. No Pages deployment is configured yet.
 
 The root `package.json` scopes a tinypool 2.1.2 override to Docusaurus. Docusaurus
 3.10.2 still requests 1.x, which is affected by GHSA-85c8-ppgw-ccpr and
@@ -49,7 +49,8 @@ invoke Docusaurus. Sync writes canonical release-history JSON; check validates i
 Node-only documentation sources. Neither invokes legacy generators. Run the
 website build separately to compile MDX and validate framework links.
 
-Foundation browser contracts run from the root after a website build:
+Production documentation and compatibility browser contracts run from the root
+after a website build:
 
 ```sh
 pnpm exec playwright test --config tests/browser/website-foundation.config.ts
@@ -739,3 +740,36 @@ browser suite checks every served static file. Dictionary publication still owns
 the original catalog/package paths until that boundary; no publisher change is
 part of B2.8. B2.9 owns CI/browser-lane integration; B2.10 owns deployment,
 legacy removal and final artifact validation. B3 alone replaces the static landing.
+
+## Optimized CI and production browser validation (B2.9)
+
+The existing `docs-only` PR mode now includes additions/modifications to known
+website source, plugins, tests, MDX, static resource formats and named framework
+configuration files. It still requires frontend static checks, root tests, both
+desktop browser shards, the Vite app build and the dedicated website job.
+Only the five existing platform jobs may skip, under the unchanged exact job-set
+guard. Pushes always run full validation.
+
+Root manifests, workspace/lockfile, `website/package.json`, shared scripts,
+release notes, workflows, unknown paths/formats, deletions, renames, copies,
+type changes and malformed/duplicate path records select full validation. The
+classifier uses exact event base/head revisions, including divergent-base
+changes. The migration branches themselves therefore select full validation.
+Known root maintainer Markdown remains eligible under the existing policy.
+
+Browser shard 1 explicitly installs the website package in addition to its
+existing app install, builds Docusaurus, then runs the complete dedicated
+production docs/static/compatibility suite. Shard 2 keeps its app-only install.
+The website build job retains its independent website-only frozen install,
+unit tests, typecheck and MDX/framework-link/build validation. Root docs:check
+remains Node-only. No new job or gate owner is needed.
+
+Website browser failures have named steps and a separate
+`website-browser-contract-failure` artifact containing
+`test-results/website-foundation/` and `playwright-report/website/`. CI keeps one
+diagnostic retry and fails on retry recovery; screenshots and traces retain
+failure evidence. The dedicated config serves the production artifact by default;
+CI explicitly sets `ARCHEION_WEBSITE_MODE=production`. Local development mode
+remains available, and dev/build/browser modes must run sequentially.
+
+No deployment, legacy retirement or React homepage work belongs to this phase.
