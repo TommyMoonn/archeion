@@ -201,6 +201,7 @@ export function useLibraryWorkspaceNavigation({
   }, [location.type, searchFocusRequest]);
 
   return {
+    integrityRequest: searchParams.get("integrityRequest"),
     captureFolderMutationFocus: folderPathMutation.captureFocus,
     changeLocation,
     clearLibrarySearch,

@@ -12,6 +12,10 @@ import {
   type ArchiveReconciliationRequest,
 } from "../../storage/archiveReconciliation";
 import type { ArchiveRegistry, KnownArchive } from "../../types/archive";
+import type {
+  ArchiveIntegrityDestination,
+  ArchiveIntegrityNavigationRequest,
+} from "../../storage/archiveIntegrityNavigation";
 import { activeArchiveFromRegistry } from "../../types/archive";
 
 const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
@@ -24,6 +28,7 @@ export type SettingsArchiveSnapshot = Readonly<{
 }>;
 
 export type SettingsArchiveMaintenance = Readonly<{
+  openIntegrityResults: (destination: ArchiveIntegrityDestination) => Promise<void>;
   clearCoverCache: () => Promise<CoverCacheStatus>;
   clearEpubWritebackBackups: () => Promise<EpubWritebackBackupStatus>;
   clearScannerCache: () => Promise<void>;
@@ -61,6 +66,7 @@ export class SettingsArchiveMaintenanceClient {
   private unlisten: UnlistenFn | null = null;
   private maintenanceView: SettingsArchiveMaintenance | null = null;
   private registryEventRevision = 0;
+  private disposalRevision = 0;
   private readonly pendingReconciliations = new Map<string, PendingReconciliation>();
 
   constructor(
@@ -93,6 +99,7 @@ export class SettingsArchiveMaintenanceClient {
   }
 
   dispose(): void {
+    this.disposalRevision += 1;
     this.unlisten?.();
     this.unlisten = null;
     for (const pending of this.pendingReconciliations.values()) {
@@ -105,6 +112,7 @@ export class SettingsArchiveMaintenanceClient {
     if (this.snapshot.status !== "ready" || !this.snapshot.archive) return null;
     if (this.maintenanceView) return this.maintenanceView;
     this.maintenanceView = {
+      openIntegrityResults: (destination) => this.openIntegrityResults(destination),
       clearCoverCache: () => this.runArchiveCommand("clear_cover_cache"),
       clearEpubWritebackBackups: () => this.runArchiveCommand("clear_epub_writeback_backups"),
       clearScannerCache: () => this.runArchiveCommand("clear_scanner_cache"),
@@ -210,6 +218,21 @@ export class SettingsArchiveMaintenanceClient {
     const scope = this.createScope();
     await this.requestReconciliation(scope);
     await this.invalidateMainLibrary(scope);
+  }
+
+  private async openIntegrityResults(destination: ArchiveIntegrityDestination): Promise<void> {
+    const scope = this.createScope();
+    const disposalRevision = this.disposalRevision;
+    const request: ArchiveIntegrityNavigationRequest = {
+      archiveId: scope.archive.id,
+      rootPath: scope.archive.rootPath,
+      requestId: this.dependencies.createRequestId(),
+      destination,
+    };
+    await this.dependencies.invoke("open_archive_integrity_results", { request });
+    if (disposalRevision !== this.disposalRevision)
+      throw new Error("Settings archive maintenance stopped.");
+    this.assertCurrent(scope);
   }
 
   private async repairArchiveMetadata(): Promise<void> {

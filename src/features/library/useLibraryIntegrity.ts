@@ -54,6 +54,7 @@ export type LibraryIntegrityController = Readonly<{
   diagnostics: EpubIntegrityReadState<EpubDiagnosticAnalysisResult>;
   refreshDuplicates: () => Promise<boolean>;
   refreshDiagnostics: () => Promise<boolean>;
+  retireRequests: () => void;
 }>;
 
 function idleState<Snapshot>(scopeKey: string | null): ScopedReadState<Snapshot> {
@@ -273,10 +274,17 @@ export function useLibraryIntegrity({
     }
   }, [ownsRequest]);
 
+  const retireRequests = useCallback(() => {
+    activeRequestRef.current = { diagnostics: null, duplicates: null };
+    setDuplicates((state) => ({ ...state, error: null, status: "idle" }));
+    setDiagnostics((state) => ({ ...state, error: null, status: "idle" }));
+  }, []);
+
   return {
     diagnostics: visibleState(diagnostics, scope?.key ?? null),
     duplicates: visibleState(duplicates, scope?.key ?? null),
     refreshDiagnostics,
     refreshDuplicates,
+    retireRequests,
   };
 }

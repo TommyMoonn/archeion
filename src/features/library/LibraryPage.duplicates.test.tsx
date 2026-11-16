@@ -209,7 +209,7 @@ describe("LibraryPage duplicate review integration", () => {
     });
   });
 
-  it("settles an active duplicate view to Library when its Smart View is hidden", async () => {
+  it("keeps duplicate results available when its Smart View is hidden", async () => {
     vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockImplementation(
       async (request) => result(request.requestRevision),
     );
@@ -233,7 +233,8 @@ describe("LibraryPage duplicate review integration", () => {
     });
 
     await vi.waitFor(() => {
-      expect(session.container.querySelector("main h1")?.textContent).toBe("Library");
+      expect(session.container.querySelector("main h1")?.textContent).toBe("Duplicates");
+      expect(session.container.textContent).toContain("Exact duplicate");
     });
   });
 });

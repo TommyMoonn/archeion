@@ -80,6 +80,48 @@ function requestedReconciliation(owner: ReturnType<typeof createClient>) {
 }
 
 describe("SettingsArchiveMaintenanceClient", () => {
+  it.each(["duplicates", "epub-issues"] as const)(
+    "requests %s through the scoped main-window command",
+    async (destination) => {
+      const owner = createClient(registry(archiveA));
+      await owner.client.initialize();
+      const maintenance = owner.client.maintenance();
+      if (!maintenance) throw new Error("Maintenance unavailable");
+      await maintenance.openIntegrityResults(destination);
+      expect(owner.invoke).toHaveBeenCalledWith("open_archive_integrity_results", {
+        request: {
+          archiveId: archiveA.id,
+          rootPath: archiveA.rootPath,
+          requestId: "settings-session-1-request-1",
+          destination,
+        },
+      });
+    },
+  );
+  it.each(["archive switch", "dispose"])(
+    "rejects pending diagnostics after %s",
+    async (replacement) => {
+      const owner = createClient(registry(archiveA));
+      await owner.client.initialize();
+      let finish: (() => void) | undefined;
+      owner.invoke.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const maintenance = owner.client.maintenance();
+      if (!maintenance) throw new Error("Maintenance unavailable");
+      const pending = maintenance.openIntegrityResults("duplicates");
+      if (replacement === "dispose") owner.client.dispose();
+      else owner.publishRegistry(registry(archiveB));
+      if (!finish) throw new Error("Command did not start");
+      finish();
+      await expect(pending).rejects.toThrow(
+        replacement === "dispose" ? "stopped" : "active archive changed",
+      );
+    },
+  );
   it("shares successful initialization and keeps the ready result cached", async () => {
     const loadRegistry = vi.fn(async () => registry(archiveA));
     const owner = createClient(registry(archiveA), undefined, loadRegistry);

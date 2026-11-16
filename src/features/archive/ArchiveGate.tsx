@@ -20,6 +20,7 @@ import { router } from "../../app/router";
 import { startupTrace } from "../../app/startupTrace";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { useArchiveReconciliationRequests } from "./useArchiveReconciliationRequests";
+import { useArchiveIntegrityRequests } from "./useArchiveIntegrityRequests";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -65,6 +66,9 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
     setPresentedArchive(state);
   useArchiveReconciliationRequests(
     storage,
+    archivePath && readyArchiveId ? { archiveId: readyArchiveId, rootPath: archivePath } : null,
+  );
+  useArchiveIntegrityRequests(
     archivePath && readyArchiveId ? { archiveId: readyArchiveId, rootPath: archivePath } : null,
   );
 

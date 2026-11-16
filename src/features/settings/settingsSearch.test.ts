@@ -104,9 +104,11 @@ describe("settingsSearch", () => {
     ]);
     expect(findSettingsSearchResults("duplicate books").map((result) => result.item.id)).toEqual([
       "library.smart-views.duplicates",
+      "storage.find-duplicates",
     ]);
     expect(findSettingsSearchResults("epub diagnostics").map((result) => result.item.id)).toEqual([
       "library.smart-views.epub-issues",
+      "storage.check-epub-issues",
     ]);
   });
 

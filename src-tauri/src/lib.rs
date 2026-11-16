@@ -85,6 +85,7 @@ pub fn run() {
             commands::archive::load_archive_registry,
             commands::archive::invalidate_archive_view,
             commands::archive::open_archive,
+            commands::archive::open_archive_integrity_results,
             commands::archive::request_archive_reconciliation,
             commands::archive::open_archive_manager_window,
             commands::archive::rename_archive,

@@ -58,6 +58,7 @@ function availableArchiveBoundary(
 ): SettingsArchiveBoundary {
   return {
     maintenance: {
+      openIntegrityResults: vi.fn().mockResolvedValue(undefined),
       clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
       clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
       clearScannerCache: vi.fn().mockResolvedValue(undefined),

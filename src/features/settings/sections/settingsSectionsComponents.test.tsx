@@ -31,6 +31,8 @@ function createController(overrides: Partial<SettingsController> = {}): Settings
     installedFontFamilies: [],
     installedFontsLoading: false,
     library: preferences.library,
+    integrityNavigationBusy: false,
+    openIntegrityResults: vi.fn(),
     openArchiveManager: vi.fn(),
     openConfirmation: vi.fn(),
     persistenceStatus: { status: "idle" },
@@ -182,7 +184,7 @@ describe("settings section components", () => {
   it("makes every Settings scan-producing action unavailable during archive scan activity", () => {
     const markup = renderStorage({ archiveScanActive: true });
 
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(3);
+    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(5);
     expect(markup).toContain("Wait for the archive scan to finish");
   });
 

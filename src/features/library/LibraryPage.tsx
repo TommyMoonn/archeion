@@ -297,12 +297,28 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const diagnosticIntegrityStatus = integrity.diagnostics.status;
   const refreshDuplicates = integrity.refreshDuplicates;
   const refreshDiagnostics = integrity.refreshDiagnostics;
+  const retireIntegrityRequests = integrity.retireRequests;
+  const requestedIntegrityAnalysisRef = useRef<string | null>(null);
+  useEffect(() => {
+    return () => retireIntegrityRequests();
+  }, [navigation.location.type, retireIntegrityRequests]);
   useEffect(() => {
     if (booksLoadState.status !== "ready") return;
-    if (navigation.location.type === "duplicates" && duplicateIntegrityStatus === "idle") {
+    const requested = navigation.integrityRequest
+      ? `${libraryArchiveGeneration}:${navigation.location.type}:${navigation.integrityRequest}`
+      : null;
+    const newRequest = requested !== null && requested !== requestedIntegrityAnalysisRef.current;
+    if (newRequest) requestedIntegrityAnalysisRef.current = requested;
+    if (
+      navigation.location.type === "duplicates" &&
+      (newRequest || duplicateIntegrityStatus === "idle")
+    ) {
       void refreshDuplicates();
     }
-    if (navigation.location.type === "epub-issues" && diagnosticIntegrityStatus === "idle") {
+    if (
+      navigation.location.type === "epub-issues" &&
+      (newRequest || diagnosticIntegrityStatus === "idle")
+    ) {
       void refreshDiagnostics();
     }
   }, [
@@ -310,6 +326,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     diagnosticIntegrityStatus,
     duplicateIntegrityStatus,
     navigation.location.type,
+    navigation.integrityRequest,
+    libraryArchiveGeneration,
     refreshDiagnostics,
     refreshDuplicates,
   ]);

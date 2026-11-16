@@ -27,6 +27,7 @@ describe("StorageSettingsSection maintenance routing", () => {
     const openConfirmation = vi.fn();
     const resetStorage = vi.fn();
     const revealMetadata = vi.fn();
+    const openIntegrityResults = vi.fn();
     const context = {
       archiveAvailable: true,
       archiveScanActive: false,
@@ -37,6 +38,7 @@ describe("StorageSettingsSection maintenance routing", () => {
       openConfirmation,
       resetStorage,
       revealMetadata,
+      openIntegrityResults,
       updateFiles: vi.fn(),
     } as unknown as SettingsController;
 
@@ -61,6 +63,10 @@ describe("StorageSettingsSection maintenance routing", () => {
 
     act(() => clickAction(container, "storage.reset"));
     expect(resetStorage).toHaveBeenCalledOnce();
+    act(() => clickAction(container, "storage.find-duplicates"));
+    expect(openIntegrityResults).toHaveBeenLastCalledWith("duplicates");
+    act(() => clickAction(container, "storage.check-epub-issues"));
+    expect(openIntegrityResults).toHaveBeenLastCalledWith("epub-issues");
   });
 });
 

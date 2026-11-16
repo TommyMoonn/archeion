@@ -63,6 +63,8 @@ In Storage, **EPUB writeback backups** shows retained-copy counts and total size
 Storage maintenance requires an active archive and applies to that archive, not all remembered folders. Wait for an active scan to finish when Run, Re-extract, or Repair is unavailable. Read the confirmation and wait for completion or an error before retrying. Choose the action matching the problem:
 
 - **Archive scan → Run:** use when files added, moved, or removed outside Archeion are not reflected in the Library. It checks files and refreshes Library data by checking files against the active Library's records; it does not edit EPUB files.
+- **Duplicate EPUBs → Find duplicates:** focus the Library and compare exact and probable duplicate EPUBs in the active archive. It does not delete files.
+- **EPUB issues → Check EPUB issues:** focus the Library and inspect the active archive for Reader-relevant EPUB problems. It does not repair or rewrite EPUB contents. Both integrity tools work independently of Smart View visibility; see [Archive health](/archeion/docs/guides/archive-health/) to interpret their results.
 - **Scanner cache → Clear:** use for suspect cached scan state. It forces EPUBs to be checked again later; run Archive scan when you need that check now. It does not delete EPUBs, favorites, or reading progress.
 - **Source metadata → Re-extract:** use when parsed title or author data is stale. It clears scan state and rescans from EPUB metadata. It does not write changes into EPUBs or delete favorites and progress.
 - **Generated cover cache → Clear:** use for stale derived covers or to free their cache space. Generated covers are extracted again when needed. It does not replace the embedded artwork or change reading data.

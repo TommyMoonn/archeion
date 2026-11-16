@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { Link, MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../series/SeriesOverview";
@@ -138,7 +138,7 @@ function emitScanStatus(status: ScanStatus) {
   librarySnapshotObservers.forEach((observer) => observer.next(currentLibrarySnapshot));
 }
 
-async function renderLibrary(initialEntry = "/", books: Book[] = []) {
+async function renderLibrary(initialEntry = "/", books: Book[] = [], navigation?: ReactNode) {
   const storage = createStorage(books);
   container = document.createElement("div");
   document.body.append(container);
@@ -147,6 +147,7 @@ async function renderLibrary(initialEntry = "/", books: Book[] = []) {
   await act(async () => {
     root?.render(
       <MemoryRouter initialEntries={[initialEntry]}>
+        {navigation}
         <WindowTitlebarAppActionsHost />
         <LibraryStorageContext.Provider value={storage}>
           <QuickActionsProvider>
@@ -259,6 +260,49 @@ afterEach(async () => {
 });
 
 describe("LibraryPage Quick Actions", () => {
+  it.each([
+    ["duplicates", "requestDuplicateAnalysis", "No duplicate groups"],
+    ["epub-issues", "requestDiagnostics", "No EPUB issues"],
+  ] as const)(
+    "refreshes explicit maintenance requests for %s with Smart Views disabled",
+    async (view, method, readyCopy) => {
+      const current = appPreferencesStore.getSnapshot();
+      await appPreferencesStore.update({
+        library: { ...current.library, smartViews: { enabled: false, visible: [] } },
+      });
+      const rendered = await renderLibrary(
+        "/",
+        [],
+        <>
+          <Link to={`/?archiveId=archive-books&view=${view}&integrityRequest=first`}>
+            First request
+          </Link>
+          <Link to={`/?archiveId=archive-books&view=${view}&integrityRequest=second`}>
+            Second request
+          </Link>
+          <Link to="/?archiveId=archive-books&view=library">Leave results</Link>
+        </>,
+      );
+      expect(archiveIntegrityCommandClient[method]).not.toHaveBeenCalled();
+      const follow = async (label: string) => {
+        const link = Array.from(rendered.container.querySelectorAll("a")).find(
+          (node) => node.textContent === label,
+        );
+        if (!link) throw new Error(`Missing test navigation: ${label}`);
+        await act(async () => link.click());
+      };
+      await follow("First request");
+      await vi.waitFor(() => expect(rendered.container.textContent).toContain(readyCopy));
+      expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(1);
+      await follow("Second request");
+      await vi.waitFor(() =>
+        expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(2),
+      );
+      await follow("Leave results");
+      expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it("opens Quick Actions once from its default shortcut with no visible trigger", async () => {
     const rendered = await renderLibrary();
     expect(rendered.container.querySelector('button[aria-label="Open Quick Actions"]')).toBeNull();

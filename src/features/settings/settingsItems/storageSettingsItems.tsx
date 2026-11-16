@@ -112,6 +112,57 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
+    description: "Review exact and probable duplicate EPUBs in the Library.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.find-duplicates",
+    label: "Duplicate EPUBs",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Review exact and probable duplicate EPUBs in the Library."
+        label="Duplicate EPUBs"
+      >
+        <Button
+          disabled={context.archiveScanActive || context.integrityNavigationBusy}
+          disabledReason={
+            context.archiveScanActive ? archiveScanUnavailableReason : "Opening archive diagnostics"
+          }
+          onClick={() => void context.openIntegrityResults("duplicates")}
+          variant="secondary"
+        >
+          Find duplicates
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["find duplicates", "duplicate books", "archive integrity"],
+    sectionId: "storage",
+  },
+  {
+    description: "Inspect EPUB problems in the Library.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.check-epub-issues",
+    label: "EPUB issues",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow description="Inspect EPUB problems in the Library." label="EPUB issues">
+        <Button
+          disabled={context.archiveScanActive || context.integrityNavigationBusy}
+          disabledReason={
+            context.archiveScanActive ? archiveScanUnavailableReason : "Opening archive diagnostics"
+          }
+          onClick={() => void context.openIntegrityResults("epub-issues")}
+          variant="secondary"
+        >
+          Check EPUB issues
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["check epub issues", "epub diagnostics", "archive integrity"],
+    sectionId: "storage",
+  },
+  {
     description: "Forces EPUB files to be checked again later.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",

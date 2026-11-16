@@ -70,13 +70,9 @@ export function libraryLocationFromSearchParams(
 
   switch (view) {
     case "duplicates":
-      return smartViewPreferences
-        ? normalizeVisibleLibraryLocation({ type: "duplicates" }, smartViewPreferences)
-        : { type: "duplicates" };
+      return { type: "duplicates" };
     case "epub-issues":
-      return smartViewPreferences
-        ? normalizeVisibleLibraryLocation({ type: "epub-issues" }, smartViewPreferences)
-        : { type: "epub-issues" };
+      return { type: "epub-issues" };
     case "favorites":
       return { type: "favorites" };
     case "smart": {
@@ -129,15 +125,19 @@ export function searchParamsForLibraryLocation(
   smartViewPreferences?: LibrarySmartViewPreferences,
 ): URLSearchParams {
   const nextParams = new URLSearchParams(currentParams);
-  const visibleLocation = smartViewPreferences
-    ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
-    : location;
+  const visibleLocation =
+    smartViewPreferences && location.type !== "duplicates" && location.type !== "epub-issues"
+      ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
+      : location;
 
   if (activeArchiveId) {
     nextParams.set(ARCHIVE_ID_PARAM, activeArchiveId);
   }
   nextParams.delete(FOLDER_PATH_PARAM);
   nextParams.delete("folderView");
+  if (visibleLocation.type !== "duplicates" && visibleLocation.type !== "epub-issues") {
+    nextParams.delete("integrityRequest");
+  }
   nextParams.delete(SERIES_KEY_PARAM);
   nextParams.delete(SMART_VIEW_PARAM);
 
@@ -177,15 +177,14 @@ export function hiddenSmartViewFallbackSearchParams(
   activeArchiveId?: string,
 ): URLSearchParams | null {
   const view = currentParams.get(LIBRARY_VIEW_PARAM);
+  if (view === "duplicates" || view === "epub-issues") return null;
   const requestedSmartView = currentParams.get(SMART_VIEW_PARAM);
   const location: LibraryLocation | null =
     view === "continue"
       ? { type: "continue" }
       : view === "smart" && isLibraryBookSmartView(requestedSmartView)
         ? { type: "smart-view", smartView: requestedSmartView }
-        : view === "duplicates" || view === "epub-issues"
-          ? { type: view }
-          : null;
+        : null;
   const smartView = location ? librarySmartViewForLocation(location) : null;
 
   if (!smartView || isLibrarySmartViewVisible(smartViewPreferences, smartView)) {
