@@ -106,8 +106,8 @@ pnpm exec playwright test --config tests/browser/website-foundation.config.ts
 The build owns MDX/framework link validation and static rendering. The dedicated
 browser config owns a filesystem host for the production artifact, including
 HTTP 404 output without SPA rewrites, and stops it. These checks establish
-local artifact behavior; live Pages/CDN verification follows the
-[cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).
+local artifact behavior; production ownership is documented in the
+[publication guide](DOCUMENTATION.md#public-resources-and-publication).
 Use
 `ARCHEION_WEBSITE_MODE=dev` for development checks; run dev/build and browser
 modes sequentially because generated output is shared. The default desktop
@@ -115,8 +115,8 @@ config excludes website specs. CI runs this complete production suite once on
 browser shard 1 after an explicit website install and Docusaurus build. Eligible
 isolated website additions/modifications use the existing docs-only PR policy;
 shared dependencies, manifests, workflows, unknown paths and deletions/renames
-still require full validation. Legacy documentation tests remain active for the
-currently published site until cutover.
+still require full validation. Current website suites cover the React landing,
+MDX documentation and compatibility redirects; the legacy static suites are retired.
 
 For release preparation, run docs:sync after final prose, then docs:check,
 `pnpm run release:check --tag vX.Y.Z`, and `pnpm run verify`. The broad root verify

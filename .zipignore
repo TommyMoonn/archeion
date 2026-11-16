@@ -61,3 +61,19 @@ blob-report
 .project/v*/*.jpg
 .project/v*/*.jpeg
 .project/v*/*.webp
+
+# Website build and package manager caches
+website/build
+website/.docusaurus
+website/node_modules
+.pnpm-store
+
+# Local dictionary work and generated publication archives (workspace export only)
+.project/dictionaries
+website/static/dictionaries/packages
+
+# Disposable migration and experiment output
+.project/reports/website-migration
+.project/experiments
+.plans/rebrand/screenshots
+.plans/rebrand/output

@@ -19,6 +19,7 @@ export default defineConfig({
     "website-docs-interactions.pw.ts",
     "website-docs-accessibility.pw.ts",
     "website-docs-articles.pw.ts",
+    "website-docs-font-preferences.pw.ts",
     "website-docs-search.pw.ts",
     "website-docs-search-interaction.pw.ts",
     "website-docs-copy.pw.ts",

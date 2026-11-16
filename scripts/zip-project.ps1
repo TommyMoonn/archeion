@@ -123,7 +123,8 @@ try {
             throw "Export already contains reserved manifest path $ManifestName."
         }
 
-        $includesPlanning = @($paths | Where-Object { $_ -match '^\.planning/.+' -and -not $_.EndsWith('/') }).Count -gt 0
+        $planningPattern = if ($Mode -eq 'workspace') { '^\.(?:plans|planning)/.+' } else { '^\.planning/.+' }
+        $includesPlanning = @($paths | Where-Object { $_ -match $planningPattern -and -not $_.EndsWith('/') }).Count -gt 0
         $includesProject = @($paths | Where-Object { $_ -match '^\.project/.+' -and -not $_.EndsWith('/') }).Count -gt 0
         if ($Mode -eq 'repo' -and ($includesPlanning -or $includesProject)) {
             throw "Repo export cannot contain local-only .planning or .project files."

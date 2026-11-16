@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import registry from "../docs/documentation/page-registry.json";
+import { documents } from "./documentationMdxTestSupport";
 
 const read = (file: string) => fs.readFileSync(file);
 const text = (file: string) => new TextDecoder("utf-8", { fatal: true }).decode(read(file));
@@ -12,14 +12,7 @@ const files = (directory: string): string[] =>
   });
 
 describe("public site resources and React homepage ownership", () => {
-  it("retains exact public resource bytes while replacing the temporary runtime", () => {
-    const resources = ["assets", "schemas", "examples", "dictionaries/packages"].flatMap(
-      (directory) => files(`docs/${directory}`),
-    );
-    resources.push("docs/dictionaries/catalog-v1.json");
-    for (const source of resources) {
-      expect(read(`website/static/${source.slice(5)}`).equals(read(source)), source).toBe(true);
-    }
+  it("uses the React homepage and canonical public resources", () => {
     expect(fs.existsSync("website/static/index.html")).toBe(false);
     expect(fs.existsSync("website/plugins/staticHomepage.ts")).toBe(false);
     expect(fs.existsSync("website/static/css/styles.css")).toBe(false);
@@ -32,11 +25,11 @@ describe("public site resources and React homepage ownership", () => {
     const redirects = files("website/static/documentation").filter((file) =>
       file.endsWith(".html"),
     );
-    expect(redirects).toHaveLength(registry.pages.length);
-    for (const page of registry.pages) {
-      const html = text(`website/static/documentation${page.route}index.html`);
-      expect(html).toContain(`href="/archeion/docs${page.route}"`);
-      expect(html).toContain(`href="https://tommymoonn.github.io/archeion/docs${page.route}"`);
+    expect(redirects).toHaveLength(documents.length);
+    for (const { metadata: page } of documents) {
+      const html = text(`website/static/documentation${page.slug}index.html`);
+      expect(html).toContain(`href="/archeion/docs${page.slug}"`);
+      expect(html).toContain(`href="https://tommymoonn.github.io/archeion/docs${page.slug}"`);
       expect(html).toContain('id="documentation-destination"');
       expect(html).toContain('<script src="/archeion/documentation/redirect.js" defer></script>');
       expect(html).not.toContain("http-equiv");

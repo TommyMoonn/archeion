@@ -1,6 +1,4 @@
 import { articleText, documentForRoute } from "./documentationMdxTestSupport";
-import fs from "node:fs";
-import { Window } from "happy-dom";
 import { describe, expect, it } from "vitest";
 
 const pages = {
@@ -96,18 +94,5 @@ describe("Settings, dictionaries, theme, and About documentation coverage", () =
     expect(combined).not.toMatch(/themes are stored with the archive/i);
     expect(combined).not.toMatch(/custom themes are kept in\s*<code>\.archeion\/themes\//i);
     expect(combined).toMatch(/application data/i);
-  });
-
-  it("documents offline dictionaries and standalone utility windows on the landing page", () => {
-    const landingWindow = new Window();
-    landingWindow.document.write(fs.readFileSync("docs/index.html", "utf8"));
-    const readerNotes = landingWindow.document.querySelector("#reader .reader-notes")?.textContent;
-    expect(readerNotes).toMatch(/\bDefine\b/i);
-    expect(readerNotes).toMatch(/\bdictionar(?:y|ies)\b/i);
-
-    const landing = landingWindow.document.body.textContent ?? "";
-    expect(landing).toContain("Theme Manager");
-    expect(landing).toContain("Settings");
-    expect(landing).toContain("About");
   });
 });

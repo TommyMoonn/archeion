@@ -4,10 +4,10 @@ import type { ArchiveScan } from "../../../src/storage/reconcileLibraryState";
 import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
 import { buildReaderFixture } from "../../fixtures/reader/readerFixtures";
 import { emit } from "@tauri-apps/api/event";
-import tideCover from "../../../docs/assets/images/cover-tide.svg?url";
-import orbitCover from "../../../docs/assets/images/cover-orbit.svg?url";
-import relayCover from "../../../docs/assets/images/cover-relay.svg?url";
-import quietCover from "../../../docs/assets/images/cover-quiet.svg?url";
+import tideCover from "../../../website/static/assets/images/cover-tide.svg?url";
+import orbitCover from "../../../website/static/assets/images/cover-orbit.svg?url";
+import relayCover from "../../../website/static/assets/images/cover-relay.svg?url";
+import quietCover from "../../../website/static/assets/images/cover-quiet.svg?url";
 import {
   APP_UPDATE_CHANGED_EVENT,
   type AppUpdateSnapshot,

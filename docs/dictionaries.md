@@ -3,8 +3,8 @@
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
-This directory contains the production dictionary catalog and its versioned
-packages. GitHub Pages publishes `docs/`, so dictionary packages remain optional
+The production dictionary catalog and versioned packages live in
+`website/static/dictionaries/`. GitHub Pages publishes `website/build/`, so dictionary packages remain optional
 downloads and are not included in the application bundle. The v1.3.0 production
 catalog contains English monolingual dictionaries. Archeion also supports
 language-direction metadata and manual StarDict imports independently of that
@@ -111,7 +111,7 @@ Publish only a candidate set with a current native-validation receipt:
 python scripts/dictionaries/build_english_catalog_packages.py publish
 ```
 
-The publisher copies the immutable package files to `docs/dictionaries/packages/`
+The publisher copies the immutable package files to `website/static/dictionaries/packages/`
 first. It verifies their exact sizes and SHA-256 values at the publication paths,
 then replaces `catalog-v1.json` last.
 

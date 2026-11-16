@@ -4,7 +4,7 @@
 > All of the documentation here are written by LLMs.
 
 This directory contains Archeion's engineering documentation. Public MDX source
-lives in `website/docs/`; the old static site remains here until cutover.
+lives in `website/docs/`; GitHub Pages publishes the Docusaurus build from `website/build/`.
 
 Use these guides for development, architecture, design, testing, and release work.
 User-facing instructions are published in the
@@ -21,7 +21,7 @@ User-facing instructions are published in the
 - [Testing and validation](TESTING.md) lists the existing local and CI validation
   lanes, including browser and Windows smoke tests.
 - [Public documentation](DOCUMENTATION.md) explains MDX authoring, framework navigation,
-  local search, canonical release history, and legacy maintenance.
+  local search, canonical release history, and publication.
 - [Release operations](RELEASING.md) covers version changes, release notes,
   signing, installer staging, and publication.
 
@@ -36,9 +36,9 @@ User-facing instructions are published in the
 - [Theme color audit](design/theme-color-audit.md) records historical palette
   measurements and split-shell diagnostics. Use [Design](DESIGN.md) for
   current UI rules.
-- [Theme manifest schema](schemas/archeion-theme-v1.schema.json) defines the
+- [Theme manifest schema](../website/static/schemas/archeion-theme-v1.schema.json) defines the
   machine-readable custom theme contract.
-- [Theme examples](examples/themes/) contains example custom theme packages.
+- [Theme examples](../website/static/examples/themes/) contains example custom theme packages.
 
 ## Performance
 
@@ -52,8 +52,8 @@ Performance timings are development evidence. They are not release guarantees.
 
 ## Dictionary maintenance
 
-[Dictionary catalog maintenance](dictionaries/README.md) documents the build,
-validation, and publication workflow. `dictionaries/catalog-v1.json` owns
+[Dictionary catalog maintenance](dictionaries.md) documents the build,
+validation, and publication workflow. `website/static/dictionaries/catalog-v1.json` owns
 published package metadata. `scripts/dictionaries/english_catalog_sources.json`
 owns the pinned source archives and license inputs.
 
@@ -67,15 +67,13 @@ owns the pinned source archives and license inputs.
 
 ## Public documentation site
 
-The replacement site lives in [`website/`](../website/), with articles in
-`website/docs/` and sidebar ordering in `website/sidebars.ts`. The legacy
-[`documentation/`](documentation/) site, landing page and public assets remain
-active until their planned migration/cutover boundaries.
+The public site lives in [`website/`](../website/), with articles in
+`website/docs/` and sidebar ordering in `website/sidebars.ts`. React owns the
+landing page; `website/static/` owns public resources and compatibility redirects.
 
 Use [Public documentation](DOCUMENTATION.md) to edit articles, regenerate the
 canonical release-history JSON, and run Node-only source/drift checks. Root
-maintainer guides stay here and are excluded from the replacement site artifact.
+maintainer guides stay here and are excluded from the published site artifact.
 
-The production workflow is prepared for main. Live Pages settings and legacy
-retirement are explicitly deferred until after merge and a verified deployment;
-follow the [cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).
+The production workflow publishes the validated `website/build/` artifact from
+`main`; see [publication ownership](DOCUMENTATION.md#public-resources-and-publication).
