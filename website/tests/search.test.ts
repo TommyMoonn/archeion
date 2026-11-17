@@ -24,6 +24,7 @@ const entry = (fields: Partial<SearchEntry>): SearchEntry => ({
 });
 
 describe("MDX local search", () => {
+  // Cold MDX/GFM ESM startup can exceed Vitest's 5s default on Windows.
   it("parses exclusive introduction and h2/h3 bodies, tables, code, notes and aliases without executing MDX", async () => {
     const entries = await extractSections(
       `---
@@ -80,7 +81,7 @@ Final body`,
       "one two cell one cell two code example local files keep a backup.",
     );
     expect(JSON.stringify(entries)).not.toMatch(/poison|never-execute|Final body.*first/);
-  });
+  }, 15_000);
 
   it("rejects ambiguous section IDs and invalid aliases; bounds excerpts", async () => {
     const code = await extractSections(

@@ -49,37 +49,65 @@ test("the Reading section displays an authentic non-interactive reader screensho
   await expect(page.locator("#reading figure a, #reading figure button")).toHaveCount(0);
 });
 
-test("Reading places the preview beside its features on desktop and stacks on smaller screens", async ({
-  page,
-}) => {
+test("Reading follows the approved desktop, tablet, and mobile layout", async ({ page }) => {
   const reading = page.locator("#reading");
   const image = reading.locator("figure img");
-  const cards = reading.locator("article");
+  const features = reading.locator("article");
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/archeion/");
   await image.scrollIntoViewIfNeeded();
-  const desktopImage = await image.boundingBox();
-  const [firstDesktopCard, secondDesktopCard, thirdDesktopCard] = await Promise.all(
-    [0, 1, 2].map((index) => cards.nth(index).boundingBox()),
+  const imageBox = await image.boundingBox();
+  const featureBoxes = await Promise.all(
+    [0, 1, 2].map((index) => features.nth(index).boundingBox()),
   );
-  if (!desktopImage || !firstDesktopCard || !secondDesktopCard || !thirdDesktopCard) {
+  if (!imageBox || featureBoxes.some((box) => !box)) {
     throw new Error("Reader desktop geometry is unavailable");
   }
-  for (const card of [firstDesktopCard, secondDesktopCard, thirdDesktopCard]) {
-    expect(card.x).toBeGreaterThan(desktopImage.x + desktopImage.width);
-  }
-  expect(firstDesktopCard.y).toBeLessThan(secondDesktopCard.y);
-  expect(secondDesktopCard.y).toBeLessThan(thirdDesktopCard.y);
+  const [first, second, third] = featureBoxes;
+  if (!first || !second || !third) throw new Error("Reading feature rows are missing");
+  expect(first.x).toBeGreaterThan(imageBox.x + imageBox.width);
+  expect(first.y).toBeLessThan(second.y);
+  expect(second.y).toBeLessThan(third.y);
+  expect(imageBox.width / first.width).toBeGreaterThan(2.35);
+  expect(first.y).toBeGreaterThan(imageBox.y);
+  expect(third.y + third.height).toBeLessThan(imageBox.y + imageBox.height);
+  const heading = await reading.locator("h2").boundingBox();
+  if (!heading) throw new Error("Reading heading geometry is unavailable");
+  expect(imageBox.y - (heading.y + heading.height)).toBeGreaterThanOrEqual(34);
+  expect(imageBox.y - (heading.y + heading.height)).toBeLessThanOrEqual(38);
 
-  for (const width of [1020, 390]) {
+  for (const width of [1080, 1020, 800]) {
     await page.setViewportSize({ width, height: 900 });
     const stackedImage = await image.boundingBox();
-    const firstCard = await cards.first().boundingBox();
-    if (!stackedImage || !firstCard) {
-      throw new Error(`Reader geometry is unavailable at ${width}px`);
+    const cards = await Promise.all([0, 1, 2].map((index) => features.nth(index).boundingBox()));
+    if (!stackedImage || cards.some((box) => !box)) {
+      throw new Error(`Reading tablet geometry is unavailable at ${width}px`);
     }
-    expect(firstCard.y).toBeGreaterThanOrEqual(stackedImage.y + stackedImage.height);
+    const [left, middle, right] = cards;
+    if (!left || !middle || !right) throw new Error("Tablet features are missing");
+    expect(left.y).toBeGreaterThanOrEqual(stackedImage.y + stackedImage.height);
+    expect(Math.abs(left.y - middle.y)).toBeLessThan(2);
+    expect(Math.abs(middle.y - right.y)).toBeLessThan(2);
+    expect(left.x).toBeLessThan(middle.x);
+    expect(middle.x).toBeLessThan(right.x);
+  }
+
+  for (const width of [700, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const stackedImage = await image.boundingBox();
+    const cards = await Promise.all([0, 1, 2].map((index) => features.nth(index).boundingBox()));
+    if (!stackedImage || cards.some((box) => !box)) {
+      throw new Error(`Reading mobile geometry is unavailable at ${width}px`);
+    }
+    const [top, middle, bottom] = cards;
+    if (!top || !middle || !bottom) throw new Error("Mobile features are missing");
+    expect(top.y).toBeGreaterThanOrEqual(stackedImage.y + stackedImage.height);
+    expect(top.y).toBeLessThan(middle.y);
+    expect(middle.y).toBeLessThan(bottom.y);
+    expect(await reading.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
   }
 });
 
@@ -108,4 +136,41 @@ test("informational feature cards do not react as clickable targets on hover", a
   await expect(card.locator("svg")).toHaveCount(1);
   await expect(card.locator("a, button, [role=link], [tabindex]")).toHaveCount(0);
   expect(before.cursor).not.toBe("pointer");
+});
+
+test("Reading feature rows match the reference without boxed-card styling", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/archeion/");
+  const rows = page.locator("#reading article");
+  await expect(rows).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) {
+    const row = rows.nth(index);
+    const appearance = await row.evaluate((element) => {
+      const article = getComputedStyle(element);
+      const icon = element.querySelector(".landing-reader-feature-icon");
+      if (!icon) throw new Error("Reading feature icon is missing");
+      const iconStyle = getComputedStyle(icon);
+      return {
+        background: article.backgroundColor,
+        borderTop: article.borderTopWidth,
+        borderRight: article.borderRightWidth,
+        borderBottom: article.borderBottomWidth,
+        borderLeft: article.borderLeftWidth,
+        iconSize: icon.getBoundingClientRect().width,
+        iconBorder: iconStyle.borderTopWidth,
+        iconBackground: iconStyle.backgroundColor,
+        cursor: article.cursor,
+      };
+    });
+    expect(appearance.background).toBe("rgba(0, 0, 0, 0)");
+    expect(appearance.borderTop).toBe(index === 0 ? "0px" : "1px");
+    expect(appearance.borderRight).toBe("0px");
+    expect(appearance.borderBottom).toBe("0px");
+    expect(appearance.borderLeft).toBe("0px");
+    expect(appearance.iconSize).toBe(40);
+    expect(appearance.iconBorder).toBe("1px");
+    expect(appearance.iconBackground).not.toBe("rgba(0, 0, 0, 0)");
+    expect(appearance.cursor).not.toBe("pointer");
+    await expect(row.locator("a, button, [role=link], [tabindex]")).toHaveCount(0);
+  }
 });

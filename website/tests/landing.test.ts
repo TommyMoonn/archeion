@@ -99,5 +99,10 @@ describe("rendered landing contracts (legacy scenario migration: website/README.
     expect(reader).toContain('src="/archeion/assets/images/landing-reader.png"');
     expect(reader).toContain('width="1919" height="1079"');
     expect(reader).toContain('loading="lazy"');
+    expect(reader).toContain('class="landing-reader-feature"');
+    expect(reader).toContain('class="landing-reader-feature-icon"');
+    expect(reader).toContain('class="landing-reader-layout"');
+    expect(reader).not.toContain("bg-surface-raised");
+    expect(library).toContain("bg-surface-raised");
   });
 });
