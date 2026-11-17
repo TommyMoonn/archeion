@@ -14,7 +14,7 @@ export function ProductPreview() {
         className="mx-auto w-landing-content landing-tablet:w-landing-media-tablet landing-mobile:w-landing-media-mobile"
       >
         <img
-          src="/archeion/assets/images/landing-library.png"
+          src="/archeion/assets/images/landing-library.webp"
           alt="Archeion Library showing an EPUB collection, folders, search, filters, and book covers."
           width={1480}
           height={906}

@@ -24,6 +24,7 @@ describe("rendered landing contracts (legacy scenario migration: website/README.
       "The EPUB library for Windows.",
     );
     const image = renderToStaticMarkup(createElement(ProductPreview));
+    expect(image).toContain('src="/archeion/assets/images/landing-library.webp"');
     expect(image).toContain('width="1480" height="906"');
     expect(image).toContain('loading="eager"');
     expect(image).toContain('fetchPriority="high"');

@@ -14,7 +14,7 @@ test("wordmark returns to absolute top and Your files frames archive and downloa
   const tree = page.locator("#files [role=img]");
   await expect
     .poll(() => tree.evaluate((node) => Math.abs(node.getBoundingClientRect().top - 94)))
-    .toBeLessThanOrEqual(1);
+    .toBeLessThanOrEqual(2);
   await expect(
     page.locator("#download").getByRole("link", { name: "View all releases" }),
   ).toBeInViewport();

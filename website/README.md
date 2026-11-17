@@ -1146,11 +1146,14 @@ no documentation preference, font bootstrap, product copy or resource owner chan
 The root README already points its Changelog badge and Custom theme link to the
 new public docs routes; its repository-local maintainer links remain intact.
 
-The visible preview is now `static/assets/images/landing-library.png`, extracted
-without recompression from the approved mock (1480x906, 893603 bytes, SHA-256
-`a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883`). Its intrinsic
-attributes match the full uncropped image. The separate 1544x1012 social preview
-and every pre-existing public resource retain their exact bytes and destinations.
+The visible preview was originally `static/assets/images/landing-library.png`,
+extracted without recompression from the approved mock (1480x906, 893603 bytes,
+SHA-256 `a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883`).
+Website refinement Phase 4 replaces this with
+`static/assets/images/landing-library.webp` (250388 bytes) after a full-size
+and resized visual comparison. The intrinsic dimensions and alt text remain
+unchanged. The separate 1544x1012 social preview and pre-existing public
+resources retain their exact bytes and destinations.
 
 Six positioned Lucide glyphs float/parallax at the approved depths and periods.
 SVG radial gradients reproduce page/card/download glows through semantic colors;

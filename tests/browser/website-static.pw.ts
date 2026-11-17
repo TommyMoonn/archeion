@@ -396,7 +396,7 @@ test("landing measured layout preserves intrinsic media and responsive boundarie
   const preview = page
     .getByRole("region", { name: "Archeion application preview" })
     .getByRole("img");
-  await expect(preview).toHaveAttribute("src", "/archeion/assets/images/landing-library.png");
+  await expect(preview).toHaveAttribute("src", "/archeion/assets/images/landing-library.webp");
   expect(
     await preview.evaluate(
       (node) => node instanceof HTMLImageElement && [node.naturalWidth, node.naturalHeight],
