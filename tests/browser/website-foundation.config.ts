@@ -43,7 +43,7 @@ export default defineConfig({
     cwd: fileURLToPath(new URL("../../", import.meta.url)),
     command: development
       ? `pnpm --filter @archeion/website dev --no-open --host 127.0.0.1 --port ${port}`
-      : "node tests/browser/serve-website-build.mjs",
+      : "pnpm --filter @archeion/website build && node tests/browser/serve-website-build.mjs",
     url: `${baseURL}/archeion/`,
     reuseExistingServer: false,
     timeout: 90_000,

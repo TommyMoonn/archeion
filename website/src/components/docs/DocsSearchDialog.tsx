@@ -5,7 +5,7 @@ import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDocsSearchData } from "../../search/useDocsSearchData";
-import { resultAnnouncement, searchEntries } from "../../search/match";
+import { resultAnnouncement, searchContextExcerpt, searchEntries } from "../../search/match";
 import { SearchHighlight } from "./SearchHighlight";
 
 export function DocsSearchDialog({
@@ -94,11 +94,17 @@ export function DocsSearchDialog({
         <h2 id="docs-search-title" className="sr-only">
           Search documentation
         </h2>
-        <div className="flex items-center gap-3.25 border-0 border-b border-solid border-border px-4.5 py-4.25">
+        <div
+          data-search-field
+          className="flex items-center gap-3.25 border-0 border-b border-solid border-border px-4.5 py-4.25"
+        >
           <Search aria-hidden="true" className="size-4.5 shrink-0 text-content-subtle" />
           <Input
             ref={input}
-            type="search"
+            type="text"
+            role="searchbox"
+            inputMode="search"
+            autoComplete="off"
             aria-label="Search documentation"
             placeholder="Search guides, features, and topics..."
             value={query}
@@ -107,7 +113,11 @@ export function DocsSearchDialog({
               setActive(0);
               if (results.current) results.current.scrollTop = 0;
             }}
-            className={`min-w-0 h-8 border-0 bg-transparent px-0 text-base md:text-base shadow-none ${keyboardNavigation ? "focus-visible:outline-2" : "focus-visible:outline-none"}`}
+            className={`min-w-0 h-8 border-0 bg-transparent px-0 text-base md:text-base shadow-none ${
+              keyboardNavigation
+                ? "focus-visible:outline-2! focus-visible:outline-solid! focus-visible:outline-focus-ring! focus-visible:outline-offset-2!"
+                : "focus-visible:outline-none!"
+            }`}
           />
           <Button variant="ghost" size="icon-sm" aria-label="Close search" onClick={close}>
             <X aria-hidden="true" />
@@ -123,11 +133,13 @@ export function DocsSearchDialog({
         >
           {found.entries.map((entry, index) => {
             const id = `search-${entry.id}-${entry.sectionId || "page"}`;
+            const excerpt = searchContextExcerpt(entry, query);
             return (
               <Link
                 key={id}
                 to={`${entry.href}${entry.sectionId ? `#${entry.sectionId}` : ""}`}
                 aria-labelledby={`${id}-title ${id}-context`}
+                aria-description={excerpt ?? undefined}
                 data-active={active === index}
                 onFocus={() => setActive(index)}
                 onClick={(event) => handleDocsNavigation(event, close)}
@@ -143,6 +155,14 @@ export function DocsSearchDialog({
                     query={query}
                   />
                 </span>
+                {excerpt && (
+                  <span
+                    data-search-excerpt
+                    className="line-clamp-2 min-w-0 break-words text-caption leading-relaxed text-content-muted"
+                  >
+                    <SearchHighlight text={excerpt} query={query} />
+                  </span>
+                )}
               </Link>
             );
           })}

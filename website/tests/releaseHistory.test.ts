@@ -26,9 +26,8 @@ describe("canonical history adapters", () => {
       const release = releases[index];
       expect(section.sectionHeading).toBe(`v${projection.entries[index].version}`);
       expect(section.href).toBe(page.href);
-      expect(section.text).toContain(release.dateLabel.toLowerCase());
-      for (const item of release.items)
-        expect(section.text).toContain(releaseInlineText(item).toLowerCase());
+      expect(section.text).toContain(release.dateLabel);
+      for (const item of release.items) expect(section.text).toContain(releaseInlineText(item));
       expect(section.excerpt.length).toBeLessThanOrEqual(240);
     }
     expect(sections[0].sectionId).toBe(

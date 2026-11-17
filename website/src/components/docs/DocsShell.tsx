@@ -28,7 +28,8 @@ export function DocsShell({ children }: { children: ReactNode }) {
       )
         return;
       event.preventDefault();
-      setKeyboardSearch(true);
+      // Shortcut focus is intentional, not keyboard focus traversal.
+      setKeyboardSearch(false);
       if (modal === null) setModal("search");
       else {
         const input = search.current?.querySelector("input");

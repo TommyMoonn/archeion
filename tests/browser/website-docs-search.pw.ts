@@ -40,6 +40,43 @@ for (const route of ["", "customization/custom-themes/"]) {
   });
 }
 
+test("body matches show relevant excerpts without changing result names or keyboard navigation", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/archeion/docs/", { waitUntil: "load" });
+  await page.getByRole("button", { name: "Search documentation", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Search documentation", exact: true });
+  const input = dialog.getByRole("searchbox");
+  const results = dialog.getByRole("navigation", { name: "Documentation search results" });
+
+  await input.fill("matching digest");
+  const result = results.getByRole("link");
+  await expect(result).toHaveCount(1);
+  await expect(result).toHaveAccessibleName(
+    "Compare duplicate groups before changing files Archive health · Using Archeion",
+  );
+  await expect(result).toHaveAttribute("aria-description", /matching digest/i);
+  await expect(result).toHaveAccessibleDescription(/matching digest/i);
+  const excerpt = result.locator("[data-search-excerpt]");
+  await expect(excerpt).toContainText("matching digest");
+  await expect(excerpt.locator("mark")).toHaveText(["matching", "digest"]);
+  await expect(excerpt).toHaveCSS("-webkit-line-clamp", "2");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  await input.fill("archive health");
+  await expect(results.getByRole("link").first()).toHaveAttribute(
+    "href",
+    /\/guides\/archive-health\/$/,
+  );
+  await expect(results.getByRole("link").first().locator("[data-search-excerpt]")).toHaveCount(0);
+  await input.fill("matching digest");
+  await input.press("ArrowDown");
+  await expect(result).toBeFocused();
+  await result.press("Enter");
+  await expect(page).toHaveURL(/\/guides\/archive-health\/#duplicates$/);
+});
+
 test("page titles and section headings rank before body matches", async ({ page }) => {
   await page.goto("/archeion/docs/", { waitUntil: "load" });
   await page.getByRole("button", { name: "Search documentation", exact: true }).click();
