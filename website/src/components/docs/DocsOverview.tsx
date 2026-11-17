@@ -17,7 +17,7 @@ export function DocsOverview({ group }: { group: string }) {
               to={page.href}
               className="group flex h-full min-h-19 min-w-0 box-border items-center justify-between gap-3 rounded-control border border-solid border-border bg-surface px-3.25 pt-3.25 pb-3 text-content hover:border-border-strong hover:bg-surface-raised hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-focus-ring motion-safe:transition motion-safe:duration-240 motion-safe:hover:-translate-y-px"
             >
-              <span className="min-w-0">
+              <span className="min-w-0 break-words">
                 <span className="block text-docs-card-title font-bold text-content-strong">
                   {page.overviewTitle}
                 </span>{" "}

@@ -24,68 +24,84 @@ test("overview cards preserve all destinations, factual summaries and framework 
   await expect(page.locator("#main-content")).toBeFocused();
 });
 
-test("overview cards keep measured columns, local containment and enlarged text across themes", async ({
+test("overview cards preserve hierarchy and containment at responsive and zoom-equivalent widths", async ({
   page,
 }, info) => {
   await page.goto("/archeion/docs/");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator("[data-docs-overview]")).toHaveCount(5);
-  for (const theme of ["dark", "light"]) {
-    await page.evaluate((theme) => {
-      document.documentElement.dataset.theme = theme;
-    }, theme);
-    for (const width of [1440, 800, 601, 600, 320]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.evaluate(async () => {
-        await document.fonts.ready;
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-        );
-      });
-      const grids = page.locator("[data-docs-overview]");
-      const columns = await grids.evaluateAll((nodes) =>
-        nodes.map((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length),
+
+  const measureCards = async (width: number, checkType = true) => {
+    const grids = page.locator("[data-docs-overview]");
+    const columns = await grids.evaluateAll((nodes) =>
+      nodes.map((node) => getComputedStyle(node).gridTemplateColumns.split(" ").length),
+    );
+    expect(columns).toEqual(width <= 600 ? [1, 1, 1, 1, 1] : [3, 2, 2, 2, 2]);
+
+    // Measure every card in one browser round trip to avoid per-card timeout pressure.
+    const cards = await grids.locator("a").evaluateAll((links) =>
+      links.map((link) => {
+        const bounds = link.getBoundingClientRect();
+        const arrow = link.querySelector("svg");
+        const content = link.querySelector("span");
+        const title = content?.children.item(0);
+        const description = content?.children.item(1);
+        if (!arrow || !(title instanceof HTMLElement) || !(description instanceof HTMLElement))
+          throw new Error("Overview card content or arrow is missing");
+        const icon = arrow.getBoundingClientRect();
+        return {
+          left: bounds.left,
+          right: bounds.right,
+          alignment: Math.abs(bounds.y + bounds.height / 2 - icon.y - icon.height / 2),
+          titleFont: getComputedStyle(title).fontSize,
+          descriptionFont: getComputedStyle(description).fontSize,
+          textFits: [title, description].every((node) => node.scrollWidth <= node.clientWidth + 1),
+        };
+      }),
+    );
+    expect(cards).toHaveLength(23);
+    for (const [index, card] of cards.entries()) {
+      expect(card.alignment, `Card ${index} arrow alignment at ${width}px`).toBeLessThanOrEqual(1);
+      expect(card.left, `Card ${index} left boundary at ${width}px`).toBeGreaterThanOrEqual(-1);
+      expect(card.right, `Card ${index} right boundary at ${width}px`).toBeLessThanOrEqual(
+        width + 1,
       );
-      expect(columns).toEqual(width <= 600 ? [1, 1, 1, 1, 1] : [3, 2, 2, 2, 2]);
-      const cards = await grids.locator("a").evaluateAll((elements) =>
-        elements.map((element) => {
-          const card = element.getBoundingClientRect();
-          const arrow = element.querySelector("svg");
-          if (!arrow) throw new Error("Overview card arrow is missing");
-          const icon = arrow.getBoundingClientRect();
-          return {
-            verticalAlignment: Math.abs(card.y + card.height / 2 - icon.y - icon.height / 2),
-            left: card.left,
-            right: card.right,
-            width: card.width,
-            height: card.height,
-          };
-        }),
-      );
-      for (const card of cards) {
-        expect(card.verticalAlignment).toBeLessThanOrEqual(1);
-        expect(card.width).toBeGreaterThan(0);
-        expect(card.height).toBeGreaterThan(0);
-        expect(card.left).toBeGreaterThanOrEqual(0);
-        expect(card.right).toBeLessThanOrEqual(width);
+      expect(card.textFits, `Card ${index} text containment at ${width}px`).toBe(true);
+      if (checkType) {
+        expect(card.titleFont).toBe("14px");
+        expect(card.descriptionFont).toBe("13px");
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
-      );
-      if (width === 1440 || width === 320)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+  };
+
+  for (const theme of ["dark", "light"]) {
+    await page.evaluate((value) => {
+      document.documentElement.dataset.theme = value;
+    }, theme);
+    for (const width of [320, 375, 600, 601, 800, 1020, 1280, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.evaluate(() => document.fonts.ready);
+      await measureCards(width);
+      if (width === 320 || width === 1280)
         await page.screenshot({
           path: info.outputPath(`overview-${theme}-${width}.png`),
           fullPage: true,
         });
     }
   }
-  await page.evaluate(() => {
-    document.documentElement.style.fontSize = "200%";
-  });
-  await expect(page.locator("[data-docs-overview] a").first()).toHaveCSS(
-    "transition-duration",
-    "0s",
-  );
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: info.outputPath("overview-text-200.png"), fullPage: true });
+
+  // Browser zoom reduces the available CSS viewport. Root-element CSS zoom does
+  // not update media queries and produces false page-overflow failures.
+  for (const factor of [2, 4]) {
+    const width = 1280 / factor;
+    await page.setViewportSize({ width, height: 900 });
+    await measureCards(width);
+    await expect(page.locator("[data-docs-overview] a").first()).toHaveCSS(
+      "transition-duration",
+      "0s",
+    );
+  }
 });

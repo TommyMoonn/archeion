@@ -176,8 +176,6 @@ html[data-site-fonts-loading] #__docusaurus {
   --text-landing-section-mobile--line-height: 1.08;
   --text-landing-card: 0.9375rem;
   --text-landing-card--line-height: 1.65;
-  --text-landing-tree-mobile: 0.6875rem;
-  --text-landing-copyright-mobile: 0.65625rem;
   --text-landing-brand: 1.3125rem;
   --tracking-landing-card: -0.015em;
   --tracking-landing-reading: -0.03em;
@@ -240,9 +238,9 @@ html[data-site-fonts-loading] #__docusaurus {
   --text-docs-subheading: 1.1875rem;
   --text-docs-subheading--line-height: 1.4;
   --text-docs-label: 0.6875rem;
-  --text-docs-card-title: 0.78125rem;
+  --text-docs-card-title: 0.875rem;
   --text-docs-card-title--line-height: 1.4;
-  --text-docs-card-description: 0.71875rem;
+  --text-docs-card-description: 0.8125rem;
   --text-docs-card-description--line-height: 1.55;
   /* Brand artwork and header chrome retain the mock's pixel geometry at text enlargement.
      Article and control labels remain resizable; icons must not consume their space. */

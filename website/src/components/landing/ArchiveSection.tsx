@@ -33,7 +33,7 @@ export function ArchiveSection() {
         >
           <pre
             aria-hidden="true"
-            className="m-0 overflow-visible bg-transparent p-0 font-mono text-caption leading-normal landing-mobile:text-landing-tree-mobile text-content-muted"
+            className="m-0 overflow-visible bg-transparent p-0 font-mono text-caption leading-normal text-content-muted"
           >
             <code className="border-0 bg-transparent p-0 text-inherit">
               {archiveTree

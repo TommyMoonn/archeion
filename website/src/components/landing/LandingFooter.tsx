@@ -6,7 +6,7 @@ export function LandingFooter() {
   return (
     <footer className="border-0 border-t border-solid border-landing-footer-border landing-mobile:py-2.5">
       <div className="mx-auto flex min-h-17 w-landing-content flex-wrap items-center justify-between gap-6 landing-tablet:w-landing-media-tablet landing-mobile:min-h-16 landing-mobile:w-landing-media-mobile landing-mobile:gap-2.5">
-        <div className="flex items-center gap-2.5 landing-mobile:gap-2">
+        <div className="flex min-w-0 items-center gap-2.5 landing-mobile:gap-2">
           <a
             href="#top"
             aria-label="Back to top"
@@ -21,13 +21,13 @@ export function LandingFooter() {
               className="block size-5.5 landing-mobile:size-5"
             />
           </a>
-          <span className="text-xs leading-[1.3] whitespace-nowrap text-content-subtle landing-mobile:text-landing-copyright-mobile">
+          <span className="min-w-0 text-xs leading-[1.3] text-content-subtle">
             © 2026 Khoa Luong
           </span>
         </div>
         <nav
           aria-label="Footer links"
-          className="ml-auto flex flex-wrap gap-5.5 text-caption landing-mobile:gap-2.5 landing-mobile:text-landing-tree-mobile"
+          className="ml-auto flex min-w-0 flex-wrap gap-5.5 text-caption landing-mobile:gap-2.5"
         >
           <a
             href={landingLinks.documentation}
