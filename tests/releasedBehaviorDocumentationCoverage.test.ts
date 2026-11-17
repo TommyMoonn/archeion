@@ -1,6 +1,5 @@
 import { articleText, articleLinks } from "./documentationMdxTestSupport";
 import { describe, expect, it } from "vitest";
-import { LIBRARY_SMART_VIEW_DEFINITIONS } from "../src/types/librarySmartViews";
 
 const text = articleText;
 function link(route: string, href: string) {
@@ -48,9 +47,20 @@ describe("released behavior documentation depth", () => {
     expect(copy).toContain("Settings → Reader");
     link("customization/appearance", "../theme-manager/");
   });
-  it("covers every shipped Smart View and describes scrolling without hardware promises", () => {
+  it("explains retained Library filters, continuation, diagnostics, and scrolling", () => {
     const copy = text("guides/library");
-    for (const view of LIBRARY_SMART_VIEW_DEFINITIONS) expect(copy).toContain(view.label);
+    for (const label of [
+      "Unread",
+      "In progress",
+      "Completed",
+      "Missing metadata",
+      "Missing cover",
+      "Continue Reading",
+      "Show Continue Reading",
+      "Find duplicates",
+      "Check EPUB issues",
+    ])
+      expect(copy).toContain(label);
     expect(copy).toContain("visible area");
     expect(copy).toContain("nearby covers");
     link("guides/library", "../archive-health/");

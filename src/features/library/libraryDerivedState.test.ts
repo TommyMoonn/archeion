@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
 import { createDefaultLibraryFilters } from "../../types/library";
-import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { useLibraryDerivedState } from "./libraryDerivedState";
 import { createLibraryIndex } from "./libraryIndex";
 
@@ -93,10 +92,6 @@ describe("library derived state helpers", () => {
       folders: [],
       location: { type: "library" },
       libraryRevision: 1,
-      smartViewPreferences: {
-        enabled: true,
-        visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
-      },
       sort: "title",
     };
     const container = document.createElement("div");

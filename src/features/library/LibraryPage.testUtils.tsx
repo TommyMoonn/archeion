@@ -17,7 +17,6 @@ import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
-import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { LibraryPage } from "./LibraryPage";
 import { readyState } from "./libraryStorage.testUtils";
 import {
@@ -346,10 +345,6 @@ export function setupLibraryPageTestSuite() {
           },
         },
         filters: createDefaultLibraryFilters(),
-        smartViews: {
-          enabled: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.enabled,
-          visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
-        },
       },
     });
   });

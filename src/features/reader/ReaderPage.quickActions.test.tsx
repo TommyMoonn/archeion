@@ -1017,116 +1017,47 @@ describe("ReaderPage Quick Actions", () => {
     expect(viewerMock.teardown).toHaveBeenCalledOnce();
   });
 
-  it("falls back to Library when its saved Smart View return destination becomes hidden", async () => {
-    const original = appPreferencesStore.getSnapshot();
-
-    try {
-      await act(async () => {
-        await appPreferencesStore.update({
-          library: {
-            ...original.library,
-            smartViews: { enabled: true, visible: ["unread"] },
-          },
-        });
-      });
+  it.each(["smart&smartView=completed", "smart&smartView=unknown", "continue"])(
+    "returns from legacy %s destinations to Library",
+    async (view) => {
       const rendered = await renderReader(
         createStorage(),
-        "/?archiveId=archive-books&view=smart&smartView=completed&query=space",
+        "/?archiveId=archive-books&view=" + view + "&query=space",
       );
       const back = rendered.container.querySelector<HTMLButtonElement>(
         'button[aria-label="Back to Library"]',
       );
-
       expect(back).toBeInstanceOf(HTMLButtonElement);
       await act(async () => {
         back?.click();
         await Promise.resolve();
       });
-
       expect(rendered.router.state.location.pathname).toBe("/");
       expect(viewerMock.navigateBack).not.toHaveBeenCalled();
-      expect(rendered.router.state.location.search).toContain("view=library");
-      expect(rendered.router.state.location.search).toContain("query=space");
-      expect(rendered.router.state.location.search).not.toContain("smartView");
-    } finally {
-      await act(async () => {
-        await appPreferencesStore.update(original);
-      });
-    }
-  });
+      expect(new URLSearchParams(rendered.router.state.location.search)).toEqual(
+        new URLSearchParams("archiveId=archive-books&view=library&query=space"),
+      );
+    },
+  );
 
-  it("falls back to Library when its archive-health return destination becomes hidden", async () => {
-    const original = appPreferencesStore.getSnapshot();
-
-    try {
-      await act(async () => {
-        await appPreferencesStore.update({
-          library: {
-            ...original.library,
-            smartViews: { enabled: true, visible: ["unread"] },
-          },
-        });
-      });
+  it.each(["duplicates", "epub-issues"])(
+    "preserves its %s maintenance return destination",
+    async (view) => {
       const rendered = await renderReader(
         createStorage(),
-        "/?archiveId=archive-books&view=duplicates&query=space",
+        "/?archiveId=archive-books&view=" + view + "&query=space",
       );
       const back = rendered.container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Back to Library"]',
+        'button[aria-label="Back to Favorites"]',
       );
-
       expect(back).toBeInstanceOf(HTMLButtonElement);
       await act(async () => {
         back?.click();
         await Promise.resolve();
       });
-
-      expect(rendered.router.state.location.pathname).toBe("/");
-      expect(rendered.router.state.location.search).toContain("view=library");
-      expect(rendered.router.state.location.search).toContain("query=space");
-      expect(rendered.router.state.location.search).not.toContain("duplicates");
-    } finally {
-      await act(async () => {
-        await appPreferencesStore.update(original);
-      });
-    }
-  });
-
-  it("offers Continue navigation only while the In progress Smart View is visible", async () => {
-    const original = appPreferencesStore.getSnapshot();
-
-    try {
-      await act(async () => {
-        await appPreferencesStore.update({
-          library: {
-            ...original.library,
-            smartViews: { enabled: false, visible: ["in-progress"] },
-          },
-        });
-      });
-      await renderReader();
-      let search = await openPalette();
-      await act(async () => setInputValue(search, "Go to Continue"));
-      expect(document.querySelector('[role="option"]')).toBeNull();
-
-      await act(async () => {
-        search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
-        await appPreferencesStore.update({
-          library: {
-            ...original.library,
-            smartViews: { enabled: true, visible: ["in-progress"] },
-          },
-        });
-      });
-      search = await openPalette();
-      await act(async () => setInputValue(search, "Go to Continue"));
-      expect(document.querySelector('[role="option"]')?.textContent).toContain("Go to Continue");
-    } finally {
-      await act(async () => {
-        await appPreferencesStore.update(original);
-      });
-    }
-  });
+      expect(new URLSearchParams(rendered.router.state.location.search).get("view")).toBe(view);
+    },
+  );
 
   it("opens the existing book-navigation action without changing the reader route or return context", async () => {
     const rendered = await renderReader();

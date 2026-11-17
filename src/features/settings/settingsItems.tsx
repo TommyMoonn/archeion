@@ -6,7 +6,6 @@ import { Button } from "../../components/Button";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
 import type { CollectionCardSize, FolderSort, LibrarySort, SeriesSort } from "../../types/library";
-import { LIBRARY_SMART_VIEW_DEFINITIONS, LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
 import { readerReadingWidthOptions, type ReaderSettings } from "../../types/reader";
 import {
   archiveImportConflictOptions,
@@ -42,22 +41,6 @@ export type {
 
 function updateReader(context: SettingsController, changes: Partial<ReaderSettings>) {
   context.updateReader(changes);
-}
-
-function updateSmartViewVisibility(
-  context: SettingsController,
-  smartView: (typeof LIBRARY_SMART_VIEWS)[number],
-  visible: boolean,
-) {
-  const requested = new Set(context.library.smartViews.visible);
-  if (visible) requested.add(smartView);
-  else requested.delete(smartView);
-  context.updateLibrary({
-    smartViews: {
-      ...context.library.smartViews,
-      visible: LIBRARY_SMART_VIEWS.filter((candidate) => requested.has(candidate)),
-    },
-  });
 }
 
 export const settingsItems: readonly SettingsItem[] = [
@@ -192,13 +175,13 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "general",
   },
   {
-    description: "Used for Library, Favorites, Smart Views, and books inside folders.",
+    description: "Used for Library, Favorites, and books inside folders.",
     groupLabel: "Books",
     id: "library.books.default-view",
     label: "Default book view",
     render: (context) => (
       <StandardSettingsRow
-        description="Used for Library, Favorites, Smart Views, and books inside folders."
+        description="Used for Library, Favorites, and books inside folders."
         label="Default book view"
       >
         <SegmentedControl
@@ -213,13 +196,13 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "library",
   },
   {
-    description: "Used for Library, Favorites, Smart Views, and books inside folders.",
+    description: "Used for Library, Favorites, and books inside folders.",
     groupLabel: "Books",
     id: "library.books.default-sort",
     label: "Default book sort",
     render: (context) => (
       <StandardSettingsRow
-        description="Used for Library, Favorites, Smart Views, and books inside folders."
+        description="Used for Library, Favorites, and books inside folders."
         label="Default book sort"
       >
         <AppSelect<LibrarySort>
@@ -401,59 +384,6 @@ export const settingsItems: readonly SettingsItem[] = [
     searchTerms: ["continue reading", "started books"],
     sectionId: "library",
   },
-  {
-    description: "Show selected built-in views in Library navigation.",
-    groupLabel: "Smart Views",
-    id: "library.smart-views.enabled",
-    label: "Show Smart Views",
-    render: (context) => (
-      <StandardSettingsRow
-        description="Show selected built-in views in Library navigation."
-        label="Show Smart Views"
-      >
-        <Toggle
-          checked={context.library.smartViews.enabled}
-          label="Show Smart Views"
-          onChange={(enabled) =>
-            context.updateLibrary({
-              smartViews: { ...context.library.smartViews, enabled },
-            })
-          }
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["smart views", "navigation views", "built-in views"],
-    sectionId: "library",
-  },
-  ...LIBRARY_SMART_VIEW_DEFINITIONS.map((definition): SettingsItem => ({
-    description: definition.description,
-    groupLabel: "Smart Views",
-    id: `library.smart-views.${definition.id}`,
-    label: definition.label,
-    render: (context) => {
-      const preferences = context.library.smartViews;
-      const checked = preferences.visible.includes(definition.id);
-      const isLastVisible = checked && preferences.visible.length === 1;
-      const disabledReason = !preferences.enabled
-        ? "Turn on Show Smart Views to choose visible views."
-        : isLastVisible
-          ? "At least one Smart View must remain selected. Turn off Show Smart Views instead."
-          : undefined;
-      return (
-        <StandardSettingsRow description={definition.description} label={definition.label}>
-          <Toggle
-            checked={checked}
-            disabled={Boolean(disabledReason)}
-            disabledReason={disabledReason}
-            label={`Show ${definition.label} Smart View`}
-            onChange={(visible) => updateSmartViewVisibility(context, definition.id, visible)}
-          />
-        </StandardSettingsRow>
-      );
-    },
-    searchTerms: [definition.id, ...definition.searchTerms],
-    sectionId: "library",
-  })),
   {
     id: "library.reset",
     label: "Reset library display settings",

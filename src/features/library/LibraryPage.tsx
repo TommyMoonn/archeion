@@ -29,7 +29,6 @@ import {
   isLibraryIntegrityLocation,
   libraryIntegrityLocationLabel,
 } from "../../types/library";
-import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
 import type { SeriesEntry } from "../../types/series";
 import { currentFocusOrigin, focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
@@ -92,21 +91,9 @@ function detailsDockMatches() {
   return typeof window.matchMedia === "function" && window.matchMedia(DETAILS_DOCK_QUERY).matches;
 }
 
-function locationEmptyState(location: LibraryLocation, libraryTitle: string) {
+function locationEmptyState(location: LibraryLocation) {
   if (location.type === "favorites") {
     return { title: "No favorites yet", description: "Mark books as favorites to keep them here." };
-  }
-  if (location.type === "continue") {
-    return {
-      title: "No books in progress",
-      description: "Books you start reading will appear here.",
-    };
-  }
-  if (location.type === "smart-view") {
-    return {
-      title: `No books in ${libraryTitle.toLocaleLowerCase()}`,
-      description: "Books matching this smart view will appear here.",
-    };
   }
   if (location.type === "folder") {
     return {
@@ -273,12 +260,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => false,
   );
   const detailsDocked = detailsPinned && detailsDockAvailable;
-  const smartViewPreferences = libraryPreferences.smartViews;
   const navigation = useLibraryWorkspaceNavigation({
     activeArchiveId: activeArchive.id,
     beforeNavigation: resetSelectionForNavigation,
     folders,
-    smartViewPreferences,
   });
   const selectionTabKeyRef = useRef(libraryNavigationTabKey(navigation.location));
   useLayoutEffect(() => {
@@ -387,7 +372,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     folders,
     location: navigation.location,
     libraryRevision,
-    smartViewPreferences,
     sort,
   });
   const { activeSeries, entries: seriesEntries } = useLibrarySeriesState(
@@ -767,20 +751,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         order: 50,
         scope: "library",
       },
-      ...(isLibrarySmartViewVisible(smartViewPreferences, "in-progress")
-        ? [
-            {
-              configuration: "unbound" as const,
-              execute: () => enterLocation({ type: "continue" }),
-              group: "Navigate" as const,
-              id: "navigate.continue",
-              keywords: ["in progress", "continue reading"],
-              label: "Go to Continue",
-              order: 51,
-              scope: "library" as const,
-            },
-          ]
-        : []),
       {
         configuration: "unbound",
         execute: () => enterLocation({ type: "favorites" }),
@@ -811,34 +781,26 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         order: 54,
         scope: "library",
       },
-      ...(isLibrarySmartViewVisible(smartViewPreferences, "duplicates")
-        ? [
-            {
-              configuration: "unbound" as const,
-              execute: () => enterLocation({ type: "duplicates" }),
-              group: "Navigate" as const,
-              id: "navigate.duplicates",
-              keywords: ["duplicate books", "archive integrity"],
-              label: "Go to Duplicates",
-              order: 55,
-              scope: "library" as const,
-            },
-          ]
-        : []),
-      ...(isLibrarySmartViewVisible(smartViewPreferences, "epub-issues")
-        ? [
-            {
-              configuration: "unbound" as const,
-              execute: () => enterLocation({ type: "epub-issues" }),
-              group: "Navigate" as const,
-              id: "navigate.epub-issues",
-              keywords: ["epub diagnostics", "archive integrity", "book issues"],
-              label: "Go to EPUB Issues",
-              order: 56,
-              scope: "library" as const,
-            },
-          ]
-        : []),
+      {
+        configuration: "unbound" as const,
+        execute: () => enterLocation({ type: "duplicates" }),
+        group: "Navigate" as const,
+        id: "navigate.duplicates",
+        keywords: ["duplicate books", "archive integrity"],
+        label: "Go to Duplicates",
+        order: 55,
+        scope: "library" as const,
+      },
+      {
+        configuration: "unbound" as const,
+        execute: () => enterLocation({ type: "epub-issues" }),
+        group: "Navigate" as const,
+        id: "navigate.epub-issues",
+        keywords: ["epub diagnostics", "archive integrity", "book issues"],
+        label: "Go to EPUB Issues",
+        order: 56,
+        scope: "library" as const,
+      },
       {
         availability: bookActions.isImporting
           ? { available: false, reason: "Wait for the current EPUB import to finish." }
@@ -887,12 +849,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       navigation.location.type,
       openBookSearch,
       searchSurfaceAvailable,
-      smartViewPreferences,
     ],
   );
   useRegisterQuickActions("library", quickActionCommands);
 
-  const emptyState = locationEmptyState(navigation.location, libraryTitle);
+  const emptyState = locationEmptyState(navigation.location);
   const currentImportDropDestination = currentFolder?.relativePath ?? ARCHIVE_ROOT_DESTINATION;
   const detailsBookId = selectionMode
     ? selectedBookIds.size === 1
@@ -1104,7 +1065,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRenameFolder: openRenameFolder,
           onRevealFolder: revealFolder,
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
-          smartViewPreferences,
         }}
         toolbarProps={{
           filterOptions,

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { readerReturnContextFromState } from "../../app/readerReturnContext";
 import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
@@ -62,16 +62,6 @@ function result(
 }
 
 describe("LibraryPage duplicate review integration", () => {
-  beforeEach(async () => {
-    const preferences = appPreferencesStore.getSnapshot();
-    await appPreferencesStore.update({
-      library: {
-        ...preferences.library,
-        smartViews: { enabled: true, visible: ["duplicates"] },
-      },
-    });
-  });
-
   it("routes member actions to the current Library action owners", async () => {
     vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockImplementation(
       async (request) => result(request.requestRevision),
@@ -209,7 +199,7 @@ describe("LibraryPage duplicate review integration", () => {
     });
   });
 
-  it("keeps duplicate results available when its Smart View is hidden", async () => {
+  it("keeps duplicate results available after unrelated Library preferences change", async () => {
     vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockImplementation(
       async (request) => result(request.requestRevision),
     );
@@ -227,7 +217,7 @@ describe("LibraryPage duplicate review integration", () => {
       await appPreferencesStore.update({
         library: {
           ...preferences.library,
-          smartViews: { enabled: true, visible: ["unread"] },
+          detailsPinned: true,
         },
       });
     });

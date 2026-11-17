@@ -41,9 +41,7 @@
       "filterReadingStatuses",
       "filterFavoritesOnly",
       "filterMissingMetadata",
-      "filterMissingCover",
-      "smartViewsEnabled",
-      "smartViewsVisible"
+      "filterMissingCover"
     ],
     "readerFields": [
       "fontSize",

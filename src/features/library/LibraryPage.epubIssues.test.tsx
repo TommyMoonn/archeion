@@ -1,11 +1,10 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { readerReturnContextFromState } from "../../app/readerReturnContext";
 import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
-import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { EpubDiagnosticAnalysisResult } from "../../types/epubIntegrity";
 import "./LibraryEpubIssuesView";
@@ -64,16 +63,6 @@ function result(
 }
 
 describe("LibraryPage EPUB Issues integration", () => {
-  beforeEach(async () => {
-    const preferences = appPreferencesStore.getSnapshot();
-    await appPreferencesStore.update({
-      library: {
-        ...preferences.library,
-        smartViews: { enabled: true, visible: ["epub-issues"] },
-      },
-    });
-  });
-
   it("routes issue actions to existing Library and Reader owners", async () => {
     vi.spyOn(archiveIntegrityCommandClient, "requestDiagnostics").mockImplementation(
       async (request) => result(request.requestRevision),

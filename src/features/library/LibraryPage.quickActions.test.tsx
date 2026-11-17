@@ -22,7 +22,6 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { installLibrarySidebarMedia } from "./librarySidebarMedia.testUtils";
 import { LibraryPage } from "./LibraryPage";
 
@@ -236,10 +235,6 @@ beforeEach(async () => {
         folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
         series: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
       },
-      smartViews: {
-        enabled: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.enabled,
-        visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
-      },
     },
   });
 });
@@ -260,48 +255,45 @@ afterEach(async () => {
 });
 
 describe("LibraryPage Quick Actions", () => {
+  it("waits for an explicit maintenance action before analyzing the archive", async () => {
+    await renderLibrary();
+    expect(archiveIntegrityCommandClient.requestDuplicateAnalysis).not.toHaveBeenCalled();
+    expect(archiveIntegrityCommandClient.requestDiagnostics).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["duplicates", "requestDuplicateAnalysis", "No duplicate groups"],
     ["epub-issues", "requestDiagnostics", "No EPUB issues"],
-  ] as const)(
-    "refreshes explicit maintenance requests for %s with Smart Views disabled",
-    async (view, method, readyCopy) => {
-      const current = appPreferencesStore.getSnapshot();
-      await appPreferencesStore.update({
-        library: { ...current.library, smartViews: { enabled: false, visible: [] } },
-      });
-      const rendered = await renderLibrary(
-        "/",
-        [],
-        <>
-          <Link to={`/?archiveId=archive-books&view=${view}&integrityRequest=first`}>
-            First request
-          </Link>
-          <Link to={`/?archiveId=archive-books&view=${view}&integrityRequest=second`}>
-            Second request
-          </Link>
-          <Link to="/?archiveId=archive-books&view=library">Leave results</Link>
-        </>,
+  ] as const)("refreshes explicit maintenance requests for %s", async (view, method, readyCopy) => {
+    const rendered = await renderLibrary(
+      "/",
+      [],
+      <>
+        <Link to={`/?archiveId=archive-books&view=${view}&integrityRequest=first`}>
+          First request
+        </Link>
+        <Link to={`/?archiveId=archive-books&view=${view}&integrityRequest=second`}>
+          Second request
+        </Link>
+        <Link to="/?archiveId=archive-books&view=library">Leave results</Link>
+      </>,
+    );
+    expect(archiveIntegrityCommandClient[method]).not.toHaveBeenCalled();
+    const follow = async (label: string) => {
+      const link = Array.from(rendered.container.querySelectorAll("a")).find(
+        (node) => node.textContent === label,
       );
-      expect(archiveIntegrityCommandClient[method]).not.toHaveBeenCalled();
-      const follow = async (label: string) => {
-        const link = Array.from(rendered.container.querySelectorAll("a")).find(
-          (node) => node.textContent === label,
-        );
-        if (!link) throw new Error(`Missing test navigation: ${label}`);
-        await act(async () => link.click());
-      };
-      await follow("First request");
-      await vi.waitFor(() => expect(rendered.container.textContent).toContain(readyCopy));
-      expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(1);
-      await follow("Second request");
-      await vi.waitFor(() =>
-        expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(2),
-      );
-      await follow("Leave results");
-      expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(2);
-    },
-  );
+      if (!link) throw new Error(`Missing test navigation: ${label}`);
+      await act(async () => link.click());
+    };
+    await follow("First request");
+    await vi.waitFor(() => expect(rendered.container.textContent).toContain(readyCopy));
+    expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(1);
+    await follow("Second request");
+    await vi.waitFor(() => expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(2));
+    await follow("Leave results");
+    expect(archiveIntegrityCommandClient[method]).toHaveBeenCalledTimes(2);
+  });
 
   it("opens Quick Actions once from its default shortcut with no visible trigger", async () => {
     const rendered = await renderLibrary();
@@ -576,16 +568,6 @@ describe("LibraryPage Quick Actions", () => {
   ] as const)(
     "routes %s through Library navigation and the shared integrity controller",
     async (command, title, requestMethod, readyCopy) => {
-      const current = appPreferencesStore.getSnapshot();
-      await appPreferencesStore.update({
-        library: {
-          ...current.library,
-          smartViews: {
-            enabled: true,
-            visible: [title === "Duplicates" ? "duplicates" : "epub-issues"],
-          },
-        },
-      });
       const rendered = await renderLibrary();
 
       await executeCommand(command);
@@ -594,49 +576,10 @@ describe("LibraryPage Quick Actions", () => {
         expect(rendered.container.querySelector("main h1")?.textContent).toBe(title);
       });
 
-      const disclosure = rendered.container.querySelector<HTMLButtonElement>(
-        ".sidebar__smart-views-disclosure",
-      );
-      expect(disclosure?.textContent).toContain(`· ${title}`);
-      act(() => disclosure?.click());
-      expect(
-        Array.from(
-          rendered.container.querySelectorAll<HTMLButtonElement>(
-            ".sidebar__smart-views-list button",
-          ),
-        )
-          .find((button) => button.textContent === title)
-          ?.getAttribute("aria-current"),
-      ).toBe("page");
       expect(rendered.container.querySelector('input[name="archeion-library-search"]')).toBeNull();
       expect(rendered.container.textContent).toContain(readyCopy);
     },
   );
-
-  it("keeps hidden archive-health navigation out of Quick Actions without starting analysis", async () => {
-    await renderLibrary();
-    const search = await openPalette();
-    await act(async () => setInputValue(search, "Go to Duplicates"));
-
-    expect(document.querySelector('[role="option"]')).toBeNull();
-    expect(archiveIntegrityCommandClient.requestDuplicateAnalysis).not.toHaveBeenCalled();
-    expect(archiveIntegrityCommandClient.requestDiagnostics).not.toHaveBeenCalled();
-  });
-
-  it("does not start integrity analysis when archive-health Smart Views are only enabled", async () => {
-    const current = appPreferencesStore.getSnapshot();
-    await appPreferencesStore.update({
-      library: {
-        ...current.library,
-        smartViews: { enabled: true, visible: ["duplicates", "epub-issues"] },
-      },
-    });
-    const rendered = await renderLibrary();
-
-    expect(rendered.container.querySelector(".sidebar__smart-views-disclosure")).not.toBeNull();
-    expect(archiveIntegrityCommandClient.requestDuplicateAnalysis).not.toHaveBeenCalled();
-    expect(archiveIntegrityCommandClient.requestDiagnostics).not.toHaveBeenCalled();
-  });
 
   it("enters a contextual Books display mode and persists the confirmed value", async () => {
     const rendered = await renderLibrary(
@@ -922,41 +865,5 @@ describe("LibraryPage Quick Actions", () => {
     act(() => emitScanStatus({ status: "idle" }));
     expect(command.getAttribute("aria-disabled")).toBeNull();
     expect(document.activeElement).toBe(search);
-  });
-
-  it("offers Continue navigation only while the In progress Smart View is visible", async () => {
-    const original = appPreferencesStore.getSnapshot();
-
-    try {
-      await act(async () => {
-        await appPreferencesStore.update({
-          library: {
-            ...original.library,
-            smartViews: { enabled: false, visible: ["in-progress"] },
-          },
-        });
-      });
-      await renderLibrary();
-      let search = await openPalette();
-      await act(async () => setInputValue(search, "Go to Continue"));
-      expect(document.querySelector('[role="option"]')).toBeNull();
-
-      await act(async () => {
-        search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
-        await appPreferencesStore.update({
-          library: {
-            ...original.library,
-            smartViews: { enabled: true, visible: ["in-progress"] },
-          },
-        });
-      });
-      search = await openPalette();
-      await act(async () => setInputValue(search, "Go to Continue"));
-      expect(document.querySelector('[role="option"]')?.textContent).toContain("Go to Continue");
-    } finally {
-      await act(async () => {
-        await appPreferencesStore.update(original);
-      });
-    }
   });
 });

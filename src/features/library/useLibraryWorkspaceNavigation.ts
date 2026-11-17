@@ -8,12 +8,12 @@ import {
 } from "../../app/readerReturnContext";
 import { archiveStore } from "../../stores/archiveStore";
 import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
-import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
+import type { LibraryLocation } from "../../types/library";
 import { focusElementIfUsable, isUsableFocusTarget } from "../../utils/focusRestoration";
 import { scrollElementToTop } from "../../utils/motion";
 import { requestsBookSearch } from "../quick-actions/quickActions";
 import {
-  hiddenSmartViewFallbackSearchParams,
+  legacyLibraryFallbackSearchParams,
   libraryLocationFromSearchParams,
   searchParamsForLibraryLocation,
 } from "./libraryViewState";
@@ -24,7 +24,6 @@ export type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
 export function libraryLocationKey(location: LibraryLocation): string {
   if (location.type === "folder") return `folder:${location.folderId}`;
   if (location.type === "series-detail") return `series:${location.seriesKey}`;
-  if (location.type === "smart-view") return `smart:${location.smartView}`;
   return location.type;
 }
 
@@ -39,14 +38,12 @@ type UseLibraryWorkspaceNavigationInput = {
   activeArchiveId: string;
   folders: readonly LibrarySnapshotFolder[] | undefined;
   beforeNavigation: () => void;
-  smartViewPreferences: LibrarySmartViewPreferences;
 };
 
 export function useLibraryWorkspaceNavigation({
   activeArchiveId,
   folders,
   beforeNavigation,
-  smartViewPreferences,
 }: UseLibraryWorkspaceNavigationInput) {
   const navigate = useNavigate();
   const routerLocation = useLocation();
@@ -81,16 +78,9 @@ export function useLibraryWorkspaceNavigation({
         searchParams,
         folders ?? [],
         activeArchiveId,
-        smartViewPreferences,
         folderPathMutation.pendingMapping,
       ),
-    [
-      activeArchiveId,
-      folderPathMutation.pendingMapping,
-      folders,
-      searchParams,
-      smartViewPreferences,
-    ],
+    [activeArchiveId, folderPathMutation.pendingMapping, folders, searchParams],
   );
   const scrollMainContentToTop = useCallback(() => {
     scrollElementToTop(pageShellRef.current);
@@ -110,7 +100,6 @@ export function useLibraryWorkspaceNavigation({
         nextLocation,
         folders ?? [],
         activeArchiveId,
-        smartViewPreferences,
       );
       if (nextParams.toString() !== searchParams.toString()) {
         setSearchParams(nextParams);
@@ -124,7 +113,6 @@ export function useLibraryWorkspaceNavigation({
       scrollMainContentToTop,
       searchParams,
       setSearchParams,
-      smartViewPreferences,
     ],
   );
 
@@ -178,15 +166,11 @@ export function useLibraryWorkspaceNavigation({
   );
 
   useEffect(() => {
-    const fallbackParams = hiddenSmartViewFallbackSearchParams(
-      searchParams,
-      smartViewPreferences,
-      activeArchiveId,
-    );
+    const fallbackParams = legacyLibraryFallbackSearchParams(searchParams, activeArchiveId);
     if (fallbackParams) {
       setSearchParams(fallbackParams, { replace: true });
     }
-  }, [activeArchiveId, searchParams, setSearchParams, smartViewPreferences]);
+  }, [activeArchiveId, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (searchFocusRequest === 0 || location.type !== "library") {

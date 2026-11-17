@@ -83,31 +83,14 @@ describe("settingsSearch", () => {
     ]);
   });
 
-  it("finds the Smart Views master and every built-in view", () => {
-    expect(findSettingsSearchResults("smart views").map((result) => result.item.id)).toContain(
-      "library.smart-views.enabled",
-    );
-    expect(findSettingsSearchResults("not started").map((result) => result.item.id)).toEqual([
-      "library.smart-views.unread",
-    ]);
+  it("finds retained reading and archive maintenance controls", () => {
     expect(findSettingsSearchResults("continue reading").map((result) => result.item.id)).toContain(
-      "library.smart-views.in-progress",
+      "library.show-continue-reading",
     );
-    expect(findSettingsSearchResults("finished").map((result) => result.item.id)).toEqual([
-      "library.smart-views.completed",
-    ]);
-    expect(findSettingsSearchResults("missing author").map((result) => result.item.id)).toEqual([
-      "library.smart-views.needs-metadata",
-    ]);
-    expect(findSettingsSearchResults("cover art").map((result) => result.item.id)).toEqual([
-      "library.smart-views.needs-cover",
-    ]);
     expect(findSettingsSearchResults("duplicate books").map((result) => result.item.id)).toEqual([
-      "library.smart-views.duplicates",
       "storage.find-duplicates",
     ]);
     expect(findSettingsSearchResults("epub diagnostics").map((result) => result.item.id)).toEqual([
-      "library.smart-views.epub-issues",
       "storage.check-epub-issues",
     ]);
   });

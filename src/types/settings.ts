@@ -1,16 +1,11 @@
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "./archiveImport";
-import type {
-  LibraryCollectionPreferences,
-  LibraryFilterState,
-  LibrarySmartViewPreferences,
-} from "./library";
+import type { LibraryCollectionPreferences, LibraryFilterState } from "./library";
 
 export type LibraryDisplaySettings = {
   detailsPinned: boolean;
   detailsWidth: number;
   collections: LibraryCollectionPreferences;
   filters: LibraryFilterState;
-  smartViews: LibrarySmartViewPreferences;
 };
 
 export type FilesAndMetadataSettings = {

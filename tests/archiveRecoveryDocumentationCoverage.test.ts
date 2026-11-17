@@ -44,7 +44,7 @@ describe("archive health, recovery, and export documentation", () => {
     ])
       expect(text).toContain(label);
     expect(text).toMatch(/focuses the main Library window/i);
-    expect(text).toMatch(/Smart Views enabled or disabled/i);
+    expect(text).toMatch(/Both tools inspect the active archive/i);
     expect(text).toMatch(/Analysis starts when you request it/i);
     expect(text).toMatch(/same file bytes/i);
     expect(text).toMatch(/same EPUB identifier[^.]*different/i);

@@ -40,8 +40,18 @@ export function normalizeReaderReturnContext(
 ): ReaderReturnContext | null {
   if (!activeArchiveId || !value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
-  const href = safeLibraryHref(candidate.href);
+  let href = safeLibraryHref(candidate.href);
   if (candidate.archiveId !== activeArchiveId || !href) return null;
+  const destination = new URL(href, "https://archeion.local");
+  const legacyDestination = ["smart", "continue"].includes(
+    destination.searchParams.get("view") ?? "",
+  );
+  if (legacyDestination) {
+    destination.searchParams.set("view", "library");
+    destination.searchParams.delete("smartView");
+    destination.searchParams.delete("integrityRequest");
+    href = `${destination.pathname}${destination.search}`;
+  }
   const scrollTop =
     typeof candidate.scrollTop === "number" &&
     Number.isFinite(candidate.scrollTop) &&
@@ -52,7 +62,7 @@ export function normalizeReaderReturnContext(
     archiveId: activeArchiveId,
     href,
     focusBookId: optionalString(candidate.focusBookId, 200),
-    label: optionalString(candidate.label, 100),
+    label: legacyDestination ? undefined : optionalString(candidate.label, 100),
     query: optionalString(candidate.query),
     scrollTop,
     viewportY:
