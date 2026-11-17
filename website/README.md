@@ -106,7 +106,7 @@ responsive gutters from the mock rather than a shared shell wrapper.
 
 Use `rounded-control` (7px), `rounded-button` (8px), `rounded-card` (10px),
 and `rounded-preview` (16px). Layers are `z-header` (60), `z-backdrop` (80),
-`z-drawer` (90), `z-dialog` (100), and `z-skip-link` (110).
+`z-drawer` (90), and `z-dialog` (100).
 The named content breakpoints are `narrow` (600px), `navigation` (800px),
 `wide` (1080px), and `full` (1240px); Tailwind's standard breakpoints remain
 available. Use a breakpoint for a demonstrated content constraint, not a

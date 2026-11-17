@@ -31,6 +31,72 @@ async function headerTargets(page: Page) {
   }
 }
 
+test("active documentation links retain their accent on hover", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(guide);
+  const links = [
+    page
+      .getByRole("complementary", { name: "Documentation navigation" })
+      .locator('a[aria-current="page"]'),
+    page
+      .getByRole("navigation", { name: "Table of contents" })
+      .locator('a[aria-current="location"]'),
+  ];
+  for (const link of links) {
+    await expect(link).toBeVisible();
+    const color = await link.evaluate((element) => getComputedStyle(element).color);
+    await link.hover();
+    await expect(link).toHaveCSS("color", color);
+  }
+});
+
+test("secondary docs links have visible keyboard focus and coarse-pointer targets", async ({
+  browser,
+  baseURL,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 1440, height: 900 },
+  });
+  try {
+    const page = await context.newPage();
+    await page.goto(`${baseURL}${guide}`);
+    await page.keyboard.press("Tab");
+
+    const home = page.getByRole("navigation", { name: "Website" }).getByRole("link", {
+      name: "Home",
+      exact: true,
+    });
+    await home.focus();
+    await expect(home).toHaveCSS("outline-style", "solid");
+    await expect(home).toHaveCSS("min-height", "44px");
+
+    const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", {
+      name: "Documentation",
+    });
+    await breadcrumb.focus();
+    await expect(breadcrumb).toHaveCSS("text-decoration-line", "underline");
+
+    for (const link of await page.locator("main footer a").all()) {
+      await link.focus();
+      await expect(link).toHaveCSS("outline-style", "solid");
+      await expect(link).toHaveCSS("min-height", "44px");
+    }
+
+    const sidebar = page.getByRole("complementary", { name: "Documentation navigation" });
+    await expect(sidebar.locator("summary").first()).toHaveCSS("min-height", "44px");
+    const toc = page.getByRole("navigation", { name: "Table of contents" });
+    await expect(toc.getByRole("link").first()).toHaveCSS("min-height", "44px");
+
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.getByRole("button", { name: "Open documentation navigation" }).click();
+    const drawer = page.getByRole("dialog", { name: "Documentation menu" });
+    await expect(drawer.locator("summary").first()).toHaveCSS("min-height", "44px");
+  } finally {
+    await context.close();
+  }
+});
+
 test("both sides of every inclusive shell boundary fit in both themes", async ({ page }, info) => {
   await page.goto(guide);
   await page.evaluate(() => document.fonts.ready);
@@ -120,18 +186,22 @@ test("doubled text keeps header actions and short-viewport modal content reachab
   }
 });
 
-test("skip navigation, keyboard disclosure, and long code/table content keep visible focus", async ({
+test("docs keyboard navigation, disclosure, and long code/table content keep visible focus", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 480 });
   await page.goto(guide);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Skip to content" })).toHaveCount(0);
   await page.keyboard.press("Tab");
-  const skip = page.getByRole("link", { name: "Skip to content" });
-  await expect(skip).toBeFocused();
-  await expect(skip).toBeInViewport();
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("main")).toBeFocused();
+  const brand = page
+    .getByRole("banner")
+    .getByRole("link", { name: /Archeion/ })
+    .first();
+  await expect(brand).toBeFocused();
+  await expect(brand).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Search documentation" })).toBeFocused();
   await page
     .locator("pre code")
     .first()

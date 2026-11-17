@@ -59,7 +59,7 @@ export function DocsHeader({
         >
           <a
             href={homeUrl}
-            className="inline-flex items-center text-sm text-content-muted hover:text-content-strong docs-brand:hidden"
+            className="inline-flex min-h-docs-icon items-center gap-1.5 text-sm text-content-muted hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring docs-brand:hidden"
           >
             Home
             <ArrowUpRight aria-hidden="true" className="size-3" />

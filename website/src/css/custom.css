@@ -289,7 +289,6 @@ html[data-site-fonts-loading] #__docusaurus {
   --z-index-backdrop: 80;
   --z-index-drawer: 90;
   --z-index-dialog: 100;
-  --z-index-skip-link: 110;
 
   /* Named content breakpoints mirror the approved mock boundaries. */
   --breakpoint-narrow: 37.5rem;
