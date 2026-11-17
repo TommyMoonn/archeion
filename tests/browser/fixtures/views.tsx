@@ -152,7 +152,6 @@ function LibraryFixture({ updates = false }: { updates?: boolean }) {
                     folderEntries={[]}
                     folderSort="name"
                     location={location}
-                    smartViewPreferences={{ enabled: false, visible: [] }}
                     onCreateFolder={() => undefined}
                     onDeleteFolder={() => undefined}
                     onFolderSortChange={() => undefined}

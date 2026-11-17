@@ -1,7 +1,5 @@
 import type { ReadonlyBook } from "../../types/book";
 import type { ReadonlyFolder } from "../../types/folder";
-import type { LibraryBookSmartView } from "../../types/library";
-import { LIBRARY_BOOK_SMART_VIEWS } from "../../types/librarySmartViews";
 import type { SeriesEntry } from "../../types/series";
 import {
   createFolderBrowserEntry,
@@ -11,7 +9,6 @@ import { isBookInProgress } from "../reading/readingProgress";
 import { deriveSeriesEntriesFromGroups, normalizeSeriesKey } from "../series/seriesDerivation";
 import { sortSeriesEntries } from "../series/seriesSorting";
 import {
-  bookMatchesSmartView,
   collectLibraryFilterOptions,
   createLibraryFilterOptionAccumulator,
   createLibrarySearchIndexEntry,
@@ -19,14 +16,12 @@ import {
   sortBooks,
   type LibraryFilterOptions,
   type LibrarySearchIndexEntry,
-  type LibrarySmartViewCounts,
 } from "./libraryFilters";
 
 export type LibraryIndexEntry = Readonly<{
   book: ReadonlyBook;
   search: LibrarySearchIndexEntry;
   seriesKey?: string;
-  smartViews: readonly LibraryBookSmartView[];
 }>;
 
 type CachedLibraryIndexEntry = Readonly<{
@@ -78,7 +73,6 @@ export type LibraryIndex = Readonly<{
   favoriteCount: number;
   continueBooks: ReadonlyBook[];
   filterOptions: LibraryFilterOptions;
-  smartViewCounts: LibrarySmartViewCounts;
   seriesEntries: SeriesEntry[];
   seriesCount: number;
 }>;
@@ -122,7 +116,6 @@ export function createLibraryIndex(
   const continueCandidates: ReadonlyBook[] = [];
   const seriesGroups = new Map<string, ReadonlyBook[]>();
   const filterValues = createLibraryFilterOptionAccumulator();
-  const smartViewCounts = emptySmartViewCounts();
   let favoriteCount = 0;
 
   for (const sourceBook of books) {
@@ -148,7 +141,6 @@ export function createLibraryIndex(
     }
     if (book.isFavorite) favoriteCount += 1;
     if (isBookInProgress(book)) continueCandidates.push(book);
-    for (const smartView of entry.smartViews) smartViewCounts[smartView] += 1;
     if (entry.seriesKey) {
       const seriesBooks = seriesGroups.get(entry.seriesKey);
       if (seriesBooks) seriesBooks.push(book);
@@ -221,7 +213,6 @@ export function createLibraryIndex(
       languages: freezeArray(filterOptions.languages),
       publishers: freezeArray(filterOptions.publishers),
     }),
-    smartViewCounts: Object.freeze(smartViewCounts),
     seriesEntries,
     seriesCount: seriesEntries.length,
   };
@@ -238,9 +229,6 @@ function createIndexEntry(
   cached: CachedLibraryIndexEntry | undefined,
 ): LibraryIndexEntry {
   const seriesKey = normalizeSeriesKey(book.sourceMetadata?.series);
-  const smartViews = LIBRARY_BOOK_SMART_VIEWS.filter((smartView) =>
-    bookMatchesSmartView(book, smartView),
-  );
   const folder = book.folderId ? folderById.get(book.folderId) : undefined;
   const search =
     cached &&
@@ -253,7 +241,6 @@ function createIndexEntry(
     book,
     search,
     ...(seriesKey ? { seriesKey } : {}),
-    smartViews: Object.freeze(smartViews),
   });
 }
 
@@ -339,16 +326,6 @@ function deriveFolderDescendants(
     descendants.set(folder.id, Object.freeze(result));
   }
   return descendants;
-}
-
-function emptySmartViewCounts(): LibrarySmartViewCounts {
-  return {
-    unread: 0,
-    "in-progress": 0,
-    completed: 0,
-    "needs-metadata": 0,
-    "needs-cover": 0,
-  };
 }
 
 function freezeArray<T>(items: T[]): T[] {

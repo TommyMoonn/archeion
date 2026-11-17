@@ -23,7 +23,7 @@ Inside `website/`, use `pnpm run dev`, `pnpm run typecheck`, `pnpm run lint`,
 `pnpm run serve`.
 Lint and formatting reuse the repository's installed tools and configuration.
 The development server watches TSX, Tailwind class strings, and MDX. Open
-`/archeion/` for the preserved static landing page and
+`/archeion/` for the React landing page and
 `/archeion/docs/getting-started/installing/` for the installation article.
 Production output goes to `website/build/`;
 `serve` previews that static output under the same project base path.
@@ -33,7 +33,7 @@ website tooling tests, strict typechecking, and the production build (including
 MDX and broken-link validation). The existing application jobs keep their application-only installs.
 Eligible isolated website changes select the existing frontend/docs validation
 set described in B2.9 below. The B2.10 production workflow is prepared for main;
-live cutover and legacy retirement remain pending after merge.
+Pages publishes the validated `website/build/` artifact from `main`.
 
 The root `package.json` scopes a tinypool 2.1.2 override to Docusaurus. Docusaurus
 3.10.2 still requests 1.x, which is affected by GHSA-85c8-ppgw-ccpr and
@@ -134,7 +134,22 @@ the destination link and may set the text's inherited font role for each site.
 The one-off token gallery was removed after dark/light verification. Source
 palette tests and browser checks of resolved tokens and shared controls retain
 coverage. B2.8 removed the temporary root page and its exclusive component sample.
-The static landing page owns `/archeion/` until the approved B3 React port.
+The React landing page owns `/archeion/`.
+
+## Current publication ownership
+
+`website/static/` is the sole public resource owner, including dictionaries.
+Root `docs/` contains engineering guides. The old static runtime, generators and
+legacy tests were retired in v1.9.0 Phase 1; compatibility redirects under
+`static/documentation/` remain active. Dictionary publication writes to
+`website/static/dictionaries/` and is documented in `docs/dictionaries.md`.
+Use the current commands above and `docs/DOCUMENTATION.md` for maintenance.
+
+## Historical migration notes
+
+The following records describe B2/B3 implementation checkpoints before cutover
+and retirement. Paths, pending actions and commands in these records describe
+those historical checkpoints; they are not current maintenance instructions.
 
 ## Documentation migration map (B2.1)
 

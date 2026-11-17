@@ -45,6 +45,23 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
+function createIntegrityMaintenance(
+  openIntegrityResults: SettingsArchiveMaintenance["openIntegrityResults"],
+): SettingsArchiveMaintenance {
+  return {
+    openIntegrityResults,
+    clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+    clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+    clearScannerCache: vi.fn().mockResolvedValue(undefined),
+    getCoverCacheStatus: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+    getEpubWritebackBackupStatus: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+    repairArchiveMetadata: vi.fn().mockResolvedValue(undefined),
+    rescan: vi.fn().mockResolvedValue(undefined),
+    revealArchiveFolder: vi.fn().mockResolvedValue(undefined),
+    revealMetadataFolder: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 let latest: SettingsController;
 
 function Harness({ options }: { options?: SettingsControllerOptions }) {
@@ -111,6 +128,69 @@ describe("Settings committed appearance subscription", () => {
       message: "Theme Manager could not open. Try again.",
       tone: "error",
     });
+  });
+
+  it("blocks overlapping integrity launches and permits retry after a launch failure", async () => {
+    const pending = deferred<void>();
+    const open = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(undefined);
+    await render({ archiveMaintenance: createIntegrityMaintenance(open) });
+    expect(open).not.toHaveBeenCalled();
+
+    act(() => {
+      void latest.openIntegrityResults("duplicates");
+      void latest.openIntegrityResults("epub-issues");
+    });
+    expect(open).toHaveBeenCalledExactlyOnceWith("duplicates");
+    expect(latest.integrityNavigationBusy).toBe(true);
+
+    await act(async () => {
+      pending.reject(new Error("focus failed"));
+      await Promise.resolve();
+    });
+    expect(latest.integrityNavigationBusy).toBe(false);
+    expect(latest.status).toMatchObject({
+      message: "Archive diagnostics could not open. Try again.",
+      tone: "error",
+    });
+
+    await act(async () => latest.openIntegrityResults("epub-issues"));
+    expect(open).toHaveBeenNthCalledWith(2, "epub-issues");
+    expect(latest.integrityNavigationBusy).toBe(false);
+    expect(latest.status).toBeNull();
+  });
+
+  it("keeps a current archive launch busy when an old archive launch fails", async () => {
+    const previous = deferred<void>();
+    const current = deferred<void>();
+    const openPrevious = vi.fn(() => previous.promise);
+    const openCurrent = vi.fn(() => current.promise);
+    await render({
+      archiveGeneration: 1,
+      archiveMaintenance: createIntegrityMaintenance(openPrevious),
+    });
+    act(() => void latest.openIntegrityResults("duplicates"));
+
+    await render({
+      archiveGeneration: 2,
+      archiveMaintenance: createIntegrityMaintenance(openCurrent),
+    });
+    expect(latest.integrityNavigationBusy).toBe(false);
+    act(() => void latest.openIntegrityResults("epub-issues"));
+    expect(openCurrent).toHaveBeenCalledExactlyOnceWith("epub-issues");
+    expect(latest.integrityNavigationBusy).toBe(true);
+
+    await act(async () => {
+      previous.reject(new Error("previous archive retired"));
+      await Promise.resolve();
+    });
+    expect(latest.status).toBeNull();
+    expect(latest.integrityNavigationBusy).toBe(true);
+
+    await act(async () => {
+      current.resolve();
+      await current.promise;
+    });
+    expect(latest.integrityNavigationBusy).toBe(false);
   });
 
   it("ignores a retired Theme Manager launch failure after a newer request", async () => {

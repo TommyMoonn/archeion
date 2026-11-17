@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { Folder } from "../../types/folder";
-import type { LibrarySmartViewPreferences } from "../../types/library";
 import {
-  hiddenSmartViewFallbackSearchParams,
+  legacyLibraryFallbackSearchParams,
   libraryLocationFromSearchParams,
   searchParamsForLibraryLocation,
 } from "./libraryViewState";
@@ -29,11 +28,6 @@ const folders: Folder[] = [
   },
 ];
 
-const limitedSmartViews: LibrarySmartViewPreferences = {
-  enabled: true,
-  visible: ["unread"],
-};
-
 function params(search: string): URLSearchParams {
   return new URLSearchParams(search);
 }
@@ -47,7 +41,7 @@ describe("library view URL state", () => {
       type: "favorites",
     });
     expect(libraryLocationFromSearchParams(params("view=continue"), folders)).toEqual({
-      type: "continue",
+      type: "library",
     });
     expect(libraryLocationFromSearchParams(params("view=folders"), folders)).toEqual({
       type: "folders",
@@ -91,7 +85,6 @@ describe("library view URL state", () => {
       libraryLocationFromSearchParams(
         params("view=folder&folderPath=Root%2FSeries"),
         renamedFolders,
-        undefined,
         undefined,
         { oldRelativePath: "Root", newRelativePath: "Library" },
       ),
@@ -210,145 +203,25 @@ describe("library view URL state", () => {
     expect(next.get("folderView")).toBeNull();
   });
 
-  it("restores and writes derived smart views", () => {
-    expect(
-      libraryLocationFromSearchParams(params("view=smart&smartView=needs-metadata"), folders),
-    ).toEqual({ type: "smart-view", smartView: "needs-metadata" });
-    expect(
-      libraryLocationFromSearchParams(params("view=smart&smartView=unknown"), folders),
-    ).toEqual({
-      type: "library",
-    });
+  it.each(["smart&smartView=completed", "smart&smartView=unknown", "smart&smartView=", "continue"])(
+    "normalizes legacy %s destinations while preserving archive and search state",
+    (view) => {
+      const current = params(
+        "archiveId=archive-books&view=" + view + "&query=space&folderPath=Old&integrityRequest=old",
+      );
+      expect(libraryLocationFromSearchParams(current, folders, "archive-books")).toEqual({
+        type: "library",
+      });
+      const next = legacyLibraryFallbackSearchParams(current, "archive-books");
+      expect(next).toEqual(params("archiveId=archive-books&view=library&query=space"));
+      expect(next && legacyLibraryFallbackSearchParams(next, "archive-books")).toBeNull();
+    },
+  );
 
-    const next = searchParamsForLibraryLocation(
-      params("view=folder&folderPath=Root%2FSeries&folderView=cards"),
-      { type: "smart-view", smartView: "completed" },
-      folders,
-      "archive-books",
-    );
-
-    expect(next.get("view")).toBe("smart");
-    expect(next.get("smartView")).toBe("completed");
-    expect(next.get("folderPath")).toBeNull();
-    expect(next.get("folderView")).toBeNull();
-    expect(next.get("archiveId")).toBe("archive-books");
-  });
-
-  it("falls back from hidden Smart View URL state and removes its stale parameters", () => {
-    expect(
-      libraryLocationFromSearchParams(
-        params("view=smart&smartView=completed&query=space"),
-        folders,
-        undefined,
-        limitedSmartViews,
-      ),
-    ).toEqual({ type: "library" });
-    expect(
-      libraryLocationFromSearchParams(
-        params("view=smart&smartView=unread"),
-        folders,
-        undefined,
-        limitedSmartViews,
-      ),
-    ).toEqual({ type: "smart-view", smartView: "unread" });
-
-    const next = searchParamsForLibraryLocation(
-      params("view=smart&smartView=completed&query=space"),
-      { type: "smart-view", smartView: "completed" },
-      folders,
-      undefined,
-      limitedSmartViews,
-    );
-
-    expect(next.get("view")).toBe("library");
-    expect(next.get("smartView")).toBeNull();
-    expect(next.get("query")).toBe("space");
-  });
-
-  it("falls back from hidden integrity URLs and preserves explicitly visible destinations", () => {
-    expect(
-      libraryLocationFromSearchParams(
-        params("view=duplicates&query=space"),
-        folders,
-        undefined,
-        limitedSmartViews,
-      ),
-    ).toEqual({ type: "library" });
-    expect(
-      libraryLocationFromSearchParams(params("view=epub-issues"), folders, undefined, {
-        enabled: true,
-        visible: ["epub-issues"],
-      }),
-    ).toEqual({ type: "epub-issues" });
-    expect(
-      searchParamsForLibraryLocation(
-        params("view=library&query=space"),
-        { type: "duplicates" },
-        folders,
-        undefined,
-        limitedSmartViews,
-      ).get("view"),
-    ).toBe("library");
-  });
-
-  it("treats Continue as hidden when the In progress Smart View is not visible", () => {
-    expect(
-      libraryLocationFromSearchParams(
-        params("view=continue&query=unfinished"),
-        folders,
-        undefined,
-        limitedSmartViews,
-      ),
-    ).toEqual({ type: "library" });
-  });
-
-  it("replaces only raw URLs that target a hidden Smart View", () => {
-    const hiddenSmart = hiddenSmartViewFallbackSearchParams(
-      params("archiveId=archive-books&view=smart&smartView=completed&query=space&folderView=cards"),
-      limitedSmartViews,
-      "archive-books",
-    );
-    const hiddenContinue = hiddenSmartViewFallbackSearchParams(
-      params("archiveId=archive-books&view=continue&query=unfinished"),
-      limitedSmartViews,
-      "archive-books",
-    );
-    const hiddenDuplicates = hiddenSmartViewFallbackSearchParams(
-      params("archiveId=archive-books&view=duplicates&query=matches"),
-      limitedSmartViews,
-      "archive-books",
-    );
-
-    expect(hiddenSmart?.get("view")).toBe("library");
-    expect(hiddenSmart?.get("smartView")).toBeNull();
-    expect(hiddenSmart?.get("folderView")).toBeNull();
-    expect(hiddenSmart?.get("query")).toBe("space");
-    expect(hiddenSmart?.get("archiveId")).toBe("archive-books");
-    expect(hiddenContinue?.get("view")).toBe("library");
-    expect(hiddenContinue?.get("query")).toBe("unfinished");
-    expect(hiddenDuplicates?.get("view")).toBe("library");
-    expect(hiddenDuplicates?.get("query")).toBe("matches");
-  });
-
-  it("does not replace normal, unrelated, or visible Smart View URLs", () => {
-    for (const search of [
-      "",
-      "view=library",
-      "view=favorites",
-      "view=folders",
-      "view=series",
-      "view=folder&folderPath=Root",
-      "view=smart&smartView=unread",
-      "view=smart&smartView=unknown",
-    ]) {
-      expect(hiddenSmartViewFallbackSearchParams(params(search), limitedSmartViews)).toBeNull();
-    }
-
-    expect(
-      hiddenSmartViewFallbackSearchParams(params("view=continue"), {
-        enabled: true,
-        visible: ["in-progress"],
-      }),
-    ).toBeNull();
-  });
+  it.each(["library", "favorites", "folders", "series", "duplicates", "epub-issues"])(
+    "keeps the %s destination stable during legacy URL normalization",
+    (view) => {
+      expect(legacyLibraryFallbackSearchParams(params("view=" + view), "archive-books")).toBeNull();
+    },
+  );
 });

@@ -34,7 +34,7 @@ export default defineConfig({
   webServer: {
     cwd: fileURLToPath(new URL(".", import.meta.url)),
     command: `pnpm exec vite --host 127.0.0.1 --port ${port} --strictPort`,
-    url: `${baseURL}/docs/`,
+    url: baseURL,
     reuseExistingServer: false,
     timeout: 30_000,
   },

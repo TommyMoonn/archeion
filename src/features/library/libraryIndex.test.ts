@@ -42,7 +42,7 @@ function createSource(
 }
 
 describe("library index", () => {
-  it("owns reusable lookup, folder, smart-view, facet, and series facts", () => {
+  it("owns reusable lookup, folder, facet, and series facts", () => {
     const folders = [createFolder("root"), createFolder("child", "root")];
     const books = [
       createBook("one", {
@@ -75,8 +75,6 @@ describe("library index", () => {
     expect(Object.fromEntries(index.bookCountsByFolder)).toEqual({ child: 1, root: 1 });
     expect(index.favoriteCount).toBe(1);
     expect(index.continueBooks.map((book) => book.id)).toEqual(["one"]);
-    expect(index.smartViewCounts["in-progress"]).toBe(1);
-    expect(index.smartViewCounts["needs-metadata"]).toBe(1);
     expect(index.filterOptions).toEqual({
       series: ["Archive Tales"],
       subjects: ["History"],
@@ -259,9 +257,6 @@ describe("library index", () => {
       series: ["New Series"],
       subjects: ["New Subject"],
     });
-    expect(second.smartViewCounts["in-progress"]).toBe(1);
-    expect(second.smartViewCounts["needs-cover"]).toBe(2);
-    expect(second.smartViewCounts["needs-metadata"]).toBe(1);
     expect(second.favoriteCount).toBe(1);
     expect(second.continueBooks).toEqual([changed]);
     expect(second.seriesEntries.map((entry) => entry.displayName)).toEqual(["New Series"]);

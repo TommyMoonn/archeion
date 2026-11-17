@@ -99,6 +99,53 @@ afterEach(() => {
 
 describe("project ZIP export provenance", () => {
   it(
+    "applies the production workspace exclusions while retaining source and plans",
+    async () => {
+      const { parent, root } = fixture();
+      fs.rmSync(path.join(root, ".planning"), { recursive: true });
+      fs.copyFileSync(path.join(projectRoot, ".zipignore"), path.join(root, ".zipignore"));
+      const kept = [
+        ".plans/current.md",
+        ".plans/done/previous.md",
+        ".project/reference/notes.md",
+        "scripts/dictionaries/source.json",
+        "website/docs/dictionaries.mdx",
+        "website/static/dictionaries/catalog-v1.json",
+        "website/static/schemas/theme.json",
+        "website/static/assets/image.png",
+      ];
+      const excluded = [
+        "website/build/docs/index.html",
+        "website/.docusaurus/routes.js",
+        "website/node_modules/nested/dependency.js",
+        ".pnpm-store/v10/files/cache",
+        "nested/node_modules/dependency.js",
+        "src-tauri/target/debug/app.exe",
+        "website/cache.tsbuildinfo",
+        "nested/.vite/cache.json",
+        "test-results/browser/report.json",
+        ".project/dictionaries/work/package.tar.xz",
+        "website/static/dictionaries/packages/versioned.tar.xz",
+        ".project/reports/website-migration/screenshots/large.png",
+        ".project/experiments/mock/output.html",
+        ".plans/rebrand/screenshots/large.png",
+      ];
+      for (const file of [...kept, ...excluded]) {
+        const target = path.join(root, file);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, "fixture");
+      }
+      const output = path.join(parent, "filtered.zip");
+      const result = exportZip(root, output, "workspace");
+      expect(result.status, result.stderr).toBe(0);
+      const { names, manifest } = await readZip(output);
+      for (const file of kept) expect(names, file).toContain(file);
+      for (const file of excluded) expect(names, file).not.toContain(file);
+      expect(manifest.includedLocalOnly).toEqual({ planning: true, project: true });
+    },
+    exportTestTimeout,
+  );
+  it(
     "exports exactly the committed tree plus manifest in repo mode",
     async () => {
       const { parent, root, commit } = fixture();

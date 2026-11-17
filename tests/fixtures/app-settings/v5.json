@@ -58,10 +58,6 @@
         "missingMetadata": false,
         "missingCover": false
       },
-      "smartViews": {
-        "enabled": false,
-        "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
-      },
       "detailsPinned": false,
       "detailsWidth": 336
     },
@@ -410,10 +406,6 @@
             "favoritesOnly": true,
             "missingMetadata": true,
             "missingCover": true
-          },
-          "smartViews": {
-            "enabled": true,
-            "visible": ["unread", "needs-cover"]
           }
         },
         "navigation": {
@@ -497,10 +489,6 @@
             "favoritesOnly": true,
             "missingMetadata": false,
             "missingCover": false
-          },
-          "smartViews": {
-            "enabled": false,
-            "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
           }
         },
         "showContinueReading": false
@@ -560,10 +548,6 @@
             "favoritesOnly": false,
             "missingMetadata": false,
             "missingCover": false
-          },
-          "smartViews": {
-            "enabled": false,
-            "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
           }
         }
       }
@@ -678,10 +662,6 @@
             "favoritesOnly": true,
             "missingMetadata": false,
             "missingCover": false
-          },
-          "smartViews": {
-            "enabled": false,
-            "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
           }
         },
         "reader": {
@@ -1478,6 +1458,430 @@
         "library": {
           "detailsPinned": false,
           "detailsWidth": 336
+        }
+      }
+    },
+    {
+      "name": "legacy enabled Smart View fields preserve neighboring preferences",
+      "input": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          },
+          "smartViews": {
+            "enabled": true,
+            "visible": ["completed", "duplicates"]
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy disabled Smart View fields preserve neighboring preferences",
+      "input": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          },
+          "smartViews": {
+            "enabled": false,
+            "visible": ["needs-cover"]
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy incomplete Smart View fields preserve neighboring preferences",
+      "input": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          },
+          "smartViews": {
+            "visible": []
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy malformed Smart View fields preserve neighboring preferences",
+      "input": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          },
+          "smartViews": "invalid"
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy unknown Smart View fields preserve neighboring preferences",
+      "input": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          },
+          "smartViews": {
+            "enabled": "yes",
+            "visible": ["future-view"],
+            "future": {
+              "nested": true
+            }
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "appTheme": {
+          "kind": "builtin",
+          "id": "light"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "mode": "continuous"
+        },
+        "showContinueReading": false,
+        "library": {
+          "detailsPinned": true,
+          "detailsWidth": 400,
+          "filters": {
+            "readingStatuses": ["in-progress"],
+            "missingCover": true
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-old",
+          "bookId": "book-old",
+          "lastRoute": "/reader/book-old"
+        },
+        "window": {
+          "width": 1100.0,
+          "height": 800.0,
+          "x": 100.0,
+          "y": 100.0,
+          "maximized": false
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            }
+          }
         }
       }
     }

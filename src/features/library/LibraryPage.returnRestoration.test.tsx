@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
+import type { NavigateFunction } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
@@ -127,6 +128,82 @@ describe.each(["grid", "list"] as const)("%s reader-return restoration", (view) 
     });
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1_000);
   });
+
+  it.each(["smart&smartView=completed", "smart&smartView=unknown", "continue"])(
+    "replaces legacy %s routes and restores the returned book focus",
+    async (legacyView) => {
+      const target = selectionBook("returned-book", "Returned book");
+      const routeChanged = vi.fn();
+      const session = await renderLibraryPage(
+        createStorage({ books: [target] }),
+        {
+          pathname: "/",
+          search: "?archiveId=archive-books&view=" + legacyView,
+          state: {
+            libraryRestoreContext: {
+              archiveId: readyState.archive.id,
+              focusBookId: target.id,
+              href: "/?view=" + legacyView,
+              label: "Retired destination",
+              scrollTop: 0,
+            },
+          },
+        },
+        routeChanged,
+      );
+      suite.trackRoot(session.root);
+      await flushRestoration();
+      expect(routeChanged).toHaveBeenLastCalledWith({
+        navigationType: "REPLACE",
+        search: "?archiveId=archive-books&view=library",
+      });
+      expect(
+        document.activeElement
+          ?.closest("[data-reader-book-id]")
+          ?.getAttribute("data-reader-book-id"),
+      ).toBe(target.id);
+    },
+  );
+
+  it.each(["continue", "smart&smartView=completed"])(
+    "keeps Back and Forward stable after replacing a retired %s destination",
+    async (retiredView) => {
+      let navigate: NavigateFunction | undefined;
+      const routeChanged = vi.fn();
+      const session = await renderLibraryPage(
+        createStorage({ books: [selectionBook("book", "Book")] }),
+        "/?view=favorites",
+        routeChanged,
+        (ready) => {
+          navigate = ready;
+        },
+      );
+      suite.trackRoot(session.root);
+      if (!navigate) throw new Error("Navigation was not initialized.");
+      const go = navigate;
+      await act(async () => {
+        await go("/?view=" + retiredView);
+      });
+      expect(routeChanged).toHaveBeenLastCalledWith({
+        navigationType: "REPLACE",
+        search: "?view=library&archiveId=archive-books",
+      });
+      await act(async () => {
+        await go(-1);
+      });
+      expect(routeChanged).toHaveBeenLastCalledWith({
+        navigationType: "POP",
+        search: "?view=favorites",
+      });
+      await act(async () => {
+        await go(1);
+      });
+      expect(routeChanged).toHaveBeenLastCalledWith({
+        navigationType: "POP",
+        search: "?view=library&archiveId=archive-books",
+      });
+    },
+  );
 
   it("mounts and focuses a returned book outside the initial retained range", async () => {
     const books = largeBooks();
@@ -270,12 +347,7 @@ describe("mounted reader-return surfaces", () => {
   const suite = setupLibraryPageTestSuite();
 
   beforeEach(async () => {
-    const preferences = appPreferencesStore.getSnapshot();
     await appPreferencesStore.update({
-      library: {
-        ...preferences.library,
-        smartViews: { enabled: true, visible: ["duplicates", "epub-issues"] },
-      },
       showContinueReading: true,
     });
   });

@@ -31,6 +31,8 @@ function createController(overrides: Partial<SettingsController> = {}): Settings
     installedFontFamilies: [],
     installedFontsLoading: false,
     library: preferences.library,
+    integrityNavigationBusy: false,
+    openIntegrityResults: vi.fn(),
     openArchiveManager: vi.fn(),
     openConfirmation: vi.fn(),
     persistenceStatus: { status: "idle" },
@@ -88,7 +90,7 @@ describe("settings section components", () => {
     },
     {
       Section: LibrarySettingsSection,
-      description: "Set default Library layouts, sorting, and Smart Views.",
+      description: "Set default Library layouts and sorting.",
       title: "Library",
     },
     {
@@ -182,7 +184,7 @@ describe("settings section components", () => {
   it("makes every Settings scan-producing action unavailable during archive scan activity", () => {
     const markup = renderStorage({ archiveScanActive: true });
 
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(3);
+    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(5);
     expect(markup).toContain("Wait for the archive scan to finish");
   });
 
@@ -196,32 +198,5 @@ describe("settings section components", () => {
     expect(markup).toContain("No archive selected");
     expect(markup).toContain("disabled");
     expect(markup).toContain("Reveal archive folder");
-  });
-
-  it("renders Smart Views as one accessible Library settings group", () => {
-    const markup = renderToStaticMarkup(<LibrarySettingsSection context={createController()} />);
-
-    expect(markup).toContain("Smart Views");
-    expect(markup).toContain("Show Smart Views");
-    expect(markup).toContain('aria-label="Show Unread Smart View"');
-    expect(markup).toContain('aria-label="Show Duplicates Smart View"');
-    expect(markup).toContain('aria-label="Show EPUB Issues Smart View"');
-    expect(markup).toContain("Review exact and probable duplicate EPUBs.");
-    expect(markup).toContain("Inspect Reader-relevant EPUB problems.");
-    expect(markup).toContain("Turn on Show Smart Views to choose visible views.");
-  });
-
-  it("explains why the final enabled Smart View cannot be removed", () => {
-    const library = {
-      ...defaultAppPreferences.library,
-      smartViews: { enabled: true, visible: ["completed" as const] },
-    };
-    const preferences = { ...defaultAppPreferences, library };
-    const markup = renderToStaticMarkup(
-      <LibrarySettingsSection context={createController({ library, preferences })} />,
-    );
-
-    expect(markup).toContain("At least one Smart View must remain selected");
-    expect(markup).toContain('aria-label="Show Completed Smart View"');
   });
 });

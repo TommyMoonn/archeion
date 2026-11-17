@@ -50,6 +50,26 @@ describe("reader return context", () => {
     },
   );
 
+  it.each(["smart&smartView=completed", "smart&smartView=unknown", "continue"])(
+    "normalizes a legacy %s return destination without losing book focus or search",
+    (view) => {
+      const normalized = normalizeReaderReturnContext(
+        {
+          ...context,
+          href: "/?archiveId=archive-1&view=" + view + "&query=space",
+        },
+        "archive-1",
+      );
+      expect(normalized).toEqual({
+        ...context,
+        href: "/?archiveId=archive-1&view=library&query=space",
+        label: undefined,
+        viewportY: undefined,
+      });
+      expect(readerReturnAccessibleLabel(normalized)).toBe("Back to Library");
+    },
+  );
+
   it("rejects contexts from another archive and malformed or external destinations", () => {
     expect(normalizeReaderReturnContext(context, "archive-2")).toBeNull();
     expect(normalizeReaderReturnContext({ ...context, href: "/settings" }, "archive-1")).toBeNull();

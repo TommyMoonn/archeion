@@ -1,14 +1,8 @@
 import {
   Archive,
   LibraryBig,
-  ChevronRight,
   ChevronsUpDown,
   Check,
-  History,
-  BookOpenText,
-  CircleCheck,
-  ImageOff,
-  NotebookPen,
   Folders,
   FolderOpen,
   Settings,
@@ -16,20 +10,9 @@ import {
   Plus,
   CircleQuestionMark,
   ArrowUpDown,
-  Copy,
-  FileWarning,
   Layers,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import {
-  memo,
-  useCallback,
-  useId,
-  useMemo,
-  useState,
-  type ReactElement,
-  type RefObject,
-} from "react";
+import { memo, useCallback, useMemo, type ReactElement, type RefObject } from "react";
 
 import { LibraryPanelResizeHandle } from "./LibraryPanelResizeHandle";
 import { AppSelect } from "../../components/AppSelect";
@@ -38,18 +21,7 @@ import { ActionListButton } from "../../components/MenuItem";
 import { Tooltip } from "../../components/Tooltip";
 import type { KnownArchive } from "../../types/archive";
 import type { ReadonlyFolder } from "../../types/folder";
-import type {
-  FolderSort,
-  LibraryLocation,
-  LibrarySmartView,
-  LibrarySmartViewPreferences,
-} from "../../types/library";
-import {
-  libraryLocationForSmartView,
-  librarySmartViewForLocation,
-  librarySmartViewLabel,
-  visibleLibrarySmartViewDefinitions,
-} from "../../types/librarySmartViews";
+import type { FolderSort, LibraryLocation } from "../../types/library";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
 import {
@@ -63,16 +35,6 @@ import {
   LIBRARY_SIDEBAR_MAX_WIDTH,
   LIBRARY_SIDEBAR_MIN_WIDTH,
 } from "./useLibrarySidebarState";
-
-const smartViewIcons: Record<LibrarySmartView, LucideIcon> = {
-  unread: BookOpenText,
-  "in-progress": History,
-  completed: CircleCheck,
-  "needs-metadata": NotebookPen,
-  "needs-cover": ImageOff,
-  duplicates: Copy,
-  "epub-issues": FileWarning,
-};
 
 function CollapsedSidebarTooltip({
   children,
@@ -98,7 +60,6 @@ type LibrarySidebarProps = {
   navigationRef?: RefObject<HTMLElement | null>;
   folderEntries: readonly FolderBrowserEntry[];
   location: LibraryLocation;
-  smartViewPreferences: LibrarySmartViewPreferences;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: ReadonlyFolder) => void;
@@ -131,7 +92,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   navigationRef,
   folderEntries,
   location,
-  smartViewPreferences,
   canManageFolders = true,
   onCreateFolder,
   onDeleteFolder,
@@ -157,10 +117,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 }: LibrarySidebarProps) {
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
-  const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
-  const smartViewsContentId = useId();
-  const activeSmartView = librarySmartViewForLocation(location);
-  const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
   const isCollapsed = collapsed;
   const sortedFolderEntries = useMemo(
     () => sortFolderBrowserEntries(folderEntries, folderSort),
@@ -269,63 +225,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         inert={isCollapsed}
         aria-hidden={isCollapsed || undefined}
       >
-        {smartViewPreferences.enabled ? (
-          <div className="sidebar__smart-views">
-            <button
-              aria-controls={smartViewsContentId}
-              aria-expanded={smartViewsExpanded}
-              className="sidebar__smart-views-disclosure"
-              type="button"
-              onClick={() => setSmartViewsExpanded((expanded) => !expanded)}
-            >
-              <span className="sidebar__smart-views-title">
-                <span className="section-label">Smart views</span>
-                {!smartViewsExpanded && activeSmartView ? (
-                  <span className="sidebar__smart-views-active">
-                    · {librarySmartViewLabel(activeSmartView)}
-                  </span>
-                ) : null}
-              </span>
-              <ChevronRight
-                aria-hidden="true"
-                className="sidebar__smart-views-chevron"
-                data-expanded={smartViewsExpanded ? "true" : "false"}
-                size={13}
-              />
-            </button>
-            <div
-              className="sidebar__smart-views-list"
-              hidden={!smartViewsExpanded}
-              id={smartViewsContentId}
-            >
-              <span className="sr-only" id={`${smartViewsContentId}-needs-metadata-description`}>
-                Missing title or author
-              </span>
-              {visibleSmartViews.map(({ id: view }) => {
-                const SmartViewIcon = smartViewIcons[view];
-                const isActive = activeSmartView === view;
-                return (
-                  <button
-                    aria-current={isActive ? "page" : undefined}
-                    aria-describedby={
-                      view === "needs-metadata"
-                        ? `${smartViewsContentId}-needs-metadata-description`
-                        : undefined
-                    }
-                    className={`nav-item ${isActive ? "active" : ""}`}
-                    key={view}
-                    type="button"
-                    onClick={() => onLocationChange(libraryLocationForSmartView(view))}
-                  >
-                    <SmartViewIcon aria-hidden="true" size={18} />
-                    <span>{librarySmartViewLabel(view)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-
         <div className="sidebar__section">
           <div className="sidebar__section-heading">
             <div className="section-label">Folders</div>

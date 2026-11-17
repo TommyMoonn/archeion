@@ -1,4 +1,4 @@
-import { BookOpenText, FolderOpen, Heart, History, Plus } from "lucide-react";
+import { BookOpenText, FolderOpen, Heart, Plus } from "lucide-react";
 import {
   Suspense,
   useCallback,
@@ -397,8 +397,6 @@ export function LibraryWorkspaceSurface({
                         <Heart strokeWidth={1.5} />
                       ) : location.type === "folder" ? (
                         <FolderOpen strokeWidth={1.5} />
-                      ) : location.type === "continue" ? (
-                        <History strokeWidth={1.5} />
                       ) : (
                         <BookOpenText strokeWidth={1.5} />
                       )

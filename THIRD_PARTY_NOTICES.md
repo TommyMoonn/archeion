@@ -50,7 +50,7 @@ SOFTWARE.
 ## Inter
 
 - Package: `inter-ui` 4.1.1
-- Distributed site assets: `website/static/assets/fonts/inter-regular.woff2`, `website/static/assets/fonts/inter-semibold.woff2`, `website/static/assets/fonts/inter-bold.woff2`. The matching `docs/assets/fonts/` copies remain for the legacy site until cutover.
+- Distributed site assets: `website/static/assets/fonts/inter-regular.woff2`, `website/static/assets/fonts/inter-semibold.woff2`, `website/static/assets/fonts/inter-bold.woff2`.
 - Copyright: Copyright (c) 2016-2018 The Inter Project Authors (me@rsms.me)
 - License: SIL Open Font License 1.1
 

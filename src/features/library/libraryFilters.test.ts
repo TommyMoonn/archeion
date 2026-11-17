@@ -12,11 +12,9 @@ import {
   bookNeedsMetadata,
   bookTitle,
   createLibrarySearchIndex,
-  countBooksBySmartView,
   deriveLibraryFilterOptions,
   filterBookSearchIndex,
   filterBooks,
-  getEffectiveLibrarySort,
   getVisibleBooks,
   getVisibleBooksFromSearchIndex,
   hasActiveLibraryFilters,
@@ -280,19 +278,7 @@ describe("library filters", () => {
     expect(normalizeLibrarySort("file-modified-time")).toBe("title");
   });
 
-  it("derives continue sorting without mutating the selected library sort", () => {
-    const selectedSort = "author";
-
-    expect(getEffectiveLibrarySort({ type: "continue" }, selectedSort)).toBe("recently-opened");
-    expect(selectedSort).toBe("author");
-    expect(getEffectiveLibrarySort({ type: "library" }, selectedSort)).toBe("author");
-    expect(getEffectiveLibrarySort({ type: "favorites" }, selectedSort)).toBe("author");
-    expect(getEffectiveLibrarySort({ type: "folder", folderId: "folder-one" }, selectedSort)).toBe(
-      "author",
-    );
-  });
-
-  it("orders the continue view by recently opened without changing the library default sort", () => {
+  it("orders in-progress filtered books by recently opened without changing the library default sort", () => {
     const continueCandidates = [
       createBook({
         id: "title-first",
@@ -316,8 +302,9 @@ describe("library filters", () => {
 
     expect(DEFAULT_LIBRARY_SORT).toBe("title");
     expect(
-      getVisibleBooks(continueCandidates, "", DEFAULT_LIBRARY_SORT, {
-        type: "continue",
+      getVisibleBooks(continueCandidates, "", "recently-opened", { type: "library" }, [], {
+        ...createDefaultLibraryFilters(),
+        readingStatuses: ["in-progress"],
       }).map((book) => book.id),
     ).toEqual(["recent", "title-first"]);
     expect(
@@ -649,12 +636,11 @@ describe("library filters", () => {
         .map((book) => book.id),
     ).toEqual(["missing-title", "missing-creator", "missing-both"]);
     expect(
-      getVisibleBooks(candidates, "", "title", {
-        type: "smart-view",
-        smartView: "needs-metadata",
+      getVisibleBooks(candidates, "", "title", { type: "library" }, [], {
+        ...createDefaultLibraryFilters(),
+        missingMetadata: true,
       }).map((book) => book.id),
     ).toEqual(["missing-title", "missing-both", "missing-creator"]);
-    expect(countBooksBySmartView(candidates)["needs-metadata"]).toBe(3);
   });
 
   it("combines metadata, status, favorite, and missing-data filters", () => {
@@ -712,7 +698,7 @@ describe("library filters", () => {
     expect(hasActiveLibraryFilters(createDefaultLibraryFilters())).toBe(false);
   });
 
-  it("derives smart views from current book metadata without persistent lists", () => {
+  it("filters current reading status and missing covers across book collections", () => {
     const candidates = [
       createBook({
         id: "unread",
@@ -733,35 +719,23 @@ describe("library filters", () => {
       }),
     ];
 
-    expect(countBooksBySmartView(candidates)).toEqual({
-      unread: 1,
-      "in-progress": 1,
-      completed: 1,
-      "needs-metadata": 1,
-      "needs-cover": 1,
-    });
+    for (const [status, expected] of [
+      ["unread", "unread"],
+      ["in-progress", "started"],
+      ["completed", "completed"],
+    ] as const) {
+      expect(
+        getVisibleBooks(candidates, "", "title", { type: "library" }, [], {
+          ...createDefaultLibraryFilters(),
+          readingStatuses: [status],
+        }).map((book) => book.id),
+      ).toEqual([expected]);
+    }
     expect(
-      getVisibleBooks(candidates, "", "title", {
-        type: "smart-view",
-        smartView: "completed",
+      getVisibleBooks(candidates, "", "title", { type: "library" }, [], {
+        ...createDefaultLibraryFilters(),
+        missingCover: true,
       }).map((book) => book.id),
-    ).toEqual(["completed"]);
-  });
-
-  it("calculates only requested Smart View counts", () => {
-    const unread = createBook({ id: "unread-only", progressPercent: 0 });
-    Object.defineProperty(unread, "coverPath", {
-      get() {
-        throw new Error("Hidden Smart View matching should not read cover state.");
-      },
-    });
-
-    expect(countBooksBySmartView([unread], ["unread"])).toEqual({
-      unread: 1,
-      "in-progress": 0,
-      completed: 0,
-      "needs-metadata": 0,
-      "needs-cover": 0,
-    });
+    ).toEqual(["started"]);
   });
 });

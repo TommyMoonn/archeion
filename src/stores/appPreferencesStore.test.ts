@@ -280,12 +280,6 @@ function applyNativeMutation(
       case "filterMissingCover":
         library.filters.missingCover = mutation.value.value;
         break;
-      case "smartViewsEnabled":
-        library.smartViews.enabled = mutation.value.value;
-        break;
-      case "smartViewsVisible":
-        library.smartViews.visible = mutation.value.value;
-        break;
     }
     return nativeSnapshot({ ...snapshot.preferences, library }, snapshot.revision + 1);
   }
@@ -1194,10 +1188,6 @@ describe("app preferences", () => {
           missingMetadata: true,
           missingCover: false,
         },
-        smartViews: {
-          enabled: false,
-          visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
-        },
         collections: {
           books: { cardSize: "large", sortBy: "author", viewMode: "list" },
           folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
@@ -1319,44 +1309,43 @@ describe("app preferences", () => {
     expect(saved).not.toHaveProperty("bookCardSize");
   });
 
-  it("normalizes Smart View visibility to known canonical values", () => {
-    expect(normalizeAppPreferences(null).library.smartViews).toEqual({
-      enabled: false,
-      visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
+  it("rewrites legacy Library preferences through the browser persistence contract", async () => {
+    let saved: unknown = {
+      density: "compact",
+      reader: { fontSize: 22, mode: "continuous" },
+      library: {
+        detailsPinned: true,
+        detailsWidth: 400,
+        filters: { readingStatuses: ["completed"], missingCover: true },
+        smartViews: { enabled: true, visible: ["completed"] },
+      },
+    };
+    const expected = normalizeAppPreferences(saved);
+    const persistence = createPersistence({
+      isDesktop: () => false,
+      readLegacy: () => saved,
+      saveBrowserFallback: (preferences) => {
+        saved = structuredClone(preferences);
+      },
     });
-    expect(
-      normalizeAppPreferences({
-        library: {
-          smartViews: {
-            enabled: true,
-            visible: ["needs-cover", "unread", "needs-cover", "unknown", "completed"],
-          },
-        },
-      }).library.smartViews,
-    ).toEqual({ enabled: true, visible: ["unread", "completed", "needs-cover"] });
-    expect(
-      normalizeAppPreferences({
-        library: { smartViews: { enabled: true, visible: [] } },
-      }).library.smartViews,
-    ).toEqual({
-      enabled: true,
-      visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
+    const first = new AppPreferencesStore(persistence);
+    await first.initialize();
+    await first.update({ showContinueReading: false });
+
+    expect(saved).toEqual({ ...expected, showContinueReading: false });
+    expect(saved).not.toHaveProperty("library.smartViews");
+    const reloaded = new AppPreferencesStore(persistence);
+    await reloaded.initialize();
+    expect(reloaded.getSnapshot()).toEqual(saved);
+    expect(reloaded.getSnapshot()).toMatchObject({
+      density: "compact",
+      reader: { fontSize: 22, mode: "continuous" },
+      library: {
+        detailsPinned: true,
+        detailsWidth: 400,
+        filters: { readingStatuses: ["completed"], missingCover: true },
+      },
     });
-    expect(
-      normalizeAppPreferences({
-        library: { smartViews: { enabled: false, visible: ["completed"] } },
-      }).library.smartViews,
-    ).toEqual({ enabled: false, visible: ["completed"] });
-    expect(
-      normalizeAppPreferences({
-        library: {
-          smartViews: {
-            enabled: true,
-            visible: ["epub-issues", "unread", "duplicates"],
-          },
-        },
-      }).library.smartViews,
-    ).toEqual({ enabled: true, visible: ["unread", "duplicates", "epub-issues"] });
   });
 
   it("preserves supported bundled reader fonts", () => {

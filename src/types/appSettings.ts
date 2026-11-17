@@ -14,7 +14,6 @@ import {
   DEFAULT_SERIES_COLLECTION_PREFERENCES,
 } from "./library";
 import { defaultReaderSettings, type ReaderSettings } from "./reader";
-import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
 import { BOOK_DETAILS_DEFAULT_WIDTH } from "./libraryDetails";
 
 export type InterfaceDensity = "comfortable" | "compact";
@@ -137,14 +136,6 @@ export type LibrarySettingsMutation =
   | {
       field: "filterMissingCover";
       value: AppPreferences["library"]["filters"]["missingCover"];
-    }
-  | {
-      field: "smartViewsEnabled";
-      value: AppPreferences["library"]["smartViews"]["enabled"];
-    }
-  | {
-      field: "smartViewsVisible";
-      value: AppPreferences["library"]["smartViews"]["visible"];
     };
 
 export type ReaderSettingsMutation =
@@ -230,7 +221,6 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
       series: DEFAULT_SERIES_COLLECTION_PREFERENCES,
     }),
     filters: Object.freeze(createDefaultLibraryFilters()),
-    smartViews: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
   }),
   navigation: null,
   reader: defaultReaderSettings,

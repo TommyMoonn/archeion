@@ -37,14 +37,14 @@ type JsonSchema = {
 };
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const schemaPath = path.join(projectRoot, "docs/schemas/archeion-theme-v1.schema.json");
+const schemaPath = path.join(projectRoot, "website/static/schemas/archeion-theme-v1.schema.json");
 const schemaSource = fs.readFileSync(schemaPath, "utf8");
 const schema = JSON.parse(schemaSource) as JsonSchema;
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile<ThemeManifestV1>(schema);
 
 const examplePaths = [
-  "docs/examples/themes/moon-ink/theme.json",
-  "docs/examples/themes/paper-light/theme.json",
+  "website/static/examples/themes/moon-ink/theme.json",
+  "website/static/examples/themes/paper-light/theme.json",
 ] as const;
 
 function readJson(relativePath: string): unknown {

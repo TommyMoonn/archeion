@@ -23,8 +23,8 @@ from typing import Iterable, Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = Path(__file__).with_name("english_catalog_sources.json")
-DEFAULT_CATALOG = ROOT / "docs/dictionaries/catalog-v1.json"
-DEFAULT_OUTPUT = ROOT / "docs/dictionaries/packages"
+DEFAULT_CATALOG = ROOT / "website/static/dictionaries/catalog-v1.json"
+DEFAULT_OUTPUT = ROOT / "website/static/dictionaries/packages"
 DEFAULT_CANDIDATE_ROOT = ROOT / ".project/dictionaries/english-catalog-candidate"
 DEFAULT_CANDIDATE_CATALOG = DEFAULT_CANDIDATE_ROOT / "catalog-v1.json"
 DEFAULT_CANDIDATE_OUTPUT = DEFAULT_CANDIDATE_ROOT / "packages"

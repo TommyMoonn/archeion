@@ -15,9 +15,7 @@ src-tauri/gen/
 .planning/
 .project/
 
-# B2.8 preserves the legacy public resource/runtime bytes until the B3 landing port.
-website/static/css/
-website/static/js/
+# Preserve exact published public resource bytes.
 website/static/assets/
 website/static/schemas/
 website/static/examples/

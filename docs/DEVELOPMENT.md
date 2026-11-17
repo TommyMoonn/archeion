@@ -53,18 +53,16 @@ Jobs that need both packages must select both or use the full workspace
 install. Do not create a lockfile or duplicate package-manager configuration
 inside `website/`.
 
-The website workspace contains the replacement MDX documentation experience.
+The website workspace contains the public React landing and MDX documentation.
 Its package scripts are available through `pnpm --filter @archeion/website`
 or from inside `website/`. See [website development](../website/README.md#local-development)
-for commands and browser checks. The existing public site under `docs/` remains
-published until the separate cutover. Root `pnpm run docs:sync` writes canonical
+for commands and browser checks. Pages publishes `website/build/`. Root `pnpm run docs:sync` writes canonical
 release history to `website/src/generated/release-history.json`; `pnpm run
 docs:check` checks freshness and Node-only source contracts. Neither requires
 website dependencies. Run website typecheck/build separately for MDX and links.
 After building, `node scripts/check-website-build.mjs` checks the Pages output.
-The main-only deployment workflow is independent from releases. Live settings
-and destructive retirement remain subject to the
-[post-merge cutover procedure](DOCUMENTATION.md#production-cutover-and-legacy-retirement).
+The main-only deployment workflow is independent from releases; see
+[publication ownership](DOCUMENTATION.md#public-resources-and-publication).
 For releases, finalize prose, sync, docs:check, release:check, then verify; see
 the release operator guide.
 
@@ -132,9 +130,8 @@ Rust checks, MSRV, and native runtime and updater smoke also stay on Windows.
 One shared `CI` workflow validates pull requests and pushes to `main`. Main pushes
 always run every validation job. Pull requests also run full validation unless
 the exact event base and head revisions contain only added or modified Markdown
-under `docs/`, authored HTML under `docs/documentation/`, or
-`docs/documentation/page-registry.json`. Documentation runtime assets and the
-generated changelog page remain in full validation, as do mixed changes,
+under maintained `docs/` paths or explicit `website/` source owners. Shared
+tooling and unknown paths remain in full validation, as do mixed changes,
 renames, deletions, empty diffs, unknown paths, and classification uncertainty.
 
 Documentation-only PRs retain static checks (including `docs:check`), the full
@@ -171,7 +168,7 @@ command flags and safety behavior.
 - [Testing and validation](TESTING.md) lists the existing local and CI validation
   lanes.
 - [Public documentation](DOCUMENTATION.md) explains how to edit and publish the
-  MDX documentation site and maintain the legacy site until cutover.
+  React landing and MDX documentation site.
 - The [release operator guide](RELEASING.md) covers release preparation and
   publication.
 - The [performance measurement guide](performance/measuring.md) documents

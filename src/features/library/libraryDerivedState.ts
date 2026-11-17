@@ -4,21 +4,18 @@ import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/L
 import {
   isLibraryIntegrityLocation,
   libraryIntegrityLocationLabel,
+  normalizeLibrarySort,
   type LibraryFilterState,
   type LibraryLocation,
-  type LibrarySmartViewPreferences,
   type LibrarySort,
 } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import type { FolderBrowserEntry } from "../folders/folderBrowserReadModel";
 import { bookReadingStatus } from "../reading/readingProgress";
 import {
-  getEffectiveLibrarySort,
   getVisibleBooksFromSearchIndex,
-  librarySmartViewLabel,
   sortBooks,
   type LibraryFilterOptions,
-  type LibrarySmartViewCounts,
 } from "./libraryFilters";
 import { createLibraryIndex, createLibraryIndexCache, type LibraryIndex } from "./libraryIndex";
 
@@ -32,7 +29,6 @@ type LibraryDerivedStateInput = {
   folders: readonly LibrarySnapshotFolder[] | undefined;
   location: LibraryLocation;
   libraryRevision: number | undefined;
-  smartViewPreferences: LibrarySmartViewPreferences;
   sort: LibrarySort;
 };
 
@@ -48,7 +44,6 @@ type LibraryDerivedState = {
   folderEntries: readonly FolderBrowserEntry[];
   libraryTitle: string;
   index: LibraryIndex;
-  smartViewCounts: LibrarySmartViewCounts;
   visibleBooks: LibrarySnapshotBook[];
 };
 
@@ -60,7 +55,6 @@ export function useLibraryDerivedState({
   folders,
   location,
   libraryRevision,
-  smartViewPreferences,
   sort,
 }: LibraryDerivedStateInput): LibraryDerivedState {
   const currentBooks = useMemo(() => books ?? [], [books]);
@@ -81,7 +75,7 @@ export function useLibraryDerivedState({
       ),
     [archiveGeneration, currentBooks, currentFolders, indexCache, libraryRevision],
   );
-  const effectiveSort = useMemo(() => getEffectiveLibrarySort(location, sort), [location, sort]);
+  const effectiveSort = normalizeLibrarySort(sort);
   const visibleBooks = useMemo(
     () =>
       measurePerformance("archeion:filter-and-sort-library", () =>
@@ -94,10 +88,6 @@ export function useLibraryDerivedState({
         ),
       ),
     [debouncedQuery, effectiveSort, filters, index.searchEntries, location],
-  );
-  const smartViewCounts = useMemo(
-    () => visibleSmartViewCounts(index.smartViewCounts, smartViewPreferences),
-    [index.smartViewCounts, smartViewPreferences],
   );
   const continuePreview = useMemo(
     () => index.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
@@ -124,11 +114,7 @@ export function useLibraryDerivedState({
     ? libraryIntegrityLocationLabel(location)
     : location.type === "favorites"
       ? "Favorites"
-      : location.type === "continue"
-        ? "In Progress"
-        : location.type === "smart-view"
-          ? librarySmartViewLabel(location.smartView)
-          : (currentFolder?.name ?? "Library");
+      : (currentFolder?.name ?? "Library");
 
   return {
     bookCount: index.books.length,
@@ -142,21 +128,6 @@ export function useLibraryDerivedState({
     folderEntries: index.folderEntries,
     index,
     libraryTitle,
-    smartViewCounts,
     visibleBooks,
-  };
-}
-
-function visibleSmartViewCounts(
-  counts: LibrarySmartViewCounts,
-  preferences: LibrarySmartViewPreferences,
-): LibrarySmartViewCounts {
-  const visible = preferences.enabled ? new Set(preferences.visible) : new Set();
-  return {
-    unread: visible.has("unread") ? counts.unread : 0,
-    "in-progress": visible.has("in-progress") ? counts["in-progress"] : 0,
-    completed: visible.has("completed") ? counts.completed : 0,
-    "needs-metadata": visible.has("needs-metadata") ? counts["needs-metadata"] : 0,
-    "needs-cover": visible.has("needs-cover") ? counts["needs-cover"] : 0,
   };
 }

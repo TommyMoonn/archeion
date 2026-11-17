@@ -29,12 +29,8 @@ import {
 } from "../../app/readerReturnContext";
 import { useReaderArchiveSession } from "../archive/readerArchiveSession";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
-import { appPreferencesStore, useLibraryPreferences } from "../../stores/appPreferencesStore";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
-import {
-  isLibrarySmartViewVisible,
-  normalizeVisibleLibraryHref,
-} from "../../types/librarySmartViews";
 import type { Annotation } from "../../types/annotation";
 import { bookTitle } from "../../utils/bookDisplay";
 import { type ReaderNavigationState, type ReaderSettings } from "../../types/reader";
@@ -157,7 +153,6 @@ export function ReaderPage() {
   const readerTheme = appearance.readerTheme;
   const themeCatalog = useThemeCatalogEntries(true);
   const readerThemeStyle = useMemo(() => readerThemeCssProperties(readerTheme), [readerTheme]);
-  const libraryPreferences = useLibraryPreferences();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const readerMainRef = useRef<HTMLElement>(null);
   const readerToolbarRef = useRef<HTMLElement>(null);
@@ -224,17 +219,7 @@ export function ReaderPage() {
   }, [presentationController]);
 
   const activeArchiveId = archiveSession.archiveId;
-  const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
-  const returnContext = useMemo(() => {
-    if (!storedReturnContext) return null;
-    const href = normalizeVisibleLibraryHref(
-      storedReturnContext.href,
-      libraryPreferences.smartViews,
-    );
-    return href === storedReturnContext.href
-      ? storedReturnContext
-      : { ...storedReturnContext, href, label: undefined };
-  }, [libraryPreferences.smartViews, storedReturnContext]);
+  const returnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
   const returnDestination = readerReturnNavigation(returnContext);
   const backLabel = readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
@@ -503,7 +488,7 @@ export function ReaderPage() {
   }, []);
 
   const navigateToLibraryView = useCallback(
-    (view: "continue" | "favorites" | "folders" | "library" | "series", focusSearch = false) => {
+    (view: "favorites" | "folders" | "library" | "series", focusSearch = false) => {
       const params = new URLSearchParams();
       params.set("view", view);
       if (activeArchiveId) {
@@ -618,20 +603,6 @@ export function ReaderPage() {
         order: 50,
         scope: "reader",
       },
-      ...(isLibrarySmartViewVisible(libraryPreferences.smartViews, "in-progress")
-        ? [
-            {
-              configuration: "unbound" as const,
-              execute: () => navigateToLibraryView("continue"),
-              group: "Navigate" as const,
-              id: "reader.navigate.continue",
-              keywords: ["in progress", "continue reading"],
-              label: "Go to Continue",
-              order: 51,
-              scope: "reader" as const,
-            },
-          ]
-        : []),
       {
         configuration: "unbound",
         execute: () => navigateToLibraryView("favorites"),
@@ -785,7 +756,6 @@ export function ReaderPage() {
     canToggleCurrentBookmark,
     closeTopmost,
     focusReaderSearch,
-    libraryPreferences.smartViews,
     moveNext,
     movePrevious,
     navigateHistoryBack,

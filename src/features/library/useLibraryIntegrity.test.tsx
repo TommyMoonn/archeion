@@ -139,6 +139,29 @@ afterEach(() => {
 });
 
 describe("useLibraryIntegrity", () => {
+  it("retires results after closing the diagnostics surface and permits a fresh request", async () => {
+    const pending = deferred<EpubDuplicateAnalysisResult>();
+    requestDuplicateAnalysis.mockReturnValueOnce(pending.promise);
+    render({ archiveGeneration: 1, archiveRootPath: "C:/Archive", books: [book("a")] });
+    let refresh: Promise<boolean> | undefined;
+    act(() => {
+      refresh = currentController().refreshDuplicates();
+    });
+    const revision = latestDuplicateRevision();
+    act(() => currentController().retireRequests());
+    await act(async () => pending.resolve(duplicateResult(1, revision, "stale")));
+    await expect(refresh).resolves.toBe(false);
+    expect(currentController().duplicates.status).toBe("idle");
+    expect(currentController().duplicates.snapshot).toBeNull();
+    requestDuplicateAnalysis.mockImplementationOnce(async (request) =>
+      duplicateResult(1, request.requestRevision, "fresh"),
+    );
+    await act(async () => {
+      expect(await currentController().refreshDuplicates()).toBe(true);
+    });
+    expect(currentController().duplicates.status).toBe("ready");
+    expect(currentController().duplicates.snapshot?.requestRevision).toBeGreaterThan(revision);
+  });
   it("clears prior archive state immediately and retires its late result", async () => {
     const archiveA = deferred<EpubDuplicateAnalysisResult>();
     const archiveB = deferred<EpubDuplicateAnalysisResult>();

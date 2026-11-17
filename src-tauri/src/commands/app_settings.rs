@@ -59,15 +59,6 @@ pub struct LibraryFilterSettings {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct LibrarySmartViewSettings {
-    #[serde(default)]
-    pub enabled: bool,
-    #[serde(default = "default_visible_smart_views")]
-    pub visible: Vec<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct BookCollectionDisplaySettings {
     #[serde(default = "default_collection_card_size")]
     pub card_size: String,
@@ -117,7 +108,6 @@ pub struct LibraryDisplaySettings {
     pub details_width: u16,
     pub collections: LibraryCollectionDisplaySettings,
     pub filters: LibraryFilterSettings,
-    pub smart_views: LibrarySmartViewSettings,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -332,24 +322,6 @@ fn default_series_sort() -> String {
 fn default_series_view() -> String {
     "grid".to_string()
 }
-fn default_visible_smart_views() -> Vec<String> {
-    [
-        "unread",
-        "in-progress",
-        "completed",
-        "needs-metadata",
-        "needs-cover",
-    ]
-    .into_iter()
-    .map(str::to_string)
-    .collect()
-}
-fn supported_smart_views() -> Vec<String> {
-    default_visible_smart_views()
-        .into_iter()
-        .chain(["duplicates".to_string(), "epub-issues".to_string()])
-        .collect()
-}
 fn default_reader_font_family() -> ReaderFontSelection {
     ReaderFontSelection::default()
 }
@@ -501,26 +473,6 @@ fn normalize_library_filters(filters: Option<&Map<String, Value>>) -> LibraryFil
         favorites_only: filters.is_some_and(|value| true_field(value, "favoritesOnly")),
         missing_metadata: filters.is_some_and(|value| true_field(value, "missingMetadata")),
         missing_cover: filters.is_some_and(|value| true_field(value, "missingCover")),
-    }
-}
-
-fn normalize_smart_views(settings: Option<&Map<String, Value>>) -> LibrarySmartViewSettings {
-    let requested: std::collections::HashSet<_> =
-        normalize_filter_values(settings.and_then(|value| value.get("visible")))
-            .into_iter()
-            .collect();
-    let visible: Vec<_> = supported_smart_views()
-        .into_iter()
-        .filter(|smart_view| requested.contains(smart_view))
-        .collect();
-
-    LibrarySmartViewSettings {
-        enabled: settings.is_some_and(|value| true_field(value, "enabled")),
-        visible: if visible.is_empty() {
-            default_visible_smart_views()
-        } else {
-            visible
-        },
     }
 }
 
@@ -1161,9 +1113,6 @@ impl LibraryDisplaySettings {
             filters: normalize_library_filters(
                 settings.and_then(|value| object_field(value, "filters")),
             ),
-            smart_views: normalize_smart_views(
-                settings.and_then(|value| object_field(value, "smartViews")),
-            ),
         }
     }
 }
@@ -1175,15 +1124,6 @@ impl<'de> Deserialize<'de> for LibraryDisplaySettings {
     {
         let value = Value::deserialize(deserializer)?;
         Ok(Self::from_value(Some(&value), None))
-    }
-}
-
-impl Default for LibrarySmartViewSettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            visible: default_visible_smart_views(),
-        }
     }
 }
 
@@ -1288,8 +1228,6 @@ pub enum LibrarySettingsMutation {
     FilterFavoritesOnly(bool),
     FilterMissingMetadata(bool),
     FilterMissingCover(bool),
-    SmartViewsEnabled(bool),
-    SmartViewsVisible(Vec<String>),
 }
 
 impl LibrarySettingsMutation {
@@ -1316,8 +1254,6 @@ impl LibrarySettingsMutation {
             Self::FilterFavoritesOnly(value) => settings.filters.favorites_only = value,
             Self::FilterMissingMetadata(value) => settings.filters.missing_metadata = value,
             Self::FilterMissingCover(value) => settings.filters.missing_cover = value,
-            Self::SmartViewsEnabled(value) => settings.smart_views.enabled = value,
-            Self::SmartViewsVisible(value) => settings.smart_views.visible = value,
         }
     }
 }
@@ -1900,8 +1836,8 @@ mod tests {
         normalize_reader_settings, read_settings, write_settings, write_theme_migration_receipt,
         AppPreferences, AppSettingsMutation, AppSettingsService, AppThemeSelection,
         AppearanceSettings, BuiltInAppThemeId, BuiltInReaderThemeId, KeyboardBinding,
-        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
-        ReaderThemeSelection, THEME_MIGRATION_RECEIPT_FILE,
+        KeyboardPreferences, KeyboardShortcutOverride, ReaderThemeSelection,
+        THEME_MIGRATION_RECEIPT_FILE,
     };
 
     fn merge_expected(base: &mut Value, patch: &Value) {
@@ -2176,10 +2112,6 @@ mod tests {
             parsed.library.collections.series,
             super::SeriesCollectionDisplaySettings::default()
         );
-        assert_eq!(
-            parsed.library.smart_views,
-            LibrarySmartViewSettings::default()
-        );
         assert!(parsed.library.filters.series.is_empty());
         assert!(parsed.library.filters.reading_statuses.is_empty());
         assert!(!parsed.library.filters.favorites_only);
@@ -2400,10 +2332,6 @@ mod tests {
                     missing_cover: true,
                     ..super::LibraryFilterSettings::default()
                 },
-                smart_views: LibrarySmartViewSettings {
-                    enabled: true,
-                    visible: vec!["unread".to_string(), "needs-cover".to_string()],
-                },
             },
             reader: super::ReaderSettings {
                 mode: "continuous".to_string(),
@@ -2438,39 +2366,43 @@ mod tests {
     }
 
     #[test]
-    fn smart_view_preferences_round_trip_enabled_and_disabled_selections() {
-        for (label, enabled, visible) in [
-            (
-                "enabled",
-                true,
-                vec![
-                    "unread".to_string(),
-                    "duplicates".to_string(),
-                    "epub-issues".to_string(),
-                ],
-            ),
-            (
-                "disabled",
-                false,
-                vec!["in-progress".to_string(), "needs-metadata".to_string()],
-            ),
-        ] {
-            let path = temporary_settings_path(label);
-            let preferences = AppPreferences {
-                library: super::LibraryDisplaySettings {
-                    smart_views: LibrarySmartViewSettings { enabled, visible },
-                    ..super::LibraryDisplaySettings::default()
-                },
-                ..AppPreferences::default()
-            };
+    fn legacy_library_preferences_preserve_neighbors_when_rewritten() {
+        let path = temporary_settings_path("legacy-library-rewrite");
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&serde_json::json!({
+                "density": "compact",
+                "reader": { "fontSize": 22, "mode": "continuous" },
+                "library": {
+                    "detailsPinned": true,
+                    "detailsWidth": 400,
+                    "filters": { "readingStatuses": ["completed"], "missingCover": true },
+                    "smartViews": { "enabled": true, "visible": ["completed"] }
+                }
+            }))
+            .expect("legacy preferences should serialize"),
+        )
+        .expect("legacy settings should write");
+        let preferences = read_settings(&path).expect("legacy settings should read");
+        assert_eq!(preferences.density, "compact");
+        assert_eq!(preferences.reader.font_size, 22.0);
+        assert_eq!(preferences.reader.mode, "continuous");
+        assert!(preferences.library.details_pinned);
+        assert_eq!(preferences.library.details_width, 400);
+        assert_eq!(preferences.library.filters.reading_statuses, ["completed"]);
+        assert!(preferences.library.filters.missing_cover);
 
-            write_settings(&path, &preferences).expect("settings should write");
-            let loaded = read_settings(&path).expect("settings should read");
-            let _ = std::fs::remove_file(&path);
-
-            assert_eq!(loaded.library.smart_views, preferences.library.smart_views);
-            assert_eq!(loaded, preferences);
-        }
+        write_settings(&path, &preferences).expect("normalized settings should write");
+        let written: Value = serde_json::from_slice(
+            &std::fs::read(&path).expect("written settings should be readable"),
+        )
+        .expect("written settings should be JSON");
+        assert!(written["library"].get("smartViews").is_none());
+        assert_eq!(
+            read_settings(&path).expect("settings should reload"),
+            preferences
+        );
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

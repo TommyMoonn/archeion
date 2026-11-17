@@ -23,7 +23,7 @@ describe("Library collection settings items", () => {
     ]);
   });
 
-  it("keeps the library reset after all collection and Smart View settings", () => {
+  it("keeps the library reset after all collection settings", () => {
     expect(items.at(-1)?.id).toBe("library.reset");
   });
 });

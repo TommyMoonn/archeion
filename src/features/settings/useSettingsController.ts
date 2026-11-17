@@ -17,6 +17,7 @@ import type { KnownArchive } from "../../types/archive";
 import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
 import type { SettingsArchiveMaintenance } from "./settingsArchiveMaintenanceClient";
+import type { ArchiveIntegrityDestination } from "../../storage/archiveIntegrityNavigation";
 
 const initialConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -99,6 +100,13 @@ export function useSettingsController({
     value: EpubWritebackBackupStatus | null;
   }>({ scope: archiveLocalScope, status: "loading", value: null });
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
+  const integrityNavigationRef = useRef<{ scope: typeof archiveLocalScope; token: object } | null>(
+    null,
+  );
+  const [integrityNavigationScope, setIntegrityNavigationScope] = useState<
+    typeof archiveLocalScope | null
+  >(null);
+  const integrityNavigationBusy = integrityNavigationScope === archiveLocalScope;
   const coverCacheLoadedRef = useRef(false);
   const coverCacheLoadingRef = useRef(false);
   const epubWritebackBackupStatusLoadedRef = useRef(false);
@@ -162,6 +170,7 @@ export function useSettingsController({
     return () => {
       dataLoadGenerationRef.current += 1;
       statusOperationRevisionRef.current += 1;
+      integrityNavigationRef.current = null;
     };
   }, []);
 
@@ -584,6 +593,36 @@ export function useSettingsController({
     });
   }
 
+  async function openIntegrityResults(destination: ArchiveIntegrityDestination) {
+    if (
+      !storage ||
+      archiveScanActive ||
+      integrityNavigationRef.current?.scope === archiveLocalScope
+    )
+      return;
+    const token = {};
+    const scope = archiveLocalScope;
+    const statusOperation = beginStatusOperation();
+    integrityNavigationRef.current = { scope, token };
+    setIntegrityNavigationScope(scope);
+    try {
+      await storage.openIntegrityResults(destination);
+    } catch {
+      if (archiveLocalScopeRef.current === scope) {
+        publishStatusOperation(
+          statusOperation,
+          "Archive diagnostics could not open. Try again.",
+          "error",
+        );
+      }
+    } finally {
+      if (integrityNavigationRef.current?.token === token) {
+        integrityNavigationRef.current = null;
+        setIntegrityNavigationScope(null);
+      }
+    }
+  }
+
   async function resetReader() {
     await updateAppPreferences({
       reader: defaultAppPreferences.reader,
@@ -626,6 +665,8 @@ export function useSettingsController({
   return {
     archiveAvailable: storage !== null,
     archiveScanActive,
+    integrityNavigationBusy,
+    openIntegrityResults,
     cache,
     busyConfirmations,
     closeConfirmation,

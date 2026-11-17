@@ -5,13 +5,11 @@ import {
   normalizeLibrarySort,
   type LibraryFilterState,
   type LibraryLocation,
-  type LibraryBookSmartView,
   type LibrarySort,
 } from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
-import { bookReadingStatus, isBookInProgress } from "../reading/readingProgress";
+import { bookReadingStatus } from "../reading/readingProgress";
 import { normalizeSeriesKey } from "../series/seriesDerivation";
-import { LIBRARY_BOOK_SMART_VIEWS } from "../../types/librarySmartViews";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -25,7 +23,6 @@ export { bookAuthor, bookSourceAuthor, bookSourceTitle, bookTitle } from "../../
 
 export { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../../types/library";
 export type { LibrarySort } from "../../types/library";
-export { librarySmartViewLabel } from "../../types/librarySmartViews";
 
 export type LibraryFilterOptions = {
   series: string[];
@@ -41,8 +38,6 @@ export type LibraryFilterOptionAccumulator = {
   publishers: Map<string, string>;
 };
 
-export type LibrarySmartViewCounts = Record<LibraryBookSmartView, number>;
-
 function normalizedMetadataValue(value: string | undefined): string {
   return value?.trim().toLocaleLowerCase() ?? "";
 }
@@ -57,43 +52,6 @@ export function bookNeedsMetadata(book: ReadonlyBook): boolean {
 
 export function bookNeedsCover(book: ReadonlyBook): boolean {
   return !hasText(book.coverPath);
-}
-
-export function bookMatchesSmartView(book: ReadonlyBook, smartView: LibraryBookSmartView): boolean {
-  switch (smartView) {
-    case "unread":
-      return bookReadingStatus(book) === "unread";
-    case "in-progress":
-      return bookReadingStatus(book) === "in-progress";
-    case "completed":
-      return bookReadingStatus(book) === "completed";
-    case "needs-metadata":
-      return bookNeedsMetadata(book);
-    case "needs-cover":
-      return bookNeedsCover(book);
-  }
-}
-
-export function countBooksBySmartView(
-  books: ReadonlyBook[],
-  visibleSmartViews: readonly LibraryBookSmartView[] = LIBRARY_BOOK_SMART_VIEWS,
-): LibrarySmartViewCounts {
-  const counts: LibrarySmartViewCounts = {
-    unread: 0,
-    "in-progress": 0,
-    completed: 0,
-    "needs-metadata": 0,
-    "needs-cover": 0,
-  };
-  for (const book of books) {
-    for (const smartView of visibleSmartViews) {
-      if (bookMatchesSmartView(book, smartView)) {
-        counts[smartView] += 1;
-      }
-    }
-  }
-
-  return counts;
 }
 
 export function deriveLibraryFilterOptions(books: ReadonlyBook[]): LibraryFilterOptions {
@@ -508,20 +466,6 @@ function compareBooksBySort(
   }
 }
 
-export function getEffectiveLibrarySort(
-  location: LibraryLocation,
-  selectedSort: LibrarySort,
-): LibrarySort {
-  if (
-    location.type === "continue" ||
-    (location.type === "smart-view" && location.smartView === "in-progress")
-  ) {
-    return "recently-opened";
-  }
-
-  return normalizeLibrarySort(selectedSort);
-}
-
 export function sortBooks(books: ReadonlyBook[], sort: LibrarySort): ReadonlyBook[] {
   const normalizedSort = normalizeLibrarySort(sort);
   const collator = getLibrarySortCollator();
@@ -540,10 +484,6 @@ function filterSearchIndexByLocation(
       return index;
     case "favorites":
       return index.filter((entry) => entry.book.isFavorite);
-    case "continue":
-      return index.filter((entry) => isBookInProgress(entry.book));
-    case "smart-view":
-      return index.filter((entry) => bookMatchesSmartView(entry.book, location.smartView));
     case "folders":
     case "duplicates":
     case "epub-issues":
@@ -565,7 +505,7 @@ export function getVisibleBooksFromSearchIndex(
   const filteredIndex = filterSearchIndexByLocation(index, location).filter((entry) =>
     bookMatchesLibraryFilters(entry.book, filters),
   );
-  const effectiveSort = getEffectiveLibrarySort(location, sort);
+  const effectiveSort = normalizeLibrarySort(sort);
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {

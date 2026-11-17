@@ -1,12 +1,6 @@
 import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
 import type { ReadonlyFolder } from "../../types/folder";
-import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
-import {
-  isLibraryBookSmartView,
-  isLibrarySmartViewVisible,
-  librarySmartViewForLocation,
-  normalizeVisibleLibraryLocation,
-} from "../../types/librarySmartViews";
+import type { LibraryLocation } from "../../types/library";
 import {
   rewriteFolderPathForMutation,
   type FolderPathMutationMapping,
@@ -57,7 +51,6 @@ export function libraryLocationFromSearchParams(
   searchParams: URLSearchParams,
   folders: readonly ReadonlyFolder[],
   activeArchiveId?: string,
-  smartViewPreferences?: LibrarySmartViewPreferences,
   pendingFolderPathMutation?: FolderPathMutationMapping | null,
 ): LibraryLocation {
   const urlArchiveId = searchParams.get(ARCHIVE_ID_PARAM);
@@ -70,30 +63,11 @@ export function libraryLocationFromSearchParams(
 
   switch (view) {
     case "duplicates":
-      return smartViewPreferences
-        ? normalizeVisibleLibraryLocation({ type: "duplicates" }, smartViewPreferences)
-        : { type: "duplicates" };
+      return { type: "duplicates" };
     case "epub-issues":
-      return smartViewPreferences
-        ? normalizeVisibleLibraryLocation({ type: "epub-issues" }, smartViewPreferences)
-        : { type: "epub-issues" };
+      return { type: "epub-issues" };
     case "favorites":
       return { type: "favorites" };
-    case "smart": {
-      const smartView = searchParams.get(SMART_VIEW_PARAM);
-      const location: LibraryLocation = isLibraryBookSmartView(smartView)
-        ? { type: "smart-view", smartView }
-        : DEFAULT_LIBRARY_LOCATION;
-      return smartViewPreferences
-        ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
-        : location;
-    }
-    case "continue": {
-      const location: LibraryLocation = { type: "continue" };
-      return smartViewPreferences
-        ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
-        : location;
-    }
     case "folders":
       return { type: "folders" };
     case "series": {
@@ -126,23 +100,22 @@ export function searchParamsForLibraryLocation(
   location: LibraryLocation,
   folders: readonly ReadonlyFolder[],
   activeArchiveId?: string,
-  smartViewPreferences?: LibrarySmartViewPreferences,
 ): URLSearchParams {
   const nextParams = new URLSearchParams(currentParams);
-  const visibleLocation = smartViewPreferences
-    ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
-    : location;
 
   if (activeArchiveId) {
     nextParams.set(ARCHIVE_ID_PARAM, activeArchiveId);
   }
   nextParams.delete(FOLDER_PATH_PARAM);
   nextParams.delete("folderView");
+  if (location.type !== "duplicates" && location.type !== "epub-issues") {
+    nextParams.delete("integrityRequest");
+  }
   nextParams.delete(SERIES_KEY_PARAM);
   nextParams.delete(SMART_VIEW_PARAM);
 
-  if (visibleLocation.type === "folder") {
-    const folderPath = folderPathForLocation(visibleLocation, folders);
+  if (location.type === "folder") {
+    const folderPath = folderPathForLocation(location, folders);
 
     if (!folderPath) {
       nextParams.set(LIBRARY_VIEW_PARAM, "library");
@@ -154,44 +127,23 @@ export function searchParamsForLibraryLocation(
     return nextParams;
   }
 
-  if (visibleLocation.type === "series-detail") {
+  if (location.type === "series-detail") {
     nextParams.set(LIBRARY_VIEW_PARAM, "series");
-    nextParams.set(SERIES_KEY_PARAM, visibleLocation.seriesKey);
+    nextParams.set(SERIES_KEY_PARAM, location.seriesKey);
     return nextParams;
   }
 
-  if (visibleLocation.type === "smart-view") {
-    nextParams.set(LIBRARY_VIEW_PARAM, "smart");
-    nextParams.set(SMART_VIEW_PARAM, visibleLocation.smartView);
-    return nextParams;
-  }
-
-  nextParams.set(LIBRARY_VIEW_PARAM, visibleLocation.type);
+  nextParams.set(LIBRARY_VIEW_PARAM, location.type);
 
   return nextParams;
 }
 
-export function hiddenSmartViewFallbackSearchParams(
+export function legacyLibraryFallbackSearchParams(
   currentParams: URLSearchParams,
-  smartViewPreferences: LibrarySmartViewPreferences,
   activeArchiveId?: string,
 ): URLSearchParams | null {
   const view = currentParams.get(LIBRARY_VIEW_PARAM);
-  const requestedSmartView = currentParams.get(SMART_VIEW_PARAM);
-  const location: LibraryLocation | null =
-    view === "continue"
-      ? { type: "continue" }
-      : view === "smart" && isLibraryBookSmartView(requestedSmartView)
-        ? { type: "smart-view", smartView: requestedSmartView }
-        : view === "duplicates" || view === "epub-issues"
-          ? { type: view }
-          : null;
-  const smartView = location ? librarySmartViewForLocation(location) : null;
-
-  if (!smartView || isLibrarySmartViewVisible(smartViewPreferences, smartView)) {
-    return null;
-  }
-
+  if (view !== "smart" && view !== "continue") return null;
   return searchParamsForLibraryLocation(
     currentParams,
     DEFAULT_LIBRARY_LOCATION,

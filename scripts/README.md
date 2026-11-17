@@ -22,14 +22,12 @@ runs separately in `pnpm --filter @archeion/website build`.
 After that build, `node scripts/check-website-build.mjs` validates exact static
 copies, canonical project URLs, sitemap/robots/404 output and excluded internal
 files before the production workflow uploads only `website/build/`. It does not
-change live Pages settings or retire the still-published legacy sources.
+change live Pages settings.
 
 The shared release parser and exact publication body remain unchanged. Finalize
 the technical changelog and canonical note, run docs:sync, docs:check,
 `pnpm run release:check --tag vX.Y.Z`, then verify. See the
-[release operator guide](../docs/RELEASING.md). Legacy generators remain only for
-the still-published old site; explicit commands and removal boundaries are in
-[documentation maintenance](../docs/DOCUMENTATION.md#legacy-site-during-migration).
+[release operator guide](../docs/RELEASING.md). Legacy static generators are retired.
 
 ## Commands
 
@@ -317,7 +315,12 @@ checksum verification, before uploading the bundle.
 `repo` exports exactly the committed Git tree plus `EXPORT_MANIFEST.json`. It
 does not include uncommitted edits, untracked files, or local `.planning/` and
 `.project/` records. `workspace` exports the current filesystem using
-`.zipignore`, including eligible local planning and project records. Do not
+`.zipignore` through Windows tar/bsdtar `--exclude-from`, including eligible
+`.plans/` and project reference records. It excludes build/cache/test output,
+local dictionary work, generated dictionary package archives and named disposable
+evidence folders. These filters apply only to workspace exports: Git archive
+still includes committed files, Docusaurus builds the site, and Pages publishes
+`website/build/` with the runtime dictionary packages. Do not
 share a workspace export without inspecting those local records.
 
 The manifest records the export mode, source commit, Git working-tree dirty

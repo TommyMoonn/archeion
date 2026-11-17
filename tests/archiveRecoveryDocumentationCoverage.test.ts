@@ -1,9 +1,5 @@
 import { articleText, articleLinks, documentForRoute } from "./documentationMdxTestSupport";
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
-  LIBRARY_INTEGRITY_SMART_VIEW_DEFINITIONS,
-} from "../src/types/librarySmartViews";
 import { storageSettingsItems } from "../src/features/settings/settingsItems/storageSettingsItems";
 import {
   createReaderAnnotationExportDocument,
@@ -22,14 +18,12 @@ function sectionText(route: string, id: string) {
 }
 
 describe("archive health, recovery, and export documentation", () => {
-  it("explains optional integrity views, safe duplicate decisions, and diagnostic limits", () => {
+  it("explains on-demand integrity maintenance, safe duplicate decisions, and diagnostic limits", () => {
     const text = textFor("guides/archive-health");
-    for (const definition of LIBRARY_INTEGRITY_SMART_VIEW_DEFINITIONS) {
-      expect(DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible).not.toContain(definition.id);
-      expect(text).toContain(definition.label);
-    }
     for (const label of [
-      "Show Smart Views",
+      "Settings → Storage → Archive maintenance",
+      "Find duplicates",
+      "Check EPUB issues",
       "Exact duplicate",
       "Probable duplicate",
       "Path",
@@ -49,7 +43,9 @@ describe("archive health, recovery, and export documentation", () => {
       "No EPUB issues",
     ])
       expect(text).toContain(label);
-    expect(text).toMatch(/hidden by default/i);
+    expect(text).toMatch(/focuses the main Library window/i);
+    expect(text).toMatch(/Both tools inspect the active archive/i);
+    expect(text).toMatch(/Analysis starts when you request it/i);
     expect(text).toMatch(/same file bytes/i);
     expect(text).toMatch(/same EPUB identifier[^.]*different/i);
     expect(text).toMatch(/not[^.]*automatically delete/i);

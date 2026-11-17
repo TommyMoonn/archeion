@@ -630,9 +630,6 @@ describe("CI change classifier", () => {
   it.each([
     "docs/DEVELOPMENT.md",
     "docs/nested/guide.md",
-    "docs/documentation/index.html",
-    "docs/documentation/guides/reader/index.html",
-    "docs/documentation/page-registry.json",
     "website/README.md",
     "website/src/components/docs/DocsShell.tsx",
     "website/src/css/custom.css",
@@ -667,6 +664,10 @@ describe("CI change classifier", () => {
   it.each([
     "README.md",
     "unknown/file",
+    "docs/documentation/index.html",
+    "docs/documentation/guides/reader/index.html",
+    "docs/documentation/page-registry.json",
+
     "docs/documentation/assets/docs.js",
     "docs/documentation/assets/README.md",
     "docs/documentation/assets/docs-search-index.json",

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { expect, test } from "@playwright/test";
-import registry from "../../docs/documentation/page-registry.json" with { type: "json" };
+import { documents } from "../documentationMdxTestSupport";
 
 const files = (directory: string): string[] =>
   fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -25,11 +25,13 @@ test("legacy routes preserve query and fragment with visible script-free fallbac
   const context = await browser.newContext({ javaScriptEnabled: false });
   try {
     const fallbackPage = await context.newPage();
-    for (const article of registry.pages) {
-      const old = `/archeion/documentation${article.route}`;
-      const destination = `/archeion/docs${article.route}`;
+    for (const { metadata: article } of documents) {
+      const old = `/archeion/documentation${article.slug}`;
+      const destination = `/archeion/docs${article.slug}`;
       await fallbackPage.goto(old);
-      const fallback = fallbackPage.getByRole("link", { name: `Continue to ${article.title}` });
+      const fallback = fallbackPage.getByRole("link", {
+        name: `Continue to ${article.sidebar_label}`,
+      });
       await expect(fallback).toBeVisible();
       await expect(fallback).toHaveAttribute("href", destination);
       const fragment = article.id === "changelog" ? "release-1-8-0" : "preserved-fragment";

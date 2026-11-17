@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import JSZip from "jszip";
+import { By } from "selenium-webdriver";
 import { runFontPreferenceFlows } from "./windowsFontPreferences.mjs";
 
 async function createEpubFixture(destination, chapterText = "Temporary test fixture.") {
@@ -221,6 +222,94 @@ export async function runRuntimeFlows({
       20_000,
       "The main frontend did not render the archive after Archive Manager closed",
     );
+  });
+
+  await logStep("Settings archive diagnostics route and focus the main Library", async () => {
+    const mainHandle = await driver.getWindowHandle();
+    for (const [label, destination, resultText] of [
+      ["Find duplicates", "duplicates", "No duplicate groups"],
+      ["Check EPUB issues", "epub-issues", "No EPUB issues"],
+    ]) {
+      let previousRequest = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await invoke(driver, "open_settings_window");
+        await driver.wait(
+          async () => {
+            for (const handle of await driver.getAllWindowHandles()) {
+              await driver.switchTo().window(handle);
+              if ((await driver.executeScript("return location.href")).includes("window=settings"))
+                return true;
+            }
+            return false;
+          },
+          20_000,
+          "Settings WebView did not load",
+        );
+        await waitForIpc(driver);
+        const settingsHandle = await driver.getWindowHandle();
+        const storage = await driver.wait(
+          async () =>
+            (await driver.findElements(By.xpath("//button[normalize-space(.)='Storage']")))[0] ||
+            false,
+          20_000,
+        );
+        await storage.click();
+        const action = await driver.wait(
+          async () =>
+            (await driver.findElements(By.xpath(`//button[normalize-space(.)='${label}']`)))[0] ||
+            false,
+          20_000,
+        );
+        await driver.wait(
+          () =>
+            driver.executeAsyncScript(`
+        const done = arguments[arguments.length - 1];
+        window.__TAURI__.window.getCurrentWindow().isFocused().then(done);
+      `),
+          10_000,
+          "Settings did not finish its native reveal",
+        );
+        if (destination === "duplicates") {
+          await driver.executeAsyncScript(`
+          const done = arguments[arguments.length - 1];
+          window.__TAURI__.window.Window.getByLabel('main').then(main => main.minimize()).then(done);
+        `);
+        }
+        await action.click();
+        await driver.wait(
+          () =>
+            driver.executeAsyncScript(`
+        const done = arguments[arguments.length - 1];
+        (async () => {
+          const main = await window.__TAURI__.window.Window.getByLabel('main');
+          return await main.isFocused() && !await main.isMinimized();
+        })().then(done);
+      `),
+          10_000,
+          "Main Library did not restore and receive native focus",
+        );
+        await driver.switchTo().window(mainHandle);
+        previousRequest = await driver.wait(
+          async () => {
+            const state = await driver.executeScript(`return {
+          view: new URLSearchParams(location.search).get('view'),
+          request: new URLSearchParams(location.search).get('integrityRequest'),
+          text: document.body.innerText,
+        }`);
+            return state.view === destination &&
+              state.request &&
+              state.request !== previousRequest &&
+              state.text.includes(resultText)
+              ? state.request
+              : false;
+          },
+          20_000,
+          `${label} did not analyze the active archive`,
+        );
+        await driver.switchTo().window(settingsHandle);
+        await closeSecondaryWindow(driver, mainHandle);
+      }
+    }
   });
 
   driver = await runFontPreferenceFlows({

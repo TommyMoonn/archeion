@@ -41,7 +41,7 @@ Use the Node version selected by `.node-version` and the Rust toolchain in `rust
 - `src/types/` contains shared domain and application contracts. `src/utils/` contains general-purpose helpers.
 - `src-tauri/src/` contains the Rust application, native commands, and services. `src-tauri/src/lib.rs` builds the Tauri app and registers commands. `src-tauri/src/atomic_file.rs` provides atomic file replacement and recovery support.
 - `tests/` contains frontend, architecture, documentation, and cross-language contract tests. `tests/browser/` contains Playwright tests. Rust integration tests live in `src-tauri/tests/`.
-- `scripts/` contains architecture, IPC, settings-contract, documentation, release, and maintenance checks. `docs/` contains engineering guides and the source for the public documentation site. `release-notes/` contains release-note drafts and authoring guidance.
+- `scripts/` contains architecture, IPC, settings-contract, documentation, release, and maintenance checks. `docs/` contains engineering guides; `website/` owns the public site. `release-notes/` contains release-note drafts and authoring guidance.
 
 ## Keep ownership clear
 
@@ -121,7 +121,7 @@ Public documentation is authored in `website/docs/*.mdx`; front matter and `webs
 
 `release-notes/vX.Y.Z.md` owns user-facing history; `CHANGELOG.md` stays technical. After finalizing a release note, run `pnpm run docs:sync`, `pnpm run docs:check`, `pnpm run release:check --tag vX.Y.Z`, then `pnpm run verify`. Sync writes only `website/src/generated/release-history.json`; check validates freshness and Node-only source contracts without writing. Neither invokes Docusaurus or legacy generators. Do not hand-edit generated history. Use Node 22 and pnpm 10.33.0 with `pnpm install --frozen-lockfile`. Preserve the release parser API and exact publication body.
 
-The old public site and its generators remain available until the planned cutover; see `docs/DOCUMENTATION.md` for explicit legacy maintenance commands. Do not remove active consumers early.
+The legacy static site and its generators are retired. See `docs/DOCUMENTATION.md` for current publication ownership. Preserve the active compatibility redirects in `website/static/documentation/`.
 
 Update `docs/README.md` when you add, remove, or move an engineering guide.
 

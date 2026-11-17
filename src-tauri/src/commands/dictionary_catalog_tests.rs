@@ -25,7 +25,7 @@ use crate::commands::{
 
 static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 const PRODUCTION_CATALOG_BYTES: &[u8] =
-    include_bytes!("../../../docs/dictionaries/catalog-v1.json");
+    include_bytes!("../../../website/static/dictionaries/catalog-v1.json");
 
 fn test_root(label: &str) -> PathBuf {
     let sequence = TEST_SEQUENCE.fetch_add(1, Ordering::Relaxed);
@@ -97,7 +97,7 @@ fn committed_production_catalog_is_valid_and_non_empty() {
     ];
     assert_eq!(catalog.dictionaries.len(), required.len());
     let package_root =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../docs/dictionaries/packages");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../website/static/dictionaries/packages");
     for (required_id, required_name, required_version) in required {
         let entry = catalog
             .dictionaries

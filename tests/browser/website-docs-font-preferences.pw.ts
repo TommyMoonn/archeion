@@ -7,11 +7,14 @@ test("font documentation exposes the three roles, recovery, and reachable links 
     await page.emulateMedia({ colorScheme: appearance, reducedMotion: "reduce" });
     for (const width of [320, 1280]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto("/docs/documentation/customization/appearance/#app-fonts", {
+      await page.goto("/archeion/docs/customization/appearance/#app-fonts", {
         waitUntil: "load",
       });
+      const themeToggle = page.getByRole("button", { name: `Switch to ${appearance} theme` });
+      if (await themeToggle.count()) await themeToggle.click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", appearance);
       await page.evaluate(() => document.fonts.ready);
-      const article = page.locator("[data-doc-article]");
+      const article = page.locator("article");
       await expect(page.locator("h1")).toHaveCount(1);
       await expect(article).toContainText("Inter (Default)");
       await expect(article).toContainText("Archeion Default");

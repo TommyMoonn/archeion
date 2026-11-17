@@ -37,13 +37,7 @@ import {
   normalizeLibraryView,
   normalizeSeriesSort,
   type LibraryCollectionPreferences,
-  type LibrarySmartViewPreferences,
 } from "../types/library";
-import {
-  DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
-  isLibrarySmartView,
-  LIBRARY_SMART_VIEWS,
-} from "../types/librarySmartViews";
 import type {
   AppThemeSelection,
   FilesAndMetadataSettings,
@@ -139,21 +133,6 @@ function createDefaultPersistence(): AppPreferencesPersistence {
   };
 }
 
-export function normalizeLibrarySmartViewPreferences(value: unknown): LibrarySmartViewPreferences {
-  const settings = isRecord(value) ? value : {};
-  const requested = Array.isArray(settings.visible)
-    ? new Set(settings.visible.filter(isLibrarySmartView))
-    : null;
-  const visible = requested
-    ? LIBRARY_SMART_VIEWS.filter((smartView) => requested.has(smartView))
-    : [];
-
-  return {
-    enabled: settings.enabled === true,
-    visible: visible.length > 0 ? visible : [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
-  };
-}
-
 function normalizeLibrarySettings(
   value: unknown,
   legacyBookCardSize: unknown,
@@ -209,7 +188,6 @@ function normalizeLibrarySettings(
     detailsPinned: settings.detailsPinned === true,
     detailsWidth: normalizeBookDetailsWidth(settings.detailsWidth),
     filters: normalizeLibraryFilters(settings.filters),
-    smartViews: normalizeLibrarySmartViewPreferences(settings.smartViews),
   };
 }
 
@@ -593,14 +571,6 @@ function createLibrarySettingsMutations(
       current: persisted.filters.missingCover,
       mutation: { field: "filterMissingCover", value: target.filters.missingCover },
     },
-    {
-      current: persisted.smartViews.enabled,
-      mutation: { field: "smartViewsEnabled", value: target.smartViews.enabled },
-    },
-    {
-      current: persisted.smartViews.visible,
-      mutation: { field: "smartViewsVisible", value: target.smartViews.visible },
-    },
   ];
 
   return candidates
@@ -819,16 +789,6 @@ function applyLibrarySettingsMutation(
       return {
         ...settings,
         filters: updateProperty(settings.filters, "missingCover", mutation.value),
-      };
-    case "smartViewsEnabled":
-      return {
-        ...settings,
-        smartViews: updateProperty(settings.smartViews, "enabled", mutation.value),
-      };
-    case "smartViewsVisible":
-      return {
-        ...settings,
-        smartViews: updateProperty(settings.smartViews, "visible", mutation.value),
       };
   }
 }

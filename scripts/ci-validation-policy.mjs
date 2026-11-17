@@ -45,17 +45,7 @@ function documentationPath(file) {
       ].includes(file)
     );
   }
-  // Runtime assets and the generated release-history page always require full validation.
-  if (
-    file.startsWith("docs/documentation/assets/") ||
-    file.startsWith("docs/documentation/changelog/")
-  )
-    return false;
-  return (
-    /^docs\/.+\.md$/.test(file) ||
-    /^docs\/documentation\/.+\.html$/.test(file) ||
-    file === "docs/documentation/page-registry.json"
-  );
+  return /^docs\/(?!documentation\/).+\.md$/.test(file);
 }
 
 export function classifyChanges(eventName, event, git) {

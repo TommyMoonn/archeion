@@ -22,6 +22,7 @@ const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
 const ARCHIVE_REGISTRY_CHANGED_EVENT: &str = "archive-registry-changed";
 const ARCHIVE_MANAGER_CLOSED_EVENT: &str = "archive-manager-closed";
 const ARCHIVE_RECONCILIATION_REQUESTED_EVENT: &str = "archive-reconciliation-requested";
+const ARCHIVE_INTEGRITY_REQUESTED_EVENT: &str = "archive-integrity-requested";
 const ARCHIVE_RECONCILIATION_COMPLETED_EVENT: &str = "archive-reconciliation-completed";
 const ARCHIVE_MAINTENANCE_RECONCILED_EVENT: &str = "archive-maintenance-reconciled";
 const MAIN_WINDOW_LABEL: &str = "main";
@@ -60,6 +61,22 @@ pub struct ArchiveReconciliationRequest {
     pub archive_id: String,
     pub request_id: String,
     pub root_path: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ArchiveIntegrityDestination {
+    Duplicates,
+    EpubIssues,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchiveIntegrityNavigationRequest {
+    pub archive_id: String,
+    pub root_path: String,
+    pub request_id: String,
+    pub destination: ArchiveIntegrityDestination,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -820,6 +837,25 @@ pub fn request_archive_reconciliation(
         .ok_or_else(|| "The Main window is unavailable for archive reconciliation.".to_string())?;
     main.emit(ARCHIVE_RECONCILIATION_REQUESTED_EVENT, request)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn open_archive_integrity_results(
+    app: tauri::AppHandle,
+    request: ArchiveIntegrityNavigationRequest,
+) -> Result<(), String> {
+    let registry = read_registry(&app)?;
+    validate_archive_invalidation_scope(&registry, &request.archive_id, &request.root_path)?;
+    if request.request_id.trim().is_empty() || request.request_id.len() > 128 {
+        return Err("Invalid archive maintenance request ID.".to_string());
+    }
+    let main = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or_else(|| "The Main window is unavailable for archive maintenance.".to_string())?;
+    main.emit(ARCHIVE_INTEGRITY_REQUESTED_EVENT, request)
+        .map_err(|error| error.to_string())?;
+    main.unminimize().map_err(|error| error.to_string())?;
+    show_and_focus_window(&main)
 }
 
 #[tauri::command]
