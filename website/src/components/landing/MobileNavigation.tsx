@@ -1,6 +1,6 @@
 import { useEffect, useRef, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 import { GithubMark } from "@/components/shared/GithubMark";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { landingLinks, landingSections, type LandingSectionId } from "./content";
 import { DownloadAction } from "./DownloadAction";
 
@@ -93,9 +93,14 @@ export function MobileNavigation({
           event.preventDefault();
           setOpen((value) => !value);
         }}
-        className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 rounded-button border border-solid border-border-strong px-3 text-sm font-semibold text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        className="flex min-h-11 min-w-24 cursor-pointer list-none items-center justify-center gap-2 rounded-button border border-solid border-border-strong px-3 text-sm font-semibold text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
-        Menu <Menu aria-hidden="true" className="size-4" />
+        {open ? "Close" : "Menu"}
+        {open ? (
+          <X aria-hidden="true" className="size-4" />
+        ) : (
+          <Menu aria-hidden="true" className="size-4" />
+        )}
       </summary>
       <nav
         id="landing-mobile-navigation"

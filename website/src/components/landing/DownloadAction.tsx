@@ -35,7 +35,7 @@ export function DownloadActions({ closing = false }: { closing?: boolean }) {
         href={closing ? landingLinks.releases : landingLinks.installation}
         target={closing ? "_blank" : undefined}
         rel={closing ? "noopener noreferrer" : undefined}
-        className="group inline-flex min-h-10 w-56 max-w-full items-center justify-center gap-2 text-sm font-semibold text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        className="group inline-flex min-h-11 w-56 max-w-full items-center justify-center gap-2 text-sm font-semibold text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
       >
         {closing ? "View all releases" : "View installation guide"}
         <ArrowUpRight

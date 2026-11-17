@@ -11,7 +11,7 @@ export function LandingFooter() {
             href="#top"
             aria-label="Back to top"
             onClick={focusLandingAnchor}
-            className="opacity-[.72] motion-safe:transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            className="inline-flex size-11 shrink-0 items-center justify-center opacity-[.72] motion-safe:transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <img
               src={darkLogo}
@@ -31,7 +31,7 @@ export function LandingFooter() {
         >
           <a
             href={landingLinks.documentation}
-            className="text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="inline-flex min-h-11 items-center text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             Documentation
           </a>
@@ -39,7 +39,7 @@ export function LandingFooter() {
             href={landingLinks.source}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="inline-flex min-h-11 items-center text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             Source code
           </a>
@@ -47,7 +47,7 @@ export function LandingFooter() {
             href={landingLinks.releases}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="inline-flex min-h-11 items-center text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             Releases
           </a>

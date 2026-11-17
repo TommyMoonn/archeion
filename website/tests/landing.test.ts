@@ -47,6 +47,19 @@ describe("rendered landing contracts (legacy scenario migration: website/README.
     expect(html).toContain('href="#reading"');
     expect(html).toContain('href="#files"');
   });
+  it("shows the correct mobile menu state with stable control geometry", () => {
+    const closed = renderToStaticMarkup(
+      createElement(LandingHeader, { open: false, setOpen: () => {} }),
+    );
+    const opened = renderToStaticMarkup(
+      createElement(LandingHeader, { open: true, setOpen: () => {} }),
+    );
+    expect(closed).toContain(">Menu<");
+    expect(opened).toContain(">Close<");
+    expect(closed).toContain("min-w-24");
+    expect(opened).toContain("min-w-24");
+    expect(opened).toContain('aria-controls="landing-mobile-navigation"');
+  });
   it("replaces only the hero secondary link with the installation guide", () => {
     const hero = renderToStaticMarkup(createElement(DownloadActions));
     const closing = renderToStaticMarkup(createElement(DownloadActions, { closing: true }));
