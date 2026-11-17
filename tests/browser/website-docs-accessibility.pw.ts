@@ -215,6 +215,7 @@ test("rendered shell text has readable contrast and uses the bundled fonts", asy
       };
       return [
         "article p",
+        "header kbd",
         '[aria-label="Breadcrumb"] a',
         '[aria-label="Documentation navigation"] a',
         '[aria-label="Table of contents"] a',

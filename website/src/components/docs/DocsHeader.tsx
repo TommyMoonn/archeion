@@ -1,8 +1,16 @@
 import useBaseUrl from "@docusaurus/useBaseUrl";
+import { useSyncExternalStore } from "react";
 import { ArrowUpRight, Menu, Search } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { Brand } from "@/components/shared/Brand";
 import { Button } from "@/components/ui/button";
+
+// The platform does not change during a page session. The server snapshot keeps
+// the initial client render identical to Docusaurus static HTML.
+const subscribeToPlatform = () => () => {};
+const isMacPlatform = () =>
+  typeof navigator !== "undefined" && navigator.platform.startsWith("Mac");
+const serverPlatform = () => false;
 
 export function DocsHeader({
   onSearch,
@@ -14,6 +22,7 @@ export function DocsHeader({
   navigationOpen: boolean;
 }) {
   const homeUrl = useBaseUrl("/");
+  const isMac = useSyncExternalStore(subscribeToPlatform, isMacPlatform, serverPlatform);
   return (
     <header className="sticky top-0 z-header h-docs-header border-0 border-b border-solid border-border bg-surface-header backdrop-blur-lg docs-narrow:h-15.5">
       {/* Fixed chrome geometry keeps icon targets separate when article text is enlarged. */}
@@ -40,8 +49,8 @@ export function DocsHeader({
         >
           <Search aria-hidden="true" className="size-4" />
           <span className="text-caption docs-search:hidden">Search docs</span>
-          <kbd className="ms-auto rounded-sm border border-solid border-border-strong bg-surface-sunken px-1 font-mono text-xs shadow-none docs-search:hidden">
-            Ctrl K
+          <kbd className="ms-auto rounded-sm border border-solid border-border-strong bg-surface-sunken px-1 font-mono text-xs text-content-muted shadow-none docs-search:hidden">
+            {isMac ? "⌘ K" : "Ctrl K"}
           </kbd>
         </Button>
         <nav

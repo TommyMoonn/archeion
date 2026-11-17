@@ -49,6 +49,44 @@ test("search results stay compact with full accessible titles and keyboard selec
   await expect(input).toHaveCSS("outline-style", "none");
 });
 
+for (const { platform, hint } of [
+  { platform: "MacIntel", hint: "⌘ K" },
+  { platform: "Win32", hint: "Ctrl K" },
+]) {
+  test(`${platform} displays its shortcut and accepts both keyboard modifiers`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.addInitScript((value) => {
+      Object.defineProperty(navigator, "platform", { configurable: true, value });
+    }, platform);
+    const hydrationErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error" && /hydration|did not match/i.test(message.text())) {
+        hydrationErrors.push(message.text());
+      }
+    });
+    await page.goto("/archeion/docs/", { waitUntil: "load" });
+    const trigger = page.getByRole("button", { name: "Search documentation", exact: true });
+    const shortcut = trigger.locator("kbd");
+    await expect(shortcut).toHaveText(hint);
+    const dialog = page.getByRole("dialog", { name: "Search documentation", exact: true });
+    const input = dialog.getByRole("searchbox", { name: "Search documentation" });
+    const home = page.getByRole("banner").getByRole("link", { name: "Home", exact: true });
+    for (const keys of ["Control+k", "Meta+k"]) {
+      await home.focus();
+      await page.keyboard.press(keys);
+      await expect(dialog).toBeVisible();
+      await expect(input).toBeFocused();
+      await expect(input).toHaveCSS("outline-style", "solid");
+      await input.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(home).toBeFocused();
+    }
+    expect(hydrationErrors).toEqual([]);
+  });
+}
+
 test("arrows and Enter activate results while Tab reaches native links", async ({ page }) => {
   const { dialog, input, links } = await openSearch(page);
   await input.fill("matching digest");
