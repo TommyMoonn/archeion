@@ -1,23 +1,47 @@
-import { PointerGlow } from "./PointerDecoration";
-import { usePointerDecoration } from "./usePointerDecoration";
+import { cn } from "@/lib/utils";
 import type { LandingFeature } from "./content";
 
-export function FeatureCard({ title, description, icon: Icon }: LandingFeature) {
-  const { target, point, ...pointer } = usePointerDecoration("card");
-  return (
-    <article {...pointer} className="group min-w-0">
-      <div
-        ref={target}
-        className="relative h-full overflow-hidden isolate min-h-49 rounded-card border border-solid border-border bg-surface-raised p-6.5 landing-mobile:min-h-0 landing-mobile:p-5.5 motion-safe:transition-[border-color,background-color,box-shadow] landing-pointer:group-hover:border-landing-card-border-hover landing-pointer:group-hover:bg-landing-card-hover landing-pointer:group-hover:shadow-landing-card-hover"
+export function FeatureCard({
+  title,
+  description,
+  icon: Icon,
+  compact = false,
+}: LandingFeature & { compact?: boolean }) {
+  const details = (
+    <>
+      <h3
+        className={cn(
+          "font-semibold tracking-landing-card text-content-strong",
+          compact
+            ? "mb-1.5 text-base leading-[1.35] landing-menu:mt-5 landing-menu:mb-2.5 landing-menu:text-lg"
+            : "mt-5 mb-2.5 text-lg leading-[1.3]",
+        )}
       >
-        <PointerGlow point={point} />
-        <span className="relative inline-flex size-9.5 items-center justify-center rounded-button border border-solid border-border-strong bg-control-active text-accent motion-safe:transition-transform landing-pointer:group-hover:-translate-y-0.5 landing-pointer:group-hover:border-landing-card-border-hover landing-pointer:group-hover:bg-landing-icon-hover">
+        {title}
+      </h3>
+      <p className="mb-0 text-landing-card text-content-muted">{description}</p>
+    </>
+  );
+
+  return (
+    <article className="min-w-0">
+      <div
+        className={cn(
+          "h-full rounded-card border border-solid border-border bg-surface-raised",
+          compact
+            ? "flex items-start gap-3.5 p-4.5 landing-menu:block landing-menu:min-h-49 landing-menu:p-6.5 landing-mobile:min-h-0 landing-mobile:p-5.5"
+            : "min-h-49 p-6.5 landing-mobile:min-h-0 landing-mobile:p-5.5",
+        )}
+      >
+        <span
+          className={cn(
+            "inline-flex size-9.5 items-center justify-center rounded-button border border-solid border-border-strong bg-control-active text-accent",
+            compact && "shrink-0",
+          )}
+        >
           <Icon aria-hidden="true" className="size-4.75" strokeWidth={1.7} />
         </span>
-        <h3 className="relative mt-5 mb-2.5 text-lg leading-[1.3] font-semibold tracking-landing-card text-content-strong">
-          {title}
-        </h3>
-        <p className="relative mb-0 text-landing-card text-content-muted">{description}</p>
+        {compact ? <div className="min-w-0">{details}</div> : details}
       </div>
     </article>
   );

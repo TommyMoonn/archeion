@@ -62,3 +62,40 @@ test("native anchors scroll smoothly unless reduced motion is requested", async 
   await expect(page.locator("[data-landing]")).toHaveCount(0);
   await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
 });
+
+test("desktop links and hero guide lead to the correct destinations", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/archeion/");
+
+  const actions = page.locator("header > div > div > a");
+  await expect(actions).toHaveText(["Download", "Docs", "GitHub"]);
+  await expect(actions.nth(1)).toHaveAttribute("href", "/archeion/docs/");
+  await expect(actions.nth(2)).toHaveAttribute("href", "https://github.com/TommyMoonn/archeion");
+  const guide = page.getByRole("link", { name: "View installation guide", exact: true });
+  await expect(guide).toHaveAttribute("href", "/archeion/docs/getting-started/installing/");
+  await expect(guide).not.toHaveAttribute("target", "_blank");
+  await expect(
+    page.locator("#download").getByRole("link", { name: "View all releases" }),
+  ).toHaveAttribute("href", "https://github.com/TommyMoonn/archeion/releases");
+  await guide.click();
+  await expect(page).toHaveURL(/\/archeion\/docs\/getting-started\/installing\/$/);
+  await expect(page.getByRole("heading", { name: "Install Archeion", exact: true })).toBeVisible();
+});
+
+test("mobile navigation exposes Docs without replacing existing items", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/archeion/");
+  await page.locator("summary[aria-controls=landing-mobile-navigation]").click();
+  const nav = page.getByRole("navigation", { name: "Mobile navigation" });
+  for (const name of ["Library", "Reading", "Your files", "Docs", "GitHub"]) {
+    await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
+  }
+  await expect(nav.getByRole("link", { name: "Docs", exact: true })).toHaveAttribute(
+    "href",
+    "/archeion/docs/",
+  );
+  await expect(nav.getByRole("link", { name: "Download for Windows" })).toBeVisible();
+  await nav.getByRole("link", { name: "Docs", exact: true }).click();
+  await expect(page).toHaveURL(/\/archeion\/docs\/$/);
+  await expect(page.locator("article h1")).toHaveText("Archeion documentation");
+});

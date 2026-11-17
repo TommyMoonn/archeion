@@ -50,6 +50,12 @@ export function LandingHeader({
             Download
           </a>
           <a
+            href={landingLinks.documentation}
+            className="inline-flex min-h-9 items-center text-caption font-medium text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+          >
+            Docs
+          </a>
+          <a
             href={landingLinks.source}
             target="_blank"
             rel="noopener noreferrer"

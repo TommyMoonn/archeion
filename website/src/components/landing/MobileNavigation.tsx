@@ -1,4 +1,4 @@
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 import { GithubMark } from "@/components/shared/GithubMark";
 import { Menu } from "lucide-react";
 import { landingLinks, landingSections, type LandingSectionId } from "./content";
@@ -33,6 +33,12 @@ export function MobileNavigation({
     desktop.addEventListener("change", update);
     return () => desktop.removeEventListener("change", update);
   }, [setOpen]);
+  const closeOnDestinationClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+      return;
+    setOpen(false);
+    summary.current?.focus();
+  };
   useEffect(() => {
     if (!open) return;
     details.current?.querySelector<HTMLAnchorElement>("nav a")?.focus();
@@ -124,21 +130,17 @@ export function MobileNavigation({
           </a>
         ))}
         <a
+          href={landingLinks.documentation}
+          onClick={closeOnDestinationClick}
+          className="flex min-h-13.5 items-center border-0 border-b border-solid border-border text-lg text-content-muted focus-visible:outline-2 focus-visible:outline-focus-ring"
+        >
+          Docs
+        </a>
+        <a
           href={landingLinks.source}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={(event) => {
-            if (
-              event.button !== 0 ||
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey
-            )
-              return;
-            setOpen(false);
-            summary.current?.focus();
-          }}
+          onClick={closeOnDestinationClick}
           className="mb-4.5 flex min-h-13.5 items-center gap-2 border-0 border-b border-solid border-border text-lg text-content-muted focus-visible:outline-2 focus-visible:outline-focus-ring"
         >
           <GithubMark className="size-4" />

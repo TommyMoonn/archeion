@@ -72,10 +72,23 @@ export function ReaderSection() {
             </span>
           ))}
         </h2>
-        <div className="grid grid-cols-3 gap-3 landing-tablet:grid-cols-2 landing-mobile:grid-cols-1">
-          {readingFeatures.map((feature) => (
-            <FeatureCard key={feature.title} {...feature} />
-          ))}
+        <div className="grid grid-cols-[minmax(0,2.25fr)_minmax(0,1fr)] items-center gap-6 landing-menu:grid-cols-1 landing-menu:gap-8">
+          <figure className="m-0 min-w-0">
+            <img
+              src="/archeion/assets/images/landing-reader.png"
+              alt="Archeion Reader showing a chapter in continuous mode with the Appearance settings panel open."
+              width={1919}
+              height={1079}
+              loading="lazy"
+              decoding="async"
+              className="block h-auto w-full rounded-card border border-solid border-landing-preview-border shadow-landing-preview"
+            />
+          </figure>
+          <div className="grid min-w-0 grid-cols-1 gap-3 landing-menu:grid-cols-3 landing-tablet:grid-cols-2 landing-mobile:grid-cols-1">
+            {readingFeatures.map((feature) => (
+              <FeatureCard key={feature.title} {...feature} compact />
+            ))}
+          </div>
         </div>
       </div>
     </section>
