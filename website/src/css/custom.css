@@ -176,23 +176,17 @@ html[data-site-fonts-loading] #__docusaurus {
   --text-landing-section-mobile--line-height: 1.08;
   --text-landing-card: 0.9375rem;
   --text-landing-card--line-height: 1.65;
-  --text-landing-tree-mobile: 0.6875rem;
-  --text-landing-copyright-mobile: 0.65625rem;
   --text-landing-brand: 1.3125rem;
   --tracking-landing-card: -0.015em;
   --tracking-landing-reading: -0.03em;
   --shadow-landing-preview: 0 14px 40px rgb(0 0 0 / 14%);
   --shadow-landing-preview-hover: 0 24px 64px rgb(0 0 0 / 30%), 0 0 0 1px rgb(139 189 224 / 12%);
-  --shadow-landing-card-hover: 0 14px 32px rgb(0 0 0 / 24%), 0 0 0 1px rgb(139 189 224 / 7%);
   --shadow-landing-button: inset 0 1px rgb(255 255 255 / 24%), 0 6px 18px rgb(0 0 0 / 18%);
   --shadow-landing-button-hover: 0 12px 30px rgb(0 0 0 / 25%), 0 0 0 1px rgb(139 189 224 / 12%);
   --color-landing-divider: rgb(255 255 255 / 4%);
   --color-landing-footer-border: rgb(255 255 255 / 7%);
   --color-landing-preview-border: rgb(255 255 255 / 8%);
   --color-landing-decoration: #b7c5cf;
-  --color-landing-card-hover: #1c1e20;
-  --color-landing-card-border-hover: rgb(139 189 224 / 46%);
-  --color-landing-icon-hover: rgb(139 189 224 / 10%);
   --color-landing-button-foreground: #111315;
   --color-landing-highlight: #ffffff;
   --spacing-release-metadata: 116px;
@@ -244,9 +238,9 @@ html[data-site-fonts-loading] #__docusaurus {
   --text-docs-subheading: 1.1875rem;
   --text-docs-subheading--line-height: 1.4;
   --text-docs-label: 0.6875rem;
-  --text-docs-card-title: 0.78125rem;
+  --text-docs-card-title: 0.875rem;
   --text-docs-card-title--line-height: 1.4;
-  --text-docs-card-description: 0.71875rem;
+  --text-docs-card-description: 0.8125rem;
   --text-docs-card-description--line-height: 1.55;
   /* Brand artwork and header chrome retain the mock's pixel geometry at text enlargement.
      Article and control labels remain resizable; icons must not consume their space. */
@@ -295,7 +289,6 @@ html[data-site-fonts-loading] #__docusaurus {
   --z-index-backdrop: 80;
   --z-index-drawer: 90;
   --z-index-dialog: 100;
-  --z-index-skip-link: 110;
 
   /* Named content breakpoints mirror the approved mock boundaries. */
   --breakpoint-narrow: 37.5rem;
@@ -323,3 +316,181 @@ html[data-site-fonts-loading] #__docusaurus {
 @custom-variant landing-tiny (@media (max-width: 360px));
 @custom-variant landing-pointer (@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine));
 @custom-variant landing-effects (@media (min-width: 1101px) and (hover: hover) and (pointer: fine));
+
+/* Reader story: match the approved reference without inheriting Library card surfaces. */
+.landing-reader-section {
+  padding: 108px 0 116px;
+}
+
+.landing-reader-container {
+  width: calc(100% - 4rem);
+  max-width: 1280px;
+  margin-inline: auto;
+}
+
+.landing-reader-title {
+  margin: 0 0 36px;
+  font-size: clamp(36px, 4.1vw, 56px);
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.landing-reader-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.landing-reader-preview {
+  min-width: 0;
+  margin: 0;
+}
+
+.landing-reader-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--color-landing-preview-border);
+  border-radius: 9px;
+  box-shadow: var(--shadow-landing-preview);
+}
+
+.landing-reader-features {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-left: 2px;
+}
+
+.landing-reader-feature {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 15px;
+  padding: 22px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.landing-reader-feature + .landing-reader-feature {
+  border-top: 1px solid var(--border);
+}
+
+.landing-reader-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-strong);
+  border-radius: 9px;
+  background: var(--control-active);
+  color: var(--accent);
+}
+
+.landing-reader-feature-icon svg {
+  display: block;
+  flex: none;
+}
+
+.landing-reader-feature h3 {
+  margin: 1px 0 6px;
+  color: var(--content-strong);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+}
+
+.landing-reader-feature p {
+  margin: 0;
+  color: var(--content-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+@media (max-width: 1080px) {
+  .landing-reader-section {
+    padding: 88px 0;
+  }
+
+  .landing-reader-container {
+    width: calc(100% - 3rem);
+    max-width: 820px;
+  }
+
+  .landing-reader-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+
+  .landing-reader-features {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    padding: 0;
+  }
+
+  .landing-reader-feature {
+    display: block;
+    padding: 0;
+  }
+
+  .landing-reader-feature + .landing-reader-feature {
+    border-top: 0;
+  }
+
+  .landing-reader-feature-icon {
+    margin-bottom: 15px;
+  }
+}
+
+@media (max-width: 700px) {
+  .landing-reader-section {
+    padding: 64px 0 72px;
+  }
+
+  .landing-reader-container {
+    width: calc(100% - 2.5rem);
+  }
+
+  .landing-reader-title {
+    margin-bottom: 30px;
+    font-size: clamp(36px, 9vw, 44px);
+  }
+
+  .landing-reader-features {
+    display: flex;
+    gap: 0;
+  }
+
+  .landing-reader-feature {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 14px;
+    padding: 19px 0;
+  }
+
+  .landing-reader-feature:first-child {
+    padding-top: 0;
+  }
+
+  .landing-reader-feature + .landing-reader-feature {
+    border-top: 1px solid var(--border);
+  }
+
+  .landing-reader-feature-icon {
+    margin-bottom: 0;
+  }
+
+  .landing-reader-feature h3 {
+    font-size: 15px;
+  }
+
+  .landing-reader-feature p {
+    font-size: 14px;
+  }
+}

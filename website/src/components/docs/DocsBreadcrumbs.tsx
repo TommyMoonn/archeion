@@ -13,7 +13,7 @@ export function DocsBreadcrumbs() {
           <Link
             to="/docs/"
             title="Documentation"
-            className="block truncate text-content-subtle hover:text-content-strong"
+            className="block truncate text-content-subtle hover:text-content-strong focus-visible:underline focus-visible:decoration-2 focus-visible:decoration-focus-ring focus-visible:underline-offset-4"
           >
             Documentation
           </Link>
@@ -28,7 +28,11 @@ export function DocsBreadcrumbs() {
                 {item.label}
               </span>
             ) : item.href ? (
-              <Link to={item.href} title={item.label} className="truncate text-content-subtle">
+              <Link
+                to={item.href}
+                title={item.label}
+                className="truncate text-content-subtle hover:text-content-strong focus-visible:underline focus-visible:decoration-2 focus-visible:decoration-focus-ring focus-visible:underline-offset-4"
+              >
                 {item.label}
               </Link>
             ) : (

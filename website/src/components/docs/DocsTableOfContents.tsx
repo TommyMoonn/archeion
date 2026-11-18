@@ -27,7 +27,7 @@ export function DocsTableOfContents() {
                 <a
                   href={`#${heading.id}`}
                   aria-current={active === heading.id ? "location" : undefined}
-                  className={`block border-0 border-s border-solid py-1.25 pe-1 text-docs-outline hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring ${active === heading.id ? "border-accent text-accent" : "border-transparent text-content-muted"} ${heading.level === 3 ? "ps-5.25" : "ps-2.5"}`}
+                  className={`block border-0 border-s border-solid py-1.25 pe-1 text-docs-outline hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:flex pointer-coarse:min-h-11 pointer-coarse:items-center ${active === heading.id ? "border-accent text-accent hover:text-accent" : "border-transparent text-content-muted hover:text-content-strong"} ${heading.level === 3 ? "ps-5.25" : "ps-2.5"}`}
                 >
                   {heading.value}
                 </a>

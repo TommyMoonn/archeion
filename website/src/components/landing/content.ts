@@ -6,6 +6,7 @@ export const landingLinks = {
   source: "https://github.com/TommyMoonn/archeion",
   releases: "https://github.com/TommyMoonn/archeion/releases",
   documentation: "/archeion/docs/",
+  installation: "/archeion/docs/getting-started/installing/",
 };
 
 export const landingMetadata = {

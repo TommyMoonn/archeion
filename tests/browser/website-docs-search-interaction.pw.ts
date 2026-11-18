@@ -19,8 +19,14 @@ test("search results stay compact with full accessible titles and keyboard selec
   page,
 }) => {
   const { dialog, input, links } = await openSearch(page);
+  const field = dialog.locator("[data-search-field]");
   await expect(dialog.getByRole("button", { name: "Show details" })).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Close search" })).toHaveCount(1);
+  await expect(input).toHaveAttribute("type", "text");
+  await expect(input).toHaveAttribute("inputmode", "search");
   await expect(input).toHaveCSS("outline-style", "none");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(field).toHaveCSS("box-shadow", "none");
   await expect(dialog).toHaveCSS("backdrop-filter", "none");
   const backdrop = await dialog.evaluate((node) => {
     const style = getComputedStyle(node, "::backdrop");
@@ -38,16 +44,79 @@ test("search results stay compact with full accessible titles and keyboard selec
   await links.first().press("ArrowUp");
   await expect(input).toBeFocused();
   await expect(input).toHaveCSS("outline-style", "solid");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(field).toHaveCSS("box-shadow", "none");
   await input.click();
   await expect(input).toHaveCSS("outline-style", "none");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await input.press("Escape");
   await page.keyboard.press("Control+k");
+  await expect(input).toBeFocused();
+  await expect(input).toHaveCSS("outline-style", "none");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(field).toHaveCSS("box-shadow", "none");
+  await input.press("Tab");
+  const closeButton = dialog.getByRole("button", { name: "Close search" });
+  await expect(closeButton).toBeFocused();
+  await expect(closeButton).toHaveCSS("outline-style", "solid");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await page.keyboard.press("Shift+Tab");
+  await expect(input).toBeFocused();
   await expect(input).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Control+k");
+  await expect(input).toHaveCSS("outline-style", "none");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await input.press("Escape");
   await page.getByRole("button", { name: "Search documentation", exact: true }).click();
   await input.fill("asd");
   await expect(input).toHaveCSS("outline-style", "none");
+  await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
+
+for (const { platform, hint } of [
+  { platform: "MacIntel", hint: "⌘ K" },
+  { platform: "Win32", hint: "Ctrl K" },
+]) {
+  test(`${platform} displays its shortcut and accepts both keyboard modifiers`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.addInitScript((value) => {
+      Object.defineProperty(navigator, "platform", { configurable: true, value });
+    }, platform);
+    const hydrationErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() === "error" && /hydration|did not match/i.test(message.text())) {
+        hydrationErrors.push(message.text());
+      }
+    });
+    await page.goto("/archeion/docs/", { waitUntil: "load" });
+    const trigger = page.getByRole("button", { name: "Search documentation", exact: true });
+    const shortcut = trigger.locator("kbd");
+    await expect(shortcut).toHaveText(hint);
+    const dialog = page.getByRole("dialog", { name: "Search documentation", exact: true });
+    const input = dialog.getByRole("searchbox", { name: "Search documentation" });
+    const home = page.getByRole("banner").getByRole("link", { name: "Home", exact: true });
+    for (const keys of ["Control+k", "Meta+k"]) {
+      await home.focus();
+      await page.keyboard.press(keys);
+      await expect(dialog).toBeVisible();
+      await expect(input).toBeFocused();
+      await expect(input).toHaveCSS("outline-style", "none");
+      const field = dialog.locator("[data-search-field]");
+      await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await input.press("Tab");
+      const closeButton = dialog.getByRole("button", { name: "Close search" });
+      await expect(closeButton).toBeFocused();
+      await expect(closeButton).toHaveCSS("outline-style", "solid");
+      await expect(field).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await input.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(home).toBeFocused();
+    }
+    expect(hydrationErrors).toEqual([]);
+  });
+}
 
 test("arrows and Enter activate results while Tab reaches native links", async ({ page }) => {
   const { dialog, input, links } = await openSearch(page);

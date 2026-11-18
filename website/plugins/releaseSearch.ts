@@ -15,7 +15,7 @@ export function releaseSearchSections(page: SearchPage): SearchEntry[] {
       sectionId: release.id,
       sectionHeading: `v${release.version}`,
       aliases: [],
-      text: text.toLowerCase(),
+      text,
       excerpt: boundedExcerpt(text),
     };
   });

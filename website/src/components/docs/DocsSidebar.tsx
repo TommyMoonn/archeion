@@ -26,7 +26,7 @@ function SidebarItem({
         if (onNavigate) handleDocsNavigation(event, onNavigate);
       }}
       aria-current={active ? "page" : undefined}
-      className={`block min-h-8.75 box-border py-1.75 text-docs-sidebar hover:text-content-strong hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:min-h-11 ${active ? "font-semibold text-accent forced-colors:underline" : "text-content-muted"}`}
+      className={`block min-h-8.75 box-border py-1.75 text-docs-sidebar hover:no-underline focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:min-h-11 ${active ? "font-semibold text-accent hover:text-accent forced-colors:underline" : "text-content-muted hover:text-content-strong"}`}
     >
       {item.label}
     </Link>
@@ -63,7 +63,7 @@ function SidebarGroup({
             /* Preference storage is optional. */
           }
         }}
-        className="flex min-h-8.75 cursor-pointer list-none items-center justify-between py-1.25 pe-2.5 text-sm leading-snug font-bold tracking-docs-group text-content-strong uppercase focus-visible:outline-2 focus-visible:outline-focus-ring [&::-webkit-details-marker]:hidden"
+        className="flex min-h-8.75 cursor-pointer list-none items-center justify-between py-1.25 pe-2.5 text-sm leading-snug font-bold tracking-docs-group text-content-strong uppercase focus-visible:outline-2 focus-visible:outline-focus-ring pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden"
       >
         {item.label}
         <ChevronDown aria-hidden="true" className="size-3.25 -rotate-90 group-[[open]]:rotate-0" />

@@ -119,6 +119,6 @@ export async function extractSections(
   visit(tree);
   return sections.map(({ parts, ...section }) => {
     const text = clean(parts.join(""));
-    return { ...page, ...section, text: text.toLowerCase(), excerpt: boundedExcerpt(text) };
+    return { ...page, ...section, text, excerpt: boundedExcerpt(text) };
   });
 }

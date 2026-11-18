@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { readingFeatures } from "./content";
-import { FeatureCard } from "./FeatureCard";
 import { useLandingMotion } from "./useLandingMotion";
 
 const words = ["Read", "and", "annotate", "your", "books."];
@@ -46,36 +45,55 @@ export function ReaderSection() {
       id="reading"
       tabIndex={-1}
       aria-labelledby="reading-title"
-      className="scroll-mt-22 landing-mobile:scroll-mt-18 border-0 border-t border-solid border-landing-divider py-28 landing-tablet:py-22 landing-mobile:py-18"
+      className="landing-reader-section scroll-mt-22 landing-mobile:scroll-mt-18 border-0 border-t border-solid border-landing-divider"
     >
       <span id="reader" tabIndex={-1} className="block scroll-mt-22 landing-mobile:scroll-mt-18" />
-      <div className="mx-auto w-landing-content landing-tablet:w-landing-tablet landing-mobile:w-landing-mobile landing-tiny:w-landing-narrow">
-        <h2
-          ref={statement}
-          id="reading-title"
-          className="mb-11 max-w-landing-heading landing-mobile:mb-8 font-display text-section leading-[1.12] landing-mobile:text-landing-section-mobile landing-mobile:leading-[1.12] text-balance font-normal tracking-landing-reading"
-        >
+      <div className="landing-reader-container">
+        <h2 ref={statement} id="reading-title" className="landing-reader-title font-display">
           {words.map((word, index) => (
-            <span
-              key={word}
-              className={cn(
-                "motion-safe:transition-colors",
-                motion && index >= activeCount
-                  ? "text-content-subtle"
-                  : index === words.length - 1
-                    ? "text-accent"
-                    : "text-content-strong",
-              )}
-            >
-              {word}
-              {index < words.length - 1 ? " " : ""}
-            </span>
+            <Fragment key={word}>
+              <span
+                className={cn(
+                  "motion-safe:transition-colors",
+                  motion && index >= activeCount
+                    ? "text-content-subtle"
+                    : index === words.length - 1
+                      ? "text-accent"
+                      : "text-content-strong",
+                )}
+              >
+                {word}
+                {index < words.length - 1 ? " " : ""}
+              </span>
+              {index === 2 && <br />}
+            </Fragment>
           ))}
         </h2>
-        <div className="grid grid-cols-3 gap-3 landing-tablet:grid-cols-2 landing-mobile:grid-cols-1">
-          {readingFeatures.map((feature) => (
-            <FeatureCard key={feature.title} {...feature} />
-          ))}
+        <div className="landing-reader-layout">
+          <figure className="landing-reader-preview">
+            <img
+              src="/archeion/assets/images/landing-reader.png"
+              alt="Archeion Reader showing a chapter in continuous mode with the Appearance settings panel open."
+              width={1919}
+              height={1079}
+              loading="lazy"
+              decoding="async"
+              className="landing-reader-image"
+            />
+          </figure>
+          <div className="landing-reader-features" role="group" aria-label="Reader features">
+            {readingFeatures.map(({ title, description, icon: Icon }) => (
+              <article key={title} className="landing-reader-feature">
+                <span className="landing-reader-feature-icon" aria-hidden="true">
+                  <Icon size={20} strokeWidth={1.7} />
+                </span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </div>
     </section>

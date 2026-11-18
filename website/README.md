@@ -106,7 +106,7 @@ responsive gutters from the mock rather than a shared shell wrapper.
 
 Use `rounded-control` (7px), `rounded-button` (8px), `rounded-card` (10px),
 and `rounded-preview` (16px). Layers are `z-header` (60), `z-backdrop` (80),
-`z-drawer` (90), `z-dialog` (100), and `z-skip-link` (110).
+`z-drawer` (90), and `z-dialog` (100).
 The named content breakpoints are `narrow` (600px), `navigation` (800px),
 `wide` (1080px), and `full` (1240px); Tailwind's standard breakpoints remain
 available. Use a breakpoint for a demonstrated content constraint, not a
@@ -864,7 +864,7 @@ second token, icon, button, theme-preference or routing system.
 
 | Order / mock region  | Proposed owner                                 | Content and responsibility                                                                                                                                                                                                 |
 | -------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Skip link, header    | `LandingHeader`, focused `MobileNavigation`    | First focusable skip link to `#main`; home to `#top`; centered Library / Reading / Your files links; quiet Download and GitHub links. Mobile menu owns its open state and focus lifecycle.                                 |
+| Header navigation    | `LandingHeader`, focused `MobileNavigation`    | First focusable wordmark returns to `#top`; centered Library / Reading / Your files links reach sections directly; quiet Download and GitHub links. Mobile menu owns its open state and focus lifecycle.                   |
 | `#top` centered hero | `HeroSection`, local decorative effects        | One h1: “The EPUB library for Windows.” Lead: “Open an existing folder of EPUBs to browse, search, organize, and read your books.” Stacked Windows download and View on GitHub actions, six noninteractive floating icons. |
 | Application preview  | `ProductPreview`                               | One informative Library screenshot, eager/high-priority decoding with intrinsic dimensions, restrained pointer tilt. This is an image, not an interactive app or a link.                                                   |
 | `#library`           | `LibrarySection`, shared landing `FeatureCard` | “Find and manage books in your collection.” Three cards: Folders and series; Search and filters; Batch actions. Preserve the mock's concrete search/filter fields and move/details/covers/annotation-export claims.        |
@@ -1146,11 +1146,14 @@ no documentation preference, font bootstrap, product copy or resource owner chan
 The root README already points its Changelog badge and Custom theme link to the
 new public docs routes; its repository-local maintainer links remain intact.
 
-The visible preview is now `static/assets/images/landing-library.png`, extracted
-without recompression from the approved mock (1480x906, 893603 bytes, SHA-256
-`a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883`). Its intrinsic
-attributes match the full uncropped image. The separate 1544x1012 social preview
-and every pre-existing public resource retain their exact bytes and destinations.
+The visible preview was originally `static/assets/images/landing-library.png`,
+extracted without recompression from the approved mock (1480x906, 893603 bytes,
+SHA-256 `a7f67d1464bd8412c148a7955fdd3071d940ca429530a0ea88662705ff021883`).
+Website refinement Phase 4 replaces this with
+`static/assets/images/landing-library.webp` (250388 bytes) after a full-size
+and resized visual comparison. The intrinsic dimensions and alt text remain
+unchanged. The separate 1544x1012 social preview and pre-existing public
+resources retain their exact bytes and destinations.
 
 Six positioned Lucide glyphs float/parallax at the approved depths and periods.
 SVG radial gradients reproduce page/card/download glows through semantic colors;

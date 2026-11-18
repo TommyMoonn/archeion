@@ -22,7 +22,7 @@ export function LandingHeader({
           aria-label="Archeion home"
           inert={open}
           onClick={focusLandingAnchor}
-          className="justify-self-start text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          className="inline-flex min-h-11 items-center justify-self-start text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           <Brand className="font-display [&>span]:text-landing-brand" />
         </a>
@@ -36,7 +36,7 @@ export function LandingHeader({
               href={`#${id}`}
               onClick={focusLandingAnchor}
               aria-current={active === id ? "location" : undefined}
-              className="border-0 border-b border-solid border-transparent py-2 text-sm font-medium text-content-muted hover:border-accent hover:text-content-strong focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-focus-ring aria-[current=location]:border-accent"
+              className="inline-flex min-h-11 items-center border-0 border-b border-solid border-transparent text-sm font-medium text-content-muted hover:border-accent hover:text-content-strong focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring aria-[current=location]:border-accent"
             >
               {label}
             </a>
@@ -45,15 +45,21 @@ export function LandingHeader({
         <div className="flex items-center justify-self-end gap-5.5 landing-menu:hidden">
           <a
             href={landingLinks.installer}
-            className="inline-flex min-h-9 items-center text-caption font-medium text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="inline-flex min-h-11 items-center text-caption font-medium text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             Download
+          </a>
+          <a
+            href={landingLinks.documentation}
+            className="inline-flex min-h-11 items-center text-caption font-medium text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          >
+            Docs
           </a>
           <a
             href={landingLinks.source}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-9 items-center gap-2 text-caption font-medium text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-focus-ring"
+            className="inline-flex min-h-11 items-center gap-2 text-caption font-medium text-content-subtle motion-safe:transition-colors motion-safe:duration-300 hover:text-content-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
           >
             <GithubMark className="size-4" />
             GitHub

@@ -28,7 +28,8 @@ export function DocsShell({ children }: { children: ReactNode }) {
       )
         return;
       event.preventDefault();
-      setKeyboardSearch(true);
+      // Shortcut focus is intentional, not keyboard focus traversal.
+      setKeyboardSearch(false);
       if (modal === null) setModal("search");
       else {
         const input = search.current?.querySelector("input");
@@ -61,12 +62,6 @@ export function DocsShell({ children }: { children: ReactNode }) {
   }, [pathname, hash, close]);
   return (
     <HtmlClassNameProvider className={modal === null ? "" : "overflow-hidden"}>
-      <a
-        href="#main-content"
-        className="fixed start-4 top-3 z-skip-link -translate-y-24 rounded-button bg-accent px-4 py-2 text-accent-foreground focus:translate-y-0"
-      >
-        Skip to content
-      </a>
       <DocsHeader
         onSearch={(keyboard) => {
           setKeyboardSearch(keyboard);

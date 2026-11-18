@@ -7,8 +7,8 @@ it("keeps the React search result count separate from the result navigation", ()
   expect(dialog).toContain('aria-live="polite"');
   expect(dialog).toContain('aria-label="Documentation search results"');
   expect(dialog).toContain("aria-labelledby=");
-  // Results expose title/context names; the retired details view has no description target.
-  expect(dialog).not.toContain("aria-describedby=");
+  // Excerpts provide optional context without changing the title/context accessible name.
+  expect(dialog).toContain("aria-description={excerpt ?? undefined}");
   expect(dialog).not.toContain("Show details");
   // Runtime announcement, identity, keyboard and focus contracts run in the website browser suite.
   expect(dialog).not.toMatch(/dangerouslySetInnerHTML|innerHTML/);

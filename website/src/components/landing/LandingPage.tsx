@@ -9,7 +9,6 @@ import { ReaderSection } from "./ReaderSection";
 import { ArchiveSection } from "./ArchiveSection";
 import { DownloadSection } from "./DownloadSection";
 import { LandingFooter } from "./LandingFooter";
-import { focusLandingAnchor } from "./useSectionNavigation";
 import { useLandingMotion } from "./useLandingMotion";
 
 export function LandingPage() {
@@ -52,14 +51,6 @@ export function LandingPage() {
         }}
       >
         <PointerGlow point={pointer ? spotlight : null} radius={460} kind="page" />
-        <a
-          href="#main"
-          onClick={focusLandingAnchor}
-          inert={menuOpen}
-          className="fixed top-3 left-3 z-skip-link -translate-y-24 rounded-control bg-accent px-4 py-3 text-accent-foreground focus:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          Skip to content
-        </a>
         <LandingHeader open={menuOpen} setOpen={setMenuOpen} />
         <main
           id="main"

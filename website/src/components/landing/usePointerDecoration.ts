@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useLandingMotion } from "./useLandingMotion";
 
-export function usePointerDecoration(kind: "card" | "download" | "preview") {
+export function usePointerDecoration(kind: "download" | "preview") {
   const enabled = useLandingMotion(true);
   const target = useRef<HTMLDivElement>(null);
   const animation = useRef<Animation | null>(null);
@@ -48,9 +48,7 @@ export function usePointerDecoration(kind: "card" | "download" | "preview") {
       const transform =
         kind === "preview"
           ? `perspective(1600px) translateY(-2px) rotateX(${-y * 0.7}deg) rotateY(${x * 0.7}deg)`
-          : kind === "download"
-            ? `translate(${x * 5}px, ${y * 4}px)`
-            : "translateY(-4px)";
+          : `translate(${x * 5}px, ${y * 4}px)`;
       animation.current?.cancel();
       animation.current = target.current.animate([{ transform }, { transform }], {
         duration: 1,

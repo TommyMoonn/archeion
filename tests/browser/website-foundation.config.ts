@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 const development = process.env.ARCHEION_WEBSITE_MODE === "dev";
 const port = development ? 4191 : 4192;
 const baseURL = `http://127.0.0.1:${port}`;
+const productionServer = "node tests/browser/serve-website-build.mjs";
 
 export default defineConfig({
   testDir: ".",
@@ -43,7 +44,9 @@ export default defineConfig({
     cwd: fileURLToPath(new URL("../../", import.meta.url)),
     command: development
       ? `pnpm --filter @archeion/website dev --no-open --host 127.0.0.1 --port ${port}`
-      : "node tests/browser/serve-website-build.mjs",
+      : process.env.CI
+        ? productionServer
+        : `pnpm --filter @archeion/website build && ${productionServer}`,
     url: `${baseURL}/archeion/`,
     reuseExistingServer: false,
     timeout: 90_000,
