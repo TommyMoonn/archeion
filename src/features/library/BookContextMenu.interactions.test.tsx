@@ -105,6 +105,31 @@ function menuLabels(): string[] {
   );
 }
 
+describe("book card progress", () => {
+  it.each([
+    [undefined, false, undefined],
+    [0, false, undefined],
+    [-5, false, undefined],
+    [NaN, false, undefined],
+    [Infinity, false, undefined],
+    [0.2, false, "1%"],
+    [41.8, false, "42%"],
+    [99.49, false, "99%"],
+    [99.5, false, "100%"],
+    [0, true, "100%"],
+  ])("renders saved progress %s with manual completion %s as %s", (progress, marked, label) => {
+    const view = mount(
+      <BookCard
+        {...callbacks()}
+        book={{ ...book, progressPercent: progress, manuallyMarkedRead: marked }}
+        selected={false}
+        selectionMode={false}
+      />,
+    );
+    expect(view.querySelector(".book-cover > .book-card__progress-badge")?.textContent).toBe(label);
+  });
+});
+
 describe("book contextual invocation", () => {
   it("uses the same card actions for pointer and overflow invocation without opening details", () => {
     const handlers = callbacks();

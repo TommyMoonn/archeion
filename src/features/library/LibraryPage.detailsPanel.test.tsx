@@ -68,6 +68,8 @@ describe("optional pinned Library details", () => {
       const session = await renderLibraryPage(createStorage({ ...load, updateBook }));
       suite.trackRoot(session.root);
       const collection = session.container;
+      const cardProgress = () =>
+        collection.querySelector(".book-card__progress-badge")?.textContent;
       const detailsSelector =
         presentation === "pinned" ? ".book-details-panel" : "dialog.details-drawer";
       const openDetails = async () => {
@@ -91,6 +93,7 @@ describe("optional pinned Library details", () => {
         );
 
       let details = await openDetails();
+      expect(cardProgress()).toBe("42%");
       expect(readingActions(details)).toEqual([
         "Continue reading",
         "Start from beginning",
@@ -103,8 +106,10 @@ describe("optional pinned Library details", () => {
         "Undo mark as read",
       ]);
       expect(details.querySelector(".details-progress-pill")?.textContent).toBe("100%");
+      expect(cardProgress()).toBe("100%");
       await act(async () => buttonWithText(details, "Undo mark as read").click());
       expect(details.querySelector(".details-progress-pill")?.textContent).toBe("42%");
+      expect(cardProgress()).toBe("42%");
       await closeDetails(details);
 
       const unreadMenu = await menu();

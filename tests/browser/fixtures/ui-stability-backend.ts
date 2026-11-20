@@ -93,6 +93,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
       preferences.library.detailsWidth = savedDetails.detailsWidth;
   }
   preferences.library.collections.books.viewMode = params.get("view") === "list" ? "list" : "grid";
+  if (params.get("cardSize") === "small") preferences.library.collections.books.cardSize = "small";
   preferences.automaticallyCheckForUpdates = false;
   preferences.rememberWindowState = false;
   preferences.restoreLastReader = false;
@@ -156,6 +157,14 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         folderPath: "",
         size: epub.byteLength + i,
         modifiedAt: 1,
+        ...(params.has("longBookMetadata") && i === 0
+          ? {
+              sourceMetadata: {
+                title: "Book-0000 A comprehensively annotated history of imaginary libraries",
+                creator: "A very long author name that exceeds the width of a book card",
+              },
+            }
+          : {}),
       })),
     };
   }

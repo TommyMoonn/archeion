@@ -14,6 +14,7 @@ import {
 } from "../../components/contextMenuController";
 import { IconButton } from "../../components/IconButton";
 import type { ReadonlyBook } from "../../types/book";
+import { displayedBookProgress } from "../reading/readingProgress";
 import { BookContextMenu } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
@@ -65,9 +66,17 @@ function BookCardComponent({
 }: BookCardProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
+  const progress = displayedBookProgress(book);
+  const progressPercent = progress > 0 ? Math.max(1, Math.round(progress)) : null;
   const contextMenu = useContextMenuController();
   const primaryActionRef = useRef<HTMLButtonElement>(null);
-  const missingFileDescriptionId = useId();
+  const descriptionId = useId();
+  const description = [
+    progressPercent === null ? null : `Reading progress ${progressPercent} percent.`,
+    book.isFileMissing ? "EPUB file missing. Reading and file actions are unavailable." : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   function activateBook(event: ReactMouseEvent<HTMLButtonElement>) {
     if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -112,7 +121,7 @@ function BookCardComponent({
       onContextMenu={handleContextMenu}
     >
       <button
-        aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
+        aria-describedby={description ? descriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : `View details for ${title}`}
         aria-pressed={selectionMode ? selected : inspected}
         className="book-card__select"
@@ -121,15 +130,19 @@ function BookCardComponent({
         ref={primaryActionRef}
         type="button"
       >
-        <BookCover book={book} />
+        <BookCover book={book}>
+          {progressPercent === null ? null : (
+            <span className="book-card__progress-badge">{progressPercent}%</span>
+          )}
+        </BookCover>
         <span className="book-card__copy">
           <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
         </span>
       </button>
-      {book.isFileMissing ? (
-        <span className="sr-only" id={missingFileDescriptionId}>
-          EPUB file missing. Reading and file actions are unavailable.
+      {description ? (
+        <span className="sr-only" id={descriptionId}>
+          {description}
         </span>
       ) : null}
       {selectionMode || selected ? (

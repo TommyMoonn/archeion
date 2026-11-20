@@ -6,6 +6,14 @@
     box-shadow: none;
   }
 
+  .book-card__progress-badge {
+    color: CanvasText;
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
   .skip-link {
     border-color: CanvasText;
     color: CanvasText;

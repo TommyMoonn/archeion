@@ -103,6 +103,7 @@ describe("LibraryPage navigation and archive loading", () => {
       isFavorite: false,
       originalTitle: "Dune",
       relativePath: "Fiction/Dune.epub",
+      progressPercent: 68,
       sourceMetadata: {
         title: "Dune",
         creator: "Frank Herbert",
@@ -146,6 +147,9 @@ describe("LibraryPage navigation and archive loading", () => {
     });
 
     expect(session.container.querySelector(".library-header h1")?.textContent).toBe("Fiction");
+    expect(
+      session.container.querySelector(".book-cover > .book-card__progress-badge")?.textContent,
+    ).toBe("68%");
     expect(search?.value).toBe("Dune");
     expect(appPreferencesStore.getSnapshot().library.filters.series).toEqual(["Dune"]);
   });

@@ -114,8 +114,9 @@
     {
       "from": "library",
       "to": "reading",
-      "reason": "Library details, completion actions, filters, index, and last-read suggestions use the shared reading-progress rules.",
+      "reason": "Library cards, details, completion actions, filters, index, and last-read suggestions use the shared reading-progress rules.",
       "files": [
+        ["BookCard.tsx", "readingProgress.ts"],
         ["BookDetailsDrawer.tsx", "readingProgress.ts"],
         ["LazyBookDetailsDrawer.tsx", "readingProgress.ts"],
         ["bookCompletionActionLabel.ts", "readingProgress.ts"],
