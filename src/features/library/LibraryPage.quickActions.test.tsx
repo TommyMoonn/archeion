@@ -606,6 +606,7 @@ describe("LibraryPage Quick Actions", () => {
       { committed: undefined, label: "Title" },
       { committed: "true", label: "Author" },
       { committed: undefined, label: "Recently opened" },
+      { committed: undefined, label: "Recently added" },
     ]);
 
     await act(async () => {

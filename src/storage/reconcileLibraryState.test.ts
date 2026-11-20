@@ -119,6 +119,29 @@ describe("reconcileLibraryState", () => {
     expect(result.libraryChanged).toBe(true);
   });
 
+  it("keeps a legacy added date absent when scan reconciliation updates the file metadata", () => {
+    const result = reconcileLibraryState({
+      previousBooks: [],
+      previousFolders: [],
+      libraryMetadata: library({
+        "legacy-book": {
+          relativePath: "Author/Series/Volume 01.epub",
+          isFavorite: true,
+          updatedAt: previousTimestamp,
+        },
+      }),
+      progressMetadata: progress(),
+      scan: scan(),
+      timestamp,
+    });
+
+    expect(result.books).toEqual([
+      expect.objectContaining({ id: "legacy-book", isFavorite: true, addedAt: undefined }),
+    ]);
+    expect(result.libraryChanged).toBe(true);
+    expect(result.libraryMetadata.books["legacy-book"].addedAt).toBeUndefined();
+  });
+
   it("hides missing EPUB metadata from the visible library while keeping it recoverable", () => {
     const result = reconcileLibraryState({
       previousBooks: [previousVisibleBook()],

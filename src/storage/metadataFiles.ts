@@ -9,7 +9,7 @@ export type LibraryBookMetadata = {
   sourceMetadata?: EpubSourceMetadata;
   fileSize?: number;
   fileModifiedAt?: number;
-  addedAt: string;
+  addedAt?: string;
   updatedAt: string;
 };
 

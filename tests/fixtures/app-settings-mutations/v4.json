@@ -280,8 +280,8 @@
           "mutation": {
             "area": "libraryField",
             "value": {
-              "field": "filterFavoritesOnly",
-              "value": true
+              "field": "booksSortBy",
+              "value": "recently-added"
             }
           },
           "expected": {
@@ -290,6 +290,29 @@
               "library": {
                 "collections": {
                   "books": {
+                    "sortBy": "recently-added",
+                    "viewMode": "list"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "mutation": {
+            "area": "libraryField",
+            "value": {
+              "field": "filterFavoritesOnly",
+              "value": true
+            }
+          },
+          "expected": {
+            "revision": 3,
+            "preferencesPatch": {
+              "library": {
+                "collections": {
+                  "books": {
+                    "sortBy": "recently-added",
                     "viewMode": "list"
                   }
                 },

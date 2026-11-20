@@ -10,6 +10,7 @@ import {
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { bookReadingStatus } from "../reading/readingProgress";
 import { normalizeSeriesKey } from "../series/seriesDerivation";
+import { bookAddedTimestamp } from "./bookAddedDate";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -435,13 +436,19 @@ function compareStablePath(
   return collator.compare(stablePath(left), stablePath(right));
 }
 
+function compareOrdinalText(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function compareBooksBySort(
   collator: Intl.Collator,
   left: ReadonlyBook,
   right: ReadonlyBook,
-  sort: LibrarySort,
+  sort: Exclude<LibrarySort, "recently-added">,
 ): number {
-  switch (normalizeLibrarySort(sort)) {
+  switch (sort) {
     case "title":
       return (
         collator.compare(bookTitle(left), bookTitle(right)) ||
@@ -466,13 +473,37 @@ function compareBooksBySort(
   }
 }
 
-export function sortBooks(books: ReadonlyBook[], sort: LibrarySort): ReadonlyBook[] {
-  const normalizedSort = normalizeLibrarySort(sort);
-  const collator = getLibrarySortCollator();
+function createBookSortComparator(sort: LibrarySort, collator = getLibrarySortCollator()) {
+  const effectiveSort = normalizeLibrarySort(sort);
+  if (effectiveSort !== "recently-added") {
+    return (left: ReadonlyBook, right: ReadonlyBook) =>
+      compareBooksBySort(collator, left, right, effectiveSort);
+  }
 
-  return [...books].sort((left, right) =>
-    compareBooksBySort(collator, left, right, normalizedSort),
-  );
+  const timestamps = new Map<string | undefined, number>();
+  function timestampFor(value: string | undefined): number {
+    const cached = timestamps.get(value);
+    if (cached !== undefined) return cached;
+    const timestamp = bookAddedTimestamp(value) ?? -Infinity;
+    timestamps.set(value, timestamp);
+    return timestamp;
+  }
+
+  return (left: ReadonlyBook, right: ReadonlyBook) => {
+    const leftAdded = timestampFor(left.addedAt);
+    const rightAdded = timestampFor(right.addedAt);
+    if (leftAdded !== rightAdded) return rightAdded - leftAdded;
+
+    return (
+      collator.compare(bookTitle(left), bookTitle(right)) ||
+      compareOrdinalText(stablePath(left), stablePath(right)) ||
+      compareOrdinalText(left.id, right.id)
+    );
+  };
+}
+
+export function sortBooks(books: ReadonlyBook[], sort: LibrarySort): ReadonlyBook[] {
+  return [...books].sort(createBookSortComparator(sort));
 }
 
 function filterSearchIndexByLocation(
@@ -505,17 +536,17 @@ export function getVisibleBooksFromSearchIndex(
   const filteredIndex = filterSearchIndexByLocation(index, location).filter((entry) =>
     bookMatchesLibraryFilters(entry.book, filters),
   );
-  const effectiveSort = normalizeLibrarySort(sort);
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {
     return sortBooks(
       filteredIndex.map((entry) => entry.book),
-      effectiveSort,
+      sort,
     );
   }
 
   const collator = getLibrarySortCollator();
+  const compareBooks = createBookSortComparator(sort, collator);
 
   return filteredIndex
     .flatMap((entry, indexOrder) => {
@@ -525,7 +556,7 @@ export function getVisibleBooksFromSearchIndex(
     .sort(
       (left, right) =>
         right.score - left.score ||
-        compareBooksBySort(collator, left.entry.book, right.entry.book, effectiveSort) ||
+        compareBooks(left.entry.book, right.entry.book) ||
         compareStablePath(collator, left.entry.book, right.entry.book) ||
         left.indexOrder - right.indexOrder,
     )

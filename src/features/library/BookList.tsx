@@ -16,6 +16,7 @@ import {
 import { IconButton } from "../../components/IconButton";
 import type { ReadonlyBook } from "../../types/book";
 import { formatMediumDate } from "../../utils/formatters";
+import { bookAddedTimestamp } from "./bookAddedDate";
 import { BookContextMenu, MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
@@ -80,6 +81,7 @@ function BookRowComponent({
 }: BookRowProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
+  const addedAt = bookAddedTimestamp(book.addedAt);
   const contextMenu = useContextMenuController();
   const primaryActionRef = useRef<HTMLButtonElement>(null);
   const missingFileDescriptionId = useId();
@@ -142,7 +144,9 @@ function BookRowComponent({
           {author ? <span>{author}</span> : null}
         </span>
         <span className="book-row__file">{book.fileName}</span>
-        <span className="book-row__date">{formatMediumDate(book.addedAt)}</span>
+        <span className="book-row__date">
+          {addedAt === undefined ? "—" : formatMediumDate(addedAt)}
+        </span>
       </button>
       {book.isFileMissing ? (
         <span className="sr-only" id={missingFileDescriptionId}>

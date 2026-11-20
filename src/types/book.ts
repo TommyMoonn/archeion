@@ -110,7 +110,7 @@ export type Book = {
   folderId?: string | null;
   isFavorite: boolean;
   readerPresentation?: ReaderPresentation;
-  addedAt: string;
+  addedAt?: string;
   updatedAt: string;
   lastOpenedAt?: string;
   progressCfi?: string;
