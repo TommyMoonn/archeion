@@ -3,6 +3,8 @@ import { createAsyncSurface } from "../../components/createAsyncSurface";
 import { BookDetailsDrawerFrame } from "./BookDetailsDrawerFrame";
 import type { BookDetailsDrawerProps } from "./BookDetailsDrawer";
 import { bookAuthor, bookTitle } from "./libraryFilters";
+import { displayedBookProgress, hasSavedReadingPosition } from "../reading/readingProgress";
+import { bookCompletionActionLabel } from "./bookCompletionActionLabel";
 const DrawerContent = createAsyncSurface<BookDetailsDrawerProps>(() =>
   import("./BookDetailsDrawer").then((module) => ({ default: module.BookDetailsDrawerContent })),
 );
@@ -36,8 +38,8 @@ export function BookDetailsLoadingSkeleton({
 }: BookDetailsLoadingSkeletonProps) {
   const title = bookTitle(book);
   const author = bookAuthor(book);
-  const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
-  const hasSavedPosition = Boolean(book.progressCfi) || progress > 0;
+  const progress = displayedBookProgress(book);
+  const hasSavedPosition = hasSavedReadingPosition(book);
   const secondaryActionCount = 1 + Number(canRevealFile) + (canManageFile ? 2 : 0);
   const hasDescription = Boolean(book.sourceMetadata?.description?.trim());
 
@@ -52,9 +54,11 @@ export function BookDetailsLoadingSkeleton({
           <div className="details-drawer__title constrained-user-content">
             <h2 id="book-details-title">{title}</h2>
             {author ? <p>{author}</p> : null}
-            {hasSavedPosition ? (
+            {hasSavedPosition || progress > 0 ? (
               <div className="details-progress-controls">
-                <span className="book-details-loading__placeholder book-details-loading__pill" />
+                {progress > 0 ? (
+                  <span className="book-details-loading__placeholder book-details-loading__pill" />
+                ) : null}
                 <span className="book-details-loading__placeholder book-details-loading__icon" />
               </div>
             ) : null}
@@ -76,6 +80,9 @@ export function BookDetailsLoadingSkeleton({
             <div className="details-actions">
               <span className="book-details-loading__placeholder book-details-loading__action" />
               {hasSavedPosition ? (
+                <span className="book-details-loading__placeholder book-details-loading__action" />
+              ) : null}
+              {bookCompletionActionLabel(book) ? (
                 <span className="book-details-loading__placeholder book-details-loading__action" />
               ) : null}
               <div className="details-actions__secondary">

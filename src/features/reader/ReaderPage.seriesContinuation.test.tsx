@@ -431,6 +431,43 @@ describe("ReaderPage series continuation", () => {
     expect(rendered.router.state.location.state).toEqual({ readerReturnContext: returnContext });
   });
 
+  it("follows an optimistic manual mark through rollback and retry without moving the Reader", async () => {
+    const cfi = "epubcfi(/6/8)";
+    viewerMock.location = {
+      atEnd: false,
+      atStart: false,
+      cfi,
+      rawPercentage: 0.42,
+      sectionCount: 10,
+    };
+    const first = createBook({
+      id: "volume-1",
+      progressCfi: cfi,
+      progressPercent: 42,
+      sourceMetadata: { series: "Star Saga", volume: "1" },
+    });
+    const second = createBook({
+      id: "volume-2",
+      sourceMetadata: { series: "Star Saga", volume: "2" },
+    });
+    const marked = { ...first, manuallyMarkedRead: true };
+    const optimisticBooks = [marked, second];
+    const snapshot = createReaderLibrarySnapshotFixture(optimisticBooks);
+    const rendered = await renderReader(optimisticBooks, "volume-1", undefined, snapshot);
+    const nextVolume = () => rendered.container.querySelector(".reader-next-volume");
+
+    expect(nextVolume()?.textContent).toContain("Open next volume");
+    expect(viewerMock.initialCfi).toBe(cfi);
+
+    await act(async () => snapshot.publishBooks([first, second]));
+    expect(nextVolume()).toBeNull();
+
+    await act(async () => snapshot.publishBooks(optimisticBooks));
+    expect(nextVolume()?.textContent).toContain("Open next volume");
+    expect(viewerMock.initialCfi).toBe(cfi);
+    expect(viewerMock.sessionIdentities).toHaveLength(1);
+  });
+
   it("does not offer the next volume before the completion threshold", async () => {
     viewerMock.location = {
       atEnd: false,

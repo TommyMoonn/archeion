@@ -38,6 +38,7 @@ const callbacks = {
   onSelect: vi.fn(),
   onSelectionChange: vi.fn(),
   onToggleFavorite: vi.fn(),
+  onToggleManualCompletion: vi.fn(),
 };
 
 function createBook(id: string): Book {

@@ -24,6 +24,7 @@ function createOptions(overrides: Partial<Parameters<typeof createBookContextAct
     onRenameFile: vi.fn(),
     onRevealFile: vi.fn(),
     onToggleFavorite: vi.fn(),
+    onToggleManualCompletion: vi.fn(),
     showRenameFileAction: true,
     ...overrides,
   };
@@ -36,6 +37,7 @@ describe("createBookContextActions", () => {
 
     expect(actions.map((action) => action.label)).toEqual([
       "Read",
+      "Mark as read",
       "Add favorite",
       "Edit metadata",
       "Rename file",
@@ -46,6 +48,7 @@ describe("createBookContextActions", () => {
 
     for (const action of actions) action.onSelect();
     expect(options.onRead).toHaveBeenCalledWith(book);
+    expect(options.onToggleManualCompletion).toHaveBeenCalledWith(book);
     expect(options.onToggleFavorite).toHaveBeenCalledWith(book);
     expect(options.onEditMetadata).toHaveBeenCalledWith(book);
     expect(options.onRenameFile).toHaveBeenCalledWith(book);
@@ -53,6 +56,16 @@ describe("createBookContextActions", () => {
     expect(options.onRevealFile).toHaveBeenCalledWith(book);
     expect(options.onDelete).toHaveBeenCalledWith(book);
     expect(actions.at(-1)?.danger).toBe(true);
+  });
+
+  it("offers undo for a manual mark even after reaching automatic completion", () => {
+    const automaticallyCompleted = { ...book, progressPercent: 99.5 };
+    const manuallyCompleted = { ...automaticallyCompleted, manuallyMarkedRead: true };
+    const labels = (candidate: Book) =>
+      createBookContextActions(createOptions({ book: candidate })).map((action) => action.label);
+
+    expect(labels(automaticallyCompleted)).not.toContain("Mark as read");
+    expect(labels(manuallyCompleted).slice(0, 2)).toEqual(["Read", "Undo mark as read"]);
   });
 
   it("preserves favorite, missing-file, and row-specific conditions", () => {

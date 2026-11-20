@@ -83,6 +83,7 @@ export function Fixture() {
     onRescan: operation,
     onRevealBookFile: operation,
     onToggleFavorite: operation,
+    onToggleManualCompletion: operation,
     onWriteBookCover: unused,
     onWriteBookMetadata: unused,
     onWriteSelectedBookMetadata: operation,

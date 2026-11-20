@@ -57,6 +57,7 @@ it("mounts native import chrome immediately and permits dismissal before the chu
           onRescan={vi.fn()}
           onRevealBookFile={vi.fn()}
           onToggleFavorite={vi.fn()}
+          onToggleManualCompletion={vi.fn()}
           onWriteBookCover={vi.fn()}
           onWriteBookMetadata={vi.fn()}
           onWriteSelectedBookMetadata={vi.fn()}

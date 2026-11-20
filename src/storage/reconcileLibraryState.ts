@@ -177,6 +177,7 @@ function buildBook(
     modifiedAt: new Date(scanned.modifiedAt).toISOString(),
     progressCfi: readingProgress?.cfi,
     progressPercent: readingProgress?.percent,
+    manuallyMarkedRead: readingProgress?.manuallyMarkedRead,
     lastOpenedAt: readingProgress?.lastOpenedAt,
   };
 }
@@ -212,6 +213,7 @@ function buildMissingBook(
     updatedAt: metadata.updatedAt,
     progressCfi: readingProgress?.cfi,
     progressPercent: readingProgress?.percent,
+    manuallyMarkedRead: readingProgress?.manuallyMarkedRead,
     lastOpenedAt: readingProgress?.lastOpenedAt,
   };
 }

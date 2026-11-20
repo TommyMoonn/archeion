@@ -21,6 +21,7 @@ export type LibraryMetadata = {
 export type ReadingProgress = {
   cfi?: string;
   percent: number;
+  manuallyMarkedRead?: boolean;
   lastOpenedAt?: string;
 };
 

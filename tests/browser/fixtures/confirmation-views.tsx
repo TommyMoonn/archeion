@@ -146,6 +146,7 @@ export function LibraryConfirmationFixture({
           onRescan={unsupportedOperation}
           onRevealBookFile={unsupportedOperation}
           onToggleFavorite={unsupportedOperation}
+          onToggleManualCompletion={unsupportedOperation}
           onWriteBookCover={unsupportedOperation}
           onWriteBookMetadata={unsupportedOperation}
           onWriteSelectedBookMetadata={unsupportedOperation}

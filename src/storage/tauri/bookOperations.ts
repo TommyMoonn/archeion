@@ -23,6 +23,7 @@ function projectBooksToProgressMetadata(
     if (
       book.progressCfi === progress?.cfi &&
       (book.progressPercent ?? 0) === (progress?.percent ?? 0) &&
+      book.manuallyMarkedRead === progress?.manuallyMarkedRead &&
       book.lastOpenedAt === progress?.lastOpenedAt
     ) {
       return book;
@@ -33,6 +34,7 @@ function projectBooksToProgressMetadata(
       lastOpenedAt: progress?.lastOpenedAt,
       progressCfi: progress?.cfi,
       progressPercent: progress?.percent ?? 0,
+      manuallyMarkedRead: progress?.manuallyMarkedRead,
     };
   });
   return changed ? projected : books;
@@ -145,6 +147,7 @@ export class BookOperations {
     const changesProgress =
       Object.hasOwn(changes, "progressCfi") ||
       Object.hasOwn(changes, "progressPercent") ||
+      Object.hasOwn(changes, "manuallyMarkedRead") ||
       Object.hasOwn(changes, "lastOpenedAt");
     if (changesPresentation && changesProgress) {
       throw new Error(
@@ -178,6 +181,7 @@ export class BookOperations {
         let nextProgressCfi = currentBook.progressCfi;
         let nextProgressPercent = currentBook.progressPercent;
         let nextLastOpenedAt = currentBook.lastOpenedAt;
+        let nextManuallyMarkedRead = currentBook.manuallyMarkedRead;
 
         if (changesFavorite || changesPresentation) {
           const currentEntry = libraryMetadata.books[id];
@@ -218,6 +222,11 @@ export class BookOperations {
             percent: Object.hasOwn(changes, "progressPercent")
               ? (changes.progressPercent ?? 0)
               : currentEntry.percent,
+            manuallyMarkedRead: Object.hasOwn(changes, "manuallyMarkedRead")
+              ? changes.manuallyMarkedRead === true
+                ? true
+                : undefined
+              : currentEntry.manuallyMarkedRead,
             lastOpenedAt: Object.hasOwn(changes, "lastOpenedAt")
               ? changes.lastOpenedAt
               : currentEntry.lastOpenedAt,
@@ -226,9 +235,11 @@ export class BookOperations {
           nextProgressCfi = nextEntry.cfi;
           nextProgressPercent = nextEntry.percent;
           nextLastOpenedAt = nextEntry.lastOpenedAt;
+          nextManuallyMarkedRead = nextEntry.manuallyMarkedRead;
           progressChanged =
             currentEntry.cfi !== nextEntry.cfi ||
             currentEntry.percent !== nextEntry.percent ||
+            currentEntry.manuallyMarkedRead !== nextEntry.manuallyMarkedRead ||
             currentEntry.lastOpenedAt !== nextEntry.lastOpenedAt;
           if (progressChanged) {
             nextProgressMetadata = {
@@ -255,6 +266,7 @@ export class BookOperations {
                   lastOpenedAt: nextLastOpenedAt,
                   progressCfi: nextProgressCfi,
                   progressPercent: nextProgressPercent,
+                  manuallyMarkedRead: nextManuallyMarkedRead,
                 }
               : currentBook,
           };
@@ -270,6 +282,7 @@ export class BookOperations {
           lastOpenedAt: nextLastOpenedAt,
           progressCfi: nextProgressCfi,
           progressPercent: nextProgressPercent,
+          manuallyMarkedRead: nextManuallyMarkedRead,
           updatedAt: timestamp,
         };
         const nextBooks = [...baseBooks];

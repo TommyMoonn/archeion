@@ -57,6 +57,7 @@ function callbacks() {
     onSelect: vi.fn(),
     onSelectionChange: vi.fn(),
     onToggleFavorite: vi.fn(),
+    onToggleManualCompletion: vi.fn(),
   };
 }
 
@@ -132,6 +133,7 @@ describe("book contextual invocation", () => {
     const pointerLabels = menuLabels();
     expect(pointerLabels).toEqual([
       "Read",
+      "Mark as read",
       "Add favorite",
       "Edit metadata",
       "Rename file",
@@ -177,6 +179,7 @@ describe("book contextual invocation", () => {
     expect(document.activeElement?.textContent).toContain("Read");
     expect(menuLabels()).toEqual([
       "Read",
+      "Mark as read",
       "Add favorite",
       "Edit metadata",
       "Move to folder",
