@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { invoke as exportInvoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 import type { ArchiveRegistry, KnownArchive } from "../../types/archive";
 import {
@@ -10,7 +10,7 @@ import {
 import { SettingsArchiveMaintenanceClient } from "./settingsArchiveMaintenanceClient";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn() }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 
 const archiveA: KnownArchive = {
   id: "archive-a",
@@ -85,6 +85,129 @@ function requestedReconciliation(owner: ReturnType<typeof createClient>) {
 }
 
 describe("SettingsArchiveMaintenanceClient", () => {
+  describe("archive annotation import", () => {
+    const timestamp = "2026-08-01T00:00:00.000Z";
+    const bookmark = {
+      id: "bookmark",
+      type: "bookmark",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const bytes = new TextEncoder().encode(
+      JSON.stringify({
+        schema: "archeion.annotation-export",
+        version: 1,
+        exportedAt: timestamp,
+        books: [
+          {
+            id: "book",
+            title: "Book",
+            annotations: [{ chapterLabel: "Chapter", annotation: bookmark }],
+          },
+        ],
+      }),
+    ).buffer;
+    const path = "D:\\Exports\\annotations.json";
+
+    async function setup() {
+      vi.mocked(open).mockReset().mockResolvedValue(path);
+      const owner = createClient(registry(archiveA));
+      owner.archiveInvoke.mockImplementation(async (name) => {
+        if (name === "load_archive_annotation_snapshot")
+          return {
+            activationRevision: 12,
+            annotationRevision: "base",
+            library: { version: 1, books: { book: {} } },
+            annotations: { version: 1, books: {} },
+          };
+        if (name === "read_annotation_import_file") return bytes;
+        return undefined;
+      });
+      await owner.client.initialize();
+      const maintenance = owner.client.maintenance();
+      if (!maintenance) throw new Error("Maintenance unavailable");
+      return { ...owner, preview: maintenance.previewAnnotationImport };
+    }
+
+    it("scopes the bounded read and commits only on confirmation", async () => {
+      const owner = await setup();
+      const preview = await owner.preview();
+      expect(preview?.summary).toMatchObject({ matchedBooks: 1, importable: 1 });
+      expect(owner.archiveInvoke.mock.calls).toEqual([
+        ["load_archive_annotation_snapshot", { archiveId: archiveA.id }, archiveA.rootPath],
+        [
+          "read_annotation_import_file",
+          {
+            path,
+            archiveScope: {
+              archiveId: archiveA.id,
+              rootPath: archiveA.rootPath,
+              activationRevision: 12,
+            },
+          },
+          null,
+        ],
+      ]);
+      await preview?.commit();
+      expect(owner.archiveInvoke).toHaveBeenLastCalledWith(
+        "import_archive_annotations",
+        {
+          archiveId: archiveA.id,
+          batch: {
+            activationRevision: 12,
+            annotationRevision: "base",
+            bookMatches: { book: true },
+            additions: { book: [bookmark] },
+          },
+        },
+        archiveA.rootPath,
+      );
+    });
+
+    it("cancels without reading the export or writing metadata", async () => {
+      const owner = await setup();
+      vi.mocked(open).mockResolvedValue(null);
+      await expect(owner.preview()).resolves.toBeNull();
+      expect(owner.archiveInvoke).toHaveBeenCalledTimes(1);
+    });
+
+    it("fences the picker and confirmation across archive changes", async () => {
+      const owner = await setup();
+      vi.mocked(open).mockImplementationOnce(async () => {
+        owner.publishRegistry(registry(archiveB));
+        return path;
+      });
+      await expect(owner.preview()).rejects.toThrow("active archive changed");
+      expect(owner.archiveInvoke).toHaveBeenCalledTimes(1);
+      owner.publishRegistry(registry(archiveA));
+      const preview = await owner.client.maintenance()?.previewAnnotationImport();
+      if (!preview) throw new Error("Expected a preview");
+      owner.publishRegistry(registry(archiveB));
+      owner.publishRegistry(registry(archiveA));
+      await expect(preview.commit()).rejects.toThrow("active archive changed");
+      expect(owner.archiveInvoke).not.toHaveBeenCalledWith(
+        "import_archive_annotations",
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it("surfaces read and atomic commit failures without retrying a write", async () => {
+      const owner = await setup();
+      owner.archiveInvoke.mockImplementationOnce(async () => {
+        throw new Error("Cannot read archive metadata");
+      });
+      await expect(owner.preview()).rejects.toThrow("Cannot read archive metadata");
+      const preview = await owner.preview();
+      if (!preview) throw new Error("Expected a preview");
+      owner.archiveInvoke.mockRejectedValueOnce("The annotation backup could not be written.");
+      await expect(preview.commit()).rejects.toBe("The annotation backup could not be written.");
+      expect(
+        owner.archiveInvoke.mock.calls.filter(([name]) => name === "import_archive_annotations"),
+      ).toHaveLength(1);
+    });
+  });
+
   describe("archive annotation export", () => {
     const createdAt = "2026-08-01T00:00:00.000Z";
     const bookmark = {

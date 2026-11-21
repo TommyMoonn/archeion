@@ -59,6 +59,7 @@ function availableArchiveBoundary(
   return {
     maintenance: {
       exportAnnotations: vi.fn().mockResolvedValue({ status: "empty" }),
+      previewAnnotationImport: vi.fn().mockResolvedValue(null),
       openIntegrityResults: vi.fn().mockResolvedValue(undefined),
       clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
       clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
@@ -101,6 +102,41 @@ afterEach(() => {
 });
 
 describe("standalone Settings surface", () => {
+  it("shows import counts and unmatched IDs before applying the batch", async () => {
+    const archive = availableArchiveBoundary();
+    const commit = vi.fn().mockResolvedValue(undefined);
+    if (!archive.maintenance) throw new Error("Expected archive maintenance");
+    vi.mocked(archive.maintenance.previewAnnotationImport).mockResolvedValue({
+      commit,
+      summary: {
+        matchedBooks: 1,
+        importable: 2,
+        alreadyPresent: 3,
+        conflicts: 4,
+        unmatchedBookIds: ["other-book-id"],
+      },
+    });
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archive} />));
+    clickButton("Storage");
+    await act(async () => clickButton("Import annotations"));
+    const dialog = container.querySelector("dialog");
+    expect(dialog?.textContent).toContain("Review annotation import");
+    expect(dialog?.textContent).toContain("Already present3");
+    expect(dialog?.textContent).toContain("Conflicting IDs4");
+    expect(dialog?.querySelector("details")?.textContent).toContain("other-book-id");
+    expect(commit).not.toHaveBeenCalled();
+    await act(async () => clickButton("Cancel"));
+    expect(commit).not.toHaveBeenCalled();
+    await act(async () => clickButton("Import annotations"));
+    const confirm = Array.from(container.querySelectorAll("dialog button")).find(
+      (button) => button.textContent?.trim() === "Import annotations",
+    );
+    if (!(confirm instanceof HTMLButtonElement)) throw new Error("Import confirmation unavailable");
+    await act(async () => confirm.click());
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Imported 2 annotations.");
+  });
+
   it("exposes the named update switch, synchronizes external changes, and includes it in General reset", async () => {
     await act(async () => {
       await appPreferencesStore.reset({ automaticallyCheckForUpdates: false, density: "compact" });

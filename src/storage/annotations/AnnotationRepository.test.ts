@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { AnnotationRepository, type AnnotationArchiveScope } from "./AnnotationRepository";
+import {
+  AnnotationRepository,
+  type AnnotationArchiveScope,
+  type AnnotationMetadataSnapshot,
+} from "./AnnotationRepository";
 import type { StoredAnnotationsMetadata } from "./annotationsMetadata";
 
 function deferred<T>() {
@@ -16,11 +20,21 @@ type Harness = ReturnType<typeof createHarness>;
 function createHarness(initial: unknown = { version: 1, books: {} }) {
   let generation = 1;
   let persisted = structuredClone(initial);
+  let revision = 0;
   let queue: Promise<void> = Promise.resolve();
-  const loadMetadata = vi.fn(async () => structuredClone(persisted));
+  const loadMetadata = vi.fn(async () => ({
+    metadata: structuredClone(persisted),
+    revision: String(revision),
+  }));
   const saveMetadata = vi.fn(
-    async (_scope: AnnotationArchiveScope, value: StoredAnnotationsMetadata) => {
+    async (
+      _scope: AnnotationArchiveScope,
+      value: StoredAnnotationsMetadata,
+      expectedRevision: string,
+    ) => {
+      if (expectedRevision !== String(revision)) return null;
       persisted = structuredClone(value);
+      return String(++revision);
     },
   );
   const host = {
@@ -58,6 +72,7 @@ function createHarness(initial: unknown = { version: 1, books: {} }) {
     },
     setPersisted(value: unknown) {
       persisted = structuredClone(value);
+      revision += 1;
     },
     switchArchive() {
       generation += 1;
@@ -887,16 +902,31 @@ describe("AnnotationRepository", () => {
 
   it("rejects stale completion after an archive switch", async () => {
     const harness = createHarness();
-    const pendingLoad = deferred<unknown>();
+    const pendingLoad = deferred<AnnotationMetadataSnapshot>();
     harness.loadMetadata.mockReturnValueOnce(pendingLoad.promise);
     const annotations = repository(harness);
 
     const list = annotations.list("book-1");
     harness.switchArchive();
-    pendingLoad.resolve({ version: 1, books: {} });
+    pendingLoad.resolve({ metadata: { version: 1, books: {} }, revision: "0" });
 
     await expect(list).rejects.toThrow("active archive changed");
     expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it("retries a queued Reader mutation against concurrent imported annotations", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+    const first = await annotations.create("book", { type: "bookmark", label: "Original" });
+    const imported = { ...first, id: "imported", label: "From export" };
+    harness.setPersisted({ version: 1, books: { book: { annotations: [first, imported] } } });
+    await expect(
+      annotations.updateBookmark("book", first.id, { label: "Reader edit" }),
+    ).resolves.toMatchObject({ label: "Reader edit" });
+    expect(harness.persisted).toMatchObject({
+      books: { book: { annotations: [{ ...first, label: "Reader edit" }, imported] } },
+    });
+    expect(harness.saveMetadata).toHaveBeenCalledTimes(3);
   });
 
   it("loads the new archive after reset instead of reusing the old cache", async () => {

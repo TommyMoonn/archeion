@@ -20,6 +20,14 @@ Export the current book from its Annotations panel, or export several selected b
 
 To export all annotations in the active archive, open **Settings → Storage → Archive maintenance**. Under **Export annotations**, choose **Export JSON** or **Export Markdown**. Both archive formats include book and annotation IDs, saved location fields, and annotations for missing EPUBs. They use the saved bookmark label when available and **Chapter unavailable** for locations without a saved label.
 
+## Import annotations {#import}
+
+Open **Settings → Storage → Archive maintenance** and select **Import annotations**. Choose an Archeion version 1 JSON export up to 64 MiB. Markdown is available for export only.
+
+The preview shows how many books match, which book IDs are unmatched, and how many annotations can be imported or skipped. Archeion matches each book by its exact ID in the active archive, so a book with the same title and a different ID appears under **Unmatched book IDs**. An annotation with an existing ID is skipped whether its content matches or conflicts.
+
+Select **Import annotations** in the preview to apply the batch. Archeion backs up the archive's annotation metadata before saving. If the archive or annotations change while the preview is open, select the export again to review the latest counts. Saved highlights with detached anchors retain their text and notes for recovery in the Reader.
+
 ## What each annotation contains {#records}
 
 - A **bookmark** is one record, with its label and available location information.

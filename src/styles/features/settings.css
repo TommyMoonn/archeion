@@ -1027,3 +1027,24 @@ html[data-motion="on"] .settings-status {
   --button-height: var(--control-height-standard);
   --button-padding-inline: 14px;
 }
+.settings-annotation-import-counts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.settings-annotation-import-counts dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-annotation-import-unmatched {
+  margin-block-start: 12px;
+}
+
+.settings-annotation-import-unmatched pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

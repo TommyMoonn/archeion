@@ -17,6 +17,7 @@ describe("storage settings items", () => {
       { groupLabel: "Archive maintenance", id: "storage.find-duplicates" },
       { groupLabel: "Archive maintenance", id: "storage.check-epub-issues" },
       { groupLabel: "Archive maintenance", id: "storage.export-annotations" },
+      { groupLabel: "Archive maintenance", id: "storage.import-annotations" },
       { groupLabel: "Archive maintenance", id: "storage.scanner-cache" },
       { groupLabel: "Archive maintenance", id: "storage.reextract-source-metadata" },
       { groupLabel: "Archive maintenance", id: "storage.cover-cache-status" },

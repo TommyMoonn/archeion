@@ -4,7 +4,6 @@ export const READER_HIGHLIGHT_COLORS = ["yellow", "green", "blue", "rose"] as co
 export type ReaderHighlightColor = (typeof READER_HIGHLIGHT_COLORS)[number];
 
 export const DEFAULT_READER_HIGHLIGHT_COLOR: ReaderHighlightColor = "yellow";
-export const MAX_HIGHLIGHT_TEXT_LENGTH = 5_000;
 
 const highlightPaint: Record<ReaderHighlightColor, string> = {
   yellow: "#f2c94c",

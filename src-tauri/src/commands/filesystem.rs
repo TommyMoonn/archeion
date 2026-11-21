@@ -1,5 +1,6 @@
 use std::{
-    fs, io,
+    fs,
+    io::{self, Read},
     path::{Component, Path, PathBuf},
     process::Command,
 };
@@ -273,6 +274,82 @@ pub fn export_archive_epub_file(
 }
 
 const MAX_ANNOTATION_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+
+#[tauri::command]
+pub async fn read_annotation_import_file(
+    app: tauri::AppHandle,
+    path: String,
+    archive_scope: AnnotationExportArchiveScope,
+) -> Result<tauri::ipc::Response, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let check_archive = || {
+            archive::with_active_archive(
+                &app,
+                &archive_scope.archive_id,
+                &archive_scope.root_path,
+                Some(archive_scope.activation_revision),
+                |_| Ok(()),
+            )
+        };
+        check_archive()?;
+        let bytes = read_annotation_json(Path::new(&path), MAX_ANNOTATION_EXPORT_BYTES)?;
+        check_archive()?;
+        Ok(tauri::ipc::Response::new(bytes))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn read_annotation_json(path: &Path, limit: usize) -> Result<Vec<u8>, String> {
+    if !path.is_absolute()
+        || !path
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("json"))
+    {
+        return Err("Choose an annotation export with a .json file name.".to_string());
+    }
+
+    let check_file = |metadata: fs::Metadata| {
+        #[cfg(windows)]
+        let reparse_point = {
+            use std::os::windows::fs::MetadataExt;
+            metadata.file_attributes() & 0x400 != 0
+        };
+        #[cfg(not(windows))]
+        let reparse_point = false;
+        if reparse_point || !metadata.file_type().is_file() {
+            return Err("The annotation export must be a regular file.".to_string());
+        }
+        if metadata.len() > limit as u64 {
+            return Err("The annotation export exceeds the 64 MiB limit.".to_string());
+        }
+        Ok(())
+    };
+    let read_error = |error| format!("Cannot read the annotation export: {error}");
+    check_file(fs::symlink_metadata(path).map_err(read_error)?)?;
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let mut file = options.open(path).map_err(read_error)?;
+    check_file(file.metadata().map_err(read_error)?)?;
+    let mut bytes = Vec::new();
+    (&mut file)
+        .take(limit as u64)
+        .read_to_end(&mut bytes)
+        .map_err(read_error)?;
+    if file.read(&mut [0_u8; 1]).map_err(read_error)? != 0 {
+        return Err("The annotation export exceeds the 64 MiB limit.".to_string());
+    }
+    std::str::from_utf8(&bytes)
+        .map_err(|_| "The annotation export must be UTF-8 JSON.".to_string())?;
+    Ok(bytes)
+}
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -963,9 +1040,9 @@ mod tests {
         delete_archive_epub_with_trash, delete_archive_folder_with_trash,
         delete_archive_item_with_trash, export_epub_to_destination,
         export_epub_to_destination_with, is_reserved_archive_path, normalize_archive_relative_path,
-        normalize_windows_shell_path, rename_archive_epub_at, rename_archive_folder_at,
-        resolve_existing_epub_path, validate_archive_item_name, validate_epub_file_name,
-        write_annotation_export, write_annotation_export_guarded,
+        normalize_windows_shell_path, read_annotation_json, rename_archive_epub_at,
+        rename_archive_folder_at, resolve_existing_epub_path, validate_archive_item_name,
+        validate_epub_file_name, write_annotation_export, write_annotation_export_guarded,
         write_annotation_export_to_destination, AnnotationExportFormat, EpubExportError,
         EPUB_EXPORT_COLLISION_MESSAGE,
     };
@@ -977,6 +1054,31 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-filesystem-{nonce}"))
+    }
+
+    #[test]
+    fn annotation_import_read_checks_file_kind_extension_encoding_and_size() {
+        let root = test_root();
+        fs::create_dir_all(&root).unwrap();
+        let selected = root.join("雪.JSON");
+        fs::write(&selected, b"{ }").unwrap();
+        assert_eq!(read_annotation_json(&selected, 3).unwrap(), b"{ }");
+        assert!(read_annotation_json(&selected, 2)
+            .unwrap_err()
+            .contains("64 MiB"));
+        fs::write(&selected, [0xff]).unwrap();
+        assert!(read_annotation_json(&selected, 3)
+            .unwrap_err()
+            .contains("UTF-8"));
+        assert!(read_annotation_json(&root.join("export.md"), 3)
+            .unwrap_err()
+            .contains(".json"));
+        let directory = root.join("directory.json");
+        fs::create_dir(&directory).unwrap();
+        assert!(read_annotation_json(&directory, 3)
+            .unwrap_err()
+            .contains("regular file"));
+        fs::remove_dir_all(root).unwrap();
     }
 
     fn test_trash_success(path: &std::path::Path, is_directory: bool) -> Result<(), String> {

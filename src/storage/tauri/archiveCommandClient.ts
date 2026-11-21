@@ -14,6 +14,8 @@ import type {
   EpubDuplicateAnalysisResult,
 } from "../../types/epubIntegrity";
 import type { StoredAnnotationsMetadata } from "../annotations/annotationsMetadata";
+import type { AnnotationMetadataSnapshot } from "../annotations/AnnotationRepository";
+import type { AnnotationImportBatch } from "../annotations/annotationImport";
 import type { LibraryMetadata, MetadataBundle, ProgressMetadata } from "../metadataFiles";
 import type { ArchiveEpubScan, ArchiveScan } from "../reconcileLibraryState";
 import type {
@@ -55,14 +57,33 @@ export type ArchiveCommandMap = {
     EpubDiagnosticAnalysisResult
   >;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
-  load_annotations_metadata: CommandDefinition<undefined, unknown>;
+  load_annotations_metadata: CommandDefinition<undefined, AnnotationMetadataSnapshot>;
   load_archive_annotation_snapshot: CommandDefinition<
     { archiveId: string },
-    { library: MetadataBundle["library"]; annotations: unknown; activationRevision: number }
+    {
+      library: MetadataBundle["library"];
+      annotations: unknown;
+      activationRevision: number;
+      annotationRevision: string;
+    }
   >;
   save_library_metadata: CommandDefinition<{ metadata: LibraryMetadata }, void>;
   save_progress_metadata: CommandDefinition<{ metadata: ProgressMetadata }, void>;
-  save_annotations_metadata: CommandDefinition<{ metadata: StoredAnnotationsMetadata }, void>;
+  save_annotations_metadata: CommandDefinition<
+    { metadata: StoredAnnotationsMetadata; expectedRevision: string },
+    string | null
+  >;
+  read_annotation_import_file: CommandDefinition<
+    {
+      path: string;
+      archiveScope: { archiveId: string; rootPath: string; activationRevision: number };
+    },
+    ArrayBuffer
+  >;
+  import_archive_annotations: CommandDefinition<
+    { archiveId: string; batch: AnnotationImportBatch },
+    void
+  >;
   add_epub_files_to_archive: CommandDefinition<AddArchiveEpubInput, ArchiveImportCommandResult>;
   read_epub_file: CommandDefinition<{ relativePath: string }, ArrayBuffer>;
   load_epub_cover: CommandDefinition<{ relativePath: string; bookId: string }, ArrayBuffer>;
@@ -148,6 +169,7 @@ const METADATA_WRITE_COMMANDS = new Set<ArchiveCommandName>([
   "save_library_metadata",
   "save_progress_metadata",
   "save_annotations_metadata",
+  "import_archive_annotations",
   "initialize_archive_metadata",
 ]);
 

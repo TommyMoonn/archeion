@@ -198,6 +198,32 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
+    description: "Review annotations from an Archeion JSON export before importing.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.import-annotations",
+    label: "Import annotations",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Review annotations from an Archeion JSON export before importing."
+        label="Import annotations"
+      >
+        <Button
+          aria-haspopup="dialog"
+          disabled={context.annotationImportBusy}
+          disabledReason="An annotation import is in progress"
+          onClick={() => void context.previewAnnotationImport()}
+          variant="secondary"
+        >
+          Import annotations
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["bookmarks", "highlights", "notes", "restore", "json"],
+    sectionId: "storage",
+  },
+  {
     description: "Forces EPUB files to be checked again later.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",

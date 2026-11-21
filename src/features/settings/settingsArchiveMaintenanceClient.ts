@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 
 import {
   ArchiveCommandClient,
@@ -19,6 +20,11 @@ import type {
 import { activeArchiveFromRegistry } from "../../types/archive";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { loadArchiveAnnotationSnapshot } from "../../storage/annotations/loadArchiveAnnotationSnapshot";
+import {
+  parseAnnotationImport,
+  previewAnnotationImport,
+  type AnnotationImportSummary,
+} from "../../storage/annotations/annotationImport";
 import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
 import {
   exportReaderAnnotationsToFile,
@@ -35,6 +41,7 @@ export type SettingsArchiveSnapshot = Readonly<{
 }>;
 
 export type SettingsArchiveMaintenance = Readonly<{
+  previewAnnotationImport: () => Promise<SettingsAnnotationImportPreview | null>;
   exportAnnotations: (
     format: ReaderAnnotationExportFormat,
   ) => Promise<ReaderAnnotationExportResult>;
@@ -49,6 +56,11 @@ export type SettingsArchiveMaintenance = Readonly<{
   revealArchiveFolder: () => Promise<void>;
   revealMetadataFolder: () => Promise<void>;
 }>;
+
+export type SettingsAnnotationImportPreview = {
+  summary: AnnotationImportSummary;
+  commit: () => Promise<void>;
+};
 
 type Dependencies = Readonly<{
   archiveCommands: ArchiveCommandClient;
@@ -123,6 +135,7 @@ export class SettingsArchiveMaintenanceClient {
     if (this.maintenanceView) return this.maintenanceView;
     const scope = this.createScope();
     this.maintenanceView = {
+      previewAnnotationImport: () => this.previewAnnotationImport(scope),
       exportAnnotations: (format) => this.exportAnnotations(scope, format),
       openIntegrityResults: (destination) => this.openIntegrityResults(destination),
       clearCoverCache: () => this.runArchiveCommand("clear_cover_cache"),
@@ -278,6 +291,52 @@ export class SettingsArchiveMaintenanceClient {
     });
     assertCurrent();
     return result;
+  }
+
+  private async previewAnnotationImport(
+    scope: Scope,
+  ): Promise<SettingsAnnotationImportPreview | null> {
+    const disposalRevision = this.disposalRevision;
+    const assertCurrent = () => {
+      if (disposalRevision !== this.disposalRevision) {
+        throw new Error("Settings archive maintenance stopped.");
+      }
+      this.assertCurrent(scope);
+    };
+    assertCurrent();
+    const { id: archiveId, rootPath } = scope.archive;
+    const commands = this.dependencies.archiveCommands;
+    const snapshot = await commands.invoke(
+      "load_archive_annotation_snapshot",
+      { archiveId },
+      rootPath,
+    );
+    assertCurrent();
+    const path = await open({
+      filters: [{ extensions: ["json"], name: "JSON" }],
+      title: "Import annotations",
+    });
+    assertCurrent();
+    if (path === null) return null;
+    const bytes = await commands.invoke(
+      "read_annotation_import_file",
+      {
+        path,
+        archiveScope: { archiveId, rootPath, activationRevision: snapshot.activationRevision },
+      },
+      null,
+    );
+    assertCurrent();
+    const { summary, batch } = previewAnnotationImport(parseAnnotationImport(bytes), snapshot);
+    return {
+      summary,
+      commit: async () => {
+        assertCurrent();
+        if (summary.importable > 0) {
+          await commands.invoke("import_archive_annotations", { archiveId, batch }, rootPath);
+        }
+      },
+    };
   }
 
   private async openIntegrityResults(destination: ArchiveIntegrityDestination): Promise<void> {

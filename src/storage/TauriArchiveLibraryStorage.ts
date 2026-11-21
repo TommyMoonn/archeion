@@ -175,8 +175,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       runMetadataIo: (scope, operation) => this.mutationCoordinator.runMetadataIo(scope, operation),
       loadMetadata: (scope) =>
         this.commands.invoke("load_annotations_metadata", undefined, scope.rootPath),
-      saveMetadata: (scope, metadata) =>
-        this.commands.invoke("save_annotations_metadata", { metadata }, scope.rootPath),
+      saveMetadata: (scope, metadata, expectedRevision) =>
+        this.commands.invoke(
+          "save_annotations_metadata",
+          { metadata, expectedRevision },
+          scope.rootPath,
+        ),
     });
   }
 

@@ -50,6 +50,7 @@ function createIntegrityMaintenance(
 ): SettingsArchiveMaintenance {
   return {
     exportAnnotations: vi.fn().mockResolvedValue({ status: "empty" }),
+    previewAnnotationImport: vi.fn().mockResolvedValue(null),
     openIntegrityResults,
     clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
     clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),

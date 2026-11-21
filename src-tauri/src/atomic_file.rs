@@ -225,6 +225,13 @@ pub(crate) fn recover_atomic_replace(destination: &Path) -> io::Result<()> {
     sync_parent_directory(destination)
 }
 
+pub(crate) fn discard_staged_replacements(destination: &Path, marker: &str) -> io::Result<()> {
+    for artifact in transaction_artifacts(destination, marker)? {
+        remove_transaction_artifact(&artifact.path)?;
+    }
+    Ok(())
+}
+
 pub(crate) struct PreparedAtomicFile {
     path: PathBuf,
     committed: bool,

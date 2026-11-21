@@ -1,4 +1,5 @@
 export const ANNOTATION_TYPES = ["bookmark", "highlight"] as const;
+export const MAX_HIGHLIGHT_TEXT_LENGTH = 5_000;
 
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
 export type AnnotationAnchorStatus = "detached";

@@ -1,9 +1,12 @@
 import type { Annotation } from "../../types/annotation";
 import type { ReaderChapter } from "../../types/reader";
 import { readerAnnotationChapterLabel } from "./readerAnnotations";
+import {
+  READER_ANNOTATION_EXPORT_VERSION,
+  READER_ANNOTATION_EXPORT_SCHEMA,
+} from "../../storage/annotations/annotationExportFormat";
 
-export const READER_ANNOTATION_EXPORT_VERSION = 1 as const;
-export const READER_ANNOTATION_EXPORT_SCHEMA = "archeion.annotation-export" as const;
+export { READER_ANNOTATION_EXPORT_VERSION, READER_ANNOTATION_EXPORT_SCHEMA };
 
 export type ReaderAnnotationExportFormat = "json" | "markdown";
 

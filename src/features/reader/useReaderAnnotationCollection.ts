@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation } from "../../types/annotation";
@@ -46,6 +47,7 @@ export function useReaderAnnotationCollection({
   const sessionRef = useRef(session);
   const loadSequenceRef = useRef(0);
   const activeLoadRef = useRef<AnnotationLoadRequest | undefined>(undefined);
+  const loadedSessionRef = useRef<ReaderAnnotationSession | undefined>(undefined);
   const [annotationCollection, setAnnotationCollection] = useState<AnnotationCollection>({
     items: [],
     session,
@@ -78,29 +80,52 @@ export function useReaderAnnotationCollection({
     ? loadState.status
     : "loading";
 
-  const loadAnnotations = useCallback(async () => {
-    const request = { id: ++loadSequenceRef.current, session };
-    activeLoadRef.current = request;
-    try {
-      const loaded =
-        session.archiveId && session.bookId ? await storage.listAnnotations(session.bookId) : [];
-      if (!ownsLoad(request)) return false;
-      const nextCollection = { items: loaded, session };
-      annotationCollectionRef.current = nextCollection;
-      setAnnotationCollection(nextCollection);
-      setLoadErrorSession(undefined);
-      setLoadState({ session, status: "ready" });
-      return true;
-    } catch {
-      if (!ownsLoad(request)) return false;
-      const nextCollection = { items: [], session };
-      annotationCollectionRef.current = nextCollection;
-      setAnnotationCollection(nextCollection);
-      setLoadErrorSession(session);
-      setLoadState({ session, status: "error" });
-      return false;
-    }
-  }, [ownsLoad, session, storage]);
+  const loadAnnotations = useCallback(
+    async (background = false) => {
+      const request = { id: ++loadSequenceRef.current, session };
+      activeLoadRef.current = request;
+      try {
+        const loaded =
+          session.archiveId && session.bookId ? await storage.listAnnotations(session.bookId) : [];
+        if (!ownsLoad(request)) return false;
+        const nextCollection = { items: loaded, session };
+        loadedSessionRef.current = session;
+        annotationCollectionRef.current = nextCollection;
+        setAnnotationCollection(nextCollection);
+        setLoadErrorSession(undefined);
+        setLoadState({ session, status: "ready" });
+        return true;
+      } catch {
+        if (!ownsLoad(request) || (background && loadedSessionRef.current === session))
+          return false;
+        const nextCollection = { items: [], session };
+        annotationCollectionRef.current = nextCollection;
+        setAnnotationCollection(nextCollection);
+        setLoadErrorSession(session);
+        setLoadState({ session, status: "error" });
+        return false;
+      }
+    },
+    [ownsLoad, session, storage],
+  );
+
+  useEffect(() => {
+    if (!session.archiveId || !session.bookId) return;
+    let disposed = false;
+    const subscription = listen<string>("archive-annotations-imported", ({ payload }) => {
+      if (!disposed && payload === session.archiveId && isCurrentSession(session)) {
+        void loadAnnotations(true);
+      }
+    });
+    void subscription.catch(() => undefined);
+    return () => {
+      disposed = true;
+      void subscription.then(
+        (unlisten) => unlisten(),
+        () => undefined,
+      );
+    };
+  }, [isCurrentSession, loadAnnotations, session]);
 
   useEffect(() => {
     queueMicrotask(() => {
