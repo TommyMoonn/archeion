@@ -176,6 +176,7 @@ describe("BookDetailsDrawer", () => {
     expect(markup).toContain("Clear reading progress");
     expect(markup).not.toContain("details-progress-pill");
     expect(markup).not.toContain("Reading progress 0%");
+    expect(markup).not.toContain(">Unread<");
   });
 
   it("routes clear progress for a saved CFI at zero percent", () => {
@@ -208,7 +209,7 @@ describe("BookDetailsDrawer", () => {
     expect(markup).not.toContain("Continue reading");
     expect(markup).not.toContain("Start from beginning");
     expect(markup).not.toContain("Clear reading progress");
-    expect(markup).not.toContain("details-progress-pill");
+    expect(markup).toContain('<span class="details-progress-pill">Unread</span>');
   });
 
   it("shows manual completion without creating a saved position", () => {

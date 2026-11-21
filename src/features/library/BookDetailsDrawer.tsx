@@ -92,16 +92,16 @@ export function BookDetailsDrawerContent({
         <div className="details-drawer__title constrained-user-content">
           <h2 id="book-details-title">{title}</h2>
           {author ? <p>{author}</p> : null}
-          {hasSavedPosition || progress > 0 ? (
-            <div className="details-progress-controls">
-              {progress > 0 ? (
-                <span
-                  className="details-progress-pill"
-                  aria-label={`Reading progress ${progressLabel}`}
-                >
-                  {progressLabel}
-                </span>
-              ) : null}
+          <div className="details-progress-controls">
+            {progress > 0 ? (
+              <span
+                className="details-progress-pill"
+                aria-label={`Reading progress ${progressLabel}`}
+              >
+                {progressLabel}
+              </span>
+            ) : null}
+            {hasSavedPosition || progress > 0 ? (
               <IconButton
                 autoFocus={initialFocus === "clear-progress"}
                 className="details-clear-progress"
@@ -111,8 +111,10 @@ export function BookDetailsDrawerContent({
               >
                 <Eraser aria-hidden="true" />
               </IconButton>
-            </div>
-          ) : null}
+            ) : (
+              <span className="details-progress-pill">Unread</span>
+            )}
+          </div>
         </div>
 
         {book.isFileMissing ? (

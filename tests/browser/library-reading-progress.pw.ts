@@ -6,11 +6,11 @@ for (const [presentation, width] of [
   ["drawer", 900],
   ["pinned panel", 1280],
 ] as const) {
-  test(`manual reading completion uses a full-width secondary action in the ${presentation}`, async ({
+  test(`manual reading completion keeps full-width actions stable in the ${presentation}`, async ({
     page,
   }) => {
     await page.setViewportSize({ width, height: 850 });
-    await page.goto(fixture);
+    await page.goto(`${fixture}&motion=off`);
     await page.locator(".book-card__select").first().click();
     if (presentation === "pinned panel") {
       await page.getByRole("button", { name: "Pin book details" }).click();
@@ -19,26 +19,44 @@ for (const [presentation, width] of [
       presentation === "drawer" ? "dialog.details-drawer" : ".book-details-panel",
     );
     const badge = page.locator(".book-card__progress-badge");
+    const detailsBadge = details.locator(".details-progress-pill");
     const mark = details.getByRole("button", { name: "Mark as read", exact: true });
+    const undo = details.getByRole("button", { name: "Undo mark as read", exact: true });
     const read = details.getByRole("button", { name: "Read book", exact: true });
+    const metadata = details.locator(".book-metadata");
     await expect(mark).toHaveClass(/button--secondary/);
     await expect(details.locator(".details-actions > button")).toHaveText([
       "Read book",
       "Mark as read",
     ]);
-    const [markBox, readBox] = await Promise.all([mark.boundingBox(), read.boundingBox()]);
-    expect(markBox?.x).toBe(readBox?.x);
-    expect(markBox?.width).toBe(readBox?.width);
-    expect(markBox?.height).toBe(readBox?.height);
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const [markBox, readBox, metadataBox] = await Promise.all([
+      mark.boundingBox(),
+      read.boundingBox(),
+      metadata.boundingBox(),
+    ]);
+    if (!markBox || !readBox || !metadataBox) throw new Error("Expected visible book details");
+    expect(markBox.x).toBe(readBox.x);
+    expect(markBox.width).toBe(readBox.width);
+    expect(markBox.height).toBe(readBox.height);
+    await expect(detailsBadge).toBeVisible();
+    await expect(detailsBadge).toHaveText("Unread");
+    await expect(page.locator(".book-card").getByText("Unread", { exact: true })).toHaveCount(0);
+    await expect(details.getByRole("button", { name: "Clear reading progress" })).toHaveCount(0);
     await mark.click();
-    await expect(details.locator(".details-progress-pill")).toHaveText("100%");
+    await expect(detailsBadge).toHaveText("100%");
     await expect(badge).toHaveText("100%");
-    await expect(read).toBeVisible();
+    await expect.poll(() => read.boundingBox()).toEqual(readBox);
+    await expect.poll(() => undo.boundingBox()).toEqual(markBox);
+    await expect.poll(() => metadata.boundingBox()).toEqual(metadataBox);
     await expect(details.getByRole("button", { name: "Start from beginning" })).toHaveCount(0);
-    await details.getByRole("button", { name: "Undo mark as read", exact: true }).click();
-    await expect(details.locator(".details-progress-pill")).toHaveCount(0);
+    await undo.click();
+    await expect(detailsBadge).toHaveText("Unread");
     await expect(badge).toHaveCount(0);
-    await expect(mark).toBeVisible();
+    await expect(details.getByRole("button", { name: "Clear reading progress" })).toHaveCount(0);
+    await expect.poll(() => read.boundingBox()).toEqual(readBox);
+    await expect.poll(() => mark.boundingBox()).toEqual(markBox);
+    await expect.poll(() => metadata.boundingBox()).toEqual(metadataBox);
   });
 }
 
