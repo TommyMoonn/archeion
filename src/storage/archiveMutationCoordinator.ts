@@ -84,6 +84,7 @@ function bookProgressMatches(book: Readonly<Book>, progress?: Readonly<ReadingPr
   return (
     book.progressCfi === progress?.cfi &&
     (book.progressPercent ?? 0) === (progress?.percent ?? 0) &&
+    book.manuallyMarkedRead === progress?.manuallyMarkedRead &&
     book.lastOpenedAt === progress?.lastOpenedAt
   );
 }
@@ -557,6 +558,7 @@ export class ArchiveMutationCoordinator {
           lastOpenedAt: progress?.lastOpenedAt,
           progressCfi: progress?.cfi,
           progressPercent: progress?.percent ?? 0,
+          manuallyMarkedRead: progress?.manuallyMarkedRead,
         };
       });
       if (booksChanged) {

@@ -1,6 +1,6 @@
 import type { ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
-import { bookReadingStatus } from "../reading/readingProgress";
+import { bookReadingStatus, displayedBookProgress } from "../reading/readingProgress";
 
 export function volumeCountLabel(count: number): string {
   return `${count} ${count === 1 ? "volume" : "volumes"}`;
@@ -27,7 +27,7 @@ export function bookProgressLabel(book: ReadonlyBook): string {
     case "completed":
       return "Completed";
     case "in-progress":
-      return `${Math.max(0, Math.min(book.progressPercent ?? 0, 100)).toFixed(1)}% read`;
+      return `${displayedBookProgress(book).toFixed(1)}% read`;
     case "unread":
       return "Unread";
   }

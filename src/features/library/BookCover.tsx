@@ -1,5 +1,5 @@
 import { BookOpenText } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { ReadonlyBook } from "../../types/book";
@@ -15,10 +15,15 @@ import { observeCoverVisibility } from "./coverVisibilityObserver";
 
 type BookCoverProps = {
   book: ReadonlyBook;
+  children?: ReactNode;
   className?: string;
 };
 
-export const BookCover = memo(function BookCover({ book, className = "" }: BookCoverProps) {
+export const BookCover = memo(function BookCover({
+  book,
+  children,
+  className = "",
+}: BookCoverProps) {
   const cacheScope = useCoverUrlCacheScope();
   const coverKey = coverCacheKey(book.id, book.modifiedAt, book.size, book.coverRevision);
   return (
@@ -28,12 +33,15 @@ export const BookCover = memo(function BookCover({ book, className = "" }: BookC
       className={className}
       cacheScope={cacheScope}
       coverKey={coverKey}
-    />
+    >
+      {children}
+    </CoverResource>
   );
 });
 
 function CoverResource({
   book,
+  children,
   className,
   cacheScope,
   coverKey,
@@ -108,6 +116,7 @@ function CoverResource({
         />
       ) : null}
       {state === "unavailable" ? <BookOpenText size={30} strokeWidth={1.5} /> : null}
+      {children}
     </div>
   );
 }

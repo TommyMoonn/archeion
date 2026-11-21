@@ -41,6 +41,14 @@ where
     })
 }
 
+fn deserialize_added_at<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(value.as_str().map(str::to_owned))
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBookMetadata {
@@ -61,7 +69,12 @@ pub struct LibraryBookMetadata {
     pub file_size: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_modified_at: Option<u64>,
-    pub added_at: String,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_added_at",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub added_at: Option<String>,
     pub updated_at: String,
 }
 
@@ -87,6 +100,8 @@ pub struct ReadingProgress {
     pub cfi: Option<String>,
     #[serde(default)]
     pub percent: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manually_marked_read: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_opened_at: Option<String>,
 }
@@ -755,7 +770,7 @@ mod tests {
                 source_metadata: None,
                 file_size: None,
                 file_modified_at: None,
-                added_at: "added".to_string(),
+                added_at: Some("added".to_string()),
                 updated_at: "updated".to_string(),
             },
         );
@@ -765,6 +780,7 @@ mod tests {
             ReadingProgress {
                 cfi: Some("epubcfi(/6/2!/4/2)".to_string()),
                 percent: 0.42,
+                manually_marked_read: Some(true),
                 last_opened_at: Some("now".to_string()),
             },
         );
@@ -790,11 +806,70 @@ mod tests {
         )
         .expect("progress metadata should remain valid");
         assert!(recovered_library.books.contains_key("recovered-book"));
-        assert!(recovered_progress.progress.contains_key("recovered-book"));
+        let recovered = recovered_progress
+            .progress
+            .get("recovered-book")
+            .expect("the interrupted progress entry should be restored");
+        assert_eq!(recovered.manually_marked_read, Some(true));
+        assert_eq!(recovered.cfi.as_deref(), Some("epubcfi(/6/2!/4/2)"));
+        assert_eq!(recovered.percent, 0.42);
+        assert_eq!(recovered.last_opened_at.as_deref(), Some("now"));
         assert!(retired_settings_path.is_dir());
         assert!(!library_backup.exists());
         assert!(!progress_temp.exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn manual_completion_round_trips_in_version_one_sidecar_without_touching_epub() {
+        let root = test_root("manual-completion");
+        fs::create_dir_all(&root).expect("test archive folder should exist");
+        initialize_at(&root).expect("test archive should initialize");
+        let epub = root.join("Book.epub");
+        let epub_bytes = b"unchanged book bytes";
+        fs::write(&epub, epub_bytes).expect("the book fixture should be written");
+        let path = metadata_path(&root).join("progress.json");
+        fs::write(
+            &path,
+            br#"{"version":1,"progress":{"book":{"cfi":"position","percent":42,"lastOpenedAt":"opened"}}}"#,
+        )
+        .expect("legacy progress should be written");
+
+        let mut metadata: ProgressMetadata =
+            read_json(&root, MetadataDocument::Progress).expect("legacy progress should load");
+        let progress = metadata
+            .progress
+            .get_mut("book")
+            .expect("legacy book exists");
+        assert_eq!(progress.manually_marked_read, None);
+        progress.manually_marked_read = Some(true);
+        write_json(&root, MetadataDocument::Progress, &metadata, true)
+            .expect("completion should persist");
+
+        let mut reopened: ProgressMetadata =
+            read_json(&root, MetadataDocument::Progress).expect("progress should reopen");
+        assert_eq!(reopened.version, 1);
+        let progress = reopened.progress.get_mut("book").expect("book exists");
+        assert_eq!(progress.manually_marked_read, Some(true));
+        assert_eq!(progress.cfi.as_deref(), Some("position"));
+        assert_eq!(progress.percent, 42.0);
+        assert_eq!(progress.last_opened_at.as_deref(), Some("opened"));
+        progress.manually_marked_read = None;
+        write_json(&root, MetadataDocument::Progress, &reopened, true)
+            .expect("undo should persist");
+
+        let document: serde_json::Value =
+            serde_json::from_slice(&fs::read(path).expect("progress file should exist"))
+                .expect("progress file should be JSON");
+        assert_eq!(
+            document["progress"]["book"],
+            serde_json::json!({"cfi": "position", "percent": 42.0, "lastOpenedAt": "opened"})
+        );
+        assert_eq!(
+            fs::read(epub).expect("the EPUB should still exist"),
+            epub_bytes
+        );
+        fs::remove_dir_all(root).expect("the test archive should be removed");
     }
 
     #[test]
@@ -818,7 +893,7 @@ mod tests {
                 source_metadata: None,
                 file_size: None,
                 file_modified_at: None,
-                added_at: "added".to_string(),
+                added_at: Some("added".to_string()),
                 updated_at: "updated".to_string(),
             },
         );
@@ -883,7 +958,7 @@ mod tests {
                 source_metadata: None,
                 file_size: None,
                 file_modified_at: None,
-                added_at: "added".to_string(),
+                added_at: Some("added".to_string()),
                 updated_at: "updated".to_string(),
             },
         );
@@ -1217,7 +1292,7 @@ mod tests {
                 source_metadata: None,
                 file_size: None,
                 file_modified_at: None,
-                added_at: "now".to_string(),
+                added_at: Some("now".to_string()),
                 updated_at: "now".to_string(),
             },
         );
@@ -1270,6 +1345,54 @@ mod tests {
     }
 
     #[test]
+    fn loads_library_with_missing_or_malformed_added_dates_without_recovery() {
+        let root = test_root("legacy-added-at");
+        let path = metadata_path(&root).join("library.json");
+        fs::create_dir_all(metadata_path(&root)).expect("metadata directory should be created");
+        let contents = br#"{
+            "version": 1,
+            "books": {
+                "missing": {"relativePath":"Missing.epub","isFavorite":true,"updatedAt":"updated"},
+                "numeric": {"relativePath":"Numeric.epub","addedAt":42,"updatedAt":"updated"},
+                "null": {"relativePath":"Null.epub","addedAt":null,"updatedAt":"updated"},
+                "malformed": {"relativePath":"Malformed.epub","addedAt":"legacy","updatedAt":"updated"},
+                "dated": {"relativePath":"Dated.epub","addedAt":"2026-07-01T00:00:00.000Z","updatedAt":"updated"}
+            }
+        }"#;
+        fs::write(&path, contents).expect("legacy metadata should be written");
+
+        initialize_at(&root).expect("legacy archive should initialize");
+        let library: LibraryMetadata =
+            read_json(&root, MetadataDocument::Library).expect("legacy metadata should load");
+
+        assert_eq!(library.books.len(), 5);
+        assert!(library.books["missing"].is_favorite);
+        for id in ["missing", "numeric", "null"] {
+            assert_eq!(library.books[id].added_at, None);
+        }
+        assert_eq!(
+            library.books["malformed"].added_at.as_deref(),
+            Some("legacy")
+        );
+        assert_eq!(
+            library.books["dated"].added_at.as_deref(),
+            Some("2026-07-01T00:00:00.000Z")
+        );
+        assert_eq!(
+            fs::read(&path).expect("metadata should be readable"),
+            contents
+        );
+        let wire = serde_json::to_value(&library).expect("library metadata should serialize");
+        assert!(wire["books"]["missing"].get("addedAt").is_none());
+        assert_eq!(
+            wire["books"]["dated"]["addedAt"],
+            "2026-07-01T00:00:00.000Z"
+        );
+
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
     fn preserves_corrupted_json_and_recovers_defaults() {
         let root = test_root("corrupt");
         fs::create_dir_all(&root).expect("test archive should be created");
@@ -1306,7 +1429,7 @@ mod tests {
                 source_metadata: None,
                 file_size: Some(100),
                 file_modified_at: Some(200),
-                added_at: "2026-07-01T00:00:00.000Z".to_string(),
+                added_at: Some("2026-07-01T00:00:00.000Z".to_string()),
                 updated_at: "2026-07-01T00:00:00.000Z".to_string(),
             },
         );
@@ -1643,7 +1766,7 @@ mod tests {
                 source_metadata: None,
                 file_size: None,
                 file_modified_at: None,
-                added_at: "2026-07-01T00:00:00.000Z".to_string(),
+                added_at: Some("2026-07-01T00:00:00.000Z".to_string()),
                 updated_at: "2026-07-01T00:00:00.000Z".to_string(),
             },
         );

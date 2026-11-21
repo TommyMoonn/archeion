@@ -12,8 +12,9 @@ import {
   ArrowRight,
   Trash2,
   CircleAlert,
+  Check,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -21,6 +22,12 @@ import { BookDetailsDrawerFrame, type BookDetailsDrawerProps } from "./BookDetai
 import { formatFileSize, formatLongDate } from "../../utils/formatters";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
+import {
+  displayedBookProgress,
+  hasSavedReadingPosition,
+  readingStatusForProgress,
+} from "../reading/readingProgress";
+import { bookCompletionActionLabel } from "./bookCompletionActionLabel";
 
 export type { BookDetailsDrawerProps } from "./BookDetailsDrawerFrame";
 
@@ -36,6 +43,7 @@ export function BookDetailsDrawerContent({
   book,
   initialFocus = "close",
   onClearProgress,
+  onToggleManualCompletion,
   onDelete,
   onRead,
   onReadFromBeginning,
@@ -51,15 +59,11 @@ export function BookDetailsDrawerContent({
 }: BookDetailsDrawerProps) {
   const title = bookTitle(book);
   const author = bookAuthor(book);
-  const progressDetails = useMemo(() => {
-    const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
-
-    return {
-      hasSavedPosition: Boolean(book.progressCfi) || progress > 0,
-      hasVisiblePercentage: progress > 0,
-      label: `${Math.max(1, Math.round(progress))}%`,
-    };
-  }, [book.progressCfi, book.progressPercent]);
+  const progress = displayedBookProgress(book);
+  const progressLabel = `${Math.max(1, Math.round(progress))}%`;
+  const hasSavedPosition = hasSavedReadingPosition(book);
+  const completionActionLabel = bookCompletionActionLabel(book);
+  const startFromBeginningRef = useRef<HTMLButtonElement>(null);
   const fileDetails = useMemo(
     () => ({
       lastOpenedAt: book.lastOpenedAt ? formatLongDate(book.lastOpenedAt) : null,
@@ -88,16 +92,16 @@ export function BookDetailsDrawerContent({
         <div className="details-drawer__title constrained-user-content">
           <h2 id="book-details-title">{title}</h2>
           {author ? <p>{author}</p> : null}
-          {progressDetails.hasSavedPosition ? (
-            <div className="details-progress-controls">
-              {progressDetails.hasVisiblePercentage ? (
-                <span
-                  className="details-progress-pill"
-                  aria-label={`Reading progress ${progressDetails.label}`}
-                >
-                  {progressDetails.label}
-                </span>
-              ) : null}
+          <div className="details-progress-controls">
+            {progress > 0 ? (
+              <span
+                className="details-progress-pill"
+                aria-label={`Reading progress ${progressLabel}`}
+              >
+                {progressLabel}
+              </span>
+            ) : null}
+            {hasSavedPosition || progress > 0 ? (
               <IconButton
                 autoFocus={initialFocus === "clear-progress"}
                 className="details-clear-progress"
@@ -107,8 +111,10 @@ export function BookDetailsDrawerContent({
               >
                 <Eraser aria-hidden="true" />
               </IconButton>
-            </div>
-          ) : null}
+            ) : (
+              <span className="details-progress-pill">Unread</span>
+            )}
+          </div>
         </div>
 
         {book.isFileMissing ? (
@@ -134,15 +140,34 @@ export function BookDetailsDrawerContent({
         ) : (
           <div className="details-actions">
             <Button icon={<BookOpen aria-hidden="true" />} onClick={() => onRead(book)}>
-              {progressDetails.hasSavedPosition ? "Continue reading" : "Read book"}
+              {hasSavedPosition ? "Continue reading" : "Read book"}
             </Button>
-            {progressDetails.hasSavedPosition ? (
+            {hasSavedPosition ? (
               <Button
                 icon={<RotateCcw aria-hidden="true" />}
                 onClick={() => onReadFromBeginning(book)}
+                ref={startFromBeginningRef}
                 variant="secondary"
               >
                 Start from beginning
+              </Button>
+            ) : null}
+            {completionActionLabel ? (
+              <Button
+                icon={<Check aria-hidden="true" />}
+                onClick={(event) => {
+                  if (
+                    event.currentTarget === document.activeElement &&
+                    book.manuallyMarkedRead === true &&
+                    readingStatusForProgress(book.progressPercent) === "completed"
+                  ) {
+                    startFromBeginningRef.current?.focus({ preventScroll: true });
+                  }
+                  onToggleManualCompletion(book);
+                }}
+                variant="secondary"
+              >
+                {completionActionLabel}
               </Button>
             ) : null}
             <div className="details-actions__secondary">

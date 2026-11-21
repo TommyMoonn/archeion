@@ -10,7 +10,7 @@ function dateFormatter(dateStyle: Intl.DateTimeFormatOptions["dateStyle"]): Intl
   return formatter;
 }
 
-export function formatMediumDate(value: string): string {
+export function formatMediumDate(value: string | number): string {
   return dateFormatter("medium").format(new Date(value));
 }
 

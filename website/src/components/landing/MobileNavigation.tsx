@@ -1,4 +1,5 @@
 import { useEffect, useRef, type Dispatch, type MouseEvent, type SetStateAction } from "react";
+import { flushSync } from "react-dom";
 import { GithubMark } from "@/components/shared/GithubMark";
 import { Menu, X } from "lucide-react";
 import { landingLinks, landingSections, type LandingSectionId } from "./content";
@@ -21,13 +22,17 @@ export function MobileNavigation({
     const desktop = matchMedia("(min-width: 1021px)");
     const update = () => {
       if (!desktop.matches) return;
-      const hadFocus = details.current?.contains(document.activeElement);
-      setOpen(false);
+      const active = document.activeElement;
+      // The breakpoint can hide the open menu and clear focus before this event.
+      const hadFocus =
+        details.current?.contains(active) || (details.current?.open && active === document.body);
       if (hadFocus) {
         cancelAnimationFrame(focusFrame.current);
-        focusFrame.current = requestAnimationFrame(() =>
-          document.getElementById("landing-home")?.focus(),
-        );
+        // Closing the menu also removes inert from the focus destination.
+        flushSync(() => setOpen(false));
+        document.getElementById("landing-home")?.focus();
+      } else {
+        setOpen(false);
       }
     };
     desktop.addEventListener("change", update);

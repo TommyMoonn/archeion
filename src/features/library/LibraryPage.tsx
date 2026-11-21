@@ -570,6 +570,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const requestDeleteBookAction = bookActions.requestDeleteBook;
   const toggleFavoriteAction = bookActions.toggleFavorite;
+  const toggleManualCompletionAction = bookActions.toggleManualCompletion;
   const requestDeleteFolderAction = bookActions.requestDeleteFolder;
   const requestDeleteBook = useCallback(
     (book: LibrarySnapshotBook) => {
@@ -584,6 +585,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       return toggleFavoriteAction(book);
     },
     [captureBookMutationFocus, toggleFavoriteAction],
+  );
+  const toggleManualCompletion = useCallback(
+    (book: LibrarySnapshotBook) => {
+      captureBookMutationFocus(book);
+      return toggleManualCompletionAction(book);
+    },
+    [captureBookMutationFocus, toggleManualCompletionAction],
   );
   const requestDeleteFolder = useCallback(
     (folder: LibrarySnapshotFolder) => {
@@ -895,6 +903,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         onRescan: dialogActions.openRescan,
         onRevealFile: bookActions.revealBookFile,
         onToggleFavorite: toggleFavorite,
+        onToggleManualCompletion: toggleManualCompletion,
         onViewMetadata: openBookMetadata,
       }
     : null;
@@ -936,6 +945,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onSelect: openBookDetails,
           onSelectionChange: changeBookSelection,
           onToggleFavorite: toggleFavorite,
+          onToggleManualCompletion: toggleManualCompletion,
           onContextMenuUnavailable: announceContextMenuUnavailable,
           selectedBookIds,
           inspectedBookId: detailsDocked && !selectionMode ? detailsBook?.id : undefined,
@@ -1132,6 +1142,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRescan={bookActions.rescanLibrary}
           onRevealBookFile={bookActions.revealBookFile}
           onToggleFavorite={bookActions.toggleFavorite}
+          onToggleManualCompletion={toggleManualCompletion}
           onWriteBookCover={bookActions.writeBookCover}
           onWriteBookMetadata={bookActions.writeBookMetadata}
           onWriteSelectedBookMetadata={bulkActions.writeSelectedBookMetadata}

@@ -1,12 +1,15 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import {
   buttonWithText,
   clickBook,
+  contextMenuItemWithText,
   createBooksLoadController,
   createStorage,
+  openControlledContextMenu,
   renderLibraryPage,
   selectionBook,
   setupLibraryPageTestSuite,
@@ -41,6 +44,106 @@ async function pinBook(container: HTMLElement) {
 
 describe("optional pinned Library details", () => {
   const suite = setupLibraryPageTestSuite();
+
+  it.each(["drawer", "pinned"])(
+    "marks and undoes completion through %s and the book menu",
+    async (presentation) => {
+      installDockMedia();
+      if (presentation === "pinned") {
+        await appPreferencesStore.updateLibrary({ detailsPinned: true });
+      }
+      const book = {
+        ...selectionBook("a", "Alpha"),
+        progressCfi: "epubcfi(/6/4)",
+        progressPercent: 42,
+      };
+      const load = createBooksLoadController();
+      load.publishBooks([book]);
+      let current = book;
+      const updateBook = vi.fn<LibraryStorage["updateBook"]>(async (_, changes) => {
+        current = { ...current, ...changes };
+        load.publishBooks([current]);
+        return current;
+      });
+      const session = await renderLibraryPage(createStorage({ ...load, updateBook }));
+      suite.trackRoot(session.root);
+      const collection = session.container;
+      const cardProgress = () =>
+        collection.querySelector(".book-card__progress-badge")?.textContent;
+      const detailsSelector =
+        presentation === "pinned" ? ".book-details-panel" : "dialog.details-drawer";
+      const openDetails = async () => {
+        await act(async () => clickBook(collection, "Alpha"));
+        await waitForButtonWithText(collection, "Continue reading");
+        const details = collection.querySelector<HTMLElement>(detailsSelector);
+        if (!details) throw new Error("Book details did not open.");
+        return details;
+      };
+      const menu = async () => openControlledContextMenu(collection, "Actions for Alpha");
+      const closeDetails = async (details: HTMLElement) => {
+        if (presentation === "drawer") {
+          const close = await waitForButtonWithLabel(details, "Close book details");
+          await act(async () => close.click());
+        }
+      };
+      const readingActions = (details: HTMLElement) =>
+        Array.from(
+          details.querySelectorAll(".details-actions > button"),
+          (button) => button.textContent,
+        );
+
+      let details = await openDetails();
+      expect(cardProgress()).toBe("42%");
+      expect(readingActions(details)).toEqual([
+        "Continue reading",
+        "Start from beginning",
+        "Mark as read",
+      ]);
+      await act(async () => buttonWithText(details, "Mark as read").click());
+      expect(readingActions(details)).toEqual([
+        "Continue reading",
+        "Start from beginning",
+        "Undo mark as read",
+      ]);
+      expect(details.querySelector(".details-progress-pill")?.textContent).toBe("100%");
+      expect(cardProgress()).toBe("100%");
+      await act(async () => buttonWithText(details, "Undo mark as read").click());
+      expect(details.querySelector(".details-progress-pill")?.textContent).toBe("42%");
+      expect(cardProgress()).toBe("42%");
+      await closeDetails(details);
+
+      const unreadMenu = await menu();
+      const mark = contextMenuItemWithText(unreadMenu, "Mark as read");
+      expect(mark.previousElementSibling?.textContent).toBe("Read");
+      await act(async () => mark.click());
+      details = await openDetails();
+      expect(details.querySelector(".details-progress-pill")?.textContent).toBe("100%");
+      await closeDetails(details);
+
+      const completedMenu = await menu();
+      await act(async () => contextMenuItemWithText(completedMenu, "Undo mark as read").click());
+      details = await openDetails();
+      expect(details.querySelector(".details-progress-pill")?.textContent).toBe("42%");
+      expect(updateBook.mock.calls).toEqual([
+        ["a", { manuallyMarkedRead: true }],
+        ["a", { manuallyMarkedRead: undefined }],
+        ["a", { manuallyMarkedRead: true }],
+        ["a", { manuallyMarkedRead: undefined }],
+      ]);
+      expect(current).toMatchObject({ progressCfi: book.progressCfi, progressPercent: 42 });
+
+      await act(async () => {
+        current = { ...current, progressPercent: 99.5, manuallyMarkedRead: true };
+        load.publishBooks([current]);
+      });
+      const undo = buttonWithText(details, "Undo mark as read");
+      undo.focus();
+      await act(async () => undo.click());
+      expect(readingActions(details)).toEqual(["Continue reading", "Start from beginning"]);
+      expect(document.activeElement).toBe(buttonWithText(details, "Start from beginning"));
+      expect(details.querySelector(".details-progress-pill")?.textContent).toBe("100%");
+    },
+  );
 
   it("defaults to a slide-over, then browses details without changing bulk selection", async () => {
     installDockMedia();

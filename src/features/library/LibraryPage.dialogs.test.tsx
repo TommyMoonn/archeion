@@ -260,13 +260,14 @@ describe("LibraryPage dialogs and book actions", () => {
     expect(session.container.textContent).not.toContain("Delete EPUB file?");
   });
 
-  it("clears saved progress without changing the last-opened date", async () => {
+  it("clears saved progress and manual completion without changing the last-opened date", async () => {
     const book: Book = {
       addedAt: "1",
       fileName: "Book.epub",
       id: "book-1",
       isFavorite: false,
       lastOpenedAt: "2026-07-09T00:00:00.000Z",
+      manuallyMarkedRead: true,
       originalTitle: "Book",
       progressCfi: "epubcfi(/6/4)",
       progressPercent: 0,
@@ -275,6 +276,7 @@ describe("LibraryPage dialogs and book actions", () => {
     };
     const updateBook = vi.fn().mockResolvedValue({
       ...book,
+      manuallyMarkedRead: undefined,
       progressCfi: undefined,
       progressPercent: 0,
     });
@@ -302,6 +304,9 @@ describe("LibraryPage dialogs and book actions", () => {
     });
 
     expect(session.container.textContent).toContain("Clear reading progress?");
+    expect(session.container.textContent).toContain(
+      "This clears the saved reading position and any manual read mark for “Book”.",
+    );
     expect(document.activeElement?.textContent?.trim()).toBe("Cancel");
     expect(updateBook).not.toHaveBeenCalled();
 
@@ -316,6 +321,7 @@ describe("LibraryPage dialogs and book actions", () => {
       {
         progressCfi: undefined,
         progressPercent: 0,
+        manuallyMarkedRead: undefined,
       },
     ]);
     expect(book.lastOpenedAt).toBe("2026-07-09T00:00:00.000Z");

@@ -20,6 +20,7 @@ type BookContextMenuProps = {
   onRenameFile?: (book: ReadonlyBook) => void;
   onRevealFile?: (book: ReadonlyBook) => void;
   onToggleFavorite: (book: ReadonlyBook) => void;
+  onToggleManualCompletion: (book: ReadonlyBook) => void;
   placement: BookMenuPlacement;
   canDelete?: boolean;
   canManageFile?: boolean;
@@ -38,6 +39,7 @@ export function BookContextMenu({
   onRenameFile,
   onRevealFile,
   onToggleFavorite,
+  onToggleManualCompletion,
   placement,
   canDelete = true,
   canManageFile = false,
@@ -57,6 +59,7 @@ export function BookContextMenu({
     onRenameFile,
     onRevealFile,
     onToggleFavorite,
+    onToggleManualCompletion,
     showRenameFileAction,
   });
 

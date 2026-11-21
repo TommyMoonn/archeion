@@ -1,7 +1,7 @@
 export type LibraryView = "grid" | "list";
 export type FolderBrowserView = "list" | "cards";
 export type CollectionCardSize = "small" | "medium" | "large";
-export type LibrarySort = "title" | "author" | "recently-opened";
+export type LibrarySort = "title" | "author" | "recently-opened" | "recently-added";
 export type FolderSort = "name" | "path" | "most-books";
 export type SeriesSort = "title" | "recently-opened" | "most-volumes";
 
@@ -86,7 +86,12 @@ export const DEFAULT_SERIES_COLLECTION_PREFERENCES: Readonly<SeriesCollectionPre
 export const DEFAULT_LIBRARY_SORT: LibrarySort = DEFAULT_BOOKS_COLLECTION_PREFERENCES.sortBy;
 
 const supportedCardSizes = new Set<string>(["small", "medium", "large"]);
-const supportedLibrarySorts = new Set<string>(["title", "author", "recently-opened"]);
+const supportedLibrarySorts = new Set<string>([
+  "title",
+  "author",
+  "recently-opened",
+  "recently-added",
+]);
 const supportedFolderSorts = new Set<string>(["name", "path", "most-books"]);
 const supportedSeriesSorts = new Set<string>(["title", "recently-opened", "most-volumes"]);
 const supportedReadingStatuses = new Set<string>(["unread", "in-progress", "completed"]);

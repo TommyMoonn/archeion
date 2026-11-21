@@ -60,6 +60,7 @@ function drawerProps(renderedBook: Book, onClearProgress: (book: ReadonlyBook) =
     onRescan: vi.fn(),
     onRevealFile: vi.fn(),
     onToggleFavorite: vi.fn(),
+    onToggleManualCompletion: vi.fn(),
     onViewMetadata: vi.fn(),
   };
 }
@@ -175,6 +176,7 @@ describe("BookDetailsDrawer", () => {
     expect(markup).toContain("Clear reading progress");
     expect(markup).not.toContain("details-progress-pill");
     expect(markup).not.toContain("Reading progress 0%");
+    expect(markup).not.toContain(">Unread<");
   });
 
   it("routes clear progress for a saved CFI at zero percent", () => {
@@ -207,7 +209,30 @@ describe("BookDetailsDrawer", () => {
     expect(markup).not.toContain("Continue reading");
     expect(markup).not.toContain("Start from beginning");
     expect(markup).not.toContain("Clear reading progress");
-    expect(markup).not.toContain("details-progress-pill");
+    expect(markup).toContain('<span class="details-progress-pill">Unread</span>');
+  });
+
+  it("shows manual completion without creating a saved position", () => {
+    const markup = renderDetails({
+      ...book,
+      progressCfi: undefined,
+      progressPercent: 0,
+      manuallyMarkedRead: true,
+    });
+
+    expect(markup).toContain("Read book");
+    expect(markup).toContain("Undo mark as read");
+    expect(markup).toContain("Reading progress 100%");
+    expect(markup).toContain("Clear reading progress");
+    expect(markup).not.toContain("Continue reading");
+    expect(markup).not.toContain("Start from beginning");
+  });
+
+  it("hides the completion action when the saved progress already completes the book", () => {
+    const markup = renderDetails({ ...book, progressPercent: 99.5 });
+
+    expect(markup).toContain("Reading progress 100%");
+    expect(markup).not.toMatch(/mark as read/i);
   });
 
   it("keeps progress actions secondary when a saved position exists", () => {

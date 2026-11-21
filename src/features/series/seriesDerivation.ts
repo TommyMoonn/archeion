@@ -135,8 +135,11 @@ export function seriesNextVolumeBook(
     return undefined;
   }
 
-  const effectiveProgress = progressPercent ?? currentBook.progressPercent;
-  if (readingStatusForProgress(effectiveProgress) !== "completed") {
+  const status =
+    progressPercent === undefined
+      ? bookReadingStatus(currentBook)
+      : readingStatusForProgress(progressPercent);
+  if (status !== "completed") {
     return undefined;
   }
 

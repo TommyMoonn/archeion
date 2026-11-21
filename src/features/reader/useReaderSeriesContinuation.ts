@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Book, ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
-import { readingStatusForProgress } from "../reading/readingProgress";
+import { displayedBookProgress } from "../reading/readingProgress";
 import { deriveSeriesEntryForBook, seriesNextVolumeBook } from "../series/readerSeriesContinuation";
 
 type ReaderSeriesContinuationInput = {
@@ -23,11 +23,28 @@ export function useReaderSeriesContinuation({
     bookId: string;
     entry: SeriesEntry | null;
   } | null>(null);
-  const bookId = book?.id;
-  const shouldLoad =
-    Boolean(bookId && !book?.isFileMissing && book.sourceMetadata?.series?.trim()) &&
-    isReaderReady &&
-    readingStatusForProgress(progressPercent) === "completed";
+  const bookId = !book?.isFileMissing && book?.sourceMetadata?.series?.trim() ? book.id : null;
+  const [archiveGeneration] = useState(() => storage.getLibrarySnapshot().archiveGeneration);
+  const subscribe = useCallback(
+    (onChange: () => void) =>
+      bookId ? storage.observeLibrarySnapshot({ next: onChange }) : () => undefined,
+    [bookId, storage],
+  );
+  const getManualCompletion = useCallback(() => {
+    if (!bookId) return null;
+    const snapshot = storage.getLibrarySnapshot();
+    if (snapshot.archiveGeneration !== archiveGeneration) return null;
+    const currentBook = snapshot.books.find((candidate) => candidate.id === bookId);
+    return currentBook && !currentBook.isFileMissing
+      ? currentBook.manuallyMarkedRead === true
+      : null;
+  }, [archiveGeneration, bookId, storage]);
+  const manuallyMarkedRead = useSyncExternalStore(subscribe, getManualCompletion);
+  const effectiveProgress = displayedBookProgress({
+    manuallyMarkedRead: manuallyMarkedRead === true,
+    progressPercent,
+  });
+  const shouldLoad = manuallyMarkedRead !== null && isReaderReady && effectiveProgress === 100;
 
   useEffect(() => {
     let cancelled = false;
@@ -51,7 +68,10 @@ export function useReaderSeriesContinuation({
 
   const entry = loadedSeries && loadedSeries.bookId === bookId ? loadedSeries.entry : null;
   return useMemo(
-    () => (entry && bookId ? seriesNextVolumeBook(entry, bookId, progressPercent) : undefined),
-    [bookId, entry, progressPercent],
+    () =>
+      shouldLoad && entry && bookId
+        ? seriesNextVolumeBook(entry, bookId, effectiveProgress)
+        : undefined,
+    [bookId, effectiveProgress, entry, shouldLoad],
   );
 }

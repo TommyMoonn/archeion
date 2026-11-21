@@ -90,6 +90,7 @@ type LibraryWorkspaceDialogsProps = {
   onRescan: () => Promise<void>;
   onRevealBookFile: (book: LibrarySnapshotBook) => Promise<void>;
   onToggleFavorite: (book: LibrarySnapshotBook) => Promise<void>;
+  onToggleManualCompletion: (book: LibrarySnapshotBook) => Promise<void>;
   onWriteBookCover: (
     book: LibrarySnapshotBook,
     input: EpubCoverWritebackInput,
@@ -165,6 +166,7 @@ function LibraryWorkspaceDialogContent({
   onRescan,
   onRevealBookFile,
   onToggleFavorite,
+  onToggleManualCompletion,
   onWriteBookCover,
   onWriteBookMetadata,
   onWriteSelectedBookMetadata,
@@ -243,6 +245,7 @@ function LibraryWorkspaceDialogContent({
         onRescan={dialogActions.openRescan}
         onRevealFile={(target) => void onRevealBookFile(target)}
         onToggleFavorite={(target) => void onToggleFavorite(target)}
+        onToggleManualCompletion={onToggleManualCompletion}
         onViewMetadata={dialogActions.openBookMetadata}
         returnFocusTo={dialog.returnFocusTo}
       />
@@ -535,7 +538,7 @@ function LibraryWorkspaceDialogContent({
         returnFocusTo={dialog.returnFocusTo}
         title="Clear reading progress?"
         feedback={<p role="status">{isClearingProgress ? "Clearing reading progress…" : ""}</p>}
-        description={`This resets the saved reading position for “${bookTitle(dialog.book)}”. The EPUB file and last-opened date are not changed.`}
+        description={`This clears the saved reading position and any manual read mark for “${bookTitle(dialog.book)}”. The EPUB file and last-opened date are kept.`}
         onClose={() => {
           if (!isClearingProgress)
             dialogActions.openBookDetailsById(dialog.book.id, "clear-progress");
