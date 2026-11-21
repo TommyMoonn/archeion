@@ -9,4 +9,5 @@ export const librarySortOptions: LibrarySortOption[] = [
   { label: "Title", value: "title" },
   { label: "Author", value: "author" },
   { label: "Recently opened", value: "recently-opened" },
+  { label: "Recently added", value: "recently-added" },
 ];

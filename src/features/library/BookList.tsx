@@ -16,6 +16,7 @@ import {
 import { IconButton } from "../../components/IconButton";
 import type { ReadonlyBook } from "../../types/book";
 import { formatMediumDate } from "../../utils/formatters";
+import { bookAddedTimestamp } from "./bookAddedDate";
 import { BookContextMenu, MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
@@ -38,6 +39,7 @@ type BookListProps = {
   onSelect: (book: ReadonlyBook) => void;
   onSelectionChange: (book: ReadonlyBook, intent: LibrarySelectionIntent) => void;
   onToggleFavorite: (book: ReadonlyBook) => void;
+  onToggleManualCompletion: (book: ReadonlyBook) => void;
   canDelete?: boolean;
   canManageFile?: boolean;
   selectedBookIds: ReadonlySet<string>;
@@ -67,6 +69,7 @@ function BookRowComponent({
   onSelect,
   onSelectionChange,
   onToggleFavorite,
+  onToggleManualCompletion,
   canDelete = true,
   canManageFile = false,
   selected,
@@ -78,6 +81,7 @@ function BookRowComponent({
 }: BookRowProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
+  const addedAt = bookAddedTimestamp(book.addedAt);
   const contextMenu = useContextMenuController();
   const primaryActionRef = useRef<HTMLButtonElement>(null);
   const missingFileDescriptionId = useId();
@@ -140,7 +144,9 @@ function BookRowComponent({
           {author ? <span>{author}</span> : null}
         </span>
         <span className="book-row__file">{book.fileName}</span>
-        <span className="book-row__date">{formatMediumDate(book.addedAt)}</span>
+        <span className="book-row__date">
+          {addedAt === undefined ? "—" : formatMediumDate(addedAt)}
+        </span>
       </button>
       {book.isFileMissing ? (
         <span className="sr-only" id={missingFileDescriptionId}>
@@ -183,6 +189,7 @@ function BookRowComponent({
         onRead={onRead}
         onRevealFile={onRevealFile}
         onToggleFavorite={onToggleFavorite}
+        onToggleManualCompletion={onToggleManualCompletion}
         placement="row"
         canDelete={canDelete}
         canManageFile={canManageFile}
@@ -213,7 +220,8 @@ const BookRow = memo(
     previous.onRevealFile === next.onRevealFile &&
     previous.onSelect === next.onSelect &&
     previous.onSelectionChange === next.onSelectionChange &&
-    previous.onToggleFavorite === next.onToggleFavorite,
+    previous.onToggleFavorite === next.onToggleFavorite &&
+    previous.onToggleManualCompletion === next.onToggleManualCompletion,
 );
 
 export const BookList = memo(function BookList({

@@ -163,6 +163,67 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
+    description: "Save bookmarks, highlights, and notes from the active archive.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.export-annotations",
+    label: "Export annotations",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Save bookmarks, highlights, and notes from the active archive."
+        label="Export annotations"
+      >
+        <div className="settings-annotation-export-actions">
+          <Button
+            disabled={context.annotationExportBusy}
+            disabledReason="An annotation export is in progress"
+            onClick={() => void context.exportAnnotations("json")}
+            variant="secondary"
+          >
+            Export JSON
+          </Button>
+          <Button
+            disabled={context.annotationExportBusy}
+            disabledReason="An annotation export is in progress"
+            onClick={() => void context.exportAnnotations("markdown")}
+            variant="secondary"
+          >
+            Export Markdown
+          </Button>
+        </div>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["bookmarks", "highlights", "notes", "markdown", "json"],
+    sectionId: "storage",
+  },
+  {
+    description: "Review annotations from an Archeion JSON export before importing.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.import-annotations",
+    label: "Import annotations",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Review annotations from an Archeion JSON export before importing."
+        label="Import annotations"
+      >
+        <Button
+          aria-haspopup="dialog"
+          disabled={context.annotationImportBusy}
+          disabledReason="An annotation import is in progress"
+          onClick={() => void context.previewAnnotationImport()}
+          variant="secondary"
+        >
+          Import annotations
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["bookmarks", "highlights", "notes", "restore", "json"],
+    sectionId: "storage",
+  },
+  {
     description: "Forces EPUB files to be checked again later.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",

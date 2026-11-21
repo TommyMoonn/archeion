@@ -179,6 +179,21 @@ fn cleanup_transaction_artifacts(
     Ok(())
 }
 
+fn replacement_candidate<'a>(
+    backups: &'a [TransactionArtifact],
+    temporaries: &'a [TransactionArtifact],
+) -> Option<&'a TransactionArtifact> {
+    backups.last().or_else(|| temporaries.last())
+}
+
+pub(crate) fn read_replacement_candidate(destination: &Path) -> io::Result<Option<Vec<u8>>> {
+    let backups = transaction_artifacts(destination, "write-backup")?;
+    let temporary = transaction_artifacts(destination, "tmp-write")?;
+    replacement_candidate(&backups, &temporary)
+        .map(|candidate| fs::read(&candidate.path))
+        .transpose()
+}
+
 pub(crate) fn recover_atomic_replace(destination: &Path) -> io::Result<()> {
     let temporary_files = transaction_artifacts(destination, "tmp-write")?;
     let backup_files = transaction_artifacts(destination, "write-backup")?;
@@ -201,15 +216,20 @@ pub(crate) fn recover_atomic_replace(destination: &Path) -> io::Result<()> {
         return sync_parent_directory(destination);
     }
 
-    let recovery_source = backup_files
-        .last()
-        .or_else(|| temporary_files.last())
+    let recovery_source = replacement_candidate(&backup_files, &temporary_files)
         .ok_or_else(|| io::Error::other("Atomic replacement recovery source is unavailable."))?;
 
     fs::rename(&recovery_source.path, destination)?;
     sync_parent_directory(destination)?;
     cleanup_transaction_artifacts(&temporary_files, &backup_files, Some(&recovery_source.path))?;
     sync_parent_directory(destination)
+}
+
+pub(crate) fn discard_staged_replacements(destination: &Path, marker: &str) -> io::Result<()> {
+    for artifact in transaction_artifacts(destination, marker)? {
+        remove_transaction_artifact(&artifact.path)?;
+    }
+    Ok(())
 }
 
 pub(crate) struct PreparedAtomicFile {

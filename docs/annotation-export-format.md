@@ -51,3 +51,24 @@ Markdown exports must be saved with a `.md` extension and JSON exports with a
 `.json` extension. Extension matching is case-insensitive. Archeion rejects
 missing, unsupported, or opposing extensions without changing the selected
 path or writing a file.
+
+## Import
+
+Settings accepts version 1 JSON exports of up to 64 MiB. It validates the
+whole document before showing a preview. Each book and each annotation
+within a book must have a unique ID. Annotation fields follow the same rules
+as archive annotation metadata. Import uses the Reader's 5,000-character
+highlight limit and bounds nested annotation data. The 64 MiB document limit
+also applies to notes. A malformed entry prevents the entire batch from
+being previewed.
+
+Import compares exact book IDs in the active library, including records
+whose EPUB is missing. Within each matched book, equal annotations count as
+already present. The same annotation ID with different content counts as a
+conflict. Both are skipped. Saved annotation IDs, timestamps, and unknown
+annotation fields are preserved. Unusable highlight anchors retain their
+saved content with a detached marker for Reader recovery.
+
+Confirmation appends the previewed additions in one annotation sidecar
+replacement. Archeion saves a pre-import backup and requires a new preview
+if the archive activation, annotation sidecar, or matching book IDs change.

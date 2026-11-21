@@ -33,7 +33,7 @@ export function mockStorageCommands(overrides: StorageCommandHandlers = {}): voi
     load_archive_metadata: () => structuredClone(metadata),
     save_library_metadata: () => undefined,
     save_progress_metadata: () => undefined,
-    save_annotations_metadata: () => undefined,
+    save_annotations_metadata: () => "saved-annotations",
     invalidate_scanner_cache_entries: () => undefined,
     invalidate_cover_cache_entries: () => undefined,
     ...overrides,

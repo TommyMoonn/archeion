@@ -93,6 +93,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
       preferences.library.detailsWidth = savedDetails.detailsWidth;
   }
   preferences.library.collections.books.viewMode = params.get("view") === "list" ? "list" : "grid";
+  if (params.get("cardSize") === "small") preferences.library.collections.books.cardSize = "small";
   preferences.automaticallyCheckForUpdates = false;
   preferences.rememberWindowState = false;
   preferences.restoreLastReader = false;
@@ -144,6 +145,29 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     coverBytes.push(await cover.arrayBuffer());
   }
   let metadata = { library: { version: 1, books: {} }, progress: { version: 1, progress: {} } };
+  const annotationTime = "2026-08-01T00:00:00.000Z";
+  const exportedAnnotations = {
+    schema: "archeion.annotation-export",
+    version: 1,
+    exportedAt: annotationTime,
+    books: ["fixture-book", "unmatched-book"].map((id) => ({
+      id,
+      title: "Same title",
+      annotations: [
+        {
+          chapterLabel: "Chapter",
+          annotation: {
+            id: "fixture-bookmark",
+            type: "bookmark",
+            createdAt: annotationTime,
+            updatedAt: annotationTime,
+          },
+        },
+      ],
+    })),
+  };
+  let importedAnnotations = { version: 1, books: {} };
+  let annotationRevision = 0;
   const registry = () => ({ version: 1, archives, lastOpenedArchiveId: active });
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   function scan(): ArchiveScan {
@@ -156,6 +180,14 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         folderPath: "",
         size: epub.byteLength + i,
         modifiedAt: 1,
+        ...(params.has("longBookMetadata") && i === 0
+          ? {
+              sourceMetadata: {
+                title: "Book-0000 A comprehensively annotated history of imaginary libraries",
+                creator: "A very long author name that exceeds the width of a book card",
+              },
+            }
+          : {}),
       })),
     };
   }
@@ -249,7 +281,34 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
             (Number(String(input.bookId).split("-").at(-1)) || 0) % coverBytes.length
           ];
         case "load_annotations_metadata":
-          return { version: 1, books: {} };
+          return { metadata: importedAnnotations, revision: String(annotationRevision) };
+        case "load_archive_annotation_snapshot":
+          return {
+            activationRevision: 1,
+            annotationRevision: String(annotationRevision),
+            annotations: importedAnnotations,
+            library: {
+              version: 1,
+              books: {
+                "fixture-book": { relativePath: "fixture.epub", updatedAt: annotationTime },
+              },
+            },
+          };
+        case "plugin:dialog|open":
+          return "C:/example/annotations.json";
+        case "read_annotation_import_file":
+          return new TextEncoder().encode(JSON.stringify(exportedAnnotations)).buffer;
+        case "import_archive_annotations": {
+          const batch = input.batch as { additions: Record<string, unknown[]> };
+          importedAnnotations = {
+            version: 1,
+            books: Object.fromEntries(
+              Object.entries(batch.additions).map(([id, annotations]) => [id, { annotations }]),
+            ),
+          };
+          annotationRevision += 1;
+          return;
+        }
         case "save_library_metadata":
           metadata.library = input.metadata as typeof metadata.library;
           return;
@@ -258,6 +317,9 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           metadata.progress = input.metadata as typeof metadata.progress;
           return;
         case "save_annotations_metadata":
+          if (input.expectedRevision !== String(annotationRevision)) return null;
+          importedAnnotations = input.metadata as typeof importedAnnotations;
+          return String(++annotationRevision);
         case "initialize_archive_metadata":
         case "maintain_cover_cache":
           return;

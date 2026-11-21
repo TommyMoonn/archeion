@@ -82,6 +82,7 @@ export function useLibraryBookActions({
   const importLock = useRef(false);
   const deleteLock = useRef(false);
   const rescanLock = useRef(false);
+  const pendingCompletion = useRef(new Map<string, { markedRead: boolean }>());
   const archiveScanActive = useArchiveScanActivity(storage);
   const [isImporting, setIsImporting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -239,6 +240,7 @@ export function useLibraryBookActions({
         const updated = await storage.updateBook(book.id, {
           progressCfi: undefined,
           progressPercent: 0,
+          manuallyMarkedRead: undefined,
         });
         if (!updated) {
           throw new Error("The active archive changed before progress was cleared.");
@@ -267,6 +269,43 @@ export function useLibraryBookActions({
       dialogs,
       dismissFeedback,
       isClearingProgress,
+      onBookMutationComplete,
+      publishFeedbackOperation,
+      storage,
+    ],
+  );
+
+  const toggleManualCompletion = useCallback(
+    async (book: LibrarySnapshotBook) => {
+      const pending = pendingCompletion.current;
+      const key = JSON.stringify([storage.getLibrarySnapshot().archiveGeneration, book.id]);
+      const request = { markedRead: book.manuallyMarkedRead !== true };
+      if (pending.get(key)?.markedRead === request.markedRead) return;
+
+      pending.set(key, request);
+      const feedbackId = `manual-completion:${book.id}`;
+      const operation = beginFeedbackOperation(feedbackId);
+      dismissFeedback(feedbackId);
+      const focusClaim = beginBookMutation(book.id);
+      try {
+        const updated = await storage.updateBook(book.id, {
+          manuallyMarkedRead: request.markedRead ? true : undefined,
+        });
+        if (updated) onBookMutationComplete(focusClaim, "updated");
+      } catch {
+        publishFeedbackOperation(operation, {
+          id: feedbackId,
+          tone: "error",
+          title: "Reading status could not be saved.",
+        });
+      } finally {
+        if (pending.get(key) === request) pending.delete(key);
+      }
+    },
+    [
+      beginBookMutation,
+      beginFeedbackOperation,
+      dismissFeedback,
       onBookMutationComplete,
       publishFeedbackOperation,
       storage,
@@ -471,6 +510,7 @@ export function useLibraryBookActions({
 
   return {
     confirmClearProgress,
+    toggleManualCompletion,
     createFolder,
     deleteBook,
     deleteFolder,

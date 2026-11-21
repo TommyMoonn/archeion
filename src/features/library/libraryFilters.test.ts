@@ -271,7 +271,7 @@ describe("library filters", () => {
     expect(normalizeLibrarySort("title")).toBe("title");
     expect(normalizeLibrarySort("author")).toBe("author");
     expect(normalizeLibrarySort("recently-opened")).toBe("recently-opened");
-    expect(normalizeLibrarySort("recently-added")).toBe("title");
+    expect(normalizeLibrarySort("recently-added")).toBe("recently-added");
     expect(normalizeLibrarySort("folder")).toBe("title");
     expect(normalizeLibrarySort("folder-path")).toBe("title");
     expect(normalizeLibrarySort("file-created-time")).toBe("title");
@@ -443,6 +443,94 @@ describe("library filters", () => {
       }).map((book) => book.id),
     ).toEqual(["first"]);
   });
+
+  it("sorts added dates newest first, with natural titles and ordinal path and ID ties", () => {
+    const tied = { addedAt: "2026-07-03T00:00:00.000Z", originalTitle: "Series 2" };
+    const entries = [
+      createBook({ ...tied, id: "b", relativePath: "A.epub" }),
+      createBook({ ...tied, id: "lowercase-path", relativePath: "a.epub" }),
+      createBook({ ...tied, id: "a", relativePath: "A.epub", originalTitle: "Séries 2" }),
+      createBook({ ...tied, id: "earlier-path", relativePath: "0.epub" }),
+      createBook({
+        id: "natural-title",
+        originalTitle: "Series 10",
+        addedAt: "2026-07-02T19:00:00-05:00",
+        relativePath: "0.epub",
+      }),
+      createBook({
+        id: "newest",
+        originalTitle: "Z Title",
+        addedAt: "2026-07-03T01:30+01:00",
+        modifiedAt: "2025-01-01T00:00:00Z",
+      }),
+      createBook({
+        id: "older",
+        originalTitle: "A Title",
+        addedAt: "2026-07-02",
+        modifiedAt: "2027-01-01T00:00:00Z",
+      }),
+    ];
+    const order = ["newest", "earlier-path", "a", "b", "lowercase-path", "natural-title", "older"];
+    expect(sortBooks(entries, "recently-added").map((book) => book.id)).toEqual(order);
+    expect(sortBooks([...entries].reverse(), "recently-added").map((book) => book.id)).toEqual(
+      order,
+    );
+  });
+
+  it("places missing and malformed legacy dates together after valid dates", () => {
+    const entries = [
+      createBook({ id: "malformed", originalTitle: "D Malformed", addedAt: "not a date" }),
+      createBook({ id: "overflow", originalTitle: "C Overflow", addedAt: "2026-02-30" }),
+      createBook({ id: "accidental-date", originalTitle: "A Numeric", addedAt: "1" }),
+      createBook({ id: "missing", originalTitle: "B Missing", addedAt: undefined }),
+      createBook({ id: "valid", originalTitle: "Z Valid", addedAt: "1969-12-31T23:59:00Z" }),
+    ];
+    expect(sortBooks(entries, "recently-added").map((book) => book.id)).toEqual([
+      "valid",
+      "accidental-date",
+      "missing",
+      "overflow",
+      "malformed",
+    ]);
+  });
+
+  it.each([
+    { type: "library" },
+    { type: "favorites" },
+    { type: "folder", folderId: "folder-one" },
+  ] as const)(
+    "keeps query relevance first and sorts equally relevant results in $type",
+    (location) => {
+      const shared = { folderId: "folder-one", isFavorite: true };
+      const entries = [
+        createBook({ ...shared, id: "exact", originalTitle: "Needle", addedAt: "2026-07-01" }),
+        createBook({
+          ...shared,
+          id: "older-match",
+          originalTitle: "Needle Stories",
+          addedAt: "2026-07-02",
+        }),
+        createBook({
+          ...shared,
+          id: "newer-match",
+          originalTitle: "Needle Stories",
+          addedAt: "2026-07-03",
+        }),
+        createBook({
+          ...shared,
+          id: "filtered",
+          originalTitle: "Needle",
+          addedAt: "2026-07-04",
+          progressPercent: 100,
+        }),
+      ];
+      const visible = getVisibleBooks(entries, "needle", "recently-added", location, [], {
+        ...createDefaultLibraryFilters(),
+        readingStatuses: ["unread"],
+      });
+      expect(visible.map((book) => book.id)).toEqual(["exact", "newer-match", "older-match"]);
+    },
+  );
 
   it("derives normalized metadata filter options", () => {
     const filterBooks = [

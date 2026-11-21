@@ -16,6 +16,7 @@ export function isBookRenderEquivalent(left: ReadonlyBook, right: ReadonlyBook):
       left.modifiedAt === right.modifiedAt &&
       left.originalAuthor === right.originalAuthor &&
       left.originalTitle === right.originalTitle &&
+      left.manuallyMarkedRead === right.manuallyMarkedRead &&
       left.progressCfi === right.progressCfi &&
       left.progressPercent === right.progressPercent &&
       left.relativePath === right.relativePath &&

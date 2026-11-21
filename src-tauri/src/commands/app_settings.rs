@@ -1029,6 +1029,8 @@ impl Default for LibraryDisplaySettings {
 
 impl LibraryDisplaySettings {
     fn from_value(value: Option<&Value>, legacy_book_card_size: Option<&Value>) -> Self {
+        const BOOK_SORTS: &[&str] = &["title", "author", "recently-opened", "recently-added"];
+
         let settings = value.and_then(Value::as_object);
         let collections = settings.and_then(|value| object_field(value, "collections"));
         let books = collections.and_then(|value| object_field(value, "books"));
@@ -1041,7 +1043,7 @@ impl LibraryDisplaySettings {
         );
         let legacy_sort = normalize_setting(
             settings.and_then(|value| string_field(value, "sortBy")),
-            &["title", "author", "recently-opened"],
+            BOOK_SORTS,
             "title",
         );
         let legacy_card_size = normalize_setting(
@@ -1062,7 +1064,7 @@ impl LibraryDisplaySettings {
                     ),
                     sort_by: normalize_setting(
                         books.and_then(|value| string_field(value, "sortBy")),
-                        &["title", "author", "recently-opened"],
+                        BOOK_SORTS,
                         &legacy_sort,
                     ),
                     view_mode: normalize_setting(

@@ -110,11 +110,12 @@ export type Book = {
   folderId?: string | null;
   isFavorite: boolean;
   readerPresentation?: ReaderPresentation;
-  addedAt: string;
+  addedAt?: string;
   updatedAt: string;
   lastOpenedAt?: string;
   progressCfi?: string;
   progressPercent?: number;
+  manuallyMarkedRead?: boolean;
 };
 
 export type ReadonlyBook = Readonly<
@@ -126,6 +127,11 @@ export type ReadonlyBook = Readonly<
 export type UpdateBookInput = Partial<
   Pick<
     Book,
-    "isFavorite" | "readerPresentation" | "lastOpenedAt" | "progressCfi" | "progressPercent"
+    | "isFavorite"
+    | "readerPresentation"
+    | "lastOpenedAt"
+    | "progressCfi"
+    | "progressPercent"
+    | "manuallyMarkedRead"
   >
 >;

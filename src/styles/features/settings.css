@@ -372,6 +372,12 @@ html[data-motion="on"] .settings-status {
   max-width: 100%;
 }
 
+.settings-annotation-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .settings-row__unavailable {
   color: var(--muted);
   font-size: var(--type-meta);
@@ -1020,4 +1026,25 @@ html[data-motion="on"] .settings-status {
 .settings-window .button--prominent {
   --button-height: var(--control-height-standard);
   --button-padding-inline: 14px;
+}
+.settings-annotation-import-counts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 16px;
+  margin: 0;
+}
+
+.settings-annotation-import-counts dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-annotation-import-unmatched {
+  margin-block-start: 12px;
+}
+
+.settings-annotation-import-unmatched pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

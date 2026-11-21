@@ -8,15 +8,16 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../../types/annotation";
+import type { LibraryMetadata } from "../metadataFiles";
 import {
   createAnnotationInMetadata,
   deleteAnnotationInMetadata,
   restoreAnnotationInMetadata,
   updateBookmarkInMetadata,
   updateHighlightInMetadata,
+  type AnnotationMetadataMutation,
 } from "./annotationMetadataMutations";
 import {
-  createAnnotationsMetadata,
   normalizeAnnotationsMetadata,
   type StoredAnnotationRecord,
   type StoredAnnotationsMetadata,
@@ -27,6 +28,19 @@ export type AnnotationArchiveScope = {
   rootPath: string | null;
 };
 
+export type ArchiveAnnotationBook = {
+  bookId: string;
+  book: LibraryMetadata["books"][string] | undefined;
+  annotations: Annotation[];
+};
+
+export type ArchiveAnnotationSnapshot = {
+  activationRevision: number;
+  books: ArchiveAnnotationBook[];
+};
+
+export type AnnotationMetadataSnapshot = { metadata: unknown; revision: string };
+
 type AnnotationRepositoryHost = {
   createScope: () => AnnotationArchiveScope;
   assertCurrentScope: (scope: AnnotationArchiveScope) => void;
@@ -34,11 +48,12 @@ type AnnotationRepositoryHost = {
     scope: AnnotationArchiveScope,
     operation: () => Promise<T>,
   ) => Promise<T | undefined>;
-  loadMetadata: (scope: AnnotationArchiveScope) => Promise<unknown>;
+  loadMetadata: (scope: AnnotationArchiveScope) => Promise<AnnotationMetadataSnapshot>;
   saveMetadata: (
     scope: AnnotationArchiveScope,
     metadata: StoredAnnotationsMetadata,
-  ) => Promise<void>;
+    expectedRevision: string,
+  ) => Promise<string | null>;
   now?: () => string;
   createId?: () => string;
 };
@@ -75,20 +90,37 @@ function normalizeAnnotationId(annotationId: string): string | undefined {
 }
 
 export class AnnotationRepository {
-  private cachedGeneration: number | null = null;
-  private metadata: StoredAnnotationsMetadata = createAnnotationsMetadata();
+  static snapshot(library: LibraryMetadata, raw: unknown): ArchiveAnnotationBook[] {
+    return Object.entries(normalizeAnnotationsMetadata(raw).books).flatMap(
+      ([bookId, { annotations }]) =>
+        annotations.length
+          ? [
+              {
+                bookId,
+                book: Object.hasOwn(library.books, bookId) ? library.books[bookId] : undefined,
+                annotations,
+              },
+            ]
+          : [],
+    );
+  }
+
+  private cache: {
+    generation: number;
+    metadata: StoredAnnotationsMetadata;
+    revision: string;
+  } | null = null;
 
   constructor(private readonly host: AnnotationRepositoryHost) {}
 
   reset(): void {
-    this.cachedGeneration = null;
-    this.metadata = createAnnotationsMetadata();
+    this.cache = null;
   }
 
   async list(bookId: string): Promise<Annotation[]> {
     const normalizedBookId = normalizeBookId(bookId);
     return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
+      const { metadata } = await this.load(scope);
       return cloneAnnotations(metadata.books[normalizedBookId]?.annotations ?? []);
     });
   }
@@ -99,7 +131,7 @@ export class AnnotationRepository {
     if (!normalizedAnnotationId) return undefined;
 
     return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
+      const { metadata } = await this.load(scope);
       const annotation = metadata.books[normalizedBookId]?.annotations.find(
         (candidate) => candidate.id === normalizedAnnotationId,
       );
@@ -112,19 +144,12 @@ export class AnnotationRepository {
   create(bookId: string, input: CreateAnnotationInput): Promise<Annotation>;
   async create(bookId: string, input: CreateAnnotationInput): Promise<Annotation> {
     const normalizedBookId = normalizeBookId(bookId);
-    return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
-      const timestamp = this.timestamp();
-      const mutation = createAnnotationInMetadata(
-        metadata,
-        normalizedBookId,
-        input,
-        this.host.createId?.() ?? createAnnotationId(),
-        timestamp,
-      );
-      if (mutation.changed) await this.persist(scope, mutation.metadata);
-      return cloneAnnotation(mutation.value);
-    });
+    const id = this.host.createId?.() ?? createAnnotationId();
+    const timestamp = this.timestamp();
+    const annotation = await this.mutate((metadata) =>
+      createAnnotationInMetadata(metadata, normalizedBookId, input, id, timestamp),
+    );
+    return cloneAnnotation(annotation);
   }
 
   restore(bookId: string, annotation: BookmarkAnnotation): Promise<BookmarkAnnotation>;
@@ -132,12 +157,10 @@ export class AnnotationRepository {
   restore(bookId: string, annotation: Annotation): Promise<Annotation>;
   async restore(bookId: string, annotation: Annotation): Promise<Annotation> {
     const normalizedBookId = normalizeBookId(bookId);
-    return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
-      const mutation = restoreAnnotationInMetadata(metadata, normalizedBookId, annotation);
-      if (mutation.changed) await this.persist(scope, mutation.metadata);
-      return cloneAnnotation(mutation.value);
-    });
+    const restored = await this.mutate((metadata) =>
+      restoreAnnotationInMetadata(metadata, normalizedBookId, annotation),
+    );
+    return cloneAnnotation(restored);
   }
 
   async updateBookmark(
@@ -149,18 +172,17 @@ export class AnnotationRepository {
     const normalizedAnnotationId = normalizeAnnotationId(annotationId);
     if (!normalizedAnnotationId) return undefined;
 
-    return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
-      const mutation = updateBookmarkInMetadata(
+    const timestamp = this.timestamp();
+    const annotation = await this.mutate((metadata) =>
+      updateBookmarkInMetadata(
         metadata,
         normalizedBookId,
         normalizedAnnotationId,
         changes,
-        this.timestamp(),
-      );
-      if (mutation.changed) await this.persist(scope, mutation.metadata);
-      return mutation.value ? (cloneAnnotation(mutation.value) as BookmarkAnnotation) : undefined;
-    });
+        timestamp,
+      ),
+    );
+    return annotation ? structuredClone(annotation) : undefined;
   }
 
   async updateHighlight(
@@ -172,18 +194,17 @@ export class AnnotationRepository {
     const normalizedAnnotationId = normalizeAnnotationId(annotationId);
     if (!normalizedAnnotationId) return undefined;
 
-    return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
-      const mutation = updateHighlightInMetadata(
+    const timestamp = this.timestamp();
+    const annotation = await this.mutate((metadata) =>
+      updateHighlightInMetadata(
         metadata,
         normalizedBookId,
         normalizedAnnotationId,
         changes,
-        this.timestamp(),
-      );
-      if (mutation.changed) await this.persist(scope, mutation.metadata);
-      return mutation.value ? (cloneAnnotation(mutation.value) as HighlightAnnotation) : undefined;
-    });
+        timestamp,
+      ),
+    );
+    return annotation ? structuredClone(annotation) : undefined;
   }
 
   async delete(bookId: string, annotationId: string): Promise<boolean> {
@@ -191,16 +212,9 @@ export class AnnotationRepository {
     const normalizedAnnotationId = normalizeAnnotationId(annotationId);
     if (!normalizedAnnotationId) return false;
 
-    return this.run(async (scope) => {
-      const metadata = await this.ensureLoaded(scope);
-      const mutation = deleteAnnotationInMetadata(
-        metadata,
-        normalizedBookId,
-        normalizedAnnotationId,
-      );
-      if (mutation.changed) await this.persist(scope, mutation.metadata);
-      return mutation.value;
-    });
+    return this.mutate((metadata) =>
+      deleteAnnotationInMetadata(metadata, normalizedBookId, normalizedAnnotationId),
+    );
   }
 
   private timestamp(): string {
@@ -219,23 +233,37 @@ export class AnnotationRepository {
     return result.value;
   }
 
-  private async ensureLoaded(scope: AnnotationArchiveScope): Promise<StoredAnnotationsMetadata> {
-    if (this.cachedGeneration === scope.generation) return this.metadata;
-
-    const raw = await this.host.loadMetadata(scope);
+  private async load(scope: AnnotationArchiveScope) {
+    const { metadata, revision } = await this.host.loadMetadata(scope);
     this.host.assertCurrentScope(scope);
-    this.metadata = normalizeAnnotationsMetadata(raw);
-    this.cachedGeneration = scope.generation;
-    return this.metadata;
+    this.cache = {
+      generation: scope.generation,
+      metadata: normalizeAnnotationsMetadata(metadata),
+      revision,
+    };
+    return this.cache;
   }
 
-  private async persist(
-    scope: AnnotationArchiveScope,
-    metadata: StoredAnnotationsMetadata,
-  ): Promise<void> {
-    await this.host.saveMetadata(scope, structuredClone(metadata));
-    this.host.assertCurrentScope(scope);
-    this.metadata = metadata;
-    this.cachedGeneration = scope.generation;
+  private mutate<T>(apply: (metadata: StoredAnnotationsMetadata) => AnnotationMetadataMutation<T>) {
+    return this.run(async (scope) => {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const base =
+          this.cache?.generation === scope.generation ? this.cache : await this.load(scope);
+        const mutation = apply(base.metadata);
+        if (!mutation.changed) return mutation.value;
+        const revision = await this.host.saveMetadata(
+          scope,
+          structuredClone(mutation.metadata),
+          base.revision,
+        );
+        this.host.assertCurrentScope(scope);
+        if (revision !== null) {
+          this.cache = { generation: scope.generation, metadata: mutation.metadata, revision };
+          return mutation.value;
+        }
+        this.cache = null;
+      }
+      throw new Error("Annotations changed while saving. Try this action again.");
+    });
   }
 }

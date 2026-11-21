@@ -78,6 +78,7 @@ function changedProgressBookIds(
       return (
         previous?.cfi !== next?.cfi ||
         previous?.percent !== next?.percent ||
+        previous?.manuallyMarkedRead !== next?.manuallyMarkedRead ||
         previous?.lastOpenedAt !== next?.lastOpenedAt
       );
     }),

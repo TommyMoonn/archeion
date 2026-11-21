@@ -85,6 +85,7 @@ export function Fixture() {
         onRescan={noop}
         onViewMetadata={noop}
         onToggleFavorite={noop}
+        onToggleManualCompletion={noop}
       >
         <button onClick={submit}>Delete</button>
       </BookDetailsDrawerFrame>

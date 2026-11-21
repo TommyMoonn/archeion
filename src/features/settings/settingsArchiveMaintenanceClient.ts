@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 
 import {
   ArchiveCommandClient,
@@ -17,6 +18,18 @@ import type {
   ArchiveIntegrityNavigationRequest,
 } from "../../storage/archiveIntegrityNavigation";
 import { activeArchiveFromRegistry } from "../../types/archive";
+import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
+import { loadArchiveAnnotationSnapshot } from "../../storage/annotations/loadArchiveAnnotationSnapshot";
+import {
+  parseAnnotationImport,
+  previewAnnotationImport,
+  type AnnotationImportSummary,
+} from "../../storage/annotations/annotationImport";
+import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
+import {
+  exportReaderAnnotationsToFile,
+  type ReaderAnnotationExportResult,
+} from "../reader/readerAnnotationExportFile";
 
 const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
 const ARCHIVE_CHANGED_ERROR = "The active archive changed before the Settings operation completed.";
@@ -28,6 +41,10 @@ export type SettingsArchiveSnapshot = Readonly<{
 }>;
 
 export type SettingsArchiveMaintenance = Readonly<{
+  previewAnnotationImport: () => Promise<SettingsAnnotationImportPreview | null>;
+  exportAnnotations: (
+    format: ReaderAnnotationExportFormat,
+  ) => Promise<ReaderAnnotationExportResult>;
   openIntegrityResults: (destination: ArchiveIntegrityDestination) => Promise<void>;
   clearCoverCache: () => Promise<CoverCacheStatus>;
   clearEpubWritebackBackups: () => Promise<EpubWritebackBackupStatus>;
@@ -39,6 +56,11 @@ export type SettingsArchiveMaintenance = Readonly<{
   revealArchiveFolder: () => Promise<void>;
   revealMetadataFolder: () => Promise<void>;
 }>;
+
+export type SettingsAnnotationImportPreview = {
+  summary: AnnotationImportSummary;
+  commit: () => Promise<void>;
+};
 
 type Dependencies = Readonly<{
   archiveCommands: ArchiveCommandClient;
@@ -111,7 +133,10 @@ export class SettingsArchiveMaintenanceClient {
   maintenance(): SettingsArchiveMaintenance | null {
     if (this.snapshot.status !== "ready" || !this.snapshot.archive) return null;
     if (this.maintenanceView) return this.maintenanceView;
+    const scope = this.createScope();
     this.maintenanceView = {
+      previewAnnotationImport: () => this.previewAnnotationImport(scope),
+      exportAnnotations: (format) => this.exportAnnotations(scope, format),
       openIntegrityResults: (destination) => this.openIntegrityResults(destination),
       clearCoverCache: () => this.runArchiveCommand("clear_cover_cache"),
       clearEpubWritebackBackups: () => this.runArchiveCommand("clear_epub_writeback_backups"),
@@ -218,6 +243,100 @@ export class SettingsArchiveMaintenanceClient {
     const scope = this.createScope();
     await this.requestReconciliation(scope);
     await this.invalidateMainLibrary(scope);
+  }
+
+  private async exportAnnotations(
+    scope: Scope,
+    format: ReaderAnnotationExportFormat,
+  ): Promise<ReaderAnnotationExportResult> {
+    const disposalRevision = this.disposalRevision;
+    const assertCurrent = () => {
+      if (disposalRevision !== this.disposalRevision) {
+        throw new Error("Settings archive maintenance stopped.");
+      }
+      this.assertCurrent(scope);
+    };
+    assertCurrent();
+    const snapshot = await loadArchiveAnnotationSnapshot(
+      this.dependencies.archiveCommands,
+      scope.archive.id,
+      scope.archive.rootPath,
+    );
+    assertCurrent();
+    const books = snapshot.books
+      .sort((a, b) => compareExportKeys(a.bookId, b.bookId))
+      .map(({ annotations, book, bookId }) => ({
+        annotations: annotations.sort(
+          (a, b) => compareExportKeys(a.createdAt, b.createdAt) || compareExportKeys(a.id, b.id),
+        ),
+        author: book ? bookAuthor(book) : undefined,
+        chapterLabelFallback: "Chapter unavailable",
+        id: bookId,
+        title: book
+          ? bookTitle({
+              sourceMetadata: book.sourceMetadata,
+              fileName: book.relativePath.split(/[\\/]/).at(-1) ?? "",
+            })
+          : "Book details unavailable",
+      }));
+    const result = await exportReaderAnnotationsToFile({
+      archiveScope: {
+        activationRevision: snapshot.activationRevision,
+        archiveId: scope.archive.id,
+        rootPath: scope.archive.rootPath,
+      },
+      assertCurrent,
+      books,
+      format,
+    });
+    assertCurrent();
+    return result;
+  }
+
+  private async previewAnnotationImport(
+    scope: Scope,
+  ): Promise<SettingsAnnotationImportPreview | null> {
+    const disposalRevision = this.disposalRevision;
+    const assertCurrent = () => {
+      if (disposalRevision !== this.disposalRevision) {
+        throw new Error("Settings archive maintenance stopped.");
+      }
+      this.assertCurrent(scope);
+    };
+    assertCurrent();
+    const { id: archiveId, rootPath } = scope.archive;
+    const commands = this.dependencies.archiveCommands;
+    const snapshot = await commands.invoke(
+      "load_archive_annotation_snapshot",
+      { archiveId },
+      rootPath,
+    );
+    assertCurrent();
+    const path = await open({
+      filters: [{ extensions: ["json"], name: "JSON" }],
+      title: "Import annotations",
+    });
+    assertCurrent();
+    if (path === null) return null;
+    const bytes = await commands.invoke(
+      "read_annotation_import_file",
+      {
+        path,
+        archiveScope: { archiveId, rootPath, activationRevision: snapshot.activationRevision },
+      },
+      null,
+    );
+    assertCurrent();
+    const { summary, batch } = previewAnnotationImport(parseAnnotationImport(bytes), snapshot);
+    return {
+      summary,
+      commit: async () => {
+        assertCurrent();
+        if (summary.importable > 0) {
+          await commands.invoke("import_archive_annotations", { archiveId, batch }, rootPath);
+        }
+      },
+    };
   }
 
   private async openIntegrityResults(destination: ArchiveIntegrityDestination): Promise<void> {
@@ -335,6 +454,10 @@ function createReconciliationRequestId(): string {
     throw new Error("Secure reconciliation request IDs are unavailable.");
   }
   return `settings-${globalThis.crypto.randomUUID()}`;
+}
+
+function compareExportKeys(left: string, right: string): number {
+  return left < right ? -1 : Number(left > right);
 }
 
 export const settingsArchiveMaintenanceClient = new SettingsArchiveMaintenanceClient();

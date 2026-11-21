@@ -23,6 +23,7 @@ type BookGridProps = {
   onSelect: (book: ReadonlyBook) => void;
   onSelectionChange: (book: ReadonlyBook, intent: LibrarySelectionIntent) => void;
   onToggleFavorite: (book: ReadonlyBook) => void;
+  onToggleManualCompletion: (book: ReadonlyBook) => void;
   canDelete?: boolean;
   canManageFile?: boolean;
   selectedBookIds: ReadonlySet<string>;
@@ -44,6 +45,7 @@ export const BookGrid = memo(function BookGrid({
   onSelect,
   onSelectionChange,
   onToggleFavorite,
+  onToggleManualCompletion,
   canDelete = true,
   canManageFile = false,
   selectedBookIds,
@@ -98,6 +100,7 @@ export const BookGrid = memo(function BookGrid({
             onSelect={onSelect}
             onSelectionChange={onSelectionChange}
             onToggleFavorite={onToggleFavorite}
+            onToggleManualCompletion={onToggleManualCompletion}
             canDelete={canDelete}
             canManageFile={canManageFile}
             selected={selectedBookIds.has(book.id)}

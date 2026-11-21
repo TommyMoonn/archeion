@@ -191,6 +191,7 @@ describe("Native window runtime contracts", () => {
       "core:event:allow-listen",
       "core:event:allow-unlisten",
       "dialog:allow-open",
+      "dialog:allow-save",
     ]);
   });
 

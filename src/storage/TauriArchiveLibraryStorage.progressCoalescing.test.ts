@@ -2,10 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   invokeMock,
+  mockStorageCommands,
+  metadata,
   scopedStorage,
   setupDefaultStorageMock,
   twoBookArchive,
 } from "./tauri/storageTestSupport";
+import { TauriArchiveLibraryStorage } from "./TauriArchiveLibraryStorage";
+import type { ProgressMetadata } from "./metadataFiles";
 
 describe("TauriArchiveLibraryStorage progress write coalescing", () => {
   beforeEach(() => {
@@ -48,6 +52,46 @@ describe("TauriArchiveLibraryStorage progress write coalescing", () => {
       },
       rootPath: "C:/ArchiveA",
     });
+  });
+
+  it("restores manual completion in a reopened archive while preserving the saved location", async () => {
+    const { storage } = await scopedStorage();
+    let saved: ProgressMetadata = metadata.progress;
+    mockStorageCommands({
+      load_archive_metadata: ({ rootPath } = {}) => ({
+        ...metadata,
+        progress: rootPath === "C:/ArchiveA" ? saved : metadata.progress,
+      }),
+      save_progress_metadata: ({ metadata: progress }) => {
+        saved = progress;
+      },
+    });
+
+    const mark = storage.updateBook("book-1", { manuallyMarkedRead: true });
+    await vi.advanceTimersByTimeAsync(600);
+    await mark;
+    expect(saved.progress["book-1"]).toEqual({
+      ...metadata.progress.progress["book-1"],
+      manuallyMarkedRead: true,
+    });
+
+    const reopened = new TauriArchiveLibraryStorage();
+    reopened.reset("C:/ArchiveB");
+    await expect(reopened.getBook("book-1")).resolves.toMatchObject({
+      manuallyMarkedRead: undefined,
+    });
+    reopened.reset("C:/ArchiveA");
+    await expect(reopened.getBook("book-1")).resolves.toMatchObject({
+      manuallyMarkedRead: true,
+      progressCfi: "epubcfi(/6/2)",
+      progressPercent: 42,
+      lastOpenedAt: "2023-11-03T00:00:00.000Z",
+    });
+
+    const undo = reopened.updateBook("book-1", { manuallyMarkedRead: undefined });
+    await vi.advanceTimersByTimeAsync(600);
+    await undo;
+    expect(JSON.parse(JSON.stringify(saved))).toEqual(metadata.progress);
   });
 
   it("flushes pending progress before an archive reset and keeps the write scoped to its archive", async () => {
@@ -99,6 +143,36 @@ describe("TauriArchiveLibraryStorage progress failure ownership", () => {
     });
     await expect(storage.getBook("book-1")).resolves.toMatchObject({ progressPercent: 42 });
     expect(emissions).toEqual([42, 40, 65, 42]);
+  });
+
+  it("rolls back and retries a failed completion-only write without changing the saved position", async () => {
+    const { storage } = await scopedStorage();
+    let failWrite = true;
+    mockStorageCommands({
+      save_progress_metadata: () => {
+        if (failWrite) throw new Error("disk full");
+      },
+    });
+
+    const mark = storage.updateBook("book-1", { manuallyMarkedRead: true });
+    const failure = expect(mark).rejects.toThrow("disk full");
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({ manuallyMarkedRead: true });
+    await vi.advanceTimersByTimeAsync(600);
+    await failure;
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      manuallyMarkedRead: undefined,
+      progressCfi: "epubcfi(/6/2)",
+      progressPercent: 42,
+    });
+
+    failWrite = false;
+    await storage.flushPendingWrites();
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      manuallyMarkedRead: true,
+      progressCfi: "epubcfi(/6/2)",
+      progressPercent: 42,
+    });
   });
 
   it("preserves a later favorite change when progress persistence fails", async () => {

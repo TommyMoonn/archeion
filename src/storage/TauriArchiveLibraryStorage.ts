@@ -20,7 +20,11 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../types/annotation";
-import { AnnotationRepository } from "./annotations/AnnotationRepository";
+import {
+  AnnotationRepository,
+  type ArchiveAnnotationSnapshot,
+} from "./annotations/AnnotationRepository";
+import { loadArchiveAnnotationSnapshot } from "./annotations/loadArchiveAnnotationSnapshot";
 import { ArchiveMutationCoordinator } from "./archiveMutationCoordinator";
 import { ArchiveScanSession, isArchiveScanCommandError } from "./archiveScanSession";
 import { planArchiveWatcherChanges } from "./archiveWatcherChangePlan";
@@ -171,8 +175,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       runMetadataIo: (scope, operation) => this.mutationCoordinator.runMetadataIo(scope, operation),
       loadMetadata: (scope) =>
         this.commands.invoke("load_annotations_metadata", undefined, scope.rootPath),
-      saveMetadata: (scope, metadata) =>
-        this.commands.invoke("save_annotations_metadata", { metadata }, scope.rootPath),
+      saveMetadata: (scope, metadata, expectedRevision) =>
+        this.commands.invoke(
+          "save_annotations_metadata",
+          { metadata, expectedRevision },
+          scope.rootPath,
+        ),
     });
   }
 
@@ -420,6 +428,14 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
   bulkExportBooks(ids: readonly string[], destinationPath: string): Promise<BulkActionResult> {
     return this.bulkBookOperations.exportBooks(ids, destinationPath);
+  }
+
+  async listArchiveAnnotations(archiveId: string): Promise<ArchiveAnnotationSnapshot> {
+    const scope = this.createArchiveCommandScope();
+    if (!scope.rootPath) throw new Error("No active archive is available.");
+    const snapshot = await loadArchiveAnnotationSnapshot(this.commands, archiveId, scope.rootPath);
+    this.assertCurrentArchiveScope(scope);
+    return snapshot;
   }
 
   listAnnotations(bookId: string): Promise<Annotation[]> {

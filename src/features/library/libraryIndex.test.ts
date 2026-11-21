@@ -87,6 +87,29 @@ describe("library index", () => {
     expect(Object.isFrozen(index.entries)).toBe(true);
   });
 
+  it("moves a manually completed volume out of Continue Reading and into the Completed filter", () => {
+    const first = createBook("one", {
+      progressPercent: 25,
+      sourceMetadata: { series: "Archive Tales", volume: "1" },
+    });
+    const second = createBook("two", { sourceMetadata: { series: "Archive Tales", volume: "2" } });
+    const cache = createLibraryIndexCache();
+    const started = createLibraryIndex(createSource([first, second], []), cache);
+    expect(started.continueBooks).toEqual([first]);
+    expect(started.seriesEntries[0]?.currentBookId).toBe("one");
+
+    const marked = { ...first, manuallyMarkedRead: true };
+    const completed = createLibraryIndex(createSource([marked, second], [], 2), cache);
+    expect(completed.continueBooks).toEqual([]);
+    expect(completed.seriesEntries[0]?.firstUnreadBookId).toBe("two");
+    expect(
+      getVisibleBooks([marked, second], "", "title", { type: "library" }, [], {
+        ...createDefaultLibraryFilters(),
+        readingStatuses: ["completed"],
+      }),
+    ).toEqual([marked]);
+  });
+
   it("reuses unchanged per-book entries and replaces only changed Book references", () => {
     const cache = createLibraryIndexCache();
     const firstBooks = [createBook("one"), createBook("two")];

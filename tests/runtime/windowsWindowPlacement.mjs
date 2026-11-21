@@ -65,7 +65,8 @@ export async function runWindowPlacementFlows({
     driver,
     `const registry = await window.__TAURI__.core.invoke("create_empty_archive",
     {parentPath: args[0], archiveName: "Placement Archive"});
-    await window.__TAURI__.core.invoke("open_archive", {path: registry.archives[0].rootPath});`,
+    const selection = await window.__TAURI__.core.invoke("reserve_archive_open");
+    await window.__TAURI__.core.invoke("open_archive", {path: registry.archives[0].rootPath, selection});`,
     fixtureRoot,
   );
   // Archive startup may already have opened its own manager before the fixture

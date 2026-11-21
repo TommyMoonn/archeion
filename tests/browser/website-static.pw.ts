@@ -209,6 +209,29 @@ test("React landing menu owns focus, dismissal, anchors, and breakpoint cleanup"
   await expect(page.locator("html")).not.toHaveCSS("overflow", "hidden");
 });
 
+test("React landing restores focus when the breakpoint hides the focused mobile menu", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    // Model the browser clearing focus before the application's media-query handler.
+    matchMedia("(min-width: 1021px)").addEventListener("change", (event) => {
+      const focused = document.activeElement;
+      if (event.matches && focused instanceof HTMLElement) focused.blur();
+    });
+  });
+  await page.goto("/archeion/");
+  await page.locator("summary[aria-controls=landing-mobile-navigation]").click();
+  const menu = page.getByRole("navigation", { name: "Mobile navigation" });
+  await expect(menu.getByRole("link", { name: "Library", exact: true })).toBeFocused();
+
+  await page.setViewportSize({ width: 1021, height: 844 });
+  await expect(page.getByRole("link", { name: "Archeion home", exact: true })).toBeFocused();
+  await expect(menu).toBeHidden();
+  await expect(page.locator("main")).not.toHaveAttribute("inert");
+  await expect(page.locator("html")).not.toHaveCSS("overflow", "hidden");
+});
+
 test("React landing preserves static content, claims, native destinations and metadata", async ({
   page,
   browser,

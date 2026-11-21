@@ -599,6 +599,29 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   object-fit: cover;
 }
 
+.book-card__progress-badge {
+  position: absolute;
+  z-index: 1;
+  inset-inline-end: 8px;
+  inset-block-end: 8px;
+  display: inline-flex;
+  min-block-size: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: var(--radius-control);
+  color: #f1f3f5;
+  background: rgb(10 11 13 / 84%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 26%);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
 .book-cover--placeholder {
   display: grid;
   place-items: center;
@@ -1308,6 +1331,7 @@ html[data-motion="on"] .book-details-loading__placeholder {
   align-items: center;
   justify-content: center;
   gap: 5px;
+  min-height: 24px;
   margin-top: 13px;
 }
 

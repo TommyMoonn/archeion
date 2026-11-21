@@ -23,6 +23,7 @@ export type BookDetailsDrawerProps = {
   onRescan: () => void;
   onViewMetadata: (book: ReadonlyBook) => void;
   onToggleFavorite: (book: ReadonlyBook) => void;
+  onToggleManualCompletion: (book: ReadonlyBook) => void;
   returnFocusTo?: HTMLElement | null;
   canDeleteBook?: boolean;
   canManageFile?: boolean;

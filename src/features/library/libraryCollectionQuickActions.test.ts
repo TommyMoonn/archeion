@@ -43,6 +43,7 @@ function modeFor(
 describe("collection display Quick Actions", () => {
   it.each([
     [{ type: "library" } as const, ["Change view…", "Change sort…", "Change card size…"]],
+    [{ type: "favorites" } as const, ["Change view…", "Change sort…", "Change card size…"]],
     [
       { type: "folder", folderId: "fiction" } as const,
       ["Change view…", "Change sort…", "Change card size…"],
@@ -82,14 +83,15 @@ describe("collection display Quick Actions", () => {
         { id: "title", label: "Title" },
         { id: "author", label: "Author" },
         { id: "recently-opened", label: "Recently opened" },
+        { id: "recently-added", label: "Recently added" },
       ],
     });
     expect(updateCollection).not.toHaveBeenCalled();
 
-    await expect(
-      mode.confirm({ id: "recently-opened", label: "Recently opened" }),
-    ).resolves.toEqual({ kind: "close" });
-    expect(updateCollection).toHaveBeenCalledWith("books", { sortBy: "recently-opened" });
+    await expect(mode.confirm({ id: "recently-added", label: "Recently added" })).resolves.toEqual({
+      kind: "close",
+    });
+    expect(updateCollection).toHaveBeenCalledWith("books", { sortBy: "recently-added" });
   });
 
   it("routes books inside a Folder through Books collection preferences", async () => {

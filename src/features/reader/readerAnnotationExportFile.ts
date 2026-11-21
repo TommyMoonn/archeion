@@ -35,10 +35,14 @@ export function normalizeAnnotationExportPath(
 
 export async function exportReaderAnnotationsToFile({
   books,
+  archiveScope,
+  assertCurrent,
   exportedAt,
   format,
 }: {
   books: readonly ReaderAnnotationExportBook[];
+  archiveScope?: { activationRevision: number; archiveId: string; rootPath: string };
+  assertCurrent?: () => void;
   exportedAt?: string;
   format: ReaderAnnotationExportFormat;
 }): Promise<ReaderAnnotationExportResult> {
@@ -60,8 +64,13 @@ export async function exportReaderAnnotationsToFile({
   if (!path) return { status: "cancelled" };
   const normalizedPath = normalizeAnnotationExportPath(path, format);
 
-  await invoke("write_annotation_export_file", {
-    contents: serializeReaderAnnotationExport(document, format),
+  const contents = serializeReaderAnnotationExport(document, format, {
+    includeDetails: Boolean(archiveScope),
+  });
+  assertCurrent?.();
+  await invoke<void>("write_annotation_export_file", {
+    ...(archiveScope ? { archiveScope } : {}),
+    contents,
     format,
     path: normalizedPath,
   });

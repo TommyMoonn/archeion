@@ -14,13 +14,94 @@ import {
   createStorage,
   readyState,
   renderLibraryPage,
+  selectionBook,
   setInputValue,
   setupLibraryPageTestSuite,
+  waitForButtonWithLabel,
+  waitForButtonWithText,
   waitForSeriesOverview,
 } from "./LibraryPage.testUtils";
 
 describe("LibraryPage navigation and archive loading", () => {
   const suite = setupLibraryPageTestSuite();
+
+  it("shares Recently added across Library, Favorites and Folder books", async () => {
+    const folder = {
+      id: "folder-fiction",
+      name: "Fiction",
+      relativePath: "Fiction",
+      createdAt: "2026-07-01",
+      updatedAt: "2026-07-01",
+    } satisfies Folder;
+    const books = [
+      { ...selectionBook("alpha", "Alpha", folder.id), isFavorite: true, addedAt: "2026-07-01" },
+      { ...selectionBook("beta", "Beta", folder.id), isFavorite: true, addedAt: "2026-07-02" },
+      { ...selectionBook("gamma", "Gamma"), addedAt: "2026-07-03" },
+    ];
+    const { container, root } = await renderLibraryPage(
+      createStorage({ books, folders: [folder] }),
+    );
+    suite.trackRoot(root);
+    const visibleIds = () =>
+      Array.from(container.querySelectorAll("[data-reader-book-id]"), (book) =>
+        book.getAttribute("data-reader-book-id"),
+      );
+    const sort = () => waitForButtonWithLabel(container, "Sort library");
+
+    expect(visibleIds()).toEqual(["alpha", "beta", "gamma"]);
+    const sortTrigger = await sort();
+    await act(async () => sortTrigger.click());
+    const option = await waitForButtonWithText(document.body, "Recently added");
+    await act(async () => option.click());
+    expect(visibleIds()).toEqual(["gamma", "beta", "alpha"]);
+    expect(appPreferencesStore.getBooksCollectionSnapshot().sortBy).toBe("recently-added");
+
+    const favorites = await waitForButtonWithLabel(container, "Favorites");
+    await act(async () => favorites.click());
+    expect((await sort()).textContent).toContain("Recently added");
+    expect(visibleIds()).toEqual(["beta", "alpha"]);
+
+    const folderTree = container.querySelector<HTMLElement>('[aria-label="Library folders"]');
+    if (!folderTree) throw new Error("The folder tree was not rendered.");
+    const fiction = await waitForButtonWithText(folderTree, "Fiction");
+    await act(async () => fiction.click());
+    expect(container.querySelector(".library-header h1")?.textContent).toBe("Fiction");
+    expect((await sort()).textContent).toContain("Recently added");
+    expect(visibleIds()).toEqual(["beta", "alpha"]);
+
+    const library = await waitForButtonWithLabel(container, "Library");
+    await act(async () => library.click());
+    expect((await sort()).textContent).toContain("Recently added");
+    expect(visibleIds()).toEqual(["gamma", "beta", "alpha"]);
+  });
+
+  it("keeps Recently added List view usable for missing and malformed legacy dates", async () => {
+    await appPreferencesStore.updateLibraryCollection("books", {
+      sortBy: "recently-added",
+      viewMode: "list",
+    });
+    const validDate = "2026-07-03T12:30Z";
+    const books = [
+      { ...selectionBook("malformed", "Alpha"), addedAt: "not a date" },
+      { ...selectionBook("missing", "Beta"), addedAt: undefined },
+      { ...selectionBook("dated", "Zeta"), addedAt: validDate },
+    ];
+    const { container, root } = await renderLibraryPage(createStorage({ books }));
+    suite.trackRoot(root);
+    const rows = Array.from(container.querySelectorAll(".book-row"), (row) => ({
+      id: row.getAttribute("data-reader-book-id"),
+      date: row.querySelector(".book-row__date")?.textContent,
+    }));
+
+    const formattedDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+      new Date(validDate),
+    );
+    expect(rows).toEqual([
+      { id: "dated", date: formattedDate },
+      { id: "malformed", date: "—" },
+      { id: "missing", date: "—" },
+    ]);
+  });
 
   it("keeps the session-local sidebar state across Library-owned routes", async () => {
     const session = await renderLibraryPage(createStorage());
@@ -103,6 +184,7 @@ describe("LibraryPage navigation and archive loading", () => {
       isFavorite: false,
       originalTitle: "Dune",
       relativePath: "Fiction/Dune.epub",
+      progressPercent: 68,
       sourceMetadata: {
         title: "Dune",
         creator: "Frank Herbert",
@@ -146,6 +228,9 @@ describe("LibraryPage navigation and archive loading", () => {
     });
 
     expect(session.container.querySelector(".library-header h1")?.textContent).toBe("Fiction");
+    expect(
+      session.container.querySelector(".book-cover > .book-card__progress-badge")?.textContent,
+    ).toBe("68%");
     expect(search?.value).toBe("Dune");
     expect(appPreferencesStore.getSnapshot().library.filters.series).toEqual(["Dune"]);
   });

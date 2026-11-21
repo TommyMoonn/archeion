@@ -53,6 +53,7 @@ const coverStorage: LibraryStorage = {
   bulkExportBooks: unsupportedOperation,
   bulkWriteBookMetadata: unsupportedOperation,
   listAnnotations: unsupportedOperation,
+  listArchiveAnnotations: unsupportedOperation,
   getAnnotation: unsupportedOperation,
   createAnnotation: unsupportedOperation,
   restoreAnnotation: unsupportedOperation,
@@ -96,6 +97,7 @@ export function LibraryToggleFixture({ details = false }: { details?: boolean })
     onSelect: ignore,
     onSelectionChange: () => setSelected((value) => !value),
     onToggleFavorite,
+    onToggleManualCompletion: ignore,
   };
   return (
     <LibraryStorageProvider storage={coverStorage}>
@@ -121,6 +123,7 @@ export function LibraryToggleFixture({ details = false }: { details?: boolean })
                   onRescan={ignore}
                   onViewMetadata={ignore}
                   onToggleFavorite={onToggleFavorite}
+                  onToggleManualCompletion={ignore}
                 />
               ) : null}
             </>

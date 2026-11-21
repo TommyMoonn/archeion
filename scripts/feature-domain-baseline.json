@@ -114,8 +114,12 @@
     {
       "from": "library",
       "to": "reading",
-      "reason": "Library filters, index, and last-read suggestions derive stored reading progress through the shared reading-status rules.",
+      "reason": "Library cards, details, completion actions, filters, index, and last-read suggestions use the shared reading-progress rules.",
       "files": [
+        ["BookCard.tsx", "readingProgress.ts"],
+        ["BookDetailsDrawer.tsx", "readingProgress.ts"],
+        ["LazyBookDetailsDrawer.tsx", "readingProgress.ts"],
+        ["bookCompletionActionLabel.ts", "readingProgress.ts"],
         ["libraryDerivedState.ts", "readingProgress.ts"],
         ["libraryFilters.ts", "readingProgress.ts"],
         ["libraryIndex.ts", "readingProgress.ts"]
@@ -271,8 +275,13 @@
     {
       "from": "settings",
       "to": "reader",
-      "reason": "Settings reuses the Reader-owned font picker without a second font model or catalog.",
-      "files": [["settingsItems.tsx", "ReaderFontPicker.tsx"]]
+      "reason": "Settings reuses the Reader-owned font picker and the annotation export format and writer.",
+      "files": [
+        ["settingsArchiveMaintenanceClient.ts", "readerAnnotationExport.ts"],
+        ["settingsArchiveMaintenanceClient.ts", "readerAnnotationExportFile.ts"],
+        ["settingsItems.tsx", "ReaderFontPicker.tsx"],
+        ["useSettingsController.ts", "readerAnnotationExport.ts"]
+      ]
     },
     {
       "from": "settings",

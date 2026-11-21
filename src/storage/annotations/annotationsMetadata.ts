@@ -64,7 +64,7 @@ function invalid(reason: string): never {
   throw new AnnotationMetadataValidationError(reason);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -145,9 +145,9 @@ function requiredString(value: Record<string, unknown>, key: string, context: st
   return normalized;
 }
 
-function requiredTimestamp(
+export function requiredTimestamp(
   value: Record<string, unknown>,
-  key: "createdAt" | "updatedAt",
+  key: string,
   context: string,
 ): string {
   const normalized = requiredString(value, key, context);

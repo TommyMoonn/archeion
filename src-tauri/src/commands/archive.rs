@@ -463,7 +463,13 @@ fn write_registry_document(path: &Path, registry: &ArchiveRegistry) -> Result<()
 
 pub(crate) struct ArchiveRegistryService {
     paths: ArchiveRegistryPaths,
-    operation: Mutex<()>,
+    revisions: Mutex<ArchiveRevisions>,
+}
+
+#[derive(Default)]
+struct ArchiveRevisions {
+    activation: u64,
+    selection: u64,
 }
 
 impl ArchiveRegistryService {
@@ -474,12 +480,12 @@ impl ArchiveRegistryService {
     fn new(paths: ArchiveRegistryPaths) -> Self {
         Self {
             paths,
-            operation: Mutex::new(()),
+            revisions: Mutex::new(ArchiveRevisions::default()),
         }
     }
 
-    fn lock(&self) -> Result<MutexGuard<'_, ()>, String> {
-        self.operation
+    fn lock(&self) -> Result<MutexGuard<'_, ArchiveRevisions>, String> {
+        self.revisions
             .lock()
             .map_err(|_| "Archive registry state is unavailable.".to_string())
     }
@@ -505,13 +511,15 @@ impl ArchiveRegistryService {
     fn restore_from_last_good_locked(
         &self,
         mut registry: ArchiveRegistry,
+        activation_revision: &mut u64,
     ) -> Result<ArchiveRegistry, String> {
         normalize_registry_paths(&mut registry);
         write_registry_document(&self.paths.current, &registry)?;
+        *activation_revision += 1;
         Ok(registry)
     }
 
-    fn load_locked(&self) -> Result<ArchiveRegistry, String> {
+    fn load_locked(&self, activation_revision: &mut u64) -> Result<ArchiveRegistry, String> {
         recover_atomic_replace(&self.paths.current).map_err(|error| {
             format!("Archive registry transaction could not be recovered: {error}")
         })?;
@@ -520,7 +528,7 @@ impl ArchiveRegistryService {
             Ok(contents) => contents,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 if let Some(registry) = self.load_last_good_locked()? {
-                    return self.restore_from_last_good_locked(registry);
+                    return self.restore_from_last_good_locked(registry, activation_revision);
                 }
                 if let Some(mut registry) = read_legacy_registry(&self.paths.legacy)? {
                     normalize_registry_paths(&mut registry);
@@ -539,7 +547,7 @@ impl ArchiveRegistryService {
                 let Some(last_good) = self.load_last_good_locked()? else {
                     return Err(format!("Archive registry is invalid: {current_error}"));
                 };
-                return self.restore_from_last_good_locked(last_good);
+                return self.restore_from_last_good_locked(last_good, activation_revision);
             }
         };
 
@@ -562,21 +570,54 @@ impl ArchiveRegistryService {
     }
 
     fn load(&self) -> Result<ArchiveRegistry, String> {
-        let _guard = self.lock()?;
-        self.load_locked()
+        let mut revision = self.lock()?;
+        self.load_locked(&mut revision.activation)
+    }
+
+    fn begin_selection(&self) -> Result<u64, String> {
+        let mut revisions = self.lock()?;
+        revisions.selection += 1;
+        Ok(revisions.selection)
     }
 
     fn mutate<T>(
         &self,
         mutation: impl FnOnce(&mut ArchiveRegistry) -> Result<T, String>,
     ) -> Result<(ArchiveRegistry, T), String> {
-        let _guard = self.lock()?;
-        let mut registry = self.load_locked()?;
+        self.mutate_with_revisions(|registry, _| mutation(registry))
+    }
+
+    fn mutate_with_revisions<T>(
+        &self,
+        mutation: impl FnOnce(&mut ArchiveRegistry, &mut ArchiveRevisions) -> Result<T, String>,
+    ) -> Result<(ArchiveRegistry, T), String> {
+        let mut revisions = self.lock()?;
+        let mut registry = self.load_locked(&mut revisions.activation)?;
         let previous = registry.clone();
-        let result = mutation(&mut registry)?;
+        let result = mutation(&mut registry, &mut revisions)?;
         validate_registry(&registry)?;
         self.persist_locked(&previous, &registry)?;
+        if active_identity(&previous) != active_identity(&registry) {
+            revisions.activation += 1;
+        }
         Ok((registry, result))
+    }
+
+    fn with_active_archive<T>(
+        &self,
+        archive_id: &str,
+        root_path: &str,
+        expected_revision: Option<u64>,
+        operation: impl FnOnce(u64) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let mut revision = self.lock()?;
+        let registry = self.load_locked(&mut revision.activation)?;
+        if expected_revision.is_some_and(|expected| expected != revision.activation)
+            || validate_archive_invalidation_scope(&registry, archive_id, root_path).is_err()
+        {
+            return Err("The active archive changed before the operation completed.".to_string());
+        }
+        operation(revision.activation)
     }
 
     fn upsert(
@@ -584,16 +625,35 @@ impl ArchiveRegistryService {
         root_path: String,
         display_name: Option<String>,
     ) -> Result<(ArchiveRegistry, ArchiveRecord), String> {
-        self.mutate(|registry| Ok(upsert_archive_at_path(registry, root_path, display_name)))
+        self.mutate_with_revisions(|registry, revisions| {
+            revisions.selection += 1;
+            Ok(upsert_archive_at_path(registry, root_path, display_name))
+        })
+    }
+
+    fn upsert_prepared(
+        &self,
+        selection: u64,
+        root_path: String,
+        display_name: Option<String>,
+    ) -> Result<(ArchiveRegistry, ArchiveRecord), String> {
+        self.mutate_with_revisions(|registry, revisions| {
+            if revisions.selection != selection {
+                return Err("Another archive selection replaced this request.".to_string());
+            }
+            revisions.selection += 1;
+            Ok(upsert_archive_at_path(registry, root_path, display_name))
+        })
     }
 
     fn activate(&self, archive_id: &str) -> Result<(ArchiveRegistry, Option<String>), String> {
-        self.mutate(|registry| {
+        self.mutate_with_revisions(|registry, revisions| {
             let index = registry
                 .archives
                 .iter()
                 .position(|archive| archive.id == archive_id)
                 .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
+            revisions.selection += 1;
             let root_path = registry.archives[index].root_path.clone();
             let validation_error = validated_root_path(&root_path).err();
 
@@ -619,10 +679,11 @@ impl ArchiveRegistryService {
     }
 
     fn forget(&self, archive_id: &str) -> Result<(ArchiveRegistry, bool), String> {
-        self.mutate(|registry| {
+        self.mutate_with_revisions(|registry, revisions| {
             let forgetting_active = registry.last_opened_archive_id.as_deref() == Some(archive_id);
             registry.archives.retain(|archive| archive.id != archive_id);
             if forgetting_active {
+                revisions.selection += 1;
                 registry.last_opened_archive_id = None;
             }
             Ok(forgetting_active)
@@ -687,10 +748,10 @@ fn archive_manager_close_action(
 }
 
 fn has_usable_active_archive(app: &tauri::AppHandle) -> bool {
-    read_registry(app)
-        .ok()
-        .and_then(|registry| active_archive(&registry))
-        .is_some_and(|archive| validated_root_path(&archive.root_path).is_ok())
+    read_registry(app).is_ok_and(|registry| {
+        active_archive(&registry)
+            .is_some_and(|archive| validated_root_path(&archive.root_path).is_ok())
+    })
 }
 
 pub(crate) fn handle_archive_manager_window_destroyed(app: &tauri::AppHandle) {
@@ -753,28 +814,17 @@ fn upsert_archive_at_path(
     archive
 }
 
-fn active_archive(registry: &ArchiveRegistry) -> Option<ArchiveRecord> {
+fn active_archive(registry: &ArchiveRegistry) -> Option<&ArchiveRecord> {
     let id = registry.last_opened_archive_id.as_ref()?;
-    registry
-        .archives
-        .iter()
-        .find(|archive| &archive.id == id)
-        .cloned()
+    registry.archives.iter().find(|archive| &archive.id == id)
+}
+
+fn active_identity(registry: &ArchiveRegistry) -> Option<(&str, &str)> {
+    active_archive(registry).map(|archive| (archive.id.as_str(), archive.root_path.as_str()))
 }
 
 pub(crate) fn read_active_archive_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
-    Ok(active_archive(&read_registry(app)?).map(|archive| archive.root_path))
-}
-
-pub(crate) fn save_active_archive_path(
-    app: &tauri::AppHandle,
-    path: String,
-) -> Result<ArchiveRecord, String> {
-    let root = validated_root_path(&path)?;
-    metadata::initialize_at(&root)?;
-    let root_path = archive_root::display_archive_path(&root);
-    let (_, archive) = archive_registry_service(app).upsert(root_path, None)?;
-    Ok(archive)
+    Ok(active_archive(&read_registry(app)?).map(|archive| archive.root_path.clone()))
 }
 
 #[tauri::command]
@@ -802,6 +852,21 @@ fn validate_archive_invalidation_scope(
     }
 
     Ok(())
+}
+
+pub(crate) fn with_active_archive<T>(
+    app: &tauri::AppHandle,
+    archive_id: &str,
+    root_path: &str,
+    expected_revision: Option<u64>,
+    operation: impl FnOnce(u64) -> Result<T, String>,
+) -> Result<T, String> {
+    archive_registry_service(app).with_active_archive(
+        archive_id,
+        root_path,
+        expected_revision,
+        operation,
+    )
 }
 
 #[tauri::command]
@@ -876,16 +941,26 @@ pub fn complete_archive_reconciliation(
 }
 
 #[tauri::command]
-pub fn open_archive(
+pub fn reserve_archive_open(app: tauri::AppHandle) -> Result<u64, String> {
+    archive_registry_service(&app).begin_selection()
+}
+
+#[tauri::command]
+pub async fn open_archive(
     app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
     path: String,
+    selection: u64,
     mutation_id: Option<String>,
 ) -> Result<ArchiveRegistry, String> {
-    save_active_archive_path(&app, path)?;
-    epub_analysis::retire_active_archive();
-    let registry = read_registry(&app)?;
-    emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
-    Ok(registry)
+    let root = tauri::async_runtime::spawn_blocking(move || {
+        let root = validated_root_path(&path)?;
+        metadata::initialize_at(&root)?;
+        Ok::<_, String>(root)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    register_prepared_archive(app, window, selection, root, mutation_id).await
 }
 
 #[tauri::command]
@@ -895,14 +970,44 @@ pub fn create_empty_archive(
     archive_name: String,
     mutation_id: Option<String>,
 ) -> Result<ArchiveRegistry, String> {
-    let validated_name = validate_archive_name(&archive_name)?;
+    let name = validate_archive_name(&archive_name)?;
     let parent = validated_parent_path(&parent_path)?;
-    let root = create_empty_archive_at(&parent, &validated_name)?;
+    let root = create_empty_archive_at(&parent, &name)?;
     let root_path = archive_root::display_archive_path(&root);
-    let (registry, _) = archive_registry_service(&app).upsert(root_path, Some(validated_name))?;
+    let (registry, _) = archive_registry_service(&app).upsert(root_path, Some(name))?;
     epub_analysis::retire_active_archive();
     emit_archive_registry_changed(&app, &registry, mutation_id.as_deref());
     Ok(registry)
+}
+
+async fn register_prepared_archive(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    selection: u64,
+    root: PathBuf,
+    mutation_id: Option<String>,
+) -> Result<ArchiveRegistry, String> {
+    let root_path = archive_root::display_archive_path(&root);
+    let (complete, completed) = tokio::sync::oneshot::channel();
+    let handle = app.clone();
+    // Publish the registry update in the same order as other desktop registry mutations.
+    app.run_on_main_thread(move || {
+        let result = (|| {
+            // The calling handle is tied to the original native WebView, even if its label is reused.
+            window
+                .url()
+                .map_err(|_| "The archive selection window closed.".to_string())?;
+            archive_registry_service(&handle).upsert_prepared(selection, root_path, None)
+        })()
+        .map(|(registry, _)| {
+            epub_analysis::retire_active_archive();
+            emit_archive_registry_changed(&handle, &registry, mutation_id.as_deref());
+            registry
+        });
+        let _ = complete.send(result);
+    })
+    .map_err(|error| error.to_string())?;
+    completed.await.map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -1382,6 +1487,91 @@ mod tests {
         assert_eq!(registry.archives[0].id, second.id);
         assert_eq!(registry.archives[0].display_name, "Renamed");
         assert!(registry.last_opened_archive_id.is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn active_archive_revision_rejects_switching_away_and_back() {
+        let root = test_root("registry-activation-revision");
+        let first_root = root.join("First");
+        let second_root = root.join("Second");
+        fs::create_dir_all(&first_root).unwrap();
+        fs::create_dir_all(&second_root).unwrap();
+        let service = ArchiveRegistryService::new(test_registry_paths(&root));
+        let (_, first) = service
+            .upsert(first_root.to_string_lossy().into_owned(), None)
+            .unwrap();
+        let (_, second) = service
+            .upsert(second_root.to_string_lossy().into_owned(), None)
+            .unwrap();
+        service.activate(&first.id).unwrap();
+        let revision = service
+            .with_active_archive(&first.id, &first.root_path, None, Ok)
+            .expect("active revision should be captured");
+
+        service.rename(&first.id, "First archive").unwrap();
+        assert!(service
+            .with_active_archive(&first.id, &first.root_path, Some(revision), Ok)
+            .is_ok());
+        service.activate(&second.id).unwrap();
+        service.activate(&first.id).unwrap();
+        let result: Result<(), String> =
+            service.with_active_archive(&first.id, &first.root_path, Some(revision), |_| {
+                panic!("operation must not run for a stale revision")
+            });
+        assert!(result
+            .expect_err("ABA must be detected")
+            .contains("active archive changed"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_newer_selection_supersedes_an_earlier_archive_preparation() {
+        let root = test_root("registry-selection-order");
+        let slow = root.join("Slow");
+        let current = root.join("Current");
+        fs::create_dir_all(&slow).unwrap();
+        fs::create_dir_all(&current).unwrap();
+        let service = ArchiveRegistryService::new(test_registry_paths(&root));
+        let (_, current) = service
+            .upsert(current.to_string_lossy().into_owned(), None)
+            .unwrap();
+        let slow_path = slow.to_string_lossy().into_owned();
+
+        let old_selection = service.begin_selection().unwrap();
+        service.activate(&current.id).unwrap();
+        assert!(service
+            .upsert_prepared(old_selection, slow_path.clone(), None)
+            .is_err());
+        assert_eq!(service.load().unwrap().archives.len(), 1);
+
+        let old_selection = service.begin_selection().unwrap();
+        let new_selection = service.begin_selection().unwrap();
+        assert!(service
+            .upsert_prepared(old_selection, slow_path.clone(), None)
+            .is_err());
+        let (registry, opened) = service
+            .upsert_prepared(new_selection, slow_path, None)
+            .unwrap();
+        assert_eq!(registry.last_opened_archive_id, Some(opened.id));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn selecting_an_archive_recovers_the_registry_before_recording_the_choice() {
+        let root = test_root("registry-recover-while-selecting");
+        let directory = root.join("Archive");
+        fs::create_dir_all(&directory).unwrap();
+        let paths = test_registry_paths(&root);
+        let service = ArchiveRegistryService::new(paths.clone());
+        let (_, archive) = service
+            .upsert(directory.to_string_lossy().into_owned(), None)
+            .unwrap();
+        service.rename(&archive.id, "Renamed").unwrap();
+        fs::write(&paths.current, "corrupt registry").unwrap();
+        let (registry, error) = service.activate(&archive.id).unwrap();
+        assert!(error.is_none());
+        assert_eq!(registry.last_opened_archive_id, Some(archive.id));
         fs::remove_dir_all(root).unwrap();
     }
 

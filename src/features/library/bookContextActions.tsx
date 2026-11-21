@@ -1,7 +1,8 @@
-import { ArrowRight, BookOpen, FolderOpen, Heart, Info, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, BookOpen, Check, FolderOpen, Heart, Info, Pencil, Trash2 } from "lucide-react";
 
 import type { ContextMenuAction } from "../../components/ContextMenu";
 import type { ReadonlyBook } from "../../types/book";
+import { bookCompletionActionLabel } from "./bookCompletionActionLabel";
 
 type BookContextActionOptions = {
   book: ReadonlyBook;
@@ -14,6 +15,7 @@ type BookContextActionOptions = {
   onRenameFile?: (book: ReadonlyBook) => void;
   onRevealFile?: (book: ReadonlyBook) => void;
   onToggleFavorite: (book: ReadonlyBook) => void;
+  onToggleManualCompletion: (book: ReadonlyBook) => void;
   showRenameFileAction: boolean;
 };
 
@@ -28,9 +30,11 @@ export function createBookContextActions({
   onRenameFile,
   onRevealFile,
   onToggleFavorite,
+  onToggleManualCompletion,
   showRenameFileAction,
 }: BookContextActionOptions): ContextMenuAction[] {
   const showFileActions = canManageFile && !book.isFileMissing;
+  const completionActionLabel = bookCompletionActionLabel(book);
   const actions: ContextMenuAction[] = [
     {
       disabled: Boolean(book.isFileMissing),
@@ -40,6 +44,16 @@ export function createBookContextActions({
       label: "Read",
       onSelect: () => onRead(book),
     },
+    ...(completionActionLabel
+      ? [
+          {
+            icon: <Check />,
+            id: "manual-completion",
+            label: completionActionLabel,
+            onSelect: () => onToggleManualCompletion(book),
+          },
+        ]
+      : []),
     {
       icon: <Heart fill={book.isFavorite ? "currentColor" : "none"} />,
       id: "favorite",
