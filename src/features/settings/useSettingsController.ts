@@ -18,6 +18,7 @@ import type { SettingsConfirmationKey, SettingsConfirmationState } from "./Setti
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
 import type { SettingsArchiveMaintenance } from "./settingsArchiveMaintenanceClient";
 import type { ArchiveIntegrityDestination } from "../../storage/archiveIntegrityNavigation";
+import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
 
 const initialConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -100,6 +101,8 @@ export function useSettingsController({
     value: EpubWritebackBackupStatus | null;
   }>({ scope: archiveLocalScope, status: "loading", value: null });
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
+  const annotationExportLock = useRef(false);
+  const [annotationExportBusy, setAnnotationExportBusy] = useState(false);
   const integrityNavigationRef = useRef<{ scope: typeof archiveLocalScope; token: object } | null>(
     null,
   );
@@ -623,6 +626,36 @@ export function useSettingsController({
     }
   }
 
+  async function exportAnnotations(format: ReaderAnnotationExportFormat) {
+    if (!storage || annotationExportLock.current) return;
+    const scope = archiveLocalScope;
+    const statusOperation = beginStatusOperation();
+    annotationExportLock.current = true;
+    setAnnotationExportBusy(true);
+    try {
+      const result = await storage.exportAnnotations(format);
+      if (archiveLocalScopeRef.current !== scope) return;
+      if (result.status === "empty") {
+        publishStatusOperation(statusOperation, "No annotations to export", "neutral");
+      } else if (result.status === "saved") {
+        const label = result.annotationCount === 1 ? "annotation" : "annotations";
+        publishStatusOperation(
+          statusOperation,
+          `Exported ${result.annotationCount} ${label}.`,
+          "success",
+        );
+      }
+    } catch (error) {
+      if (archiveLocalScopeRef.current === scope) {
+        const detail = error instanceof Error ? error.message : String(error);
+        publishStatusOperation(statusOperation, `Could not export annotations. ${detail}`, "error");
+      }
+    } finally {
+      annotationExportLock.current = false;
+      setAnnotationExportBusy(false);
+    }
+  }
+
   async function resetReader() {
     await updateAppPreferences({
       reader: defaultAppPreferences.reader,
@@ -663,6 +696,8 @@ export function useSettingsController({
   }
 
   return {
+    annotationExportBusy,
+    exportAnnotations,
     archiveAvailable: storage !== null,
     archiveScanActive,
     integrityNavigationBusy,

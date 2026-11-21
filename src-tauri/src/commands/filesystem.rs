@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::atomic_file::transaction_path;
 
 use super::{
-    archive_root,
-    export_file::{write_atomic_export_file, ExportFileKind},
+    archive, archive_root,
+    export_file::{write_guarded_export_file, ExportFileKind},
     scanner_cache,
 };
 
@@ -291,10 +291,51 @@ impl AnnotationExportFormat {
 }
 
 #[tauri::command]
-pub fn write_annotation_export_file(
+pub async fn write_annotation_export_file(
+    app: tauri::AppHandle,
     path: String,
     contents: String,
     format: AnnotationExportFormat,
+    archive_scope: Option<AnnotationExportArchiveScope>,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        write_annotation_export_guarded(path, contents, format, |replace| match archive_scope {
+            Some(scope) => archive::with_active_archive(
+                &app,
+                &scope.archive_id,
+                &scope.root_path,
+                Some(scope.activation_revision),
+                |_| replace(),
+            ),
+            None => replace(),
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnnotationExportArchiveScope {
+    archive_id: String,
+    root_path: String,
+    activation_revision: u64,
+}
+
+#[cfg(test)]
+fn write_annotation_export(
+    path: String,
+    contents: String,
+    format: AnnotationExportFormat,
+) -> Result<(), String> {
+    write_annotation_export_guarded(path, contents, format, |replace| replace())
+}
+
+fn write_annotation_export_guarded(
+    path: String,
+    contents: String,
+    format: AnnotationExportFormat,
+    commit: impl FnOnce(&mut dyn FnMut() -> Result<(), String>) -> Result<(), String>,
 ) -> Result<(), String> {
     if contents.len() > MAX_ANNOTATION_EXPORT_BYTES {
         return Err("The annotation export is too large to write safely.".to_string());
@@ -315,9 +356,34 @@ pub fn write_annotation_export_file(
         ));
     }
 
-    write_annotation_export_to_destination(&destination, &contents, |from, to| fs::rename(from, to))
+    let parent = destination
+        .parent()
+        .and_then(|parent| parent.canonicalize().ok())
+        .ok_or_else(|| "The annotation export folder is unavailable.".to_string())?;
+    if [&destination, &parent].into_iter().any(|path| {
+        path.components().any(|component| {
+            component
+                .as_os_str()
+                .to_string_lossy()
+                .eq_ignore_ascii_case(METADATA_DIRECTORY)
+        })
+    }) {
+        return Err("Choose a destination outside the .archeion metadata folder.".to_string());
+    }
+    write_guarded_export_file(
+        &parent.join(
+            destination
+                .file_name()
+                .ok_or("The annotation export file name is unavailable.")?,
+        ),
+        contents.as_bytes(),
+        ExportFileKind::Annotation,
+        commit,
+        |from, to| fs::rename(from, to),
+    )
 }
 
+#[cfg(test)]
 fn write_annotation_export_to_destination<R>(
     destination: &Path,
     contents: &str,
@@ -326,7 +392,7 @@ fn write_annotation_export_to_destination<R>(
 where
     R: FnMut(&Path, &Path) -> std::io::Result<()>,
 {
-    write_atomic_export_file(
+    super::export_file::write_atomic_export_file(
         destination,
         contents.as_bytes(),
         ExportFileKind::Annotation,
@@ -899,8 +965,9 @@ mod tests {
         export_epub_to_destination_with, is_reserved_archive_path, normalize_archive_relative_path,
         normalize_windows_shell_path, rename_archive_epub_at, rename_archive_folder_at,
         resolve_existing_epub_path, validate_archive_item_name, validate_epub_file_name,
-        write_annotation_export_file, write_annotation_export_to_destination,
-        AnnotationExportFormat, EpubExportError, EPUB_EXPORT_COLLISION_MESSAGE,
+        write_annotation_export, write_annotation_export_guarded,
+        write_annotation_export_to_destination, AnnotationExportFormat, EpubExportError,
+        EPUB_EXPORT_COLLISION_MESSAGE,
     };
     use crate::commands::{epub_analysis_cache, metadata, scanner_cache};
 
@@ -1427,7 +1494,7 @@ mod tests {
         let destination = root.join("annotations.md");
         fs::write(&destination, "old export").expect("existing export should be created");
 
-        write_annotation_export_file(
+        write_annotation_export(
             destination.to_string_lossy().to_string(),
             "# Complete export\n".to_string(),
             AnnotationExportFormat::Markdown,
@@ -1453,7 +1520,7 @@ mod tests {
         fs::create_dir_all(&root).expect("export folder should be created");
         let destination = root.join("annotations.txt");
 
-        assert!(write_annotation_export_file(
+        assert!(write_annotation_export(
             destination.to_string_lossy().to_string(),
             "not written".to_string(),
             AnnotationExportFormat::Markdown,
@@ -1469,7 +1536,7 @@ mod tests {
         fs::create_dir_all(&root).expect("export folder should be created");
         let destination = root.join("annotations.json");
 
-        assert!(write_annotation_export_file(
+        assert!(write_annotation_export(
             destination.to_string_lossy().to_string(),
             "# Markdown".to_string(),
             AnnotationExportFormat::Markdown,
@@ -1483,12 +1550,56 @@ mod tests {
     }
 
     #[test]
+    fn rejects_annotation_export_over_archive_metadata() {
+        let root = test_root();
+        let directory = root.join(".Archeion");
+        fs::create_dir_all(&directory).expect("metadata directory should be created");
+        let destination = directory.join("annotations.json");
+        fs::write(&destination, "existing annotations").expect("source should be written");
+        let error = write_annotation_export(
+            destination.to_string_lossy().into_owned(),
+            "export".to_string(),
+            AnnotationExportFormat::Json,
+        )
+        .expect_err("archive metadata must be protected");
+        assert!(error.contains("outside the .archeion metadata folder"));
+        assert_eq!(
+            fs::read_to_string(destination).expect("existing annotations should remain"),
+            "existing annotations",
+        );
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn stale_annotation_export_removes_the_staged_file_and_preserves_the_destination() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test directory should be created");
+        let destination = root.join("annotations.json");
+        fs::write(&destination, "existing export").expect("destination should be written");
+        let error = write_annotation_export_guarded(
+            destination.to_string_lossy().into_owned(),
+            "new export".to_string(),
+            AnnotationExportFormat::Json,
+            |_| {
+                assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
+                assert_eq!(fs::read_to_string(&destination).unwrap(), "existing export");
+                Err("The active archive changed before the operation completed.".to_string())
+            },
+        )
+        .expect_err("authorization must precede replacement");
+        assert!(error.contains("active archive changed"));
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+        assert_eq!(fs::read_to_string(&destination).unwrap(), "existing export");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn rejects_existing_non_file_annotation_export_destinations() {
         let root = test_root();
         let destination = root.join("annotations.md");
         fs::create_dir_all(&destination).expect("directory destination should be created");
 
-        assert!(write_annotation_export_file(
+        assert!(write_annotation_export(
             destination.to_string_lossy().to_string(),
             "# Markdown".to_string(),
             AnnotationExportFormat::Markdown,

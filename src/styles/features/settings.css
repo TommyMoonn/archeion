@@ -372,6 +372,12 @@ html[data-motion="on"] .settings-status {
   max-width: 100%;
 }
 
+.settings-annotation-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .settings-row__unavailable {
   color: var(--muted);
   font-size: var(--type-meta);

@@ -56,6 +56,10 @@ export type ArchiveCommandMap = {
   >;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
   load_annotations_metadata: CommandDefinition<undefined, unknown>;
+  load_archive_annotation_snapshot: CommandDefinition<
+    { archiveId: string },
+    { library: MetadataBundle["library"]; annotations: unknown; activationRevision: number }
+  >;
   save_library_metadata: CommandDefinition<{ metadata: LibraryMetadata }, void>;
   save_progress_metadata: CommandDefinition<{ metadata: ProgressMetadata }, void>;
   save_annotations_metadata: CommandDefinition<{ metadata: StoredAnnotationsMetadata }, void>;

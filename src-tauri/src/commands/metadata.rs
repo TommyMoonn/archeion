@@ -2,17 +2,19 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex, Weak},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::atomic_file::{
-    recover_atomic_replace, transaction_path, AtomicFileSystem, AtomicReplaceError, BackupCleanup,
-    PreparedAtomicFile, RealAtomicFileSystem,
+    read_replacement_candidate, recover_atomic_replace, transaction_path, AtomicFileSystem,
+    AtomicReplaceError, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
 };
 
 use super::{
+    archive,
     archive_backup::{ArchiveBackupLayout, MetadataDocument},
     archive_root, epub_metadata,
 };
@@ -161,6 +163,36 @@ fn metadata_path(root: &Path) -> PathBuf {
 }
 
 const MAX_METADATA_BACKUPS: usize = 5;
+
+// Metadata replacement temporarily moves the active sidecar to a backup path.
+static ARCHIVE_METADATA_IO: Mutex<BTreeMap<String, Weak<Mutex<()>>>> = Mutex::new(BTreeMap::new());
+
+fn with_archive_metadata<T>(
+    root: &Path,
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let key = archive_root::display_archive_path(root);
+    #[cfg(windows)]
+    let key = key.to_lowercase();
+    let access = {
+        let mut archives = ARCHIVE_METADATA_IO
+            .lock()
+            .map_err(|_| "Archive metadata access is unavailable.".to_string())?;
+        archives.retain(|_, weak| weak.strong_count() != 0);
+        let entry = archives.entry(key).or_default();
+        if let Some(access) = entry.upgrade() {
+            access
+        } else {
+            let access = Arc::new(Mutex::new(()));
+            *entry = Arc::downgrade(&access);
+            access
+        }
+    };
+    let _guard = access
+        .lock()
+        .map_err(|_| "Archive metadata access is unavailable.".to_string())?;
+    operation()
+}
 
 fn timestamp_suffix() -> u128 {
     SystemTime::now()
@@ -381,18 +413,26 @@ pub(crate) fn load_annotations_at(root: &Path) -> Result<serde_json::Value, Stri
         return Err("The selected archive folder is unavailable.".to_string());
     }
 
-    read_optional_json_with_recovery(
-        root,
-        MetadataDocument::Annotations,
-        default_annotations_metadata(),
-    )
+    with_archive_metadata(root, || {
+        read_optional_json_with_recovery(
+            root,
+            MetadataDocument::Annotations,
+            default_annotations_metadata(),
+        )
+    })
 }
 
 pub(crate) fn save_annotations_at(root: &Path, metadata: &serde_json::Value) -> Result<(), String> {
-    write_json(root, MetadataDocument::Annotations, metadata, true)
+    with_archive_metadata(root, || {
+        write_json(root, MetadataDocument::Annotations, metadata, true)
+    })
 }
 
 pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
+    with_archive_metadata(root, || initialize_locked(root))
+}
+
+fn initialize_locked(root: &Path) -> Result<(), String> {
     if !root.is_dir() {
         return Err("The selected archive folder is unavailable.".to_string());
     }
@@ -442,63 +482,163 @@ fn resolve_command_archive_root(
     archive_root::resolve_archive_root(app, root_path)
 }
 
+async fn run_metadata_command<T: Send + 'static>(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    operation: impl FnOnce(&Path) -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = resolve_command_archive_root(&app, root_path)?;
+        operation(&root)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
-pub fn initialize_archive_metadata(
+pub async fn initialize_archive_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<(), String> {
-    initialize_at(&resolve_command_archive_root(&app, root_path)?)
+    run_metadata_command(app, root_path, initialize_at).await
 }
 
 #[tauri::command]
-pub fn load_archive_metadata(
+pub async fn load_archive_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<MetadataBundle, String> {
-    let root = resolve_command_archive_root(&app, root_path)?;
-    initialize_at(&root)?;
-    let metadata = MetadataBundle {
-        library: read_json(&root, MetadataDocument::Library)?,
-        progress: read_json(&root, MetadataDocument::Progress)?,
-    };
-    Ok(metadata)
+    run_metadata_command(app, root_path, |root| {
+        with_archive_metadata(root, || {
+            initialize_locked(root)?;
+            Ok(MetadataBundle {
+                library: read_json(root, MetadataDocument::Library)?,
+                progress: read_json(root, MetadataDocument::Progress)?,
+            })
+        })
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn save_library_metadata(
+pub async fn save_library_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
     metadata: LibraryMetadata,
 ) -> Result<(), String> {
-    let root = resolve_command_archive_root(&app, root_path)?;
-    write_json(&root, MetadataDocument::Library, &metadata, true)
+    run_metadata_command(app, root_path, move |root| {
+        with_archive_metadata(root, || {
+            write_json(root, MetadataDocument::Library, &metadata, true)
+        })
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn save_progress_metadata(
+pub async fn save_progress_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
     metadata: ProgressMetadata,
 ) -> Result<(), String> {
-    let root = resolve_command_archive_root(&app, root_path)?;
-    write_json(&root, MetadataDocument::Progress, &metadata, true)
+    run_metadata_command(app, root_path, move |root| {
+        with_archive_metadata(root, || {
+            write_json(root, MetadataDocument::Progress, &metadata, true)
+        })
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn load_annotations_metadata(
+pub async fn load_annotations_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    load_annotations_at(&resolve_command_archive_root(&app, root_path)?)
+    run_metadata_command(app, root_path, load_annotations_at).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchiveAnnotationSnapshot {
+    activation_revision: u64,
+    library: LibraryMetadata,
+    annotations: serde_json::Value,
+}
+
+fn read_metadata_snapshot_bytes(
+    root: &Path,
+    document: MetadataDocument,
+) -> Result<Option<Vec<u8>>, String> {
+    let path = ArchiveBackupLayout::new(root).checked_active_document_path(document)?;
+    let file_name = document.file_name();
+    let read_error = |error| format!("Cannot read {file_name}: {error}");
+    match fs::symlink_metadata(&path) {
+        Ok(info) if info.file_type().is_file() => fs::read(&path).map(Some).map_err(read_error),
+        Ok(_) => Err(format!("{file_name} must be a regular file.")),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            read_replacement_candidate(&path).map_err(read_error)
+        }
+        Err(error) => Err(read_error(error)),
+    }
+}
+
+fn decode_metadata_snapshot<T: DeserializeOwned>(
+    bytes: Option<Vec<u8>>,
+    document: MetadataDocument,
+    default: T,
+) -> Result<T, String> {
+    let Some(bytes) = bytes else {
+        return Ok(default);
+    };
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("Cannot read {}: {error}", document.file_name()))
 }
 
 #[tauri::command]
-pub fn save_annotations_metadata(
+pub async fn load_archive_annotation_snapshot(
+    app: tauri::AppHandle,
+    archive_id: String,
+    root_path: String,
+) -> Result<ArchiveAnnotationSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let revision = archive::with_active_archive(&app, &archive_id, &root_path, None, Ok)?;
+        let root = resolve_command_archive_root(&app, Some(root_path.clone()))?;
+        let (library, annotations) = with_archive_metadata(&root, || {
+            Ok((
+                read_metadata_snapshot_bytes(&root, MetadataDocument::Library)?,
+                read_metadata_snapshot_bytes(&root, MetadataDocument::Annotations)?,
+            ))
+        })?;
+        let snapshot = ArchiveAnnotationSnapshot {
+            activation_revision: revision,
+            library: decode_metadata_snapshot(
+                library,
+                MetadataDocument::Library,
+                LibraryMetadata::default(),
+            )?,
+            annotations: decode_metadata_snapshot(
+                annotations,
+                MetadataDocument::Annotations,
+                default_annotations_metadata(),
+            )?,
+        };
+        archive::with_active_archive(&app, &archive_id, &root_path, Some(revision), |_| {
+            Ok(snapshot)
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn save_annotations_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
     metadata: serde_json::Value,
 ) -> Result<(), String> {
-    save_annotations_at(&resolve_command_archive_root(&app, root_path)?, &metadata)
+    run_metadata_command(app, root_path, move |root| {
+        save_annotations_at(root, &metadata)
+    })
+    .await
 }
 
 #[cfg(test)]
@@ -509,10 +649,11 @@ mod tests {
     };
 
     use super::{
-        initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, metadata_path,
-        read_json, save_annotations_at, write_json, write_json_with_fs, LibraryBookMetadata,
-        LibraryMetadata, ProgressMetadata, ReadingProgress, MAX_METADATA_BACKUPS,
-        SCANNER_CACHE_FILE,
+        decode_metadata_snapshot, initialize_at, load_annotations_at,
+        load_scanner_cache_with_recovery_at, metadata_path, read_json,
+        read_metadata_snapshot_bytes, save_annotations_at, with_archive_metadata, write_json,
+        write_json_with_fs, LibraryBookMetadata, LibraryMetadata, ProgressMetadata,
+        ReadingProgress, MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
     };
     use crate::{
         atomic_file::transaction_path,
@@ -525,6 +666,107 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-metadata-{label}-{nonce}"))
+    }
+
+    fn read_metadata_snapshot<T: serde::de::DeserializeOwned>(
+        root: &std::path::Path,
+        document: MetadataDocument,
+        default: T,
+    ) -> Result<T, String> {
+        decode_metadata_snapshot(
+            read_metadata_snapshot_bytes(root, document)?,
+            document,
+            default,
+        )
+    }
+
+    #[test]
+    fn metadata_access_to_one_archive_does_not_hold_another_archives_lock() {
+        let first = test_root("slow-first-archive");
+        let second = test_root("independent-second-archive");
+        let (entered, did_enter) = std::sync::mpsc::channel();
+        let second = with_archive_metadata(&first, || {
+            let second = std::thread::spawn(move || {
+                with_archive_metadata(&second, || {
+                    entered.send(()).unwrap();
+                    Ok(())
+                })
+                .unwrap();
+            });
+            let result = did_enter.recv_timeout(std::time::Duration::from_secs(3));
+            Ok((second, result))
+        })
+        .unwrap();
+        second.0.join().unwrap();
+        assert!(second.1.is_ok());
+    }
+
+    #[test]
+    fn archive_annotation_snapshot_never_creates_or_repairs_source_files() {
+        let root = test_root("annotation-export");
+        fs::create_dir_all(&root).expect("archive root should be created");
+        let metadata = metadata_path(&root);
+        let value: LibraryMetadata =
+            read_metadata_snapshot(&root, MetadataDocument::Library, LibraryMetadata::default())
+                .expect("missing metadata should return the default");
+        assert!(value.books.is_empty());
+        assert!(!metadata.exists());
+
+        fs::create_dir(&metadata).expect("metadata directory should be created");
+        let path = metadata.join(MetadataDocument::Annotations.file_name());
+        fs::write(&path, "incomplete").expect("invalid source should be written");
+        assert!(read_metadata_snapshot(
+            &root,
+            MetadataDocument::Annotations,
+            serde_json::Value::Null
+        )
+        .is_err());
+        assert_eq!(
+            fs::read_to_string(&path).expect("source should remain"),
+            "incomplete"
+        );
+        assert_eq!(
+            fs::read_dir(&metadata)
+                .expect("metadata should be readable")
+                .count(),
+            1
+        );
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn archive_annotation_snapshot_reads_interrupted_replacement_without_repairing_it() {
+        let root = test_root("interrupted-annotation-export");
+        let document = MetadataDocument::Annotations;
+        let previous = serde_json::json!({ "version": 1, "books": { "old": {} } });
+        let next = serde_json::json!({ "version": 1, "books": { "new": {} } });
+        let backup = write_transaction_artifact(&root, document, "write-backup", &previous);
+        let temporary = write_transaction_artifact(&root, document, "tmp-write", &next);
+        let path = metadata_path(&root).join(document.file_name());
+        assert_eq!(
+            read_metadata_snapshot(&root, document, serde_json::Value::Null)
+                .expect("last committed annotations should read"),
+            previous,
+        );
+        assert!(!path.exists());
+        assert!(backup.exists() && temporary.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn archive_annotation_snapshot_reads_an_interrupted_first_save() {
+        let root = test_root("first-annotation-save");
+        let document = MetadataDocument::Annotations;
+        let value = serde_json::json!({ "version": 1, "books": { "first": {} } });
+        let temporary = write_transaction_artifact(&root, document, "tmp-write", &value);
+        let path = metadata_path(&root).join(document.file_name());
+        assert_eq!(
+            read_metadata_snapshot(&root, document, serde_json::Value::Null)
+                .expect("first annotation save should read"),
+            value,
+        );
+        assert!(!path.exists() && temporary.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     fn write_transaction_artifact<T: serde::Serialize>(

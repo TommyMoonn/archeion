@@ -28,6 +28,7 @@ describe("StorageSettingsSection maintenance routing", () => {
     const resetStorage = vi.fn();
     const revealMetadata = vi.fn();
     const openIntegrityResults = vi.fn();
+    const exportAnnotations = vi.fn();
     const context = {
       archiveAvailable: true,
       archiveScanActive: false,
@@ -39,6 +40,7 @@ describe("StorageSettingsSection maintenance routing", () => {
       resetStorage,
       revealMetadata,
       openIntegrityResults,
+      exportAnnotations,
       updateFiles: vi.fn(),
     } as unknown as SettingsController;
 
@@ -67,6 +69,20 @@ describe("StorageSettingsSection maintenance routing", () => {
     expect(openIntegrityResults).toHaveBeenLastCalledWith("duplicates");
     act(() => clickAction(container, "storage.check-epub-issues"));
     expect(openIntegrityResults).toHaveBeenLastCalledWith("epub-issues");
+    const exportButtons = container.querySelectorAll<HTMLButtonElement>(
+      '[data-setting-id="storage.export-annotations"] button',
+    );
+    for (const button of exportButtons) act(() => button.click());
+    expect(exportAnnotations.mock.calls).toEqual([["json"], ["markdown"]]);
+
+    act(() =>
+      root.render(<StorageSettingsSection context={{ ...context, annotationExportBusy: true }} />),
+    );
+    for (const button of exportButtons) {
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      act(() => button.click());
+    }
+    expect(exportAnnotations).toHaveBeenCalledTimes(2);
   });
 });
 

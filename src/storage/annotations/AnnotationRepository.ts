@@ -8,6 +8,7 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../../types/annotation";
+import type { LibraryMetadata } from "../metadataFiles";
 import {
   createAnnotationInMetadata,
   deleteAnnotationInMetadata,
@@ -25,6 +26,17 @@ import {
 export type AnnotationArchiveScope = {
   generation: number;
   rootPath: string | null;
+};
+
+export type ArchiveAnnotationBook = {
+  bookId: string;
+  book: LibraryMetadata["books"][string] | undefined;
+  annotations: Annotation[];
+};
+
+export type ArchiveAnnotationSnapshot = {
+  activationRevision: number;
+  books: ArchiveAnnotationBook[];
 };
 
 type AnnotationRepositoryHost = {
@@ -75,6 +87,21 @@ function normalizeAnnotationId(annotationId: string): string | undefined {
 }
 
 export class AnnotationRepository {
+  static snapshot(library: LibraryMetadata, raw: unknown): ArchiveAnnotationBook[] {
+    return Object.entries(normalizeAnnotationsMetadata(raw).books).flatMap(
+      ([bookId, { annotations }]) =>
+        annotations.length
+          ? [
+              {
+                bookId,
+                book: Object.hasOwn(library.books, bookId) ? library.books[bookId] : undefined,
+                annotations,
+              },
+            ]
+          : [],
+    );
+  }
+
   private cachedGeneration: number | null = null;
   private metadata: StoredAnnotationsMetadata = createAnnotationsMetadata();
 

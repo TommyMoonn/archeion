@@ -17,6 +17,13 @@ import type {
   ArchiveIntegrityNavigationRequest,
 } from "../../storage/archiveIntegrityNavigation";
 import { activeArchiveFromRegistry } from "../../types/archive";
+import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
+import { loadArchiveAnnotationSnapshot } from "../../storage/annotations/loadArchiveAnnotationSnapshot";
+import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
+import {
+  exportReaderAnnotationsToFile,
+  type ReaderAnnotationExportResult,
+} from "../reader/readerAnnotationExportFile";
 
 const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
 const ARCHIVE_CHANGED_ERROR = "The active archive changed before the Settings operation completed.";
@@ -28,6 +35,9 @@ export type SettingsArchiveSnapshot = Readonly<{
 }>;
 
 export type SettingsArchiveMaintenance = Readonly<{
+  exportAnnotations: (
+    format: ReaderAnnotationExportFormat,
+  ) => Promise<ReaderAnnotationExportResult>;
   openIntegrityResults: (destination: ArchiveIntegrityDestination) => Promise<void>;
   clearCoverCache: () => Promise<CoverCacheStatus>;
   clearEpubWritebackBackups: () => Promise<EpubWritebackBackupStatus>;
@@ -111,7 +121,9 @@ export class SettingsArchiveMaintenanceClient {
   maintenance(): SettingsArchiveMaintenance | null {
     if (this.snapshot.status !== "ready" || !this.snapshot.archive) return null;
     if (this.maintenanceView) return this.maintenanceView;
+    const scope = this.createScope();
     this.maintenanceView = {
+      exportAnnotations: (format) => this.exportAnnotations(scope, format),
       openIntegrityResults: (destination) => this.openIntegrityResults(destination),
       clearCoverCache: () => this.runArchiveCommand("clear_cover_cache"),
       clearEpubWritebackBackups: () => this.runArchiveCommand("clear_epub_writeback_backups"),
@@ -218,6 +230,54 @@ export class SettingsArchiveMaintenanceClient {
     const scope = this.createScope();
     await this.requestReconciliation(scope);
     await this.invalidateMainLibrary(scope);
+  }
+
+  private async exportAnnotations(
+    scope: Scope,
+    format: ReaderAnnotationExportFormat,
+  ): Promise<ReaderAnnotationExportResult> {
+    const disposalRevision = this.disposalRevision;
+    const assertCurrent = () => {
+      if (disposalRevision !== this.disposalRevision) {
+        throw new Error("Settings archive maintenance stopped.");
+      }
+      this.assertCurrent(scope);
+    };
+    assertCurrent();
+    const snapshot = await loadArchiveAnnotationSnapshot(
+      this.dependencies.archiveCommands,
+      scope.archive.id,
+      scope.archive.rootPath,
+    );
+    assertCurrent();
+    const books = snapshot.books
+      .sort((a, b) => compareExportKeys(a.bookId, b.bookId))
+      .map(({ annotations, book, bookId }) => ({
+        annotations: annotations.sort(
+          (a, b) => compareExportKeys(a.createdAt, b.createdAt) || compareExportKeys(a.id, b.id),
+        ),
+        author: book ? bookAuthor(book) : undefined,
+        chapterLabelFallback: "Chapter unavailable",
+        id: bookId,
+        title: book
+          ? bookTitle({
+              sourceMetadata: book.sourceMetadata,
+              fileName: book.relativePath.split(/[\\/]/).at(-1) ?? "",
+            })
+          : "Book details unavailable",
+      }));
+    const result = await exportReaderAnnotationsToFile({
+      archiveScope: {
+        activationRevision: snapshot.activationRevision,
+        archiveId: scope.archive.id,
+        rootPath: scope.archive.rootPath,
+      },
+      assertCurrent,
+      books,
+      format,
+    });
+    assertCurrent();
+    return result;
   }
 
   private async openIntegrityResults(destination: ArchiveIntegrityDestination): Promise<void> {
@@ -335,6 +395,10 @@ function createReconciliationRequestId(): string {
     throw new Error("Secure reconciliation request IDs are unavailable.");
   }
   return `settings-${globalThis.crypto.randomUUID()}`;
+}
+
+function compareExportKeys(left: string, right: string): number {
+  return left < right ? -1 : Number(left > right);
 }
 
 export const settingsArchiveMaintenanceClient = new SettingsArchiveMaintenanceClient();

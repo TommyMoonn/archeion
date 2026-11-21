@@ -21,6 +21,7 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../types/annotation";
+import type { ArchiveAnnotationSnapshot } from "./annotations/AnnotationRepository";
 
 export type StorageObserver<T> = {
   next: (value: T) => void;
@@ -179,6 +180,7 @@ export interface LibraryStorage {
     edits: BulkMetadataEditInput,
   ): Promise<BulkActionResult>;
 
+  listArchiveAnnotations(archiveId: string): Promise<ArchiveAnnotationSnapshot>;
   listAnnotations(bookId: string): Promise<Annotation[]>;
   getAnnotation(bookId: string, annotationId: string): Promise<Annotation | undefined>;
   createAnnotation(

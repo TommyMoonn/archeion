@@ -104,7 +104,8 @@ export async function runRuntimeFlows({
     assert.equal(registry.archives.length, 1);
     archiveRoot = registry.archives[0].rootPath;
     assert.equal(path.resolve(archiveRoot), path.join(fixtureRoot, "Smoke Archive"));
-    const reopened = await invoke(driver, "open_archive", { path: archiveRoot });
+    const selection = await invoke(driver, "reserve_archive_open");
+    const reopened = await invoke(driver, "open_archive", { path: archiveRoot, selection });
     assert.equal(reopened.lastOpenedArchiveId, registry.archives[0].id);
   });
 

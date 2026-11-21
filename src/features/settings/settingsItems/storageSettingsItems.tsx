@@ -163,6 +163,41 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
+    description: "Save bookmarks, highlights, and notes from the active archive.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.export-annotations",
+    label: "Export annotations",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Save bookmarks, highlights, and notes from the active archive."
+        label="Export annotations"
+      >
+        <div className="settings-annotation-export-actions">
+          <Button
+            disabled={context.annotationExportBusy}
+            disabledReason="An annotation export is in progress"
+            onClick={() => void context.exportAnnotations("json")}
+            variant="secondary"
+          >
+            Export JSON
+          </Button>
+          <Button
+            disabled={context.annotationExportBusy}
+            disabledReason="An annotation export is in progress"
+            onClick={() => void context.exportAnnotations("markdown")}
+            variant="secondary"
+          >
+            Export Markdown
+          </Button>
+        </div>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["bookmarks", "highlights", "notes", "markdown", "json"],
+    sectionId: "storage",
+  },
+  {
     description: "Forces EPUB files to be checked again later.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",

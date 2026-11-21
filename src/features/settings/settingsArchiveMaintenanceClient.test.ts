@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { invoke as exportInvoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 
 import type { ArchiveRegistry, KnownArchive } from "../../types/archive";
 import {
@@ -6,6 +8,9 @@ import {
   type ArchiveReconciliationCompletion,
 } from "../../storage/archiveReconciliation";
 import { SettingsArchiveMaintenanceClient } from "./settingsArchiveMaintenanceClient";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn() }));
 
 const archiveA: KnownArchive = {
   id: "archive-a",
@@ -80,6 +85,201 @@ function requestedReconciliation(owner: ReturnType<typeof createClient>) {
 }
 
 describe("SettingsArchiveMaintenanceClient", () => {
+  describe("archive annotation export", () => {
+    const createdAt = "2026-08-01T00:00:00.000Z";
+    const bookmark = {
+      id: "z",
+      type: "bookmark",
+      label: "Đọc tiếp",
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const highlight = {
+      id: "a",
+      type: "highlight",
+      selectedText: "雪",
+      color: "yellow",
+      note: "ghi chú",
+      anchorStatus: "detached",
+      cfiRange: "epubcfi(/6/2!/4/2/1:0)",
+      chapterHref: "unopened.xhtml",
+      contextBefore: "before text",
+      contextAfter: "after text",
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const snapshot = {
+      activationRevision: 12,
+      annotations: {
+        version: 1,
+        books: {
+          z: { annotations: [bookmark, highlight] },
+          empty: { annotations: [] },
+          a: { annotations: [{ ...bookmark, id: "a" }] },
+        },
+      },
+      library: {
+        version: 1,
+        books: {
+          a: { relativePath: "folder/未読.epub", sourceMetadata: { creator: "Ánh" } },
+          z: { relativePath: "missing.epub", sourceMetadata: { title: "Missing book" } },
+          empty: { relativePath: "empty.epub" },
+        },
+      },
+    };
+    const saveMock = vi.mocked(save);
+    const writer = vi.mocked(exportInvoke);
+
+    async function setup(raw: unknown = snapshot) {
+      saveMock.mockReset();
+      writer.mockReset().mockResolvedValue(undefined);
+      const owner = createClient(registry(archiveA));
+      owner.archiveInvoke.mockResolvedValue(raw);
+      await owner.client.initialize();
+      const maintenance = owner.client.maintenance();
+      if (!maintenance) throw new Error("Maintenance unavailable");
+      return { ...owner, exportAnnotations: maintenance.exportAnnotations };
+    }
+
+    it.each(["json", "markdown"] as const)(
+      "exports deterministic %s from metadata alone",
+      async (format) => {
+        const owner = await setup();
+        const original = structuredClone(snapshot);
+        const fileName =
+          format === "json" ? "archeion-annotations.json" : "archeion-annotations.md";
+        const path = `C:\\Exports\\${fileName}`;
+        saveMock.mockResolvedValue(path);
+
+        await expect(owner.exportAnnotations(format)).resolves.toEqual({
+          annotationCount: 3,
+          bookCount: 2,
+          path,
+          status: "saved",
+        });
+        expect(owner.archiveInvoke.mock.calls).toEqual([
+          ["load_archive_annotation_snapshot", { archiveId: archiveA.id }, archiveA.rootPath],
+        ]);
+        expect(saveMock).toHaveBeenCalledWith(expect.objectContaining({ defaultPath: fileName }));
+        expect(writer).toHaveBeenCalledWith("write_annotation_export_file", {
+          archiveScope: {
+            archiveId: archiveA.id,
+            rootPath: archiveA.rootPath,
+            activationRevision: 12,
+          },
+          contents: expect.any(String),
+          format,
+          path,
+        });
+        const args = writer.mock.calls[0]?.[1];
+        const contents = args && "contents" in args ? args.contents : undefined;
+        if (typeof contents !== "string") throw new Error("No export contents");
+        if (format === "json") {
+          expect(JSON.parse(contents)).toMatchObject({
+            schema: "archeion.annotation-export",
+            version: 1,
+            books: [
+              { id: "a", title: "未読", author: "Ánh" },
+              {
+                id: "z",
+                title: "Missing book",
+                annotations: [
+                  { annotation: highlight, chapterLabel: "Chapter unavailable" },
+                  { annotation: bookmark, chapterLabel: "Đọc tiếp" },
+                ],
+              },
+            ],
+          });
+        } else {
+          expect(contents).toContain("## 未読");
+          expect(contents.indexOf("## 未読")).toBeLessThan(contents.indexOf("## Missing book"));
+          expect(contents).toContain("### Chapter unavailable");
+          expect(contents).toContain("### Đọc tiếp");
+          expect(contents).toContain("**Detached:** Yes");
+          expect(contents).toContain("ghi chú");
+          for (const field of [
+            "Book ID",
+            "Annotation ID",
+            "chapterHref",
+            "cfiRange",
+            "createdAt",
+            "updatedAt",
+            "color",
+            "contextBefore",
+            "contextAfter",
+          ]) {
+            expect(contents).toContain(`**${field}:**`);
+          }
+        }
+        expect(snapshot).toEqual(original);
+      },
+    );
+
+    it("identifies sidecar-only books with the same unavailable title in Markdown", async () => {
+      const owner = await setup({
+        ...snapshot,
+        library: { version: 1, books: {} },
+      });
+      saveMock.mockResolvedValue("C:/Exports/annotations.md");
+      await expect(owner.exportAnnotations("markdown")).resolves.toMatchObject({ bookCount: 2 });
+      expect(writer).toHaveBeenCalledWith(
+        "write_annotation_export_file",
+        expect.objectContaining({
+          contents: expect.stringMatching(
+            /## Book details unavailable\n\n\*\*Book ID:\*\* a[\s\S]+## Book details unavailable\n\n\*\*Book ID:\*\* z/,
+          ),
+        }),
+      );
+    });
+
+    it("skips the picker for an empty archive and skips the writer on cancellation", async () => {
+      const empty = await setup({ ...snapshot, annotations: { version: 1, books: {} } });
+      await expect(empty.exportAnnotations("json")).resolves.toEqual({ status: "empty" });
+      expect(saveMock).not.toHaveBeenCalled();
+      const owner = await setup();
+      saveMock.mockResolvedValue(null);
+      await expect(owner.exportAnnotations("json")).resolves.toEqual({ status: "cancelled" });
+      expect(writer).not.toHaveBeenCalled();
+    });
+
+    it("reports a writer failure and permits a retry", async () => {
+      const owner = await setup();
+      saveMock.mockResolvedValue("C:/Exports/annotations.json");
+      writer.mockRejectedValueOnce("The export folder is unavailable.");
+      await expect(owner.exportAnnotations("json")).rejects.toBe(
+        "The export folder is unavailable.",
+      );
+      await expect(owner.exportAnnotations("json")).resolves.toMatchObject({ status: "saved" });
+    });
+
+    it("rejects a stale snapshot before starting a save dialog", async () => {
+      const owner = await setup();
+      let finish: (value: unknown) => void = () => {};
+      owner.archiveInvoke.mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const exportResult = owner.exportAnnotations("json");
+      owner.publishRegistry(registry(archiveB));
+      finish(snapshot);
+      await expect(exportResult).rejects.toThrow("active archive changed");
+      expect(saveMock).not.toHaveBeenCalled();
+      expect(writer).not.toHaveBeenCalled();
+    });
+
+    it("rejects the save path if the archive changes and switches back during the dialog", async () => {
+      const owner = await setup();
+      saveMock.mockImplementationOnce(async () => {
+        owner.publishRegistry(registry(archiveB));
+        owner.publishRegistry(registry(archiveA));
+        return "C:/Exports/annotations.json";
+      });
+      await expect(owner.exportAnnotations("json")).rejects.toThrow("active archive changed");
+      expect(writer).not.toHaveBeenCalled();
+    });
+  });
+
   it.each(["duplicates", "epub-issues"] as const)(
     "requests %s through the scoped main-window command",
     async (destination) => {
