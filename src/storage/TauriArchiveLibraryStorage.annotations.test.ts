@@ -15,8 +15,9 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     const { rootPath, storage } = await scopedStorage();
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_annotations_metadata") {
-        return { version: 1, books: {} };
+        return { metadata: { version: 1, books: {} }, revision: "initial" };
       }
+      if (command === "save_annotations_metadata") return "saved";
       return undefined;
     });
 
@@ -30,8 +31,9 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     const { rootPath, storage } = await scopedStorage();
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_annotations_metadata") {
-        return { version: 1, books: {} };
+        return { metadata: { version: 1, books: {} }, revision: "initial" };
       }
+      if (command === "save_annotations_metadata") return "saved";
       return undefined;
     });
 
@@ -78,16 +80,20 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_annotations_metadata") {
         return {
-          version: 1,
-          futureTopLevel: true,
-          books: {
-            "book-1": {
-              futureBookField: true,
-              annotations: [original],
+          metadata: {
+            version: 1,
+            futureTopLevel: true,
+            books: {
+              "book-1": {
+                futureBookField: true,
+                annotations: [original],
+              },
             },
           },
+          revision: "initial",
         };
       }
+      if (command === "save_annotations_metadata") return "saved";
       return undefined;
     });
 
@@ -146,13 +152,17 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_annotations_metadata") {
         return {
-          version: 1,
-          futureTopLevel: { preserve: true },
-          books: {
-            "book-1": { annotations: [], futureBookField: { preserve: true } },
+          metadata: {
+            version: 1,
+            futureTopLevel: { preserve: true },
+            books: {
+              "book-1": { annotations: [], futureBookField: { preserve: true } },
+            },
           },
+          revision: "initial",
         };
       }
+      if (command === "save_annotations_metadata") return "saved";
       return undefined;
     });
 
@@ -163,6 +173,7 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     );
     expect(saveCall?.[1]).toEqual({
       rootPath,
+      expectedRevision: "initial",
       metadata: {
         version: 1,
         futureTopLevel: { preserve: true },
@@ -212,27 +223,31 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_annotations_metadata") {
         return {
-          version: 1,
-          books: {
-            "book-1": {
-              annotations: [
-                {
-                  id: "duplicate",
-                  type: "bookmark",
-                  createdAt: "2026-07-12T00:00:00.000Z",
-                  updatedAt: "2026-07-12T00:00:00.000Z",
-                },
-                {
-                  id: "duplicate",
-                  type: "bookmark",
-                  createdAt: "2026-07-12T00:00:00.000Z",
-                  updatedAt: "2026-07-12T00:00:00.000Z",
-                },
-              ],
+          metadata: {
+            version: 1,
+            books: {
+              "book-1": {
+                annotations: [
+                  {
+                    id: "duplicate",
+                    type: "bookmark",
+                    createdAt: "2026-07-12T00:00:00.000Z",
+                    updatedAt: "2026-07-12T00:00:00.000Z",
+                  },
+                  {
+                    id: "duplicate",
+                    type: "bookmark",
+                    createdAt: "2026-07-12T00:00:00.000Z",
+                    updatedAt: "2026-07-12T00:00:00.000Z",
+                  },
+                ],
+              },
             },
           },
+          revision: "initial",
         };
       }
+      if (command === "save_annotations_metadata") return "saved";
       return undefined;
     });
 

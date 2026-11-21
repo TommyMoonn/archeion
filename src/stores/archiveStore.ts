@@ -560,8 +560,15 @@ export class ArchiveStore {
     await precedingCommit;
     try {
       if (!this.isCurrentTransition(transition)) return null;
+      // Reserve on native IPC intake before the async open can be scheduled.
+      const openRequest =
+        command === "open_archive"
+          ? { selection: await invoke<number>("reserve_archive_open") }
+          : {};
+      if (!this.isCurrentTransition(transition)) return null;
       const registry = await invoke<ArchiveRegistry>(command, {
         ...args,
+        ...openRequest,
         mutationId: this.createMutationId(),
       });
       return this.isCurrentTransition(transition) ? registry : null;

@@ -53,6 +53,7 @@ const coverStorage: LibraryStorage = {
   bulkExportBooks: unsupportedOperation,
   bulkWriteBookMetadata: unsupportedOperation,
   listAnnotations: unsupportedOperation,
+  listArchiveAnnotations: unsupportedOperation,
   getAnnotation: unsupportedOperation,
   createAnnotation: unsupportedOperation,
   restoreAnnotation: unsupportedOperation,

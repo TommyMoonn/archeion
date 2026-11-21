@@ -9,7 +9,9 @@ function fallbackTitleFromFileName(fileName: string): string {
   );
 }
 
-export function bookTitle(book: ReadonlyBook): string {
+export function bookTitle(
+  book: Pick<ReadonlyBook, "sourceMetadata" | "fileName"> & { originalTitle?: string },
+): string {
   return (
     book.sourceMetadata?.title?.trim() ||
     book.originalTitle?.trim() ||
@@ -17,7 +19,7 @@ export function bookTitle(book: ReadonlyBook): string {
   );
 }
 
-export function bookAuthor(book: ReadonlyBook): string {
+export function bookAuthor(book: Pick<ReadonlyBook, "sourceMetadata">): string {
   return book.sourceMetadata?.creator?.trim() || "";
 }
 

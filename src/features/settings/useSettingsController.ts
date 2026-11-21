@@ -16,8 +16,12 @@ import {
 import type { KnownArchive } from "../../types/archive";
 import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
-import type { SettingsArchiveMaintenance } from "./settingsArchiveMaintenanceClient";
+import type {
+  SettingsAnnotationImportPreview,
+  SettingsArchiveMaintenance,
+} from "./settingsArchiveMaintenanceClient";
 import type { ArchiveIntegrityDestination } from "../../storage/archiveIntegrityNavigation";
+import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
 
 const initialConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -100,6 +104,20 @@ export function useSettingsController({
     value: EpubWritebackBackupStatus | null;
   }>({ scope: archiveLocalScope, status: "loading", value: null });
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
+  const annotationExportLock = useRef(false);
+  const [annotationExportBusy, setAnnotationExportBusy] = useState(false);
+  type AnnotationImportOperation = { scope: typeof archiveLocalScope };
+  const annotationImportOperation = useRef<AnnotationImportOperation | null>(null);
+  const [annotationImportState, setAnnotationImportState] = useState<
+    | (AnnotationImportOperation & {
+        busy: boolean;
+        preview: SettingsAnnotationImportPreview | null;
+      })
+    | null
+  >(null);
+  const currentAnnotationImport =
+    annotationImportState?.scope === archiveLocalScope ? annotationImportState : null;
+  if (annotationImportState && !currentAnnotationImport) setAnnotationImportState(null);
   const integrityNavigationRef = useRef<{ scope: typeof archiveLocalScope; token: object } | null>(
     null,
   );
@@ -623,6 +641,79 @@ export function useSettingsController({
     }
   }
 
+  async function exportAnnotations(format: ReaderAnnotationExportFormat) {
+    if (!storage || annotationExportLock.current) return;
+    const scope = archiveLocalScope;
+    const statusOperation = beginStatusOperation();
+    annotationExportLock.current = true;
+    setAnnotationExportBusy(true);
+    try {
+      const result = await storage.exportAnnotations(format);
+      if (archiveLocalScopeRef.current !== scope) return;
+      if (result.status === "empty") {
+        publishStatusOperation(statusOperation, "No annotations to export", "neutral");
+      } else if (result.status === "saved") {
+        const label = result.annotationCount === 1 ? "annotation" : "annotations";
+        publishStatusOperation(
+          statusOperation,
+          `Exported ${result.annotationCount} ${label}.`,
+          "success",
+        );
+      }
+    } catch (error) {
+      if (archiveLocalScopeRef.current === scope) {
+        const detail = error instanceof Error ? error.message : String(error);
+        publishStatusOperation(statusOperation, `Could not export annotations. ${detail}`, "error");
+      }
+    } finally {
+      annotationExportLock.current = false;
+      setAnnotationExportBusy(false);
+    }
+  }
+
+  async function runAnnotationImport(commit: boolean) {
+    const scope = archiveLocalScope;
+    if (!storage || annotationImportOperation.current?.scope === scope) return;
+    const preview = currentAnnotationImport?.preview ?? null;
+    if (commit ? !preview?.summary.importable : preview !== null) return;
+    const operation = { scope };
+    annotationImportOperation.current = operation;
+    setAnnotationImportState({ ...operation, busy: true, preview });
+    const statusOperation = beginStatusOperation();
+    const isCurrent = () =>
+      annotationImportOperation.current === operation && archiveLocalScopeRef.current === scope;
+    try {
+      if (commit && preview) {
+        await preview.commit();
+        if (!isCurrent()) return;
+        const { importable, alreadyPresent, conflicts, unmatchedBookIds } = preview.summary;
+        setAnnotationImportState(null);
+        const importedLabel = importable === 1 ? "annotation" : "annotations";
+        const unmatchedLabel = unmatchedBookIds.length === 1 ? "book" : "books";
+        publishStatusOperation(
+          statusOperation,
+          `Imported ${importable} ${importedLabel}. Skipped ${alreadyPresent} already present and ${conflicts} conflicting. ${unmatchedBookIds.length} unmatched ${unmatchedLabel}.`,
+          "success",
+        );
+      } else {
+        const next = await storage.previewAnnotationImport();
+        if (!isCurrent()) return;
+        setAnnotationImportState(next ? { ...operation, busy: false, preview: next } : null);
+      }
+    } catch (error) {
+      if (!isCurrent()) return;
+      setAnnotationImportState(null);
+      const detail = error instanceof Error ? error.message : String(error);
+      publishStatusOperation(statusOperation, `Could not import annotations. ${detail}`, "error");
+    } finally {
+      if (annotationImportOperation.current === operation) annotationImportOperation.current = null;
+    }
+  }
+
+  function cancelAnnotationImport() {
+    if (!currentAnnotationImport?.busy) setAnnotationImportState(null);
+  }
+
   async function resetReader() {
     await updateAppPreferences({
       reader: defaultAppPreferences.reader,
@@ -663,6 +754,13 @@ export function useSettingsController({
   }
 
   return {
+    annotationImportBusy: currentAnnotationImport?.busy ?? false,
+    annotationImportSummary: currentAnnotationImport?.preview?.summary ?? null,
+    cancelAnnotationImport,
+    confirmAnnotationImport: () => runAnnotationImport(true),
+    previewAnnotationImport: () => runAnnotationImport(false),
+    annotationExportBusy,
+    exportAnnotations,
     archiveAvailable: storage !== null,
     archiveScanActive,
     integrityNavigationBusy,

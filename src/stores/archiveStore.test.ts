@@ -167,6 +167,7 @@ describe("ArchiveStore", () => {
       if (command === "open_archive") {
         return registry(novels.id, [novels]);
       }
+      if (command === "reserve_archive_open") return 7;
       if (command === "validate_archive_path") {
         return true;
       }
@@ -184,8 +185,10 @@ describe("ArchiveStore", () => {
     });
     expect(invokeMock).toHaveBeenCalledWith(
       "open_archive",
-      expect.objectContaining({ path: "D:\\Novels", mutationId: expect.any(String) }),
+      expect.objectContaining({ path: "D:\\Novels", selection: 7, mutationId: expect.any(String) }),
     );
+    const commands = invokeMock.mock.calls.map(([command]) => command);
+    expect(commands.indexOf("reserve_archive_open")).toBeLessThan(commands.indexOf("open_archive"));
     expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "D:\\Novels",
     });
@@ -1174,6 +1177,7 @@ describe("ArchiveStore", () => {
       if (command === "open_archive") {
         throw openError;
       }
+      if (command === "reserve_archive_open") return 7;
       return undefined;
     });
     const store = new ArchiveStore();

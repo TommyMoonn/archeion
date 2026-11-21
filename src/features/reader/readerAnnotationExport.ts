@@ -1,9 +1,12 @@
 import type { Annotation } from "../../types/annotation";
 import type { ReaderChapter } from "../../types/reader";
 import { readerAnnotationChapterLabel } from "./readerAnnotations";
+import {
+  READER_ANNOTATION_EXPORT_VERSION,
+  READER_ANNOTATION_EXPORT_SCHEMA,
+} from "../../storage/annotations/annotationExportFormat";
 
-export const READER_ANNOTATION_EXPORT_VERSION = 1 as const;
-export const READER_ANNOTATION_EXPORT_SCHEMA = "archeion.annotation-export" as const;
+export { READER_ANNOTATION_EXPORT_VERSION, READER_ANNOTATION_EXPORT_SCHEMA };
 
 export type ReaderAnnotationExportFormat = "json" | "markdown";
 
@@ -11,6 +14,7 @@ export type ReaderAnnotationExportBook = {
   annotations: readonly Annotation[];
   author?: string;
   chapters?: readonly ReaderChapter[];
+  chapterLabelFallback?: string;
   id: string;
   title: string;
 };
@@ -55,7 +59,10 @@ export function createReaderAnnotationExportDocument(
       ...(cleanText(book.author) ? { author: cleanText(book.author) } : {}),
       annotations: book.annotations.map((annotation) => ({
         annotation: snapshotAnnotation(annotation),
-        chapterLabel: readerAnnotationChapterLabel(annotation, book.chapters ?? []),
+        chapterLabel:
+          !book.chapters?.length && book.chapterLabelFallback
+            ? (cleanText(annotation.label) ?? book.chapterLabelFallback)
+            : readerAnnotationChapterLabel(annotation, book.chapters ?? []),
       })),
     })),
   };
@@ -81,7 +88,10 @@ function locationReference(annotation: Annotation): string {
   return cleanText(annotation.cfiRange) ?? cleanText(annotation.chapterHref) ?? "Unavailable";
 }
 
-function annotationMarkdown(record: ReaderAnnotationExportRecord): string[] {
+function annotationMarkdown(
+  record: ReaderAnnotationExportRecord,
+  includeDetails: boolean,
+): string[] {
   const { annotation } = record;
   const lines: string[] = [];
   if (annotation.type === "bookmark") {
@@ -96,16 +106,25 @@ function annotationMarkdown(record: ReaderAnnotationExportRecord): string[] {
   }
   lines.push("", `**Location:** \`${locationReference(annotation).replaceAll("`", "\\`")}\``);
   if (annotation.anchorStatus === "detached") lines.push("", "**Detached:** Yes");
+  if (includeDetails) {
+    lines.push("", `**Annotation ID:** ${escapeMarkdown(annotation.id)}`);
+    for (const [key, value] of Object.entries(annotation)) {
+      if (["id", "type", "label", "selectedText", "note", "anchorStatus"].includes(key)) continue;
+      lines.push("", `**${escapeMarkdown(key)}:** ${escapeMarkdown(JSON.stringify(value))}`);
+    }
+  }
   return lines;
 }
 
 export function serializeReaderAnnotationMarkdown(
   document: ReaderAnnotationExportDocument,
+  { includeDetails = false }: { includeDetails?: boolean } = {},
 ): string {
   const lines = ["# Archeion annotations", "", `Exported: ${document.exportedAt}`];
 
   for (const book of document.books) {
     lines.push("", `## ${escapeMarkdown(book.title)}`);
+    if (includeDetails) lines.push("", `**Book ID:** ${escapeMarkdown(book.id)}`);
     if (book.author) lines.push("", `Author: ${escapeMarkdown(book.author)}`);
 
     const chapters = new Map<string, ReaderAnnotationExportRecord[]>();
@@ -117,7 +136,7 @@ export function serializeReaderAnnotationMarkdown(
 
     for (const [chapterLabel, records] of chapters) {
       lines.push("", `### ${escapeMarkdown(chapterLabel)}`);
-      for (const record of records) lines.push("", ...annotationMarkdown(record));
+      for (const record of records) lines.push("", ...annotationMarkdown(record, includeDetails));
     }
   }
 
@@ -127,10 +146,11 @@ export function serializeReaderAnnotationMarkdown(
 export function serializeReaderAnnotationExport(
   document: ReaderAnnotationExportDocument,
   format: ReaderAnnotationExportFormat,
+  options?: { includeDetails?: boolean },
 ): string {
   return format === "json"
     ? `${JSON.stringify(document, null, 2)}\n`
-    : serializeReaderAnnotationMarkdown(document);
+    : serializeReaderAnnotationMarkdown(document, options);
 }
 
 export function readerAnnotationExportCount(document: ReaderAnnotationExportDocument): number {

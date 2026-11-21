@@ -34,7 +34,7 @@ function presentProperty<K extends PropertyKey>(source: object, key: K): object 
   return hasOwn(source, key) ? { [key]: Reflect.get(source, key) } : {};
 }
 
-function jsonValuesEqual(left: unknown, right: unknown): boolean {
+export function jsonValuesEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
   if (Array.isArray(left) && Array.isArray(right)) {
     return (

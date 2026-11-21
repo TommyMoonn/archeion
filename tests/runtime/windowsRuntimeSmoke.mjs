@@ -104,7 +104,8 @@ export async function runRuntimeFlows({
     assert.equal(registry.archives.length, 1);
     archiveRoot = registry.archives[0].rootPath;
     assert.equal(path.resolve(archiveRoot), path.join(fixtureRoot, "Smoke Archive"));
-    const reopened = await invoke(driver, "open_archive", { path: archiveRoot });
+    const selection = await invoke(driver, "reserve_archive_open");
+    const reopened = await invoke(driver, "open_archive", { path: archiveRoot, selection });
     assert.equal(reopened.lastOpenedArchiveId, registry.archives[0].id);
   });
 
@@ -147,9 +148,16 @@ export async function runRuntimeFlows({
       version: 1,
       books: { "runtime-smoke-book": { annotations: [annotation] } },
     };
-    await invoke(driver, "save_annotations_metadata", { rootPath: archiveRoot, metadata });
+    const { revision } = await invoke(driver, "load_annotations_metadata", {
+      rootPath: archiveRoot,
+    });
+    await invoke(driver, "save_annotations_metadata", {
+      rootPath: archiveRoot,
+      metadata,
+      expectedRevision: revision,
+    });
     assert.deepEqual(
-      await invoke(driver, "load_annotations_metadata", { rootPath: archiveRoot }),
+      (await invoke(driver, "load_annotations_metadata", { rootPath: archiveRoot })).metadata,
       metadata,
     );
     const exportDocument = {
@@ -171,6 +179,20 @@ export async function runRuntimeFlows({
       format: "json",
     });
     assert.deepEqual(JSON.parse(await readFile(exportPath, "utf8")), exportDocument);
+    const registry = await invoke(driver, "load_archive_registry");
+    const archiveId = registry.lastOpenedArchiveId;
+    const { activationRevision } = await invoke(driver, "load_archive_annotation_snapshot", {
+      archiveId,
+      rootPath: archiveRoot,
+    });
+    const importedDocument = await driver.executeAsyncScript(
+      `const done = arguments[arguments.length - 1];
+         window.__TAURI__.core.invoke("read_annotation_import_file", arguments[0])
+           .then(bytes => done(JSON.parse(new TextDecoder().decode(bytes))))
+           .catch(error => done({ error: String(error) }));`,
+      { path: exportPath, archiveScope: { archiveId, rootPath: archiveRoot, activationRevision } },
+    );
+    assert.deepEqual(importedDocument, exportDocument);
   });
 
   await logStep("persist setting across application restart", async () => {

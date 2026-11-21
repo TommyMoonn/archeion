@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { Annotation } from "../../types/annotation";
+import { MAX_HIGHLIGHT_TEXT_LENGTH, type Annotation } from "../../types/annotation";
 import {
-  MAX_HIGHLIGHT_TEXT_LENGTH,
   normalizeReaderHighlightColor,
   readerHighlights,
   type ReaderHighlightColor,

@@ -24,6 +24,19 @@ pub(crate) fn write_atomic_export_file<R>(
     destination: &Path,
     contents: &[u8],
     kind: ExportFileKind,
+    rename: R,
+) -> Result<(), String>
+where
+    R: FnMut(&Path, &Path) -> std::io::Result<()>,
+{
+    write_guarded_export_file(destination, contents, kind, |replace| replace(), rename)
+}
+
+pub(crate) fn write_guarded_export_file<R>(
+    destination: &Path,
+    contents: &[u8],
+    kind: ExportFileKind,
+    commit: impl FnOnce(&mut dyn FnMut() -> Result<(), String>) -> Result<(), String>,
     mut rename: R,
 ) -> Result<(), String>
 where
@@ -56,21 +69,24 @@ where
         file.sync_all().map_err(|error| error.to_string())?;
         drop(file);
 
-        if destination_is_regular_file(destination, kind)? != replacing {
-            return Err(format!(
-                "The {} destination changed before it was written.",
-                kind.label()
-            ));
-        }
-        if replacing {
-            rename(destination, &backup).map_err(|error| error.to_string())?;
-        }
-        if let Err(error) = rename(&temporary, destination) {
-            if replacing {
-                let _ = rename(&backup, destination);
+        commit(&mut || {
+            if destination_is_regular_file(destination, kind)? != replacing {
+                return Err(format!(
+                    "The {} destination changed before it was written.",
+                    kind.label()
+                ));
             }
-            return Err(error.to_string());
-        }
+            if replacing {
+                rename(destination, &backup).map_err(|error| error.to_string())?;
+            }
+            if let Err(error) = rename(&temporary, destination) {
+                if replacing {
+                    let _ = rename(&backup, destination);
+                }
+                return Err(error.to_string());
+            }
+            Ok(())
+        })?;
         if replacing {
             let _ = fs::remove_file(&backup);
         }
@@ -79,9 +95,6 @@ where
 
     if write_result.is_err() {
         let _ = fs::remove_file(&temporary);
-        if backup.exists() && destination.exists() {
-            let _ = fs::remove_file(backup);
-        }
     }
     write_result
 }

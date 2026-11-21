@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SettingsWindowLayout } from "./SettingsWindowLayout";
+import { SettingsAnnotationImportDialog } from "./SettingsAnnotationImportDialog";
 import { SettingsWindowLayoutContext } from "./settingsWindowLayoutContext";
 
 import type { InstalledFontCatalog } from "../../storage/installedFontCatalog";
@@ -188,6 +189,14 @@ function SettingsSurfaceContent({
         />
       </div>
 
+      {controller.annotationImportSummary ? (
+        <SettingsAnnotationImportDialog
+          busy={controller.annotationImportBusy}
+          summary={controller.annotationImportSummary}
+          onCancel={controller.cancelAnnotationImport}
+          onConfirm={() => void controller.confirmAnnotationImport()}
+        />
+      ) : null}
       <SettingsConfirmations
         archiveScanActive={controller.archiveScanActive}
         busyConfirmations={controller.busyConfirmations}
