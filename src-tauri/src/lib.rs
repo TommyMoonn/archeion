@@ -27,17 +27,30 @@ pub fn run() {
     );
     let theme_catalog_service = commands::themes::ThemeCatalogService::default();
 
+    let cold_start_epub = commands::cold_start_epub::ColdStartEpub(
+        commands::cold_start_epub::resolve_cold_start_epub(std::env::args_os().skip(1)),
+    );
+
+    let external_reader_launch = cold_start_epub.0.is_some();
+
     tauri::Builder::default()
-        .setup(|app| {
+        .manage(cold_start_epub)
+        .setup(move |app| {
             #[cfg(target_os = "windows")]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
-            let archive_registry =
-                commands::archive::ArchiveRegistryService::from_app(app.handle())
-                    .map_err(std::io::Error::other)?;
-            app.manage(archive_registry);
-            let app_settings = commands::app_settings::AppSettingsService::from_app(app.handle())
-                .map_err(std::io::Error::other)?;
+            if !external_reader_launch {
+                let archive_registry =
+                    commands::archive::ArchiveRegistryService::from_app(app.handle())
+                        .map_err(std::io::Error::other)?;
+                app.manage(archive_registry);
+            }
+            let app_settings = if external_reader_launch {
+                commands::app_settings::AppSettingsService::for_external_reader(app.handle())
+            } else {
+                commands::app_settings::AppSettingsService::from_app(app.handle())
+            }
+            .map_err(std::io::Error::other)?;
             app.manage(app_settings);
             commands::app_appearance::synchronize_native_backgrounds(app.handle());
             app.manage(commands::app_update_service::AppUpdateService::from_app(
@@ -67,6 +80,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::cold_start_epub::cold_start_epub,
             commands::app_appearance::prepare_app_appearance,
             commands::app_settings::load_app_settings_snapshot,
             commands::app_settings::update_app_settings,

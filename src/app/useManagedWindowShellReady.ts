@@ -6,7 +6,7 @@ import type { AppWindowMode } from "./windowMode";
 // feature imports and catalogs do not own the committed shell's reveal signal.
 export function useManagedWindowShellReady(mode: AppWindowMode) {
   useEffect(() => {
-    if (mode === "main") return;
+    if (mode === "main" || mode === "standalone-reader") return;
     let active = true;
     let reported = false;
     let observer: MutationObserver | undefined;

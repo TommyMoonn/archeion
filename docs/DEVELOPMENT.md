@@ -80,6 +80,29 @@ Run only the Vite frontend when you do not need desktop APIs:
 pnpm run dev
 ```
 
+## Test a cold-start EPUB request
+
+`tauri dev` does not install Windows file associations. Pass the simulated file-open
+request as application arguments instead. Use an existing `.epub` file:
+
+```powershell
+pnpm exec tauri dev -- -- --open-epub "C:\Books\Example 日本語.epub"
+```
+
+The first `--` separates runner arguments from application arguments. A
+packaged executable also accepts an EPUB path as its only positional argument,
+which is how Explorer's **Open with** command starts it. For this phase, a
+validated request opens a Reader-only selected-file placeholder; opening the
+EPUB content itself is part of the later temporary-session phase. Invalid
+requests fall back to ordinary startup without displaying an empty Reader.
+
+Before shipping, check the real NSIS and MSI installers on Windows. Each should
+add Archeion to **Open with** for `.epub`, leave an existing default EPUB app
+unchanged, accept filenames with spaces and non-ASCII characters, and exit
+when the Reader-only window closes. The NSIS installer restores the extension's
+previous default ProgID after registering Archeion as an available viewer.
+These installed-package checks are separate from the unbundled runtime smoke.
+
 ## Build installers locally
 
 Build both supported Windows installer formats:

@@ -65,6 +65,15 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["epub"],
+        "name": "Archeion.epub",
+        "description": "EPUB eBook",
+        "role": "Viewer",
+        "mimeType": "application/epub+zip"
+      }
+    ],
     "category": "Productivity",
     "publisher": "Khoa Luong",
     "copyright": "Copyright © 2026 Khoa Luong",
@@ -80,6 +89,7 @@
       },
       "nsis": {
         "installMode": "currentUser",
+        "installerHooks": "windows/epub-association.nsh",
         "installerIcon": "icons/icon.ico"
       },
       "wix": {

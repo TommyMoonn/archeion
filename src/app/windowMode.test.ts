@@ -93,6 +93,27 @@ describe("resolveWindowMode", () => {
     ).toBe("about");
   });
 
+  it("prioritizes a validated native EPUB request over normal main window routing", () => {
+    expect(
+      resolveWindowMode({
+        coldStartEpub: "C:\\Books\\日本語.epub",
+        currentWindowLabel: "main",
+        isDesktop: true,
+        search: "?window=archive-manager",
+      }),
+    ).toBe("standalone-reader");
+  });
+
+  it("does not replace independently opened utility windows with the external Reader", () => {
+    expect(
+      resolveWindowMode({
+        coldStartEpub: "C:\\Books\\book.epub",
+        currentWindowLabel: "settings",
+        isDesktop: true,
+      }),
+    ).toBe("settings");
+  });
+
   it("defaults to the main app window", () => {
     expect(
       resolveWindowMode({

@@ -45,6 +45,8 @@ import { AppearanceStatus } from "./AppearanceStatus";
 import { UtilityWindowContentBoundary, UtilityWindowFrame } from "./UtilityWindowFrame";
 import { useManagedWindowShellReady } from "./useManagedWindowShellReady";
 import { installBrowserContextMenuPolicy } from "./browserContextMenuPolicy";
+import { loadColdStartEpub } from "./coldStartEpubClient";
+import { StandaloneReaderStartup } from "./StandaloneReaderStartup";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -72,6 +74,26 @@ function subscribeToRouteChanges(listener: () => void): () => void {
 }
 
 export function App() {
+  const [launch, setLaunch] = useState<
+    { status: "checking" } | { status: "ready"; filePath: string | null } | { status: "error" }
+  >({ status: "checking" });
+
+  useEffect(() => {
+    let active = true;
+    void loadColdStartEpub().then(
+      (filePath) => {
+        if (active) setLaunch({ status: "ready", filePath });
+      },
+      (error: unknown) => {
+        console.error("Unable to inspect the cold-start EPUB request", error);
+        if (active) setLaunch({ status: "error" });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
   useLayoutEffect(() => installBrowserContextMenuPolicy(document), []);
 
   const { ready } = useSyncExternalStore(
@@ -88,16 +110,21 @@ export function App() {
   return (
     <>
       <AppearanceStatus />
-      {ready && <AppWindow />}
+      {ready && launch.status === "ready" && <AppWindow coldStartEpub={launch.filePath} />}
+      {ready && launch.status === "error" && <StandaloneReaderStartup filePath={null} />}
     </>
   );
 }
 
-function AppWindow() {
-  const windowMode = resolveWindowMode();
+function AppWindow({ coldStartEpub }: { coldStartEpub: string | null }) {
+  const windowMode = resolveWindowMode({ coldStartEpub });
   useManagedWindowShellReady(windowMode);
 
   useEffect(() => focusPresentationRuntime.start(document), []);
+
+  if (windowMode === "standalone-reader") {
+    return <StandaloneReaderStartup filePath={coldStartEpub} />;
+  }
 
   if (windowMode === "archive-manager") {
     return (
