@@ -78,6 +78,7 @@ export function resolveWindowMode({
     ) {
       return windowLabel;
     }
+    if (windowLabel.startsWith("external-reader-")) return "standalone-reader";
     return coldStartEpub ? "standalone-reader" : "main";
   }
 

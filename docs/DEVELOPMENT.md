@@ -103,6 +103,28 @@ when the Reader-only window closes. The NSIS installer restores the extension's
 previous default ProgID after registering Archeion as an available viewer.
 These installed-package checks are separate from the unbundled runtime smoke.
 
+## Test warm-launch EPUB requests on Windows
+
+After installing NSIS or MSI, launch Archeion normally and leave the Library open.
+Open an existing `.epub` through Explorer's **Open with > Archeion**. Its Reader
+placeholder should appear in a separate window, without navigating the Library
+or spawning a second application process. Repeat with the same file to focus
+that window, then open a different EPUB to create a second independent Reader.
+
+For a CLI test, launch the installed `Archeion.exe` again with one EPUB path:
+
+```powershell
+& "$env:LOCALAPPDATA\Archeion\Archeion.exe" --open-epub "C:\Books\Example 日本語.epub"
+```
+
+Use the installed path for your installation; it may differ between NSIS and
+MSI. Rapidly open several different EPUBs, including filenames with spaces and
+Unicode, and verify that each window shows its own filename. Close one Reader
+and verify the others and the Library remain open. Reopen the closed file to
+check that a new window is created. Also start with a cold-launch Reader, then
+open another EPUB while it is running. Reading the EPUB contents remains
+out of scope until the temporary-session phase.
+
 ## Build installers locally
 
 Build both supported Windows installer formats:

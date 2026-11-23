@@ -32,9 +32,18 @@ pub fn run() {
     );
 
     let external_reader_launch = cold_start_epub.0.is_some();
+    let external_readers =
+        commands::external_reader::ExternalReaderRegistry::new(cold_start_epub.0.clone());
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(cold_start_epub)
+        .manage(external_readers);
+    #[cfg(windows)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+        commands::external_reader::handle_second_instance(app, args, cwd);
+    }));
+
+    builder
         .setup(move |app| {
             #[cfg(target_os = "windows")]
             app.handle()
@@ -75,12 +84,22 @@ pub fn run() {
             if let tauri::WindowEvent::ThemeChanged(theme) = event {
                 commands::app_appearance::system_scheme_changed(window.app_handle(), *theme);
             }
+            if matches!(
+                event,
+                tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed
+            ) {
+                window
+                    .app_handle()
+                    .state::<commands::external_reader::ExternalReaderRegistry>()
+                    .close_window(window.label());
+            }
             if matches!(event, tauri::WindowEvent::Focused(true)) {
                 commands::window::handle_window_focus(window.app_handle());
             }
         })
         .invoke_handler(tauri::generate_handler![
             commands::cold_start_epub::cold_start_epub,
+            commands::external_reader::standalone_reader_window_ready,
             commands::app_appearance::prepare_app_appearance,
             commands::app_settings::load_app_settings_snapshot,
             commands::app_settings::update_app_settings,

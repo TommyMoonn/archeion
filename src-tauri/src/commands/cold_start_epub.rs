@@ -1,14 +1,32 @@
-use std::{ffi::OsString, fs, path::PathBuf};
+use std::{
+    ffi::OsString,
+    fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Default)]
 pub struct ColdStartEpub(pub Option<String>);
 
 #[tauri::command]
-pub fn cold_start_epub(state: tauri::State<'_, ColdStartEpub>) -> Option<String> {
-    state.0.clone()
+pub fn cold_start_epub(
+    window: tauri::WebviewWindow,
+    state: tauri::State<'_, ColdStartEpub>,
+    readers: tauri::State<'_, super::external_reader::ExternalReaderRegistry>,
+) -> Option<String> {
+    if window.label() == "main" {
+        return state.0.clone();
+    }
+    readers.file_for_window(window.label())
 }
 
 pub fn resolve_cold_start_epub(args: impl IntoIterator<Item = OsString>) -> Option<String> {
+    resolve_cold_start_epub_in(args, None)
+}
+
+pub fn resolve_cold_start_epub_in(
+    args: impl IntoIterator<Item = OsString>,
+    cwd: Option<&Path>,
+) -> Option<String> {
     let mut args = args.into_iter();
     let first = args.next()?;
     let candidate = if first == "--open-epub" {
@@ -42,7 +60,14 @@ pub fn resolve_cold_start_epub(args: impl IntoIterator<Item = OsString>) -> Opti
         if input.contains("://") {
             return None;
         }
-        PathBuf::from(input)
+        let path = PathBuf::from(input);
+        if path.is_absolute() {
+            path
+        } else if let Some(cwd) = cwd {
+            cwd.join(path)
+        } else {
+            path
+        }
     };
 
     if !path
@@ -107,6 +132,18 @@ mod tests {
             let url = tauri::Url::from_file_path(path).unwrap().to_string();
             assert_eq!(
                 resolve_cold_start_epub(args(&[&url])),
+                fs::canonicalize(path).unwrap().to_str().map(str::to_owned)
+            );
+        });
+    }
+
+    #[test]
+    fn resolves_relative_warm_launch_paths_against_the_second_process_directory() {
+        with_file(|path| {
+            let relative = path.file_name().unwrap().to_str().unwrap();
+            let result = resolve_cold_start_epub_in(args(&[relative]), path.parent());
+            assert_eq!(
+                result,
                 fs::canonicalize(path).unwrap().to_str().map(str::to_owned)
             );
         });

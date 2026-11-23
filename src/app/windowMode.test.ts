@@ -114,6 +114,16 @@ describe("resolveWindowMode", () => {
     ).toBe("settings");
   });
 
+  it("keeps native standalone windows out of the Library even while the request is pending", () => {
+    expect(
+      resolveWindowMode({
+        coldStartEpub: null,
+        currentWindowLabel: "external-reader-12",
+        isDesktop: true,
+      }),
+    ).toBe("standalone-reader");
+  });
+
   it("defaults to the main app window", () => {
     expect(
       resolveWindowMode({
