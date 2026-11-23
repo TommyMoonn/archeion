@@ -8,6 +8,7 @@ $cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
     'artifacts-dir' = @{ Aliases = @('-ArtifactsDirectory'); Default = (Join-Path $PSScriptRoot "../artifacts/windows") }
     project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Join-Path $PSScriptRoot '..') }
     'installers-only' = @{ Kind = 'Switch' }
+    bundle = @{ Default = 'both' }
 }
 if ($cli['help']) {
     Write-CliHelp @'
@@ -17,9 +18,17 @@ Options:
   --artifacts-dir <path>        Directory containing staged assets.
   -p, --project <path>          Project root for canonical release metadata.
   --installers-only            Verify unsigned manual-build installers, not a release.
+  --bundle <nsis|msi|both>     Verify one or both formats (manual builds only).
   -h, --help                    Show this help.
 '@
     return
+}
+$bundleSelection = [string]$cli['bundle']
+if ($bundleSelection -cnotin @('nsis', 'msi', 'both')) {
+    throw "Invalid bundle '$bundleSelection'; expected nsis, msi, or both."
+}
+if (-not $cli['installers-only'] -and $bundleSelection -ne 'both') {
+    throw 'Signed release verification requires both NSIS and MSI.'
 }
 $artifactsDirectory = [IO.Path]::GetFullPath([string]$cli['artifacts-dir'])
 if (-not (Test-Path -LiteralPath $artifactsDirectory -PathType Container)) {
@@ -30,8 +39,12 @@ if ((Get-Item -LiteralPath $artifactsDirectory).Attributes -band [IO.FileAttribu
 }
 Write-CliHeading "Verify Windows release"
 Write-CliStep -Current 1 -Total 3 -Message "Checking expected asset set"
-$assetNames = @('Archeion-Setup-x64.exe', 'Archeion-x64.msi')
-if (-not $cli['installers-only']) {
+$assetNames = @()
+if ($cli['installers-only']) {
+    if ($bundleSelection -ne 'msi') { $assetNames += 'Archeion-Setup-x64.exe' }
+    if ($bundleSelection -ne 'nsis') { $assetNames += 'Archeion-x64.msi' }
+}
+else {
     $assetNames = @('Archeion-Setup-x64.exe', 'Archeion-Setup-x64.exe.sig', 'Archeion-x64.msi', 'Archeion-x64.msi.sig', 'latest.json')
 }
 $expectedNames = @($assetNames + 'SHA256SUMS.txt' | Sort-Object -CaseSensitive)
@@ -73,7 +86,11 @@ if ($cli['installers-only']) {
     if ($LASTEXITCODE -ne 0) { throw "Windows update manifest verification failed." }
 }
 Write-CliSuccess "Windows release verified"
-foreach ($entry in @(@('EXE', 'Archeion-Setup-x64.exe'), @('MSI', 'Archeion-x64.msi'), @('Checksums', 'SHA256SUMS.txt'))) {
+$summary = @()
+if ($bundleSelection -ne 'msi') { $summary += ,@('EXE', 'Archeion-Setup-x64.exe') }
+if ($bundleSelection -ne 'nsis') { $summary += ,@('MSI', 'Archeion-x64.msi') }
+$summary += ,@('Checksums', 'SHA256SUMS.txt')
+foreach ($entry in $summary) {
     $item = Get-Item -LiteralPath (Join-Path $artifactsDirectory $entry[1])
     Write-CliDetail -Label $entry[0] -Value "$($item.Name) ($(Format-CliByteSize -Bytes $item.Length))"
 }

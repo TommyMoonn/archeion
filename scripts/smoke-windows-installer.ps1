@@ -53,11 +53,11 @@ if ($cli['help']) {
     Write-CliHelp @'
 Usage: .\scripts\smoke-windows-installer.ps1 [options]
 
-Silently install and uninstall the staged per-user NSIS bundle in an isolated
+Silently install and uninstall a per-user NSIS bundle in an isolated
 temporary directory. Refuses to run when an Archeion installation already exists.
 
 Options:
-  --installer <path>            Staged Archeion NSIS installer.
+  --installer <path>            Archeion NSIS installer (.exe).
   -h, --help                    Show this help.
 '@
     return
@@ -87,6 +87,38 @@ finally {
     $stream.Dispose()
 }
 
+$epubExtensionKey = 'HKCU:\Software\Classes\.epub'
+$epubOpenWithKey = Join-Path $epubExtensionKey 'OpenWithProgids'
+$epubApplicationKey = 'HKCU:\Software\Classes\Applications\Archeion.exe'
+
+function Get-EpubDefaultSnapshot {
+    if (-not (Test-Path -LiteralPath $epubExtensionKey)) {
+        return [pscustomobject]@{ Present = $false; Value = '' }
+    }
+    $key = Get-Item -LiteralPath $epubExtensionKey
+    $present = @($key.GetValueNames()) -contains ''
+    return [pscustomobject]@{
+        Present = $present
+        Value = if ($present) { [string]$key.GetValue('') } else { '' }
+    }
+}
+
+function Assert-EpubDefaultUnchanged {
+    param($Expected)
+
+    $actual = Get-EpubDefaultSnapshot
+    if ($actual.Present -ne $Expected.Present -or $actual.Value -cne $Expected.Value) {
+        throw "NSIS altered the existing EPUB default (expected '$($Expected.Value)', got '$($actual.Value)')."
+    }
+}
+
+function Test-EpubOpenWithRegistration {
+    if (-not (Test-Path -LiteralPath $epubOpenWithKey)) {
+        return $false
+    }
+    return @((Get-Item -LiteralPath $epubOpenWithKey).GetValueNames()) -contains 'Archeion.epub'
+}
+
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Archeion'
 $otherUninstallKeys = @(
     'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Archeion',
@@ -106,6 +138,11 @@ if (Test-Path -LiteralPath $defaultInstallDirectory) {
 if (Get-Process -Name Archeion -ErrorAction SilentlyContinue) {
     throw 'Archeion is running; refusing installer smoke.'
 }
+
+if ((Test-Path -LiteralPath $epubApplicationKey) -or (Test-EpubOpenWithRegistration)) {
+    throw 'Existing Archeion EPUB Open with registration; refusing to alter another installation.'
+}
+$originalEpubDefault = Get-EpubDefaultSnapshot
 
 $temporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 $scratch = Join-Path $temporaryRoot "archeion-installer-smoke-$([guid]::NewGuid().ToString('N'))"
@@ -151,6 +188,33 @@ try {
     $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($application)
     if ($versionInfo.ProductName -ne 'Archeion') {
         throw "Installed executable has unexpected product metadata: '$($versionInfo.ProductName)'."
+    }
+
+    Assert-EpubDefaultUnchanged -Expected $originalEpubDefault
+    if (-not (Test-EpubOpenWithRegistration)) {
+        throw 'NSIS did not register Archeion in the EPUB Open with ProgIDs.'
+    }
+    if (-not (Test-Path -LiteralPath $epubApplicationKey)) {
+        throw 'NSIS did not register Archeion in Windows Applications.'
+    }
+    $appKey = Get-Item -LiteralPath $epubApplicationKey
+    if ($appKey.GetValue('FriendlyAppName') -ne 'Archeion') {
+        throw 'NSIS registered an unexpected EPUB viewer display name.'
+    }
+    $supportedTypes = Join-Path $epubApplicationKey 'SupportedTypes'
+    if (-not (Test-Path -LiteralPath $supportedTypes) -or
+        @((Get-Item -LiteralPath $supportedTypes).GetValueNames()) -notcontains '.epub') {
+        throw 'NSIS application registration does not list EPUB as a supported type.'
+    }
+    $progidCommandKey = 'HKCU:\Software\Classes\Archeion.epub\shell\open\command'
+    $progidCommand = [string](Get-Item -LiteralPath $progidCommandKey).GetValue('')
+    if ($progidCommand -ne ('"' + $application + '" "%1"')) {
+        throw "NSIS registered an unexpected EPUB ProgID command: '$progidCommand'."
+    }
+    $openCommandKey = Join-Path $epubApplicationKey 'shell\open\command'
+    $openCommand = [string](Get-Item -LiteralPath $openCommandKey).GetValue('')
+    if ($openCommand -ne ('"' + $application + '" "%1"')) {
+        throw "NSIS registered an unexpected EPUB open command: '$openCommand'."
     }
 }
 catch {
@@ -199,6 +263,17 @@ finally {
         }
         elseif (Test-Path -LiteralPath $previousLocationKey) {
             $cleanupFailure = "Uninstall left Archeion previous-location state behind: $previousLocationKey"
+        }
+        elseif ((Test-EpubOpenWithRegistration) -or (Test-Path -LiteralPath $epubApplicationKey)) {
+            $cleanupFailure = 'Uninstall left Archeion in the EPUB Open with registration.'
+        }
+        else {
+            try {
+                Assert-EpubDefaultUnchanged -Expected $originalEpubDefault
+            }
+            catch {
+                $cleanupFailure = $_
+            }
         }
     }
 

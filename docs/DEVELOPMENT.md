@@ -114,8 +114,12 @@ pnpm run tauri:build:windows
 Stage the validated installers and generate `SHA256SUMS.txt`:
 
 ```powershell
-pnpm run release:stage
+pnpm run release:stage:local
 ```
+
+For an NSIS-only test build, use `pnpm run tauri:build:nsis` followed by
+`pnpm run release:stage:local --bundle nsis`. The staged EXE and checksum
+will be written to `artifacts/windows` without requiring an MSI or signatures.
 
 These commands build and stage local installers. They do not create a tag or
 publish a GitHub Release. Follow the [release operator guide](RELEASING.md) for
