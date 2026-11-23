@@ -22,6 +22,7 @@ type HarnessProps = {
   archiveRootPath: string | null;
   bookId: string | null;
   loadBookFile: (bookId: string) => Promise<Blob>;
+  external?: { requestKey: string; load: () => Promise<Blob> };
   onLease?: (lease: ReaderFileLease) => void;
 };
 
@@ -43,6 +44,7 @@ function Harness({
   archiveRootPath,
   bookId,
   loadBookFile,
+  external,
   onLease,
 }: HarnessProps) {
   const storage = useMemo(() => ({ loadBookFile }), [loadBookFile]);
@@ -52,6 +54,7 @@ function Harness({
     archiveRootPath,
     bookId,
     storage,
+    external,
   });
 
   useEffect(() => {
@@ -251,5 +254,50 @@ describe("useReaderSource", () => {
     expect(loadBookFile).toHaveBeenCalledTimes(2);
     expect(container.querySelector("output")?.textContent).toBe("ready");
     expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(0);
+  });
+
+  it("loads temporary external bytes without a book or archive and releases the lease on close", async () => {
+    const loadBookFile = vi.fn(async () => new Blob(["managed"]));
+    const externalLoad = vi.fn(async () => new Blob(["temporary"]));
+    let lease: ReaderFileLease | undefined;
+    const rendered = await renderSource({
+      archiveId: null,
+      archiveRootPath: null,
+      bookId: null,
+      loadBookFile,
+      external: { requestKey: "opaque-token", load: externalLoad },
+      onLease: (currentLease) => {
+        lease = currentLease;
+      },
+    });
+    expect(rendered.container.querySelector("output")?.textContent).toBe("ready");
+    expect(rendered.container.querySelector("output")?.dataset.requestKey).toBe("opaque-token");
+    expect(externalLoad).toHaveBeenCalledOnce();
+    expect(loadBookFile).not.toHaveBeenCalled();
+    const handoff = await lease!.acquire();
+    expect(await handoff.blob.text()).toBe("temporary");
+    handoff.release();
+    rendered.unmount();
+    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
+  });
+
+  it("retries unavailable temporary files without exposing native filesystem paths", async () => {
+    const load = vi
+      .fn<() => Promise<Blob>>()
+      .mockRejectedValueOnce(new Error("Access denied at C:\\Private\\Story.epub"))
+      .mockResolvedValueOnce(new Blob(["recovered"]));
+    const rendered = await renderSource({
+      archiveId: null,
+      archiveRootPath: null,
+      bookId: null,
+      external: { requestKey: "opaque-token", load },
+    });
+    expect(rendered.container.querySelector("output")?.dataset.error).toBe(
+      "The selected EPUB could not be read. It may have been moved or become unavailable.",
+    );
+    expect(rendered.container.textContent).not.toContain("C:\\Private");
+    await act(async () => rendered.container.querySelector("button")?.click());
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(rendered.container.querySelector("output")?.textContent).toBe("ready");
   });
 });

@@ -10,13 +10,9 @@ pub struct ColdStartEpub(pub Option<String>);
 #[tauri::command]
 pub fn cold_start_epub(
     window: tauri::WebviewWindow,
-    state: tauri::State<'_, ColdStartEpub>,
     readers: tauri::State<'_, super::external_reader::ExternalReaderRegistry>,
-) -> Option<String> {
-    if window.label() == "main" {
-        return state.0.clone();
-    }
-    readers.file_for_window(window.label())
+) -> Option<super::external_reader::ExternalReaderRequest> {
+    readers.request_for_window(window.label())
 }
 
 pub fn resolve_cold_start_epub(args: impl IntoIterator<Item = OsString>) -> Option<String> {

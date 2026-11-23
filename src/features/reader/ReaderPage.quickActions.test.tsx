@@ -21,13 +21,21 @@ import type {
   CreateBookmarkAnnotationInput,
   HighlightAnnotation,
 } from "../../types/annotation";
-import { ReaderRoute } from "./ReaderPage";
+import { ReaderPage, ReaderRoute } from "./ReaderPage";
 import { createReaderLibrarySnapshotFixture } from "./readerLibrarySnapshot.testUtils";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
 import type { ReaderSeekMapState } from "./readerSeekMap";
+
+const externalReaderMock = vi.hoisted(() => ({
+  read: vi.fn(),
+}));
+
+vi.mock("./externalReaderSource", () => ({
+  readExternalReaderEpub: externalReaderMock.read,
+}));
 
 const viewerMock = vi.hoisted(() => ({
   closePublicationSearch: vi.fn(),
@@ -238,7 +246,7 @@ vi.mock("./LazyReaderSearchPanel", async () => {
 });
 
 vi.mock("../archive/useArchive", () => ({
-  useArchive: () => readyArchive,
+  useArchive: () => archiveState,
 }));
 
 const readyArchive: ArchiveState = {
@@ -263,6 +271,8 @@ const readyArchive: ArchiveState = {
   error: null,
   watcherError: null,
 };
+
+let archiveState: ArchiveState = readyArchive;
 
 const book: Book = {
   addedAt: "2026-07-01T00:00:00.000Z",
@@ -461,6 +471,8 @@ function publishSeekMap(state: ReaderSeekMapState): void {
 }
 
 beforeEach(() => {
+  archiveState = readyArchive;
+  externalReaderMock.read.mockReset().mockResolvedValue(new Blob(["epub"]));
   viewerMock.closePublicationSearch.mockReset();
   viewerMock.historySnapshot = {
     backCount: 0,
@@ -530,6 +542,56 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("opens a temporary EPUB with no archive or storage provider and no persistence commands", async () => {
+    archiveState = { status: "setup", path: null, error: null, archives: [] };
+    vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(archiveState);
+    const initializeArchive = vi.spyOn(archiveStore, "initialize");
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          HydrateFallback: () => null,
+          loader: () => null,
+          element: (
+            <ReaderPage
+              externalSession={{ token: "opaque-session-token", fileName: "日本語.epub" }}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <QuickActionsProvider>
+          <RouterProvider router={router} />
+        </QuickActionsProvider>,
+      );
+    });
+
+    expect(externalReaderMock.read).toHaveBeenCalledExactlyOnceWith("opaque-session-token");
+    expect(container.querySelector('[data-testid="epub-viewer"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Bookmark"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Annotations"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Book navigation"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Find in book"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reader settings"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Close Reader"]')).not.toBeNull();
+    expect(initializeArchive).not.toHaveBeenCalled();
+
+    const palette = await openPalette();
+    expect(palette).toBeInstanceOf(HTMLInputElement);
+    const commandLabels = Array.from(
+      document.querySelectorAll<HTMLElement>(".quick-actions [role=option]"),
+    ).map((element) => element.textContent);
+    expect(commandLabels.join(" ")).not.toMatch(
+      /toggle bookmark|toggle annotations|go to library/i,
+    );
+  });
+
   it("keeps missing-file recovery inside the Reader destination without acquiring a source", async () => {
     const storage = createStorage();
     const rendered = await renderReader(storage, "/", { ...book, isFileMissing: true });

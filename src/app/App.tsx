@@ -45,7 +45,7 @@ import { AppearanceStatus } from "./AppearanceStatus";
 import { UtilityWindowContentBoundary, UtilityWindowFrame } from "./UtilityWindowFrame";
 import { useManagedWindowShellReady } from "./useManagedWindowShellReady";
 import { installBrowserContextMenuPolicy } from "./browserContextMenuPolicy";
-import { loadColdStartEpub } from "./coldStartEpubClient";
+import { loadColdStartEpub, type ExternalReaderRequest } from "./coldStartEpubClient";
 import { StandaloneReaderStartup } from "./StandaloneReaderStartup";
 
 const ArchiveManagerWindow = lazy(() =>
@@ -75,14 +75,16 @@ function subscribeToRouteChanges(listener: () => void): () => void {
 
 export function App() {
   const [launch, setLaunch] = useState<
-    { status: "checking" } | { status: "ready"; filePath: string | null } | { status: "error" }
+    | { status: "checking" }
+    | { status: "ready"; request: ExternalReaderRequest | null }
+    | { status: "error" }
   >({ status: "checking" });
 
   useEffect(() => {
     let active = true;
     void loadColdStartEpub().then(
-      (filePath) => {
-        if (active) setLaunch({ status: "ready", filePath });
+      (request) => {
+        if (active) setLaunch({ status: "ready", request });
       },
       (error: unknown) => {
         console.error("Unable to inspect the cold-start EPUB request", error);
@@ -110,20 +112,24 @@ export function App() {
   return (
     <>
       <AppearanceStatus />
-      {ready && launch.status === "ready" && <AppWindow coldStartEpub={launch.filePath} />}
-      {ready && launch.status === "error" && <StandaloneReaderStartup filePath={null} />}
+      {ready && launch.status === "ready" && <AppWindow externalReaderRequest={launch.request} />}
+      {ready && launch.status === "error" && <StandaloneReaderStartup request={null} />}
     </>
   );
 }
 
-function AppWindow({ coldStartEpub }: { coldStartEpub: string | null }) {
-  const windowMode = resolveWindowMode({ coldStartEpub });
+function AppWindow({
+  externalReaderRequest,
+}: {
+  externalReaderRequest: ExternalReaderRequest | null;
+}) {
+  const windowMode = resolveWindowMode({ coldStartEpub: externalReaderRequest?.token });
   useManagedWindowShellReady(windowMode);
 
   useEffect(() => focusPresentationRuntime.start(document), []);
 
   if (windowMode === "standalone-reader") {
-    return <StandaloneReaderStartup filePath={coldStartEpub} />;
+    return <StandaloneReaderStartup request={externalReaderRequest} />;
   }
 
   if (windowMode === "archive-manager") {

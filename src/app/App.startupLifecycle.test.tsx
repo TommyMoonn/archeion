@@ -41,7 +41,9 @@ function deferred<T>() {
 
 const mocks = vi.hoisted(() => ({
   focusMainWindow: vi.fn(async () => true),
-  loadColdStartEpub: vi.fn<() => Promise<string | null>>(async () => null),
+  loadColdStartEpub: vi.fn<() => Promise<{ token: string; fileName: string } | null>>(
+    async () => null,
+  ),
   revealColdStartReaderWindow: vi.fn(async () => undefined),
   gatePreparations: [] as unknown[],
   getLibraryStorage: vi.fn(),
@@ -167,6 +169,21 @@ vi.mock("./windowMode", () => ({
   resolveWindowMode: ({ coldStartEpub }: { coldStartEpub?: string | null } = {}) =>
     mocks.windowMode === "main" && coldStartEpub ? "standalone-reader" : mocks.windowMode,
 }));
+vi.mock("./StandaloneReaderStartup", async () => {
+  const React = await import("react");
+  return {
+    StandaloneReaderStartup: ({ request }: { request: { fileName: string } | null }) => {
+      React.useEffect(() => {
+        void mocks.revealColdStartReaderWindow();
+      }, []);
+      return (
+        <main className="reader-status-page">
+          <h1>{request?.fileName ?? "Unable to read the launch request"}</h1>
+        </main>
+      );
+    },
+  };
+});
 vi.mock("./coldStartEpubClient", () => ({
   loadColdStartEpub: mocks.loadColdStartEpub,
   revealColdStartReaderWindow: mocks.revealColdStartReaderWindow,
@@ -249,7 +266,7 @@ afterEach(() => {
 
 describe("App window mode and startup shell ownership", () => {
   it("holds all archive startup until a cold-launch request resolves, then shows only the selected EPUB", async () => {
-    const request = deferred<string | null>();
+    const request = deferred<{ token: string; fileName: string } | null>();
     mocks.loadColdStartEpub.mockReturnValue(request.promise);
 
     await renderApp();
@@ -258,7 +275,9 @@ describe("App window mode and startup shell ownership", () => {
     expect(container?.querySelector(".window-app--main-shell")).toBeNull();
     expect(container?.querySelector('[data-testid="archive-manager-root"]')).toBeNull();
 
-    await act(async () => request.resolve("C:\\Books\\Story 日本語.epub"));
+    await act(async () =>
+      request.resolve({ token: "test-reader-token", fileName: "Story 日本語.epub" }),
+    );
     await flushStartup();
 
     expect(container?.querySelector(".reader-status-page h1")?.textContent).toBe(
@@ -274,7 +293,7 @@ describe("App window mode and startup shell ownership", () => {
   });
 
   it("resumes ordinary archive startup when no native file-open request exists", async () => {
-    const request = deferred<string | null>();
+    const request = deferred<{ token: string; fileName: string } | null>();
     mocks.loadColdStartEpub.mockReturnValue(request.promise);
     managerStartup();
 

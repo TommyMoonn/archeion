@@ -22,6 +22,7 @@ import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 export type HighlightPaletteChoice = ReaderHighlightColor | "none";
 
 type ReaderHighlightPaletteProps = {
+  allowAnnotations?: boolean;
   anchorRect: ClientRect;
   busy: boolean;
   defineAvailable?: boolean;
@@ -54,6 +55,7 @@ function paletteChoiceLabel(
 export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlightPaletteProps>(
   function ReaderHighlightPalette(
     {
+      allowAnnotations = true,
       anchorRect,
       busy,
       defineAvailable = false,
@@ -145,7 +147,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
     return (
       <div
         ref={assignRef}
-        aria-label="Highlight color"
+        aria-label={allowAnnotations ? "Highlight color" : "Text selection"}
         className="reader-highlight-menu menu-popover"
         data-placement={position.placement}
         data-reader-ignore-shortcuts
@@ -156,26 +158,30 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         role="menu"
         style={{ left: position.left, top: position.top }}
       >
-        {PALETTE_OPTIONS.map((choice) => {
-          const choiceLabel = paletteChoiceLabel(choice, hasAttachedNote, existingHighlight);
-          return (
-            <Tooltip content={choiceLabel} key={choice}>
-              <button
-                aria-checked={choice === selectedColor}
-                aria-label={choiceLabel}
-                className={`reader-highlight-menu__color${
-                  choice === "none" ? " reader-highlight-menu__color--none" : ""
-                }`}
-                data-color={choice}
-                disabled={busy}
-                onClick={() => onChoose(choice)}
-                role="menuitemradio"
-                type="button"
-              />
-            </Tooltip>
-          );
-        })}
-        <span aria-hidden="true" className="reader-highlight-menu__divider" />
+        {allowAnnotations
+          ? PALETTE_OPTIONS.map((choice) => {
+              const choiceLabel = paletteChoiceLabel(choice, hasAttachedNote, existingHighlight);
+              return (
+                <Tooltip content={choiceLabel} key={choice}>
+                  <button
+                    aria-checked={choice === selectedColor}
+                    aria-label={choiceLabel}
+                    className={`reader-highlight-menu__color${
+                      choice === "none" ? " reader-highlight-menu__color--none" : ""
+                    }`}
+                    data-color={choice}
+                    disabled={busy}
+                    onClick={() => onChoose(choice)}
+                    role="menuitemradio"
+                    type="button"
+                  />
+                </Tooltip>
+              );
+            })
+          : null}
+        {allowAnnotations ? (
+          <span aria-hidden="true" className="reader-highlight-menu__divider" />
+        ) : null}
         <IconButton
           disabled={defineBusy || !defineAvailable}
           disabledReason={!defineAvailable ? defineUnavailableReason : undefined}
@@ -187,20 +193,22 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         >
           <BookOpenText />
         </IconButton>
-        <Tooltip content={noteActionLabel}>
-          <button
-            aria-label={noteActionLabel}
-            className="reader-highlight-menu__note"
-            disabled={busy}
-            onClick={onNote}
-            role="menuitem"
-            type="button"
-          >
-            <span aria-hidden="true" className="icon-slot">
-              <NotebookPen />
-            </span>
-          </button>
-        </Tooltip>
+        {allowAnnotations ? (
+          <Tooltip content={noteActionLabel}>
+            <button
+              aria-label={noteActionLabel}
+              className="reader-highlight-menu__note"
+              disabled={busy}
+              onClick={onNote}
+              role="menuitem"
+              type="button"
+            >
+              <span aria-hidden="true" className="icon-slot">
+                <NotebookPen />
+              </span>
+            </button>
+          </Tooltip>
+        ) : null}
       </div>
     );
   },
