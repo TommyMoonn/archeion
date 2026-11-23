@@ -599,15 +599,9 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
   );
 
   it("rejects a missing MSI before staging or artifact upload", () => {
-    const root = createFixture();
-    const bundleRoot = path.join(root, "bundle");
-    const outputDirectory = path.join(root, "artifacts", "windows");
-    fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
-    fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
-    fs.writeFileSync(
-      path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"),
-      "fixture NSIS installer",
-    );
+    const { root, bundleRoot, outputDirectory } = createBundleFixture();
+    fs.rmSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"));
+    fs.rmSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi.sig"));
 
     const result = runPowerShell("stage-windows-release.ps1", [
       "--project",
@@ -984,15 +978,9 @@ describeReleaseTooling("release tooling", { timeout: releaseProcessTimeout }, ()
   );
 
   it("keeps the Windows staging compatibility wrapper as a pass-through", () => {
-    const root = createFixture();
-    const bundleRoot = path.join(root, "bundle");
-    const outputDirectory = path.join(root, "artifacts", "windows");
-    fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
-    fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
-    fs.writeFileSync(
-      path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"),
-      "fixture NSIS installer",
-    );
+    const { root, bundleRoot, outputDirectory } = createBundleFixture();
+    fs.rmSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"));
+    fs.rmSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi.sig"));
 
     const result = runPowerShell("stage-windows-bundles.ps1", [
       "--project",
