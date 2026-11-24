@@ -78,7 +78,7 @@ test("keyboard-only shortcut capture rejects conflicts, saves, and restores focu
   await search.press("Tab");
   await expect(trigger).toBeFocused();
   await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog", { name: `Change ${label}` });
+  const dialog = page.getByRole("dialog", { name: "Edit keybind" });
   const capture = dialog.getByRole("group", { name: "Shortcut capture" });
   const save = dialog.getByRole("button", { name: "Save shortcut" });
   const cancel = dialog.getByRole("button", { name: "Cancel" });
@@ -108,6 +108,78 @@ test("keyboard-only shortcut capture rejects conflicts, saves, and restores focu
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveText("Ctrl+Shift+K");
+});
+
+test("pointer-opened keybind capture stays still and visibly indicates focus", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(fixture);
+  await page.getByRole("button", { name: "Keyboard", exact: true }).click();
+  const trigger = page.getByRole("button", { name: `Change shortcut for ${label}` });
+  await expect(trigger).toBeVisible();
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    document.documentElement.dataset.motion = "on";
+    // Keep the entrance available for deterministic sampling without a timed sleep.
+    document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
+  });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Edit keybind" });
+  const capture = dialog.getByRole("group", { name: "Shortcut capture" });
+  const save = dialog.getByRole("button", { name: "Save shortcut" });
+  const cancel = dialog.getByRole("button", { name: "Cancel" });
+  await expect(capture).toBeFocused();
+  const samples = await dialog.evaluate((element) => {
+    const animation = element
+      .getAnimations()
+      .find(
+        (candidate) =>
+          candidate instanceof CSSAnimation &&
+          candidate.animationName.startsWith("dialog-presence-"),
+      );
+    if (!animation || !animation.effect) throw new Error("Dialog entrance is missing");
+    const duration = Number(animation.effect.getTiming().duration);
+    const targets = [
+      element,
+      ...element.querySelectorAll("h2, [aria-label='Shortcut capture'], button"),
+    ];
+    const sample = (time: number) => {
+      animation.currentTime = time;
+      return targets.map((target) => {
+        const { x, y, width, height } = target.getBoundingClientRect();
+        return [x, y, width, height];
+      });
+    };
+    const start = sample(0);
+    const middle = sample(duration / 2);
+    const end = sample(duration);
+    animation.finish();
+    return { start, middle, end };
+  });
+  for (const bounds of [samples.start, samples.middle]) {
+    bounds.forEach((rect, index) => {
+      rect.forEach((value, coordinate) => {
+        expect(Math.abs(value - samples.end[index][coordinate])).toBeLessThanOrEqual(1);
+      });
+    });
+  }
+  await expect(capture.getByText("Press a shortcut", { exact: true })).toBeVisible();
+  await expect(save.locator("svg")).toBeVisible();
+  const focusedBorder = await capture.evaluate((element) => getComputedStyle(element).borderColor);
+  await page.keyboard.press("Tab");
+  await expect(cancel).toBeFocused();
+  await page.mouse.move(0, 0);
+  await expect(capture.getByText("Click to capture", { exact: true })).toBeVisible();
+  await expect
+    .poll(() => capture.evaluate((element) => getComputedStyle(element).borderColor))
+    .not.toBe(focusedBorder);
+  await capture.click();
+  await expect(capture).toBeFocused();
+  await expect(capture.getByText("Press a shortcut", { exact: true })).toBeVisible();
+  await page.keyboard.press("Control+Shift+K");
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(dialog).toBeHidden();
   await expect(trigger).toHaveText("Ctrl+Shift+K");
 });
 

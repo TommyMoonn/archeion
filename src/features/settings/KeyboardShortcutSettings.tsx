@@ -1,8 +1,9 @@
-import { SurfacePresence } from "../../components/SurfacePresence";
+import { Save } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { Kbd } from "../../components/ui/kbd";
 import type { KeyboardBinding } from "../../types/keyboard";
 import {
@@ -162,27 +163,33 @@ function KeyboardShortcutCaptureDialog({
 
   return (
     <Dialog
+      className="dialog--keybind"
       closeOnBackdropClick={false}
-      description="Press one shortcut. Tab moves to the dialog actions. Escape cancels without changing the current binding."
       footer={
         <>
           <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
-          <Button busy={saving} disabled={validation?.ok !== true} onClick={() => void save()}>
+          <Button
+            busy={saving}
+            disabled={validation?.ok !== true}
+            icon={<Save aria-hidden="true" />}
+            onClick={() => void save()}
+          >
             Save shortcut
           </Button>
         </>
       }
       onClose={onClose}
-      title={`Change ${command.label}`}
+      title="Edit keybind"
     >
       <div
         aria-describedby={validation ? validationMessageId : undefined}
+        aria-description="Press a shortcut while focused. Tab moves to the dialog actions. Escape cancels."
         aria-invalid={validation?.ok === false || undefined}
         aria-label="Shortcut capture"
         data-dialog-initial-focus
-        className="grid min-w-0 min-h-shortcut-capture place-content-center gap-dialog-copy rounded-control border-standard border-solid border-line-strong bg-surface p-dialog-gap text-center wrap-anywhere"
+        className="group grid min-w-0 min-h-shortcut-capture cursor-pointer place-content-center gap-dialog-copy rounded-control border-standard border-solid border-line bg-surface p-dialog-gap text-center wrap-anywhere transition-colors duration-fast ease-standard not-focus:hover:border-line-strong not-focus:hover:bg-surface-hover focus:border-focus focus:bg-accent-soft"
         role="group"
         onKeyDown={(event) => {
           // Tab and Shift+Tab are navigation, never assignable shortcuts.
@@ -210,7 +217,14 @@ function KeyboardShortcutCaptureDialog({
         tabIndex={0}
       >
         <strong className="min-w-0 text-text font-mono text-title-small wrap-anywhere">
-          {candidate ? formatKeyboardBinding(candidate) : "Press a shortcut"}
+          {candidate ? (
+            formatKeyboardBinding(candidate)
+          ) : (
+            <>
+              <span className="hidden group-focus:inline">Press a shortcut</span>
+              <span className="group-focus:hidden">Click to capture</span>
+            </>
+          )}
         </strong>
         {validation?.ok === false ? (
           <p
