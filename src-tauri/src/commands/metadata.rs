@@ -534,14 +534,62 @@ pub async fn load_archive_metadata(
 }
 
 #[tauri::command]
+// Book-only saves merge under the archive metadata lock so a separate Reader
+// cannot overwrite unrelated books using a stale window-local snapshot.
+fn persist_library_metadata(
+    root: &Path,
+    metadata: &LibraryMetadata,
+    changed_book_ids: Option<&[String]>,
+) -> Result<(), String> {
+    let Some(changed_book_ids) = changed_book_ids else {
+        return write_json(root, MetadataDocument::Library, metadata, true);
+    };
+    if changed_book_ids.is_empty() {
+        return Ok(());
+    }
+    let mut current: LibraryMetadata = read_json(root, MetadataDocument::Library)?;
+    for id in changed_book_ids {
+        if let Some(book) = metadata.books.get(id) {
+            current.books.insert(id.clone(), book.clone());
+        } else {
+            current.books.remove(id);
+        }
+    }
+    write_json(root, MetadataDocument::Library, &current, true)
+}
+
+fn persist_progress_metadata(
+    root: &Path,
+    metadata: &ProgressMetadata,
+    changed_book_ids: Option<&[String]>,
+) -> Result<(), String> {
+    let Some(changed_book_ids) = changed_book_ids else {
+        return write_json(root, MetadataDocument::Progress, metadata, true);
+    };
+    if changed_book_ids.is_empty() {
+        return Ok(());
+    }
+    let mut current: ProgressMetadata = read_json(root, MetadataDocument::Progress)?;
+    for id in changed_book_ids {
+        if let Some(progress) = metadata.progress.get(id) {
+            current.progress.insert(id.clone(), progress.clone());
+        } else {
+            current.progress.remove(id);
+        }
+    }
+    write_json(root, MetadataDocument::Progress, &current, true)
+}
+
+#[tauri::command]
 pub async fn save_library_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
     metadata: LibraryMetadata,
+    changed_book_ids: Option<Vec<String>>,
 ) -> Result<(), String> {
     run_metadata_command(app, root_path, move |root| {
         with_archive_metadata(root, || {
-            write_json(root, MetadataDocument::Library, &metadata, true)
+            persist_library_metadata(root, &metadata, changed_book_ids.as_deref())
         })
     })
     .await
@@ -552,10 +600,11 @@ pub async fn save_progress_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
     metadata: ProgressMetadata,
+    changed_book_ids: Option<Vec<String>>,
 ) -> Result<(), String> {
     run_metadata_command(app, root_path, move |root| {
         with_archive_metadata(root, || {
-            write_json(root, MetadataDocument::Progress, &metadata, true)
+            persist_progress_metadata(root, &metadata, changed_book_ids.as_deref())
         })
     })
     .await
@@ -845,7 +894,8 @@ mod tests {
 
     use super::{
         annotation_revision, decode_metadata_snapshot, import_annotations_at, initialize_at,
-        load_annotations_at, load_scanner_cache_with_recovery_at, metadata_path, read_json,
+        load_annotations_at, load_scanner_cache_with_recovery_at, metadata_path,
+        persist_library_metadata, persist_progress_metadata, read_json,
         read_metadata_snapshot_bytes, save_annotations_at, with_archive_metadata, write_json,
         write_json_with_fs, AnnotationImportBatch, LibraryBookMetadata, LibraryMetadata,
         ProgressMetadata, ReadingProgress, ANNOTATION_IMPORT_STAGE, MAX_METADATA_BACKUPS,
@@ -874,6 +924,72 @@ mod tests {
             document,
             default,
         )
+    }
+
+    #[test]
+    fn per_book_writes_do_not_replace_progress_or_library_records_from_other_windows() {
+        let root = test_root("per-book-merge");
+        fs::create_dir_all(&root).unwrap();
+        initialize_at(&root).unwrap();
+
+        let mut initial_progress = ProgressMetadata::default();
+        initial_progress.progress.insert(
+            "one".into(),
+            ReadingProgress {
+                cfi: None,
+                percent: 11.0,
+                manually_marked_read: None,
+                last_opened_at: None,
+            },
+        );
+        initial_progress.progress.insert(
+            "two".into(),
+            ReadingProgress {
+                cfi: None,
+                percent: 22.0,
+                manually_marked_read: None,
+                last_opened_at: None,
+            },
+        );
+        persist_progress_metadata(&root, &initial_progress, None).unwrap();
+        let mut stale = initial_progress.clone();
+        stale.progress.get_mut("one").unwrap().percent = 33.0;
+        let mut other_reader = initial_progress.clone();
+        other_reader.progress.get_mut("two").unwrap().percent = 44.0;
+        persist_progress_metadata(&root, &other_reader, Some(&["two".into()])).unwrap();
+        persist_progress_metadata(&root, &stale, Some(&["one".into()])).unwrap();
+        let merged: ProgressMetadata = read_json(&root, MetadataDocument::Progress).unwrap();
+        assert_eq!(merged.progress["one"].percent, 33.0);
+        assert_eq!(merged.progress["two"].percent, 44.0);
+
+        let mut library = LibraryMetadata::default();
+        for id in ["one", "two"] {
+            library.books.insert(
+                id.into(),
+                LibraryBookMetadata {
+                    relative_path: format!("{id}.epub"),
+                    is_favorite: false,
+                    reader_presentation: None,
+                    cover_path: None,
+                    source_metadata: None,
+                    file_size: None,
+                    file_modified_at: None,
+                    added_at: None,
+                    updated_at: "first".into(),
+                },
+            );
+        }
+        persist_library_metadata(&root, &library, None).unwrap();
+        let mut stale_library = library.clone();
+        stale_library.books.get_mut("one").unwrap().is_favorite = true;
+        let mut second_library = library.clone();
+        second_library.books.get_mut("two").unwrap().is_favorite = true;
+        persist_library_metadata(&root, &second_library, Some(&["two".into()])).unwrap();
+        persist_library_metadata(&root, &stale_library, Some(&["one".into()])).unwrap();
+        let merged: LibraryMetadata = read_json(&root, MetadataDocument::Library).unwrap();
+        assert!(merged.books["one"].is_favorite);
+        assert!(merged.books["two"].is_favorite);
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

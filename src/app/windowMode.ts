@@ -8,12 +8,14 @@ export const THEME_MANAGER_WINDOW_LABEL = "theme-manager";
 
 export type AppWindowMode =
   | "main"
+  | "standalone-reader"
   | typeof ABOUT_WINDOW_LABEL
   | typeof ARCHIVE_MANAGER_WINDOW_LABEL
   | typeof SETTINGS_WINDOW_LABEL
   | typeof THEME_MANAGER_WINDOW_LABEL;
 
 type ResolveWindowModeOptions = {
+  coldStartEpub?: string | null;
   currentWindowLabel?: string | null;
   isDesktop?: boolean;
   search?: string;
@@ -57,6 +59,7 @@ function currentSearch(): string {
 }
 
 export function resolveWindowMode({
+  coldStartEpub,
   currentWindowLabel,
   isDesktop = safeIsTauri(),
   search = currentSearch(),
@@ -75,8 +78,10 @@ export function resolveWindowMode({
     ) {
       return windowLabel;
     }
-    return "main";
+    if (windowLabel.startsWith("external-reader-")) return "standalone-reader";
+    return coldStartEpub ? "standalone-reader" : "main";
   }
 
-  return queryWindowMode(search);
+  const queryMode = queryWindowMode(search);
+  return queryMode === "main" && coldStartEpub ? "standalone-reader" : queryMode;
 }

@@ -59,7 +59,8 @@ or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
 
 - **Real folder archives** - open an existing EPUB folder or create a new archive.
 - **Library organization** - browse folders and series, search, sort, filter, select, and manage books in bulk.
-- **Bookmarks and highlights** - bookmark, highlight and write notes while reading.
+- **Standalone Reader** - open local EPUBs from Windows File Explorer without setting up an archive.
+- **Bookmarks and highlights** - bookmark, highlight and write notes while reading books in your archive.
 - **EPUB metadata editing** - update a book's metadata such as its title, author, publisher, and more.
 - **Customizable appearance** - you can customize the app's theme, refer to the [Custom theme documentation](https://tommymoonn.github.io/archeion/docs/customization/custom-themes/).
 - **Offline dictionaries** - install local dictionaries and look up words you don't know.
@@ -94,7 +95,7 @@ Your Archive/
 > [!IMPORTANT]
 > All of the documentation here are written by LLMs.
 
-- [Devlopment documentation index](docs/README.md)
+- [Development documentation index](docs/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Design guidelines](docs/DESIGN.md)
 - [Development guide](docs/DEVELOPMENT.md)

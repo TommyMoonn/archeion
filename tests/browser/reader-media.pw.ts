@@ -155,6 +155,11 @@ for (const mode of ["continuous", "paged"] as const) {
           await page.evaluate((section) => window.readerInteractions.navigate(section), section),
         ).toBe(true);
         const media = illustration(page, section, id);
+        if (mode === "continuous") {
+          // Reflow anchors to the visible passage. Let chapter navigation settle first.
+          await settle(page);
+          await expect(media).toBeInViewport();
+        }
         for (const readingWidth of ["narrow", "comfortable", "wide", "full"] as const) {
           await page.evaluate(
             (readingWidth) => window.readerInteractions.settings({ readingWidth }),

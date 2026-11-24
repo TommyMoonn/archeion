@@ -12,11 +12,12 @@ import type {
 import {
   createLibraryMetadata,
   createProgressMetadata,
+  type MetadataBundle,
   type ProgressMetadata,
   type ReadingProgress,
 } from "./metadataFiles";
 import { sanitizeProgressMetadataForLibrary } from "./progressMetadataSanitization";
-import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
+import { reconcileLibraryState, type ArchiveScan, type ScannedBook } from "./reconcileLibraryState";
 import { retireReplacementPathIdentities } from "./replacementIdentityRetirement";
 import { validateTargetedArchiveScan } from "./targetedArchiveScanValidation";
 import { ProgressMetadataWriteQueue } from "./tauri/ProgressMetadataWriteQueue";
@@ -165,6 +166,49 @@ export class ArchiveMutationCoordinator {
     return this.progressMetadataWrites.flush();
   }
 
+  // A standalone managed Reader only needs its selected book. Hydrate the existing
+  // storage controllers without a full archive scan or writes to library metadata.
+  initializeStandaloneBook(
+    scope: ArchiveCommandScope,
+    metadata: MetadataBundle,
+    scanned: ScannedBook,
+    bookId: string,
+  ): Book | undefined {
+    this.host.assertCurrentScope(scope);
+    const entry = metadata.library.books[bookId];
+    if (!entry) return undefined;
+    const selected = reconcileLibraryState({
+      previousBooks: [],
+      previousFolders: [],
+      libraryMetadata: { version: 1, books: { [bookId]: entry } },
+      progressMetadata: {
+        version: 1,
+        progress: {
+          ...(metadata.progress.progress[bookId]
+            ? { [bookId]: metadata.progress.progress[bookId] }
+            : {}),
+        },
+      },
+      scan: { books: [scanned], folders: [] },
+      timestamp: new Date().toISOString(),
+    });
+    const book = selected.books.find((item) => item.id === bookId);
+    if (!book) return undefined;
+
+    // Keep the complete metadata snapshots so ordinary managed-book updates
+    // preserve other records, even though this window exposes only one book.
+    this.libraryMetadata = metadata.library;
+    this.progressMetadata = metadata.progress;
+    this.progressMetadataWrites.replacePersistedMetadata(metadata.progress);
+    this.books = [book];
+    this.folders = [];
+    this.missingBooks = new Map();
+    this.loaded = true;
+    this.libraryModelCommitted = true;
+    this.publishLibrarySnapshot({ booksChanged: true, foldersChanged: true, loadState: "ready" });
+    return book;
+  }
+
   publishFullScanFailure(scope: ArchiveCommandScope): void {
     if (!this.host.isCurrentScope(scope)) return;
     this.loaded = true;
@@ -200,7 +244,15 @@ export class ArchiveMutationCoordinator {
       if (next.libraryChanged) {
         await this.host.commands.invoke(
           "save_library_metadata",
-          { metadata: structuredClone(next.libraryMetadata) },
+          {
+            metadata: structuredClone(next.libraryMetadata),
+            changedBookIds: [
+              ...new Set([
+                ...Object.keys(this.libraryMetadata.books),
+                ...Object.keys(next.libraryMetadata.books),
+              ]),
+            ].filter((id) => this.libraryMetadata.books[id] !== next.libraryMetadata.books[id]),
+          },
           scope.rootPath,
         );
       }
@@ -524,10 +576,10 @@ export class ArchiveMutationCoordinator {
         this.reconcileProgressOutcome(generation, persistedBaseline, changedBookIds, isSuperseded),
       onRetriedBatchPersisted: ({ changedBookIds, isSuperseded, metadata }) =>
         this.reconcileProgressOutcome(generation, metadata, changedBookIds, isSuperseded),
-      write: async (metadata) => {
+      write: async (metadata, changedBookIds) => {
         await this.host.commands.invoke(
           "save_progress_metadata",
-          { metadata: structuredClone(metadata) },
+          { metadata: structuredClone(metadata), changedBookIds: [...changedBookIds] },
           rootPath,
         );
       },

@@ -14,7 +14,7 @@ type ProgressMetadataWriteQueueOptions = {
   initialPersistedMetadata: ProgressMetadata;
   onFailedBatch: (outcome: ProgressWriteOutcome) => Promise<void> | void;
   onRetriedBatchPersisted: (outcome: ProgressWriteOutcome) => Promise<void> | void;
-  write: (metadata: ProgressMetadata) => Promise<void>;
+  write: (metadata: ProgressMetadata, changedBookIds: ReadonlySet<string>) => Promise<void>;
 };
 
 export class ProgressMetadataWriteQueue {
@@ -25,7 +25,8 @@ export class ProgressMetadataWriteQueue {
     this.lastPersistedMetadata = structuredClone(options.initialPersistedMetadata);
     this.queue = new CoalescedWriteQueue({
       delayMs: options.delayMs,
-      write: options.write,
+      write: (metadata) =>
+        options.write(metadata, changedProgressBookIds(this.lastPersistedMetadata, metadata)),
       onFailure: async (attempt) => {
         await options.onFailedBatch(this.createOutcome(attempt));
       },

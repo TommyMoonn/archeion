@@ -9,6 +9,7 @@ $cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
     output = @{ Aliases = @('-o', '-OutputDirectory') }
     project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Join-Path $PSScriptRoot '..') }
     'installers-only' = @{ Kind = 'Switch' }
+    bundle = @{ Default = 'both' }
 }
 if ($cli['help']) {
     Write-CliHelp @'
@@ -19,11 +20,19 @@ Options:
   -o, --output <path>           Staged release output directory.
   -p, --project <path>          Project root.
   --installers-only             Stage unsigned manual-build installers, not a release.
+  --bundle <nsis|msi|both>      Stage one or both formats (manual builds only).
   -h, --help                    Show this help.
 
 Legacy PowerShell flags remain accepted for compatibility.
 '@
     return
+}
+$bundleSelection = [string]$cli['bundle']
+if ($bundleSelection -cnotin @('nsis', 'msi', 'both')) {
+    throw "Invalid bundle '$bundleSelection'; expected nsis, msi, or both."
+}
+if (-not $cli['installers-only'] -and $bundleSelection -ne 'both') {
+    throw 'Signed release staging requires both NSIS and MSI. Use --installers-only for a single bundle.'
 }
 $ProjectRoot = [IO.Path]::GetFullPath([string]$cli['project'])
 $BundleRoot = if ($cli['bundle-dir']) { [IO.Path]::GetFullPath([string]$cli['bundle-dir']) } else { Join-Path $ProjectRoot 'src-tauri/target/release/bundle' }
@@ -71,29 +80,44 @@ Write-CliStep -Current 1 -Total 4 -Message 'Validating release metadata'
 & (Join-Path $PSScriptRoot 'check-release.ps1') --project $ProjectRoot
 $version = [string](Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'package.json') | ConvertFrom-Json).version
 Write-CliStep -Current 2 -Total 4 -Message 'Locating Windows installers'
-$nsisDirectory = Join-Path $BundleRoot 'nsis'
-$msiDirectory = Join-Path $BundleRoot 'msi'
-$nsisInstallers = @(Get-ChildItem -LiteralPath $nsisDirectory -Filter '*.exe' -File)
-$msiInstallers = @(Get-ChildItem -LiteralPath $msiDirectory -Filter '*.msi' -File)
-if ($nsisInstallers.Count -ne 1) { throw "Expected exactly one NSIS installer in '$nsisDirectory', found $($nsisInstallers.Count)." }
-if ($msiInstallers.Count -ne 1) { throw "Expected exactly one MSI installer in '$msiDirectory', found $($msiInstallers.Count)." }
-$escapedVersion = [regex]::Escape($version)
-if ($nsisInstallers[0].Name -cnotmatch "^Archeion_${escapedVersion}_x64-setup\.exe$" -or
-    $msiInstallers[0].Name -cnotmatch "^Archeion_${escapedVersion}_x64(?:_[A-Za-z]{2}(?:-[A-Za-z]{2})?)?\.msi$") {
-    throw "Installer filename does not match release version '$version' and x64 architecture."
-}
-$stagedFiles = @(
-    @{ Source = $nsisInstallers[0].FullName; Name = 'Archeion-Setup-x64.exe' },
-    @{ Source = $msiInstallers[0].FullName; Name = 'Archeion-x64.msi' }
-)
-if (-not $cli['installers-only']) {
-    foreach ($installer in @($nsisInstallers[0], $msiInstallers[0])) {
-        $signatures = @(Get-ChildItem -LiteralPath $installer.DirectoryName -Filter '*.sig' -File)
-        if ($signatures.Count -ne 1 -or $signatures[0].Name -cne ($installer.Name + '.sig')) {
-            throw "Expected exactly one matching signature for '$($installer.Name)'."
+$stagedFiles = @()
+if ($bundleSelection -ne 'msi') {
+    $nsisDirectory = Join-Path $BundleRoot 'nsis'
+    $nsisInstallers = @(Get-ChildItem -LiteralPath $nsisDirectory -Filter '*.exe' -File)
+    if ($cli['installers-only']) {
+        $nsisInstallers = @($nsisInstallers | Where-Object { $_.Name -ceq "Archeion_${version}_x64-setup.exe" })
+    }
+    if ($nsisInstallers.Count -ne 1) { throw "Expected exactly one NSIS installer for v$version in '$nsisDirectory', found $($nsisInstallers.Count)." }
+    if ($nsisInstallers[0].Name -cnotmatch "^Archeion_$([regex]::Escape($version))_x64-setup\.exe$") {
+        throw "NSIS filename does not match release version '$version' and x64 architecture."
+    }
+    $stagedFiles += @{ Source = $nsisInstallers[0].FullName; Name = 'Archeion-Setup-x64.exe' }
+    if (-not $cli['installers-only']) {
+        $signatures = @(Get-ChildItem -LiteralPath $nsisDirectory -Filter '*.sig' -File)
+        if ($signatures.Count -ne 1 -or $signatures[0].Name -cne ($nsisInstallers[0].Name + '.sig')) {
+            throw "Expected exactly one matching signature for '$($nsisInstallers[0].Name)'."
         }
-        $publicName = if ($installer.Extension -eq '.exe') { 'Archeion-Setup-x64.exe.sig' } else { 'Archeion-x64.msi.sig' }
-        $stagedFiles += @{ Source = $signatures[0].FullName; Name = $publicName }
+        $stagedFiles += @{ Source = $signatures[0].FullName; Name = 'Archeion-Setup-x64.exe.sig' }
+    }
+}
+if ($bundleSelection -ne 'nsis') {
+    $msiDirectory = Join-Path $BundleRoot 'msi'
+    $msiInstallers = @(Get-ChildItem -LiteralPath $msiDirectory -Filter '*.msi' -File)
+    $msiPattern = "^Archeion_$([regex]::Escape($version))_x64(?:_[A-Za-z]{2}(?:-[A-Za-z]{2})?)?\.msi$"
+    if ($cli['installers-only']) {
+        $msiInstallers = @($msiInstallers | Where-Object { $_.Name -cmatch $msiPattern })
+    }
+    if ($msiInstallers.Count -ne 1) { throw "Expected exactly one MSI installer for v$version in '$msiDirectory', found $($msiInstallers.Count)." }
+    if ($msiInstallers[0].Name -cnotmatch $msiPattern) {
+        throw "MSI filename does not match release version '$version' and x64 architecture."
+    }
+    $stagedFiles += @{ Source = $msiInstallers[0].FullName; Name = 'Archeion-x64.msi' }
+    if (-not $cli['installers-only']) {
+        $signatures = @(Get-ChildItem -LiteralPath $msiDirectory -Filter '*.sig' -File)
+        if ($signatures.Count -ne 1 -or $signatures[0].Name -cne ($msiInstallers[0].Name + '.sig')) {
+            throw "Expected exactly one matching signature for '$($msiInstallers[0].Name)'."
+        }
+        $stagedFiles += @{ Source = $signatures[0].FullName; Name = 'Archeion-x64.msi.sig' }
     }
 }
 foreach ($file in $stagedFiles) {
@@ -123,7 +147,7 @@ try {
     }
     Set-Content -LiteralPath (Join-Path $temporaryDirectory 'SHA256SUMS.txt') -Value $checksumLines -Encoding ascii
     $verifyArguments = @('--project', $ProjectRoot, '--artifacts-dir', $temporaryDirectory)
-    if ($cli['installers-only']) { $verifyArguments += '--installers-only' }
+    if ($cli['installers-only']) { $verifyArguments += @('--installers-only', '--bundle', $bundleSelection) }
     & (Join-Path $PSScriptRoot 'verify-windows-release.ps1') @verifyArguments
     if (Test-Path -LiteralPath $OutputDirectory) {
         Assert-GeneratedDirectory $OutputDirectory
@@ -139,7 +163,11 @@ try {
     if (Test-Path -LiteralPath $temporaryDirectory) { Remove-GeneratedDirectory $temporaryDirectory }
 }
 Write-CliSuccess 'Windows release staged'
-foreach ($entry in @(@('EXE', 'Archeion-Setup-x64.exe'), @('MSI', 'Archeion-x64.msi'), @('Checksums', 'SHA256SUMS.txt'))) {
+$summary = @()
+if ($bundleSelection -ne 'msi') { $summary += ,@('EXE', 'Archeion-Setup-x64.exe') }
+if ($bundleSelection -ne 'nsis') { $summary += ,@('MSI', 'Archeion-x64.msi') }
+$summary += ,@('Checksums', 'SHA256SUMS.txt')
+foreach ($entry in $summary) {
     $item = Get-Item -LiteralPath (Join-Path $OutputDirectory $entry[1])
     Write-CliDetail -Label $entry[0] -Value "$($item.Name) ($(Format-CliByteSize -Bytes $item.Length))"
 }

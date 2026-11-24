@@ -80,6 +80,44 @@ Run only the Vite frontend when you do not need desktop APIs:
 pnpm run dev
 ```
 
+## Test a cold-start EPUB request
+
+`tauri dev` does not install Windows file associations. Pass the simulated file-open
+request as application arguments instead. Use an existing `.epub` file:
+
+```powershell
+pnpm exec tauri dev -- -- --open-epub "C:\Books\Example 日本語.epub"
+```
+
+The first `--` separates runner arguments from application arguments. A
+packaged executable also accepts an EPUB path as its only positional argument,
+which is how Explorer's **Open with** command starts it. A valid request opens
+only a standalone Reader. Invalid requests fall back to ordinary startup.
+
+## Test standalone EPUB requests on Windows
+
+Install each format independently in a clean Windows environment. Verify
+Archeion appears in **Open with** for `.epub` without changing the existing
+default viewer. Open a local EPUB with spaces and Unicode in its filename.
+Close the only Reader and confirm the application exits.
+
+With the Library open, open a tracked EPUB from the active archive and an
+untracked EPUB from another folder. The tracked book should restore saved
+progress and annotations; the untracked file should not save book state.
+Opening the same file again focuses its Reader. Rapidly open different files,
+close one window, reopen its file, and verify the other windows stay open.
+A cold-start Reader can also accept another EPUB without opening the Library.
+
+The installed executable accepts the same arguments as the development app:
+
+```powershell
+& "$env:LOCALAPPDATA\Archeion\Archeion.exe" --open-epub "C:\Books\Example 日本語.epub"
+```
+
+Use the actual installation path for MSI. Verify unsupported network paths,
+removed files, malformed EPUBs and files over 256 MiB do not open unsafe
+sessions. See [TESTING.md](TESTING.md) for the installed-package smoke commands.
+
 ## Build installers locally
 
 Build both supported Windows installer formats:
@@ -91,8 +129,12 @@ pnpm run tauri:build:windows
 Stage the validated installers and generate `SHA256SUMS.txt`:
 
 ```powershell
-pnpm run release:stage
+pnpm run release:stage:local
 ```
+
+For an NSIS-only test build, use `pnpm run tauri:build:nsis` followed by
+`pnpm run release:stage:local --bundle nsis`. The staged EXE and checksum
+will be written to `artifacts/windows` without requiring an MSI or signatures.
 
 These commands build and stage local installers. They do not create a tag or
 publish a GitHub Release. Follow the [release operator guide](RELEASING.md) for

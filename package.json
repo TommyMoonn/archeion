@@ -1,7 +1,7 @@
 {
   "name": "archeion",
   "private": true,
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "A local-first desktop EPUB reader and archive manager.",
   "author": "Khoa Luong",
   "license": "GPL-3.0-only",
@@ -65,6 +65,7 @@
     "version:set": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/set-version.ps1",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-release.ps1 --require-changelog",
     "release:stage": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/stage-windows-release.ps1",
+    "release:stage:local": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/stage-windows-release.ps1 --installers-only",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

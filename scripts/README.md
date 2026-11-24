@@ -237,6 +237,7 @@ successful recovery.
 -o, --output <path>
 -p, --project <path>
 --installers-only
+--bundle <nsis|msi|both>
 -h, --help
 ```
 
@@ -255,6 +256,9 @@ generated output. Unknown content, linked paths, project/drive roots, and output
 overlapping the bundle tree are refused. Generation failure preserves the previous
 output. `--installers-only` is an explicit non-release mode used by the manual
 desktop workflow: it stages only unsigned installers and their checksums.
+Use `--bundle nsis` or `--bundle msi` with `--installers-only` to stage one
+installer without requiring the other format. Signed release staging always
+requires both formats.
 
 ## `verify-windows-release.ps1`
 
@@ -262,6 +266,7 @@ desktop workflow: it stages only unsigned installers and their checksums.
 --artifacts-dir <path>
 -p, --project <path>
 --installers-only
+--bundle <nsis|msi|both>
 -h, --help
 ```
 
@@ -271,8 +276,9 @@ must be nonempty regular files. Checksums must cover each of the five payload
 files exactly once. The manifest must match the project's stable version,
 canonical Changes text/date, exact-tag bundle-specific URLs, and signature-file
 contents. No generic Windows platform entry is accepted. `--installers-only`
-verifies the manual build's two installers and checksum file, not an updater
-release. Success is reported only after all applicable checks pass.
+verifies the manual build's selected installer formats and checksum file, not
+an updater release. A one-format verification requires the matching `--bundle`
+option. Success is reported only after all applicable checks pass.
 
 ## `windows-update-manifest.mjs`
 
@@ -344,6 +350,7 @@ pnpm run version:check
 pnpm run version:set X.Y.Z
 pnpm run release:check --tag vX.Y.Z
 pnpm run release:stage
+pnpm run release:stage:local --bundle nsis
 pnpm run changes:review --files
 pnpm run changes:package --name "phase-1.3.0.16"
 pnpm run changes:apply --dry-run

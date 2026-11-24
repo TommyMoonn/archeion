@@ -1706,6 +1706,12 @@ where
 }
 
 impl AppSettingsService {
+    // External Reader startup must not load the archive registry or migrate
+    // archive-owned theme packages before the Reader window can open.
+    pub(crate) fn for_external_reader(app: &tauri::AppHandle) -> Result<Self, String> {
+        Ok(Self::new(settings_path(app)?))
+    }
+
     pub(crate) fn from_app(app: &tauri::AppHandle) -> Result<Self, String> {
         let path = settings_path(app)?;
         let archive_roots = archive::registered_archive_roots(app)?;

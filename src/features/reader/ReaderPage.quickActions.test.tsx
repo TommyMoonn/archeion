@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import { ReaderArchiveSessionContext } from "../archive/readerArchiveSession";
 import { LibraryPage } from "../library/LibraryPage";
 import { createStorage as createLibraryStorage } from "../library/LibraryPage.testUtils";
 import { installLibrarySidebarMedia } from "../library/librarySidebarMedia.testUtils";
@@ -21,13 +22,23 @@ import type {
   CreateBookmarkAnnotationInput,
   HighlightAnnotation,
 } from "../../types/annotation";
-import { ReaderRoute } from "./ReaderPage";
+import { ReaderPage, ReaderRoute } from "./ReaderPage";
 import { createReaderLibrarySnapshotFixture } from "./readerLibrarySnapshot.testUtils";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
 import type { ReaderSeekMapState } from "./readerSeekMap";
+
+const externalReaderMock = vi.hoisted(() => ({
+  close: vi.fn(),
+  read: vi.fn(),
+}));
+
+vi.mock("./externalReaderSource", () => ({
+  closeStandaloneReaderWindow: externalReaderMock.close,
+  readExternalReaderEpub: externalReaderMock.read,
+}));
 
 const viewerMock = vi.hoisted(() => ({
   closePublicationSearch: vi.fn(),
@@ -238,7 +249,7 @@ vi.mock("./LazyReaderSearchPanel", async () => {
 });
 
 vi.mock("../archive/useArchive", () => ({
-  useArchive: () => readyArchive,
+  useArchive: () => archiveState,
 }));
 
 const readyArchive: ArchiveState = {
@@ -263,6 +274,8 @@ const readyArchive: ArchiveState = {
   error: null,
   watcherError: null,
 };
+
+let archiveState: ArchiveState = readyArchive;
 
 const book: Book = {
   addedAt: "2026-07-01T00:00:00.000Z",
@@ -461,6 +474,9 @@ function publishSeekMap(state: ReaderSeekMapState): void {
 }
 
 beforeEach(() => {
+  archiveState = readyArchive;
+  externalReaderMock.read.mockReset().mockResolvedValue(new Blob(["epub"]));
+  externalReaderMock.close.mockReset().mockResolvedValue(undefined);
   viewerMock.closePublicationSearch.mockReset();
   viewerMock.historySnapshot = {
     backCount: 0,
@@ -530,6 +546,150 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("opens a temporary EPUB with no archive or storage provider and no persistence commands", async () => {
+    archiveState = { status: "setup", path: null, error: null, archives: [] };
+    vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(archiveState);
+    const initializeArchive = vi.spyOn(archiveStore, "initialize");
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          HydrateFallback: () => null,
+          loader: () => null,
+          element: (
+            <ReaderPage
+              externalSession={{ token: "opaque-session-token", fileName: "日本語.epub" }}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <QuickActionsProvider>
+          <RouterProvider router={router} />
+        </QuickActionsProvider>,
+      );
+    });
+
+    expect(externalReaderMock.read).toHaveBeenCalledExactlyOnceWith("opaque-session-token");
+    expect(container.querySelector('[data-testid="epub-viewer"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Bookmark"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Annotations"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Book navigation"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Find in book"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reader settings"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Close Reader"]')).not.toBeNull();
+    expect(initializeArchive).not.toHaveBeenCalled();
+
+    const palette = await openPalette();
+    expect(palette).toBeInstanceOf(HTMLInputElement);
+    const commandLabels = Array.from(
+      document.querySelectorAll<HTMLElement>(".quick-actions [role=option]"),
+    ).map((element) => element.textContent);
+    expect(commandLabels.join(" ")).not.toMatch(
+      /toggle bookmark|toggle annotations|go to library/i,
+    );
+    await act(async () => {
+      palette.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await act(async () => {
+      container?.querySelector<HTMLButtonElement>('[aria-label="Close Reader"]')?.click();
+    });
+    expect(externalReaderMock.close).toHaveBeenCalledExactlyOnceWith("opaque-session-token");
+    expect(viewerMock.teardown).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/");
+  });
+
+  it("keeps a tracked external EPUB usable when saving or closing fails and allows retry", async () => {
+    archiveState = { status: "setup", path: null, error: null, archives: [] };
+    vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(archiveState);
+    const initializeArchive = vi.spyOn(archiveStore, "initialize");
+    const trackedBook = { ...book, progressCfi: "epubcfi(/6/4)", progressPercent: 42 };
+    const storage = { ...createStorage(), ...createReaderLibrarySnapshotFixture([trackedBook]) };
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          HydrateFallback: () => null,
+          loader: () => null,
+          element: (
+            <ReaderPage
+              externalSession={{ token: "tracked-session-token", fileName: "日本語.epub" }}
+              managedBook={trackedBook}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <LibraryStorageContext.Provider value={storage}>
+          <ReaderArchiveSessionContext value={{ archiveId: "archive-books", rootPath: "D:/Books" }}>
+            <QuickActionsProvider>
+              <RouterProvider router={router} />
+            </QuickActionsProvider>
+          </ReaderArchiveSessionContext>
+        </LibraryStorageContext.Provider>,
+      );
+    });
+
+    expect(externalReaderMock.read).toHaveBeenCalledExactlyOnceWith("tracked-session-token");
+    expect(storage.loadBookFile).not.toHaveBeenCalled();
+    expect(storage.listAnnotations).toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Bookmark"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Annotations"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Close Reader"]')).not.toBeNull();
+    expect(initializeArchive).not.toHaveBeenCalled();
+
+    const close = container.querySelector<HTMLButtonElement>('[aria-label="Close Reader"]')!;
+    const viewer = container.querySelector('[data-testid="epub-viewer"]');
+    const flush = vi.mocked(storage.flushPendingWrites);
+    flush.mockRejectedValueOnce(new Error("Save failed"));
+    await act(async () => close.click());
+    expect(externalReaderMock.close).not.toHaveBeenCalled();
+    expect(container.querySelector("[role=alert]")?.textContent).toContain(
+      "Could not save changes",
+    );
+    expect(container.querySelector('[data-testid="epub-viewer"]')).toBe(viewer);
+
+    let releaseSave!: () => void;
+    const pendingSave = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    flush.mockReturnValueOnce(pendingSave);
+    externalReaderMock.close.mockRejectedValueOnce(new Error("Native close failed"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await act(async () => {
+      close.click();
+      close.click();
+    });
+    expect(externalReaderMock.close).not.toHaveBeenCalled();
+    await act(async () => releaseSave());
+    expect(externalReaderMock.close).toHaveBeenCalledExactlyOnceWith("tracked-session-token");
+    expect(container.querySelector("[role=alert]")?.textContent).toContain(
+      "Could not close Reader",
+    );
+    expect(container.querySelector('[data-testid="epub-viewer"]')).toBe(viewer);
+    expect(viewerMock.teardown).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("Unable to close standalone Reader", expect.any(Error));
+    expect(container.textContent).not.toContain("Return to Library");
+
+    await act(async () => close.click());
+    expect(externalReaderMock.close).toHaveBeenCalledTimes(2);
+    expect(externalReaderMock.close).toHaveBeenLastCalledWith("tracked-session-token");
+    expect(viewerMock.teardown).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/");
+  });
+
   it("keeps missing-file recovery inside the Reader destination without acquiring a source", async () => {
     const storage = createStorage();
     const rendered = await renderReader(storage, "/", { ...book, isFileMissing: true });

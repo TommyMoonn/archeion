@@ -15,12 +15,18 @@ type ReaderSourceState =
   | { lease: ReaderFileLease; request: ReaderSourceRequest; status: "ready" }
   | { error: string; request: ReaderSourceRequest; retryable: boolean; status: "error" };
 
+export type ExternalReaderFileSource = Readonly<{
+  load: () => Promise<Blob>;
+  requestKey: string;
+}>;
+
 type UseReaderSourceOptions = {
   active: boolean;
   archiveId: string | null;
   archiveRootPath: string | null;
   bookId: string | null;
   storage: Pick<LibraryStorage, "loadBookFile">;
+  external?: ExternalReaderFileSource;
 };
 
 export type ReaderSourceController =
@@ -31,12 +37,20 @@ export type ReaderSourceController =
 const EPUB_SIZE_LIMIT_ERROR = "This EPUB exceeds Archeion's 256 MiB reader limit.";
 const DEFAULT_READER_FILE_ERROR =
   "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it.";
+const EXTERNAL_READER_FILE_ERROR =
+  "The selected EPUB could not be read. It may have been moved or become unavailable.";
 
-function readerFileError(error: unknown): Readonly<{ message: string; retryable: boolean }> {
+function readerFileError(
+  error: unknown,
+  external: boolean,
+): Readonly<{ message: string; retryable: boolean }> {
   const message =
     error instanceof Error ? error.message.trim() : typeof error === "string" ? error.trim() : "";
   if (message === EPUB_SIZE_LIMIT_ERROR) return { message, retryable: false };
-  return { message: DEFAULT_READER_FILE_ERROR, retryable: true };
+  return {
+    message: external ? EXTERNAL_READER_FILE_ERROR : DEFAULT_READER_FILE_ERROR,
+    retryable: true,
+  };
 }
 
 function sourceRequestKey(
@@ -56,20 +70,23 @@ export function useReaderSource({
   archiveRootPath,
   bookId,
   storage,
+  external,
 }: UseReaderSourceOptions): ReaderSourceController {
-  const requestKey = sourceRequestKey(active, archiveId, archiveRootPath, bookId);
+  const requestKey = active
+    ? (external?.requestKey ?? sourceRequestKey(active, archiveId, archiveRootPath, bookId))
+    : null;
   const [retryOwner, setRetryOwner] = useState<{ requestKey: string; revision: number } | null>(
     null,
   );
   const retryRevision = retryOwner?.requestKey === requestKey ? retryOwner.revision : 0;
   const request = useMemo<ReaderSourceRequest | null>(() => {
-    if (!requestKey || !bookId) return null;
+    if (!requestKey || (!bookId && !external)) return null;
     return Object.freeze({
-      load: () => storage.loadBookFile(bookId),
+      load: () => (external ? external.load() : storage.loadBookFile(bookId!)),
       requestKey,
       revision: retryRevision,
     });
-  }, [bookId, requestKey, retryRevision, storage]);
+  }, [bookId, external, requestKey, retryRevision, storage]);
   const [state, setState] = useState<ReaderSourceState>(() =>
     request ? { request, status: "loading" } : { request: null, status: "inactive" },
   );
@@ -106,7 +123,7 @@ export function useReaderSource({
       },
       (error: unknown) => {
         if (retired || stateRef.current.request !== request) return;
-        const failure = readerFileError(error);
+        const failure = readerFileError(error, Boolean(external));
         const errorState = {
           error: failure.message,
           request,
@@ -126,7 +143,7 @@ export function useReaderSource({
         ownerRef.current = null;
       }
     };
-  }, [request]);
+  }, [request, external]);
 
   const retry = useCallback(() => {
     const current = stateRef.current;

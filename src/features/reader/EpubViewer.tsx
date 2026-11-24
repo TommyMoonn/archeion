@@ -89,6 +89,7 @@ export type EpubViewerHandle = {
 };
 
 type EpubViewerProps = {
+  allowAnnotations?: boolean;
   contentTheme: ReaderContentTheme;
   presentation?: ReaderPresentation;
   fileLease: ReaderFileLease;
@@ -127,6 +128,7 @@ type EpubViewerProps = {
 
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
+    allowAnnotations = true,
     contentTheme: globalContentTheme,
     presentation = "archeion",
     fileLease,
@@ -784,6 +786,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       ) : null}
       {menu ? (
         <ReaderHighlightPalette
+          allowAnnotations={allowAnnotations}
           ref={paletteRef}
           anchorRect={menu.anchorRect}
           busy={highlightBusy}
@@ -824,6 +827,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProps): boolean {
   return (
     previous.fileLease === next.fileLease &&
+    previous.allowAnnotations === next.allowAnnotations &&
     previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
     previous.interactionBlocked === next.interactionBlocked &&

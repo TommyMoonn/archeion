@@ -823,6 +823,17 @@ fn active_identity(registry: &ArchiveRegistry) -> Option<(&str, &str)> {
     active_archive(registry).map(|archive| (archive.id.as_str(), archive.root_path.as_str()))
 }
 
+// Read the current selection without initializing the Library or mutating the registry.
+// Standalone Reader windows intentionally do not own ArchiveRegistryService.
+pub(crate) fn read_active_archive_for_external_reader(
+    app: &tauri::AppHandle,
+) -> Option<(String, PathBuf)> {
+    let paths = archive_registry_paths(app).ok()?;
+    let registry = parse_registry(&fs::read(paths.current).ok()?).ok()?;
+    let active = active_archive(&registry)?;
+    Some((active.id.clone(), PathBuf::from(&active.root_path)))
+}
+
 pub(crate) fn read_active_archive_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
     Ok(active_archive(&read_registry(app)?).map(|archive| archive.root_path.clone()))
 }

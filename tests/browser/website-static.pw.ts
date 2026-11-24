@@ -253,7 +253,7 @@ test("React landing preserves static content, claims, native destinations and me
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   }
   await expect(
-    page.getByText("Save reading positions, highlight passages in four colors, and add notes."),
+    page.getByText(/For books in your active archive, save reading positions/),
   ).toBeVisible();
   const preview = page
     .getByRole("region", { name: "Archeion application preview" })
