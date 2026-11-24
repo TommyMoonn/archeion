@@ -4,12 +4,12 @@ import { Button } from "../../components/Button";
 import type { ReaderExitFailure } from "./useReaderControlledTransitions";
 
 export function ReaderExitPresentation({
-  temporary = false,
+  standalone = false,
   failure,
   toolbarExpanded,
   onReturn,
 }: {
-  temporary?: boolean;
+  standalone?: boolean;
   failure: ReaderExitFailure | null;
   toolbarExpanded: boolean;
   onReturn: () => void;
@@ -28,8 +28,10 @@ export function ReaderExitPresentation({
       <div className="reader-exit__clearance" aria-hidden="true" hidden={!toolbarExpanded} />
       <section className="reader-content-stage reader-exit__stage">
         <p role={failure ? "alert" : "status"}>
-          {temporary
-            ? "Closing Reader…"
+          {standalone
+            ? failure
+              ? "The Reader could not be closed. Try again."
+              : "Closing Reader…"
             : failure === "timeout"
               ? "Returning to the Library took too long. Try again."
               : failure === "rejected"
@@ -38,7 +40,7 @@ export function ReaderExitPresentation({
         </p>
         {failure ? (
           <Button ref={recoveryRef} onClick={onReturn} variant="secondary">
-            {temporary ? "Close Reader" : "Return to Library"}
+            {standalone ? "Close Reader" : "Return to Library"}
           </Button>
         ) : null}
       </section>

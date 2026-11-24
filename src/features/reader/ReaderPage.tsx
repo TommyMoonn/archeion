@@ -36,7 +36,11 @@ import type { Book } from "../../types/book";
 import type { Annotation } from "../../types/annotation";
 import { bookTitle } from "../../utils/bookDisplay";
 import { type ReaderNavigationState, type ReaderSettings } from "../../types/reader";
-import { readExternalReaderEpub, type ExternalReaderRequest } from "./externalReaderSource";
+import {
+  closeStandaloneReaderWindow,
+  readExternalReaderEpub,
+  type ExternalReaderRequest,
+} from "./externalReaderSource";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import { createLoadingReaderNavigationState } from "./readerNavigationState";
@@ -53,7 +57,11 @@ import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
-import { ReaderToolbar, ReaderToolbarVisibilityToggle } from "./ReaderToolbar";
+import {
+  ReaderToolbar,
+  ReaderToolbarVisibilityToggle,
+  type StandaloneCloseStatus,
+} from "./ReaderToolbar";
 import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
@@ -190,6 +198,8 @@ export function ReaderPage({
   const readerToolbarRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
+  const standaloneClosePending = useRef(false);
+  const [standaloneCloseStatus, setStandaloneCloseStatus] = useState<StandaloneCloseStatus>();
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>(() =>
     createLoadingReaderNavigationState(),
@@ -541,10 +551,31 @@ export function ReaderPage({
     [activeArchiveId, leaveReader, navigate],
   );
 
-  const closeStandaloneReader = useCallback(
-    () => leaveReader(() => getCurrentWindow().destroy()),
-    [leaveReader],
-  );
+  const closeStandaloneReader = useCallback(async () => {
+    if (!externalSession || standaloneClosePending.current) return;
+    standaloneClosePending.current = true;
+    setStandaloneCloseStatus("closing");
+    let settled = false;
+    try {
+      invalidateOpenRequests();
+      // Native window destruction owns renderer cleanup. Do not retire a live Reader
+      // before close succeeds: a failed close must leave its content usable.
+      settled = await settleReaderLeave();
+      if (!settled) {
+        setStandaloneCloseStatus("save-failed");
+        activateToolbarVisibility();
+        return;
+      }
+      await closeStandaloneReaderWindow(externalSession.token);
+      setStandaloneCloseStatus(undefined);
+    } catch (error) {
+      console.error(settled ? "Unable to close standalone Reader" : "Unable to save Reader", error);
+      setStandaloneCloseStatus(settled ? "close-failed" : "save-failed");
+      activateToolbarVisibility();
+    } finally {
+      standaloneClosePending.current = false;
+    }
+  }, [activateToolbarVisibility, externalSession, invalidateOpenRequests, settleReaderLeave]);
   useEffect(() => {
     if (!standalone || !isTauri()) return;
     let disposed = false;
@@ -856,7 +887,10 @@ export function ReaderPage({
     toggleNavigation,
     temporary,
   ]);
-  useRegisterQuickActions("reader", retiring ? [] : quickActionCommands);
+  useRegisterQuickActions(
+    "reader",
+    retiring || standaloneCloseStatus === "closing" ? [] : quickActionCommands,
+  );
 
   const navigateToNavigationItem = useCallback(
     (itemId: string) =>
@@ -929,7 +963,7 @@ export function ReaderPage({
 
   const handleLocationChange = useCallback(
     (relocation: ReaderRelocation) => {
-      if (!readerSessionIdentity) return;
+      if (!readerSessionIdentity || standaloneClosePending.current) return;
       const nextLocation = progressController
         ? progressController.acceptRelocation(readerSessionIdentity, relocation)
         : normalizeReaderLocation(relocation);
@@ -985,7 +1019,7 @@ export function ReaderPage({
 
   const handleContentKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (isReaderShortcutTargetBlocked(event.target)) return;
+      if (standaloneClosePending.current || isReaderShortcutTargetBlocked(event.target)) return;
       const sourceDocument =
         (event.target as { ownerDocument?: Document } | null)?.ownerDocument ??
         event.view?.document ??
@@ -1098,7 +1132,7 @@ export function ReaderPage({
         tabIndex={-1}
       >
         <ReaderExitPresentation
-          temporary={temporary}
+          standalone={standalone}
           toolbarExpanded={toolbarVisibility.expanded}
           failure={controlledTransitions.exitFailure}
           onReturn={returnToOrigin}
@@ -1113,6 +1147,8 @@ export function ReaderPage({
       data-reader-theme={readerTheme.base}
       data-toolbar-expanded={toolbarVisibility.expanded || undefined}
       data-reader-phase={readerSessionLifecycle.phase}
+      aria-busy={standaloneCloseStatus === "closing" || undefined}
+      inert={standaloneCloseStatus === "closing"}
       id={MAIN_CONTENT_ID}
       ref={readerMainRef}
       style={readerThemeStyle}
@@ -1128,6 +1164,7 @@ export function ReaderPage({
           <ReaderToolbar
             temporary={temporary}
             standalone={standalone}
+            closeStatus={standaloneCloseStatus}
             backLabel={backLabel}
             chapterProgress={navigationState.chapterProgress}
             chapterTitle={chapterSequence.current?.label}

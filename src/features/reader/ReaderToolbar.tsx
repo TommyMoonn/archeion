@@ -18,9 +18,12 @@ import { IconButton } from "../../components/IconButton";
 
 export const READER_TOOLBAR_ID = "reader-toolbar";
 
+export type StandaloneCloseStatus = "closing" | "save-failed" | "close-failed";
+
 type ReaderToolbarProps = {
   temporary?: boolean;
   standalone?: boolean;
+  closeStatus?: StandaloneCloseStatus;
   chapterProgress?: number;
   chapterTitle?: string;
   hasChapterNavigation: boolean;
@@ -67,6 +70,7 @@ type ReaderToolbarProps = {
 export function ReaderToolbar({
   temporary = false,
   standalone = false,
+  closeStatus,
   chapterProgress,
   chapterTitle,
   hasChapterNavigation,
@@ -113,11 +117,19 @@ export function ReaderToolbar({
     chapterProgress === undefined
       ? `Book ${percentage.toFixed(1)}%`
       : `Chapter ${chapterProgress}% · Book ${percentage.toFixed(1)}%`;
-  const statusLabel = temporary
-    ? `Temporary · ${positionLabel}`
-    : progressSaveFailed
-      ? `Not saved · ${positionLabel}`
-      : positionLabel;
+  const closeFailed = closeStatus === "save-failed" || closeStatus === "close-failed";
+  const statusLabel =
+    closeStatus === "closing"
+      ? "Closing Reader…"
+      : closeStatus === "save-failed"
+        ? "Could not save changes. Try closing again."
+        : closeStatus === "close-failed"
+          ? "Could not close Reader. Try again."
+          : temporary
+            ? `Temporary · ${positionLabel}`
+            : progressSaveFailed
+              ? `Not saved · ${positionLabel}`
+              : positionLabel;
 
   return (
     <header className="reader-toolbar" id={READER_TOOLBAR_ID} ref={toolbarRef}>
@@ -152,7 +164,11 @@ export function ReaderToolbar({
           <p aria-live="polite" title={chapterTitle ?? title}>
             {chapterTitle ?? title}
           </p>
-          <span data-error={progressSaveFailed || undefined} title={statusLabel}>
+          <span
+            data-error={progressSaveFailed || closeFailed || undefined}
+            role={closeFailed ? "alert" : undefined}
+            title={statusLabel}
+          >
             {statusLabel}
           </span>
         </div>

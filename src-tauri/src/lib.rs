@@ -97,6 +97,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::cold_start_epub::cold_start_epub,
             commands::external_reader::standalone_reader_window_ready,
+            commands::external_reader::close_standalone_reader_window,
             commands::external_reader::read_external_reader_epub,
             commands::external_reader::standalone_reader_archive_match,
             commands::app_appearance::prepare_app_appearance,

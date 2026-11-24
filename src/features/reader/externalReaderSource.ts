@@ -22,3 +22,8 @@ export async function findStandaloneReaderManagedBook(
   if (!isTauri()) return null;
   return invoke<StandaloneReaderManagedBook | null>("standalone_reader_archive_match", { token });
 }
+
+/** Closes only the native window that owns the selected EPUB. */
+export async function closeStandaloneReaderWindow(token: string): Promise<void> {
+  await invoke("close_standalone_reader_window", { token });
+}

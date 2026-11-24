@@ -31,10 +31,12 @@ import type { ReaderPublicationSearchControllerState } from "./useReaderPublicat
 import type { ReaderSeekMapState } from "./readerSeekMap";
 
 const externalReaderMock = vi.hoisted(() => ({
+  close: vi.fn(),
   read: vi.fn(),
 }));
 
 vi.mock("./externalReaderSource", () => ({
+  closeStandaloneReaderWindow: externalReaderMock.close,
   readExternalReaderEpub: externalReaderMock.read,
 }));
 
@@ -474,6 +476,7 @@ function publishSeekMap(state: ReaderSeekMapState): void {
 beforeEach(() => {
   archiveState = readyArchive;
   externalReaderMock.read.mockReset().mockResolvedValue(new Blob(["epub"]));
+  externalReaderMock.close.mockReset().mockResolvedValue(undefined);
   viewerMock.closePublicationSearch.mockReset();
   viewerMock.historySnapshot = {
     backCount: 0,
@@ -591,9 +594,18 @@ describe("ReaderPage Quick Actions", () => {
     expect(commandLabels.join(" ")).not.toMatch(
       /toggle bookmark|toggle annotations|go to library/i,
     );
+    await act(async () => {
+      palette.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    await act(async () => {
+      container?.querySelector<HTMLButtonElement>('[aria-label="Close Reader"]')?.click();
+    });
+    expect(externalReaderMock.close).toHaveBeenCalledExactlyOnceWith("opaque-session-token");
+    expect(viewerMock.teardown).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/");
   });
 
-  it("opens a tracked external EPUB with its managed annotations and Reader controls", async () => {
+  it("keeps a tracked external EPUB usable when saving or closing fails and allows retry", async () => {
     archiveState = { status: "setup", path: null, error: null, archives: [] };
     vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(archiveState);
     const initializeArchive = vi.spyOn(archiveStore, "initialize");
@@ -637,6 +649,45 @@ describe("ReaderPage Quick Actions", () => {
     expect(container.querySelector('[aria-label="Annotations"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Close Reader"]')).not.toBeNull();
     expect(initializeArchive).not.toHaveBeenCalled();
+
+    const close = container.querySelector<HTMLButtonElement>('[aria-label="Close Reader"]')!;
+    const viewer = container.querySelector('[data-testid="epub-viewer"]');
+    const flush = vi.mocked(storage.flushPendingWrites);
+    flush.mockRejectedValueOnce(new Error("Save failed"));
+    await act(async () => close.click());
+    expect(externalReaderMock.close).not.toHaveBeenCalled();
+    expect(container.querySelector("[role=alert]")?.textContent).toContain(
+      "Could not save changes",
+    );
+    expect(container.querySelector('[data-testid="epub-viewer"]')).toBe(viewer);
+
+    let releaseSave!: () => void;
+    const pendingSave = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    flush.mockReturnValueOnce(pendingSave);
+    externalReaderMock.close.mockRejectedValueOnce(new Error("Native close failed"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await act(async () => {
+      close.click();
+      close.click();
+    });
+    expect(externalReaderMock.close).not.toHaveBeenCalled();
+    await act(async () => releaseSave());
+    expect(externalReaderMock.close).toHaveBeenCalledExactlyOnceWith("tracked-session-token");
+    expect(container.querySelector("[role=alert]")?.textContent).toContain(
+      "Could not close Reader",
+    );
+    expect(container.querySelector('[data-testid="epub-viewer"]')).toBe(viewer);
+    expect(viewerMock.teardown).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith("Unable to close standalone Reader", expect.any(Error));
+    expect(container.textContent).not.toContain("Return to Library");
+
+    await act(async () => close.click());
+    expect(externalReaderMock.close).toHaveBeenCalledTimes(2);
+    expect(externalReaderMock.close).toHaveBeenLastCalledWith("tracked-session-token");
+    expect(viewerMock.teardown).not.toHaveBeenCalled();
+    expect(router.state.location.pathname).toBe("/");
   });
 
   it("keeps missing-file recovery inside the Reader destination without acquiring a source", async () => {

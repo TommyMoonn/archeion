@@ -335,6 +335,17 @@ pub async fn read_external_reader_epub(
 }
 
 #[tauri::command]
+pub fn close_standalone_reader_window(
+    window: tauri::WebviewWindow,
+    readers: tauri::State<'_, ExternalReaderRegistry>,
+    token: String,
+) -> Result<(), String> {
+    // Do not accept a caller-supplied window label or retire ownership until Destroyed.
+    readers.selected_path(window.label(), &token)?;
+    window.destroy().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn standalone_reader_window_ready(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,

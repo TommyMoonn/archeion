@@ -16,7 +16,7 @@ mockIPC(
     if (command === "plugin:window|is_maximized" || command === "plugin:window|is_fullscreen")
       return false;
     if (command === "list_installed_font_families") return [];
-    if (command === "plugin:window|destroy") {
+    if (command === "close_standalone_reader_window") {
       document.documentElement.dataset.closedReader = "true";
       return;
     }
