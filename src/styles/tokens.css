@@ -173,6 +173,18 @@
   --container-settings-description: 54ch;
   --container-settings-status: 360px;
   --container-shortcut-search: 360px;
+  --spacing-badge-inline: 7px;
+  --spacing-dictionary-search-min: 180px;
+  --spacing-dictionary-search-basis: 280px;
+  --container-dictionary-search: 360px;
+  --container-dictionary-actions: 210px;
+  --container-dictionary-progress: 420px;
+  --container-dictionary-wide: 640px;
+  --container-dictionary-toolbar: 480px;
+  --container-dictionary-narrow: 420px;
+  --spacing-dictionary-progress-min: 120px;
+  --spacing-dictionary-fact-gap: 5px;
+  --leading-dictionary-title: 1.3;
   --container-shortcut-feedback: 38ch;
   --spacing-shortcut-capture: 112px;
   --tracking-settings-eyebrow: 0.1em;
@@ -386,6 +398,15 @@
     }
   }
   --animate-loading-sheen: loading-sheen 1.5s var(--ease-standard) infinite;
+  --animate-progress-indeterminate: progress-indeterminate 1.5s var(--ease-standard) infinite;
+  @keyframes progress-indeterminate {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
 }
 
 /* These utilities have no native Tailwind theme namespace. */
@@ -693,6 +714,9 @@ html[data-density="compact"] {
 }
 @utility settings-nav-columns {
   grid-template-columns: var(--spacing-settings-nav-icon) minmax(0, 1fr);
+}
+@utility dictionary-fact-columns {
+  grid-template-columns: auto minmax(0, 1fr);
 }
 @utility settings-row-columns {
   grid-template-columns: minmax(0, 1fr) auto;

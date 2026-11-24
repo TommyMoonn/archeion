@@ -221,6 +221,8 @@ Settings uses a shared Tailwind section layout, with a container-sized row layou
 
 Archives and Storage reuse the shared rows and controls, including the annotation export action group and cache and backup status notes. Maintenance confirmations use the native dialog frame; annotation import presents a definition list of counts and a shared Collapsible for unmatched IDs. These sections need no section-specific CSS.
 
+Dictionary management uses shared Badge, Progress, Spinner, Input, segmented radio group, Button, Empty and Alert components. Catalog and installed cards use token-backed Tailwind layout, with container-based reflow for actions, search and progress. Download progress reflects the reported byte total or the catalog estimate; unknown totals remain indeterminate. Recovery actions retain the same download and installation owner. Removal confirmation retains the native dialog frame. The Settings-specific stylesheet is removed; shared legacy tooltip, menu and feedback styling remains until branch B.
+
 ### Corners
 
 | Token              | Value   | Use                                                   |

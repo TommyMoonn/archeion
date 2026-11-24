@@ -37,6 +37,12 @@ mockIPC((command) => {
   if (command === "refresh_theme_catalog" || command === "load_theme_catalog_revision") {
     return { revision: 0 };
   }
+  if (command === "load_cached_dictionary_catalog") {
+    return { schemaVersion: 1, entries: [], source: "cache", cacheWarning: null };
+  }
+  if (command === "list_installed_dictionaries") {
+    return { dictionaries: [], recovery: null, status: "ready" };
+  }
   throw new Error(`Unexpected application font Settings fixture command: ${command}`);
 });
 let providerCalls = 0;

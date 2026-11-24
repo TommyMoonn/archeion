@@ -89,11 +89,15 @@ describe("typography role ownership", () => {
     );
 
     expect(fontSizes.length).toBeGreaterThan(0);
-    expect(
-      fontSizes.every(
-        (value) => value?.startsWith("var(--type-") || value === "var(--icon-glyph-size)",
-      ),
-    ).toBe(true);
+    const unowned = fontSizes.filter((value) => {
+      if (!value) return true;
+      if (value.startsWith("var(--type-") || value === "var(--icon-glyph-size)") return false;
+      const role = value.match(/^var\((--text-[\w-]+)\)$/)?.[1];
+      return (
+        !role || !customProperty(tokens, role) || !customProperty(tokens, `${role}--line-height`)
+      );
+    });
+    expect(unowned).toEqual([]);
   });
 
   it("keeps numeric font weights at the font-face boundary, not on feature selectors", () => {
