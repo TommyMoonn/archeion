@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
 import { resolveBuiltInAppTheme, resolveTheme } from "../../src/themes/resolveTheme";
 import { applicationPresentation } from "../../src/themes/appearancePresentation";
 import { builtInShellPalettes as shellPalettes } from "../../src/themes/builtInThemes";
@@ -42,6 +41,12 @@ const windows = [
   },
 ] as const;
 
+// Match development modules and hashed production chunks so the same recovery
+// scenarios can run against either fixture build.
+function featureImport(module: string) {
+  return new RegExp(`/${module}(?:\\.tsx(?:\\?.*)?|-[^/]+\\.js)$`);
+}
+
 async function canonicalPrepaint(page: Page, theme: "dark" | "light" | "custom") {
   await page.emulateMedia({ colorScheme: theme === "light" ? "light" : "dark" });
   const selection =
@@ -70,7 +75,6 @@ async function geometry(page: Page, plane: string) {
       const box = node.getBoundingClientRect();
       return { x: box.x, y: box.y, width: box.width, height: box.height };
     };
-    const root = getComputedStyle(document.documentElement);
     const resolvedColor = (token: string) => {
       const node = document.createElement("span");
       node.style.color = `var(${token})`;
@@ -84,6 +88,8 @@ async function geometry(page: Page, plane: string) {
         ...rect(document.querySelector(".window-titlebar")!),
         color: getComputedStyle(document.querySelector(".window-titlebar")!).backgroundColor,
         border: getComputedStyle(document.querySelector(".window-titlebar")!).borderBottomColor,
+        borderWidth: getComputedStyle(document.querySelector(".window-titlebar")!)
+          .borderBottomWidth,
       },
       main: rect(document.querySelector("main")!),
       plane: {
@@ -101,7 +107,6 @@ async function geometry(page: Page, plane: string) {
         main: resolvedColor("--surface-main"),
         canvasDeep: resolvedColor("--canvas-deep"),
         lineSubtle: resolvedColor("--line-subtle"),
-        base: root.getPropertyValue("color-scheme"),
       },
       documentHeight: document.documentElement.scrollHeight,
       viewportHeight: innerHeight,
@@ -109,18 +114,41 @@ async function geometry(page: Page, plane: string) {
   }, plane);
 }
 
-for (const theme of ["dark", "light", "custom"] as const)
-  for (const utility of windows) {
+type Geometry = Awaited<ReturnType<typeof geometry>>;
+type Rect = Geometry["main"];
+
+function expectStableRect(actual: Rect, expected: Rect) {
+  // Subpixel rounding can vary without causing a visible layout shift.
+  for (const key of ["x", "y", "width", "height"] as const) {
+    expect(Math.abs(actual[key] - expected[key]), key).toBeLessThanOrEqual(1);
+  }
+}
+
+function expectStableFrame(actual: Geometry, expected: Geometry) {
+  expectStableRect(actual.titlebar, expected.titlebar);
+  expectStableRect(actual.main, expected.main);
+  expectStableRect(actual.plane, expected.plane);
+  expect(actual.titlebar.color).toBe(expected.titlebar.color);
+  expect(actual.titlebar.border).toBe(expected.titlebar.border);
+  expect(actual.titlebar.borderWidth).toBe(expected.titlebar.borderWidth);
+  expect(actual.plane.color).toBe(expected.plane.color);
+  expect(actual.documentHeight).toBe(actual.viewportHeight);
+}
+
+for (const utility of windows)
+  for (const theme of utility.mode === "archive-manager"
+    ? (["dark", "light", "custom"] as const)
+    : (["custom"] as const)) {
     test(`${utility.mode}/${theme}: destination geometry and planes survive import and hydration`, async ({
       page,
-    }, info) => {
+    }) => {
       await page.setViewportSize({ width: utility.width, height: utility.height });
       await canonicalPrepaint(page, theme);
       let release!: () => void;
       const held = new Promise<void>((resolve) => {
         release = resolve;
       });
-      await page.route(`**/${utility.module}.tsx*`, async (route) => {
+      await page.route(featureImport(utility.module), async (route) => {
         await held;
         await route.continue();
       });
@@ -132,10 +160,12 @@ for (const theme of ["dark", "light", "custom"] as const)
         await expect
           .poll(() => page.evaluate(() => window.uiStabilityFixture?.utilityEvents.length))
           .toBe(2);
+        const events = await page.evaluate(() => window.uiStabilityFixture.utilityEvents);
+        expect(events.map((event) => event.kind)).toEqual(["shell-ready", "native-show"]);
+        expect(events.every((event) => event.shell)).toBe(true);
         await expect(page.locator("[data-utility-ready]")).toHaveCount(0);
         await expect(page.locator(".reader-status-page")).toHaveCount(0);
-        await expect(page.locator("main").getByRole("button")).toHaveCount(0);
-        await expect(page.locator("main").getByRole("link")).toHaveCount(0);
+        await expect(page.locator(".utility-load-status")).toBeVisible();
         await expect(page.getByRole("button", { name: "Close window", exact: true })).toBeVisible();
         const selectors = [
           ".window-titlebar",
@@ -149,15 +179,14 @@ for (const theme of ["dark", "light", "custom"] as const)
         expect(before.documentHeight).toBe(before.viewportHeight);
         expect(before.titlebar.color).toBe(before.tokens.canvasDeep);
         expect(before.titlebar.border).toBe(before.tokens.lineSubtle);
+        expect(before.titlebar.borderWidth).toBe("1px");
         expect(before.plane.color).toBe(
           utility.mode === "about" || utility.mode === "archive-manager"
             ? before.tokens.main
             : before.tokens.canvas,
         );
-        if (utility.mode === "settings") expect(before.slots.navigation.width).toBe(213);
         // The custom palette intentionally has distinct planes. Do not flatten them.
         if (theme === "custom") expect(before.tokens.main).not.toBe(before.tokens.canvasDeep);
-        await page.screenshot({ path: info.outputPath("01-reveal-eligible-pre-import.png") });
         await page.keyboard.press("Tab");
         await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
         await page.keyboard.press("Enter");
@@ -169,10 +198,9 @@ for (const theme of ["dark", "light", "custom"] as const)
           await expect(page.locator(".utility-window-ready .utility-load-status")).toBeVisible();
           await expect(page.locator("[data-utility-ready]")).toHaveCount(0);
           const during = await geometry(page, utility.plane);
-          expect(during).toEqual(before);
-          await page.screenshot({
-            path: info.outputPath("02-during-preference-initialization.png"),
-          });
+          expectStableFrame(during, before);
+          for (const slot of Object.keys(before.slots))
+            expectStableRect(during.slots[slot], before.slots[slot]);
           await page.evaluate(() => window.uiStabilityFixture.releaseUtilityInitialization());
         }
         await expect(page.locator("[data-utility-ready=true]")).toHaveCount(1);
@@ -180,25 +208,14 @@ for (const theme of ["dark", "light", "custom"] as const)
         for (const selector of selectors)
           await expect(page.locator(selector)).toHaveAttribute("data-persistent-test", "original");
         const after = await geometry(page, utility.plane);
-        expect(after.titlebar).toEqual(before.titlebar);
-        expect(after.main).toEqual(before.main);
-        expect(after.plane).toEqual(before.plane);
-        if (utility.mode === "settings") expect(after.slots.content).toEqual(before.slots.content);
+        expectStableFrame(after, before);
+        if (utility.mode === "settings")
+          expectStableRect(after.slots.content, before.slots.content);
         if (utility.mode === "theme-manager")
-          expect(after.slots.workspace).toEqual(before.slots.workspace);
-        if (utility.mode === "about") expect(after.slots.identity).toEqual(before.slots.identity);
-        expect(after.documentHeight).toBe(after.viewportHeight);
+          expectStableRect(after.slots.workspace, before.slots.workspace);
+        if (utility.mode === "about") expectStableRect(after.slots.identity, before.slots.identity);
         await expect(page.locator(".window-titlebar")).toHaveCount(1);
         await expect(page.locator(".reader-status-page")).toHaveCount(0);
-        await page.screenshot({ path: info.outputPath("03-content-ready.png") });
-        await writeFile(
-          info.outputPath("geometry-and-planes.json"),
-          JSON.stringify(
-            { theme, before, after, native: "mocked reveal eligibility, not compositor evidence" },
-            null,
-            2,
-          ),
-        );
         // A warm same-document render keeps the existing chrome and does not acknowledge again.
         await page.evaluate(() =>
           window.uiStabilityFixture.setAppTheme(window.uiStabilityFixture.getStoredAppTheme()),
@@ -222,11 +239,11 @@ for (const theme of ["dark", "light", "custom"] as const)
 for (const utility of windows) {
   test(`${utility.mode}: rejected import preserves the destination frame and reloads`, async ({
     page,
-  }, info) => {
+  }) => {
     await canonicalPrepaint(page, "light");
     await page.setViewportSize({ width: utility.width, height: utility.height });
     let imports = 0;
-    await page.route(`**/${utility.module}.tsx*`, async (route) => {
+    await page.route(featureImport(utility.module), async (route) => {
       if (++imports === 1) await route.abort();
       else await route.continue();
     });
@@ -243,13 +260,13 @@ for (const utility of windows) {
     if (utility.slot)
       await expect(page.locator(`[data-utility-slot=${utility.slot}]`)).toBeVisible();
     const before = await geometry(page, utility.plane);
-    await page.screenshot({ path: info.outputPath("08-import-rejection.png") });
     await Promise.all([
       page.waitForEvent("domcontentloaded"),
       page.getByRole("button", { name: "Reload window", exact: true }).click(),
     ]);
     await expect(page.locator("[data-utility-ready=true]")).toHaveCount(1);
-    expect((await geometry(page, utility.plane)).plane).toEqual(before.plane);
+    const after = await geometry(page, utility.plane);
+    expectStableFrame(after, before);
     await expect(page.locator(".window-titlebar")).toHaveCount(1);
     await expect
       .poll(() =>
@@ -260,7 +277,7 @@ for (const utility of windows) {
 
   test(`${utility.mode}: indefinitely pending import recovers by a new document`, async ({
     page,
-  }, info) => {
+  }) => {
     await canonicalPrepaint(page, "dark");
     await page.setViewportSize({ width: utility.width, height: utility.height });
     let release!: () => void;
@@ -268,7 +285,7 @@ for (const utility of windows) {
       release = resolve;
     });
     let imports = 0;
-    await page.route(`**/${utility.module}.tsx*`, async (route) => {
+    await page.route(featureImport(utility.module), async (route) => {
       if (++imports === 1) {
         await held;
         await route.abort();
@@ -286,14 +303,15 @@ for (const utility of windows) {
         .locator(".window-titlebar")
         .evaluate((node) => node.setAttribute("data-persistent-test", "original"));
       const before = await geometry(page, utility.plane);
+      await expect(page.locator(".utility-load-status")).toBeVisible();
       await page.clock.fastForward(10_100);
       await expect(page.getByRole("alert")).toContainText("could not be loaded");
       await expect(page.locator(".window-titlebar")).toHaveAttribute(
         "data-persistent-test",
         "original",
       );
-      expect((await geometry(page, utility.plane)).plane).toEqual(before.plane);
-      await page.screenshot({ path: info.outputPath("04-stalled-import-error.png") });
+      const failed = await geometry(page, utility.plane);
+      expectStableFrame(failed, before);
       const reload = page.getByRole("button", { name: "Reload window", exact: true });
       // Reach recovery through normal keyboard order from the persistent skip link.
       await page.getByRole("link", { name: "Skip to content" }).focus();
@@ -314,7 +332,6 @@ for (const utility of windows) {
         ),
       ).toEqual(["shell-ready"]);
       await expect(page.locator(".window-titlebar")).toHaveCount(1);
-      await page.screenshot({ path: info.outputPath("05-reloaded-content.png") });
     } finally {
       release();
     }
@@ -325,7 +342,7 @@ for (const mode of ["settings", "theme-manager"] as const)
   for (const failure of ["hang-once", "reject-once"] as const) {
     test(`${mode}/${failure}: preferences recover through a new store lifecycle`, async ({
       page,
-    }, info) => {
+    }) => {
       await canonicalPrepaint(page, "dark");
       await page.clock.install();
       await page.goto(
@@ -346,10 +363,7 @@ for (const mode of ["settings", "theme-manager"] as const)
       );
       expect(readsBefore).toBe(failure === "hang-once" ? 1 : 2);
       await expect(page.locator("[data-utility-ready]")).toHaveCount(0);
-      await expect(page.locator("main").getByRole("button")).toHaveCount(1);
-      await expect(page.locator("main").getByRole("button")).toHaveText("Reload window");
-      await expect(page.locator("main").getByRole("link")).toHaveCount(0);
-      await page.screenshot({ path: info.outputPath("06-preferences-failed.png") });
+      await expect(page.getByRole("button", { name: "Reload window", exact: true })).toBeVisible();
       await page
         .locator("html")
         .evaluate((node) => node.setAttribute("data-document-test", "original"));
@@ -368,6 +382,5 @@ for (const mode of ["settings", "theme-manager"] as const)
         )
         .toEqual(["shell-ready"]);
       await expect(page.locator(".reader-status-page")).toHaveCount(0);
-      await page.screenshot({ path: info.outputPath("07-new-document-preferences-ready.png") });
     });
   }

@@ -3,7 +3,6 @@ import type { ErrorInfo, ReactNode } from "react";
 
 import { initializeArchiveManagerStartup } from "../../app/startupController";
 import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
-import { ArchiveManagerTitlebarComposition } from "./ArchiveManagerTitlebarComposition";
 import { completeArchiveManagerAction } from "./archiveManagerCompletion";
 import { useArchive } from "./useArchive";
 import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
@@ -22,7 +21,6 @@ const ARCHIVE_MANAGER_OPEN_ERROR =
 export function ArchiveManagerFallback({ message }: { message: string }) {
   return (
     <main className="archive-manager-shell" id={ARCHIVE_MANAGER_MAIN_CONTENT_ID} tabIndex={-1}>
-      <ArchiveManagerTitlebarComposition />
       <section
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-fallback-title"

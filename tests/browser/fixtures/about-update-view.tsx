@@ -14,7 +14,7 @@ export function AboutUpdateFixture() {
   }, [fixture]);
   return (
     <div className="window-app window-app--about">
-      <WindowTitlebar canMaximize={false} />
+      <WindowTitlebar canMaximize={false} utility />
       <div className="window-app__content">
         <main className="about-window-shell" tabIndex={-1}>
           <AboutSurface updateClient={fixture.client} />

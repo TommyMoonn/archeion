@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WindowTitlebar, WindowTitlebarAppActions } from "./WindowTitlebar";
 import { TooltipProvider } from "./Tooltip";
-import { ArchiveManagerTitlebarComposition } from "../features/archive/ArchiveManagerTitlebarComposition";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -40,7 +39,7 @@ function renderTitlebar(
   canMaximize: boolean,
   withAppAction = false,
   presentation?: "split",
-  withManagerComposition = false,
+  utility = false,
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -50,8 +49,7 @@ function renderTitlebar(
   act(() => {
     root.render(
       <TooltipProvider>
-        <WindowTitlebar canMaximize={canMaximize} />
-        {withManagerComposition ? <ArchiveManagerTitlebarComposition /> : null}
+        <WindowTitlebar canMaximize={canMaximize} utility={utility} />
         {withAppAction ? (
           <WindowTitlebarAppActions presentation={presentation}>
             <button aria-label="Library frame action" type="button" />
@@ -232,9 +230,6 @@ describe("WindowTitlebar", () => {
     const dragRegion = container.querySelector<HTMLElement>(".window-titlebar__drag-region");
 
     expect(dragRegion?.hasAttribute("data-tauri-drag-region")).toBe(true);
-    const managerPlane = container.querySelector(".archive-manager-titlebar-composition");
-    expect(managerPlane?.hasAttribute("data-tauri-drag-region")).toBe(true);
-    expect(managerPlane?.closest('[data-window-titlebar-presentation="split"]')).not.toBeNull();
     expect(button(container, "Minimize window").closest("[data-tauri-drag-region]")).toBeNull();
     expect(button(container, "Close window").closest("[data-tauri-drag-region]")).toBeNull();
     expect(button(container, "Minimize window").disabled).toBe(false);
