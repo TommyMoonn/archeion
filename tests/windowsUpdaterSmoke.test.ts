@@ -124,7 +124,12 @@ describe("isolated Windows updater fixtures", () => {
     const overlay = createSmokeOverlay(options);
     expect(overlay.identifier).toBe("com.archeion.desktop.updatersmoke.r0123456789abcdef");
     expect(overlay.version).toBe("1.6.0");
-    expect(overlay.bundle.windows.wix.upgradeCode).toBe(options.upgradeCode);
+    expect(overlay.bundle.windows.wix).toMatchObject({
+      upgradeCode: options.upgradeCode,
+      fragmentPaths: [],
+      componentRefs: [],
+    });
+    expect(overlay.bundle.windows.nsis.installerHooks).toBeNull();
     expect(overlay.plugins.updater).toMatchObject({
       endpoints: [options.endpoint],
       pubkey: options.publicKey,

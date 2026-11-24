@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot 'Cli.Common.ps1')
+. (Join-Path $PSScriptRoot 'WindowsEpubAssociation.Common.ps1')
 
 function Assert-OwnedPreviousLocation {
     param([string]$RegistryPath, [string]$InstallDirectory)
@@ -53,11 +54,11 @@ if ($cli['help']) {
     Write-CliHelp @'
 Usage: .\scripts\smoke-windows-installer.ps1 [options]
 
-Silently install and uninstall the staged per-user NSIS bundle in an isolated
+Silently install and uninstall a per-user NSIS bundle in an isolated
 temporary directory. Refuses to run when an Archeion installation already exists.
 
 Options:
-  --installer <path>            Staged Archeion NSIS installer.
+  --installer <path>            Archeion NSIS installer (.exe).
   -h, --help                    Show this help.
 '@
     return
@@ -107,6 +108,9 @@ if (Get-Process -Name Archeion -ErrorAction SilentlyContinue) {
     throw 'Archeion is running; refusing installer smoke.'
 }
 
+Assert-CleanArcheionAssociationState
+$originalDefaultState = Get-EpubDefaultState
+
 $temporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 $scratch = Join-Path $temporaryRoot "archeion-installer-smoke-$([guid]::NewGuid().ToString('N'))"
 $installDirectory = Join-Path $scratch 'installed'
@@ -152,6 +156,10 @@ try {
     if ($versionInfo.ProductName -ne 'Archeion') {
         throw "Installed executable has unexpected product metadata: '$($versionInfo.ProductName)'."
     }
+
+    Assert-EpubDefaultState $originalDefaultState
+    Assert-ArcheionEpubRegistration 'HKCU:\Software\Classes' $application
+
 }
 catch {
     $failure = $_
@@ -199,6 +207,18 @@ finally {
         }
         elseif (Test-Path -LiteralPath $previousLocationKey) {
             $cleanupFailure = "Uninstall left Archeion previous-location state behind: $previousLocationKey"
+        }
+        elseif (Test-ArcheionEpubRegistration 'HKCU:\Software\Classes') {
+            $cleanupFailure = 'Uninstall left Archeion in the EPUB Open with registration.'
+        }
+        else {
+            try {
+                Assert-EpubDefaultState $originalDefaultState
+                if (Test-ArcheionEpubRegistration 'HKCU:\Software\Classes') { throw 'Uninstall left the EPUB ProgID behind.' }
+            }
+            catch {
+                $cleanupFailure = $_
+            }
         }
     }
 

@@ -67,8 +67,14 @@ export type ArchiveCommandMap = {
       annotationRevision: string;
     }
   >;
-  save_library_metadata: CommandDefinition<{ metadata: LibraryMetadata }, void>;
-  save_progress_metadata: CommandDefinition<{ metadata: ProgressMetadata }, void>;
+  save_library_metadata: CommandDefinition<
+    { metadata: LibraryMetadata; changedBookIds?: string[] },
+    void
+  >;
+  save_progress_metadata: CommandDefinition<
+    { metadata: ProgressMetadata; changedBookIds?: string[] },
+    void
+  >;
   save_annotations_metadata: CommandDefinition<
     { metadata: StoredAnnotationsMetadata; expectedRevision: string },
     string | null

@@ -193,7 +193,9 @@ The Windows runtime smoke builds an unbundled release-profile test executable
 from the current sources and drives its real WebView2 instance through Tauri's
 WebDriver bridge. It covers archive creation and opening, EPUB import and
 reading, settings after restart, annotation metadata and export, a disposable
-EPUB replacement, and a secondary window.
+EPUB replacement, secondary windows, and standalone EPUB cold/warm launch,
+managed and temporary sessions, duplicate requests, independent close, and
+last-window process exit.
 
 The test build uses a unique application identifier and a temporary archive.
 It does not use the normal Archeion settings or archives. It does not install
@@ -215,6 +217,40 @@ WebView2 test identity state on success or failure.
 If a step fails, inspect `test-results/runtime-smoke/failure.txt`, the driver
 log, and any captured page or screenshot. CI uploads those files as the
 `windows-runtime-smoke-failure` artifact.
+
+## Verify standalone Reader installers
+
+Use a clean disposable Windows environment without an existing Archeion
+installation or running process. Build and stage both installer formats:
+
+```powershell
+pnpm run tauri:build:windows
+pnpm run release:stage:local
+pwsh -NoProfile -File scripts/smoke-windows-installer.ps1 --installer artifacts/windows/Archeion-Setup-x64.exe
+pwsh -NoProfile -File scripts/smoke-windows-msi.ps1 -Installer artifacts/windows/Archeion-x64.msi
+```
+
+Run the MSI smoke in an elevated terminal. Both scripts verify the installed
+Open With registry commands, existing default association, and uninstall
+cleanup. They refuse an existing installation. These checks do not exercise
+Explorer or render an installed EPUB. Before release, install each format
+separately and manually verify the following:
+
+- An existing default EPUB application remains selected, and Archeion is offered
+  under Explorer's Open with menu without browsing for the executable.
+- An EPUB with spaces and Unicode opens in a Reader-only window. Test a local
+  long path and a local file URL as well as an inaccessible or malformed file.
+- A tracked book restores and saves reading progress and annotations; an
+  untracked copy or book in an inactive archive does not save book state.
+- Opening several files quickly preserves the Library and other Readers;
+  opening the same file focuses its existing window. Closing the last Reader
+  exits the process. Closing a managed Reader through the titlebar preserves
+  pending changes.
+- Uninstalling removes Archeion's Open With entries without changing another
+  application's default association.
+
+Record results for both packages; the unbundled WebDriver test alone is not
+proof of installed Explorer behavior.
 
 ## Run the Windows updater smoke
 

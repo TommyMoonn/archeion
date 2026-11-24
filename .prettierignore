@@ -7,6 +7,8 @@ website/.docusaurus/
 coverage/
 src-tauri/target/
 src-tauri/gen/
+# WiX source is XML.
+src-tauri/windows/epub-open-with.wxs
 *.tsbuildinfo
 .eslintcache
 .vite/

@@ -45,6 +45,8 @@ import { AppearanceStatus } from "./AppearanceStatus";
 import { UtilityWindowContentBoundary, UtilityWindowFrame } from "./UtilityWindowFrame";
 import { useManagedWindowShellReady } from "./useManagedWindowShellReady";
 import { installBrowserContextMenuPolicy } from "./browserContextMenuPolicy";
+import { loadColdStartEpub, type ExternalReaderRequest } from "./coldStartEpubClient";
+import { StandaloneReaderStartup } from "./StandaloneReaderStartup";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -72,6 +74,28 @@ function subscribeToRouteChanges(listener: () => void): () => void {
 }
 
 export function App() {
+  const [launch, setLaunch] = useState<
+    | { status: "checking" }
+    | { status: "ready"; request: ExternalReaderRequest | null }
+    | { status: "error" }
+  >({ status: "checking" });
+
+  useEffect(() => {
+    let active = true;
+    void loadColdStartEpub().then(
+      (request) => {
+        if (active) setLaunch({ status: "ready", request });
+      },
+      (error: unknown) => {
+        console.error("Unable to inspect the cold-start EPUB request", error);
+        if (active) setLaunch({ status: "error" });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
   useLayoutEffect(() => installBrowserContextMenuPolicy(document), []);
 
   const { ready } = useSyncExternalStore(
@@ -88,16 +112,25 @@ export function App() {
   return (
     <>
       <AppearanceStatus />
-      {ready && <AppWindow />}
+      {ready && launch.status === "ready" && <AppWindow externalReaderRequest={launch.request} />}
+      {ready && launch.status === "error" && <StandaloneReaderStartup request={null} />}
     </>
   );
 }
 
-function AppWindow() {
-  const windowMode = resolveWindowMode();
+function AppWindow({
+  externalReaderRequest,
+}: {
+  externalReaderRequest: ExternalReaderRequest | null;
+}) {
+  const windowMode = resolveWindowMode({ coldStartEpub: externalReaderRequest?.token });
   useManagedWindowShellReady(windowMode);
 
   useEffect(() => focusPresentationRuntime.start(document), []);
+
+  if (windowMode === "standalone-reader") {
+    return <StandaloneReaderStartup request={externalReaderRequest} />;
+  }
 
   if (windowMode === "archive-manager") {
     return (

@@ -80,10 +80,13 @@
       },
       "nsis": {
         "installMode": "currentUser",
+        "installerHooks": "windows/epub-association.nsh",
         "installerIcon": "icons/icon.ico"
       },
       "wix": {
         "language": "en-US",
+        "fragmentPaths": ["windows/epub-open-with.wxs"],
+        "componentRefs": ["ArcheionEpubOpenWith"],
         "upgradeCode": "dd33f41c-13de-58f4-a67c-28ffd4482b07"
       }
     }

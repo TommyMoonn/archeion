@@ -42,8 +42,73 @@ pub(super) fn validate_epub_file_size(path: &Path) -> Result<u64, EpubFileResour
 
 pub(super) fn read_epub_file_bytes(path: &Path) -> Result<Vec<u8>, String> {
     let mut file = File::open(path).map_err(|error| error.to_string())?;
-    let declared_length = validate_epub_file_size(path).map_err(|error| error.to_string())?;
+    let metadata = file.metadata().map_err(|error| error.to_string())?;
+    if !metadata.is_file() {
+        return Err(EpubFileResourceError::NotFile.to_string());
+    }
+    let declared_length = metadata.len();
     read_bounded_epub_bytes(&mut file, declared_length)
+}
+
+// External requests must still refer to the canonical local path selected at launch.
+// On Windows, deny concurrent writes/deletes while the handle is open, and verify
+// the actual handle target rather than trusting a second path-based lookup.
+pub(super) fn read_external_epub_bytes(path: &Path) -> Result<Vec<u8>, String> {
+    let changed = || "The selected EPUB has changed since it was opened.".to_string();
+    if !super::cold_start_epub::is_local_reader_path(path)
+        || fs::canonicalize(path).map_err(|_| changed())? != path
+    {
+        return Err(changed());
+    }
+    let mut options = fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // FILE_SHARE_READ only: keep the selected file stable during the bounded read.
+        options.share_mode(1);
+    }
+    let mut file = options.open(path).map_err(|error| error.to_string())?;
+    #[cfg(windows)]
+    {
+        use std::{
+            ffi::OsString,
+            os::windows::{ffi::OsStringExt, io::AsRawHandle},
+        };
+        use windows::Win32::{
+            Foundation::HANDLE,
+            Storage::FileSystem::{GetFinalPathNameByHandleW, FILE_NAME_NORMALIZED},
+        };
+        let mut buffer = vec![0u16; 32768];
+        // SAFETY: the borrowed file handle remains open, and buffer is writable.
+        let length = unsafe {
+            GetFinalPathNameByHandleW(
+                HANDLE(file.as_raw_handle()),
+                &mut buffer,
+                FILE_NAME_NORMALIZED,
+            )
+        } as usize;
+        if length == 0
+            || length >= buffer.len()
+            || Path::new(&OsString::from_wide(&buffer[..length])) != path
+        {
+            return Err(changed());
+        }
+    }
+    let before = file.metadata().map_err(|error| error.to_string())?;
+    if !before.is_file() {
+        return Err(EpubFileResourceError::NotFile.to_string());
+    }
+    let bytes = read_bounded_epub_bytes(&mut file, before.len())?;
+    let after = file.metadata().map_err(|error| error.to_string())?;
+    if bytes.len() as u64 != before.len()
+        || after.len() != before.len()
+        || before.modified().ok() != after.modified().ok()
+        || fs::canonicalize(path).map_err(|_| changed())? != path
+    {
+        return Err(changed());
+    }
+    Ok(bytes)
 }
 
 fn read_bounded_epub_bytes(
@@ -103,7 +168,7 @@ mod tests {
 
     use super::{
         read_bounded_epub_bytes, read_bounded_epub_bytes_with_limit, read_epub_file_bytes,
-        MAX_ACTIVE_EPUB_BYTES,
+        read_external_epub_bytes, MAX_ACTIVE_EPUB_BYTES,
     };
 
     struct ReadCounter {
@@ -193,6 +258,44 @@ mod tests {
             .expect_err("changing oversized stream should be rejected");
 
         assert_eq!(error, "This EPUB exceeds Archeion's 256 MiB reader limit.");
+    }
+
+    #[test]
+    fn external_reads_reject_deleted_or_redirected_paths() {
+        let root = std::env::temp_dir().join(format!(
+            "archeion-external-read-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let path = root.join("A 日本語.epub");
+        fs::write(&path, b"selected bytes").unwrap();
+        let canonical = fs::canonicalize(&path).unwrap();
+        assert_eq!(
+            read_external_epub_bytes(&canonical).unwrap(),
+            b"selected bytes"
+        );
+        fs::remove_file(&path).unwrap();
+        assert!(read_external_epub_bytes(&canonical).is_err());
+        let other = root.join("other.epub");
+        fs::write(&other, b"other bytes").unwrap();
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&other, &path).unwrap();
+            assert!(read_external_epub_bytes(&canonical).is_err());
+        }
+        #[cfg(windows)]
+        {
+            // Symlink creation requires Developer Mode or an elevated token on
+            // Windows. Do not fail the ordinary suite when it is unavailable.
+            if std::os::windows::fs::symlink_file(&other, &path).is_ok() {
+                assert!(read_external_epub_bytes(&canonical).is_err());
+            }
+        }
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

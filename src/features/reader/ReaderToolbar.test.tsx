@@ -83,6 +83,17 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe("ReaderToolbar", () => {
+  it("hides persistence controls while retaining Reader navigation and appearance in temporary mode", () => {
+    const { container } = renderToolbar({ temporary: true, backLabel: "Close Reader" });
+    expect(container.querySelector('[aria-label="Bookmark"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Annotations"]')).toBeNull();
+    expect(button(container, "Book navigation")).toBeDefined();
+    expect(button(container, "Find in book")).toBeDefined();
+    expect(button(container, "Reader settings")).toBeDefined();
+    expect(button(container, "Close Reader").textContent).toContain("Close");
+    expect(container.textContent).toContain("Temporary");
+  });
+
   it.each([false, true])(
     "exposes the Appearance drawer state when expanded is %s",
     (settingsOpen) => {

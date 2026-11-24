@@ -65,6 +65,7 @@
     "version:set": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/set-version.ps1",
     "release:check": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-release.ps1 --require-changelog",
     "release:stage": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/stage-windows-release.ps1",
+    "release:stage:local": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/stage-windows-release.ps1 --installers-only",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

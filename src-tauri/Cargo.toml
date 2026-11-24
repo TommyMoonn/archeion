@@ -37,10 +37,12 @@ zip = { version = "9.3", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tauri-plugin-updater = "2.13.2"
+tauri-plugin-single-instance = "=2.5.5"
 windows = { version = "=0.62.2", features = [
   "Win32_Foundation",
   "Win32_Globalization",
   "Win32_Graphics_DirectWrite",
   "Win32_System_Com",
+  "Win32_Storage_FileSystem",
   "Win32_UI_Shell",
 ] }

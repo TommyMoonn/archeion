@@ -1,4 +1,6 @@
 import { BookOpenText, X } from "lucide-react";
+import { isTauri } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   useCallback,
   useContext,
@@ -28,12 +30,17 @@ import {
   readerReturnNavigation,
 } from "../../app/readerReturnContext";
 import { useReaderArchiveSession } from "../archive/readerArchiveSession";
-import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import { useOptionalLibraryStorage } from "../../storage/useLibraryStorage";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Annotation } from "../../types/annotation";
 import { bookTitle } from "../../utils/bookDisplay";
 import { type ReaderNavigationState, type ReaderSettings } from "../../types/reader";
+import {
+  closeStandaloneReaderWindow,
+  readExternalReaderEpub,
+  type ExternalReaderRequest,
+} from "./externalReaderSource";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import { createLoadingReaderNavigationState } from "./readerNavigationState";
@@ -41,6 +48,7 @@ import {
   EMPTY_READER_LOCATION,
   type ReaderLocation,
   type ReaderRelocation,
+  normalizeReaderLocation,
 } from "./readerLocation";
 import { createReaderSessionController, createReaderSessionKey } from "./readerSession";
 import type { EpubSessionError } from "./useEpubSession";
@@ -49,7 +57,11 @@ import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
-import { ReaderToolbar, ReaderToolbarVisibilityToggle } from "./ReaderToolbar";
+import {
+  ReaderToolbar,
+  ReaderToolbarVisibilityToggle,
+  type StandaloneCloseStatus,
+} from "./ReaderToolbar";
 import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
@@ -91,6 +103,10 @@ import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
 import { readerModeForPublication } from "./readerSettingsCapabilities";
 import { createReaderPresentationController } from "./readerPresentationController";
+import {
+  temporaryReaderStorage,
+  createTemporaryReaderPresentationController,
+} from "./temporaryReaderStorage";
 import { useReaderPanelPrewarm } from "./useReaderPanelPrewarm";
 import { ReaderOpeningStatus } from "./ReaderOpeningStatus";
 import { ReaderExitPresentation } from "./ReaderExitPresentation";
@@ -114,21 +130,42 @@ export function ReaderRoute() {
   return <ReaderPage key={createReaderSessionKey(bookId, startMode)} />;
 }
 
-export function ReaderPage() {
-  const book = useLoaderData() as Book | undefined;
-  const bookId = book?.id;
+export function ReaderPage({
+  externalSession,
+  managedBook,
+}: {
+  externalSession?: ExternalReaderRequest;
+  managedBook?: Book;
+}) {
+  const standalone = Boolean(externalSession);
+  const temporary = standalone && !managedBook;
+  const loadedBook = useLoaderData() as Book | undefined;
+  const book = managedBook ?? loadedBook;
+  const bookId = temporary ? undefined : book?.id;
   const navigate = useNavigate();
   const setExitFrame = useContext(ReaderExitFrameContext)?.setFrame;
   const routerLocation = useLocation();
   const archiveSession = useReaderArchiveSession();
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
-  const storage = useLibraryStorage();
+  const managedStorage = useOptionalLibraryStorage();
+  if (!temporary && !managedStorage) throw new Error("LibraryStorageProvider is missing.");
+  const storage = managedStorage ?? temporaryReaderStorage;
   const { getCommandBinding, handleKeyboardEvent, openSettings } = useQuickActions();
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
-  const archiveRootPath = archiveSession.rootPath;
+  const archiveRootPath = temporary ? null : archiveSession.rootPath;
+  const externalSource = useMemo(
+    () =>
+      externalSession
+        ? {
+            requestKey: externalSession.token,
+            load: () => readExternalReaderEpub(externalSession.token),
+          }
+        : undefined,
+    [externalSession],
+  );
   const [appearanceController] = useState(() =>
     createReaderAppearanceController({
       preferences: appPreferencesStore,
@@ -142,8 +179,11 @@ export function ReaderPage() {
   );
   const settings = appearance.settings;
   const presentationController = useMemo(
-    () => createReaderPresentationController(storage, bookId ?? null),
-    [storage, bookId],
+    () =>
+      temporary
+        ? createTemporaryReaderPresentationController()
+        : createReaderPresentationController(storage, bookId ?? null),
+    [storage, bookId, temporary],
   );
   const bookPresentation = useSyncExternalStore(
     presentationController.subscribe,
@@ -158,6 +198,8 @@ export function ReaderPage() {
   const readerToolbarRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
+  const standaloneClosePending = useRef(false);
+  const [standaloneCloseStatus, setStandaloneCloseStatus] = useState<StandaloneCloseStatus>();
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>(() =>
     createLoadingReaderNavigationState(),
@@ -169,7 +211,9 @@ export function ReaderPage() {
     useState<ReaderPublicationSearchControllerState>(INITIAL_PUBLICATION_SEARCH_STATE);
   const [seekMapStatus, setSeekMapStatus] = useState<ReaderSeekMapState["status"]>("pending");
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
-  const [readerSessionController] = useState(() => createReaderSessionController(bookId ?? null));
+  const [readerSessionController] = useState(() =>
+    createReaderSessionController(bookId ?? externalSession?.token ?? null),
+  );
   const readerSessionSnapshot = useSyncExternalStore(
     readerSessionController.subscribe,
     readerSessionController.getSnapshot,
@@ -218,18 +262,19 @@ export function ReaderPage() {
     return () => presentationController.teardown();
   }, [presentationController]);
 
-  const activeArchiveId = archiveSession.archiveId;
+  const activeArchiveId = temporary ? null : archiveSession.archiveId;
   const returnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
   const returnDestination = readerReturnNavigation(returnContext);
-  const backLabel = readerReturnAccessibleLabel(returnContext);
+  const backLabel = standalone ? "Close Reader" : readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appearance.persistenceFailed;
   const readerSource = useReaderSource({
-    active: Boolean(bookId && activeArchiveId && !isBookFileMissing),
+    active: Boolean(externalSession || (bookId && activeArchiveId && !isBookFileMissing)),
     archiveId: activeArchiveId,
     archiveRootPath,
     bookId: bookId ?? null,
     storage,
+    external: externalSource,
   });
   useLayoutEffect(() => {
     if (
@@ -335,8 +380,10 @@ export function ReaderPage() {
   });
   const settleReaderLeave = useCallback(async () => {
     if (!(await settleNoteEditor())) return false;
-    return progressController?.flush() ?? true;
-  }, [progressController, settleNoteEditor]);
+    if (progressController && !(await progressController.flush())) return false;
+    if (standalone) await appPreferencesStore.flushPendingWrites();
+    return true;
+  }, [progressController, settleNoteEditor, standalone]);
   const retireReaderSession = useCallback(async () => {
     invalidateOpenRequests();
     const identity = readerSessionController.getSnapshot().lifecycle.identity;
@@ -467,7 +514,7 @@ export function ReaderPage() {
   );
   const nextVolume = useReaderSeriesContinuation({
     book,
-    isReaderReady: readerReady,
+    isReaderReady: readerReady && !standalone,
     progressPercent: location.percentage,
     storage,
   });
@@ -504,14 +551,65 @@ export function ReaderPage() {
     [activeArchiveId, leaveReader, navigate],
   );
 
+  const closeStandaloneReader = useCallback(async () => {
+    if (!externalSession || standaloneClosePending.current) return;
+    standaloneClosePending.current = true;
+    setStandaloneCloseStatus("closing");
+    let settled = false;
+    try {
+      invalidateOpenRequests();
+      // Native window destruction owns renderer cleanup. Do not retire a live Reader
+      // before close succeeds: a failed close must leave its content usable.
+      settled = await settleReaderLeave();
+      if (!settled) {
+        setStandaloneCloseStatus("save-failed");
+        activateToolbarVisibility();
+        return;
+      }
+      await closeStandaloneReaderWindow(externalSession.token);
+      setStandaloneCloseStatus(undefined);
+    } catch (error) {
+      console.error(settled ? "Unable to close standalone Reader" : "Unable to save Reader", error);
+      setStandaloneCloseStatus(settled ? "close-failed" : "save-failed");
+      activateToolbarVisibility();
+    } finally {
+      standaloneClosePending.current = false;
+    }
+  }, [activateToolbarVisibility, externalSession, invalidateOpenRequests, settleReaderLeave]);
+  useEffect(() => {
+    if (!standalone || !isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onCloseRequested((event) => {
+        event.preventDefault();
+        void closeStandaloneReader();
+      })
+      .then((stop) => {
+        if (disposed) stop();
+        else unlisten = stop;
+      })
+      .catch((error: unknown) => {
+        console.error("Unable to intercept standalone Reader close", error);
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [closeStandaloneReader, standalone]);
+
   const returnToOrigin = useCallback(() => {
+    if (standalone) {
+      void closeStandaloneReader();
+      return;
+    }
     void leaveReader(() =>
       navigate(returnDestination.href, {
         replace: true,
         state: returnDestination.state,
       }),
     );
-  }, [leaveReader, navigate, returnDestination]);
+  }, [closeStandaloneReader, leaveReader, navigate, returnDestination, standalone]);
 
   const readerSearchInputRef = useRef<HTMLInputElement>(null);
   const searchSurfaceWasOpenRef = useRef(false);
@@ -572,16 +670,20 @@ export function ReaderPage() {
     const canHandleReaderCommand = (event: KeyboardEvent) => isReaderKeyboardCommandEligible(event);
 
     const commands: QuickActionRegistration[] = [
-      {
-        configuration: "unbound",
-        execute: () => navigateToLibraryView("library", true),
-        group: "Library",
-        id: "reader.search-books",
-        keywords: ["find books", "search library"],
-        label: "Search books",
-        order: 40,
-        scope: "reader",
-      },
+      ...(!standalone
+        ? [
+            {
+              configuration: "unbound",
+              execute: () => navigateToLibraryView("library", true),
+              group: "Library",
+              id: "reader.search-books",
+              keywords: ["find books", "search library"],
+              label: "Search books",
+              order: 40,
+              scope: "reader",
+            } satisfies QuickActionRegistration,
+          ]
+        : []),
       {
         ...commandDefinitions.focusSearch,
         allowInReaderSideSurface: true,
@@ -593,46 +695,50 @@ export function ReaderPage() {
         order: 41,
         scope: "reader",
       },
-      {
-        configuration: "unbound",
-        execute: () => navigateToLibraryView("library"),
-        group: "Navigate",
-        id: "reader.navigate.library",
-        keywords: ["go to collection", "home"],
-        label: "Go to Library",
-        order: 50,
-        scope: "reader",
-      },
-      {
-        configuration: "unbound",
-        execute: () => navigateToLibraryView("favorites"),
-        group: "Navigate",
-        id: "reader.navigate.favorites",
-        keywords: ["favorite books", "starred"],
-        label: "Go to Favorites",
-        order: 52,
-        scope: "reader",
-      },
-      {
-        configuration: "unbound",
-        execute: () => navigateToLibraryView("folders"),
-        group: "Navigate",
-        id: "reader.navigate.folders",
-        keywords: ["browse folders", "organization"],
-        label: "Go to Folders",
-        order: 53,
-        scope: "reader",
-      },
-      {
-        configuration: "unbound",
-        execute: () => navigateToLibraryView("series"),
-        group: "Navigate",
-        id: "reader.navigate.series",
-        keywords: ["browse series", "collections"],
-        label: "Go to Series",
-        order: 54,
-        scope: "reader",
-      },
+      ...(!standalone
+        ? ([
+            {
+              configuration: "unbound",
+              execute: () => navigateToLibraryView("library"),
+              group: "Navigate",
+              id: "reader.navigate.library",
+              keywords: ["go to collection", "home"],
+              label: "Go to Library",
+              order: 50,
+              scope: "reader",
+            },
+            {
+              configuration: "unbound",
+              execute: () => navigateToLibraryView("favorites"),
+              group: "Navigate",
+              id: "reader.navigate.favorites",
+              keywords: ["favorite books", "starred"],
+              label: "Go to Favorites",
+              order: 52,
+              scope: "reader",
+            },
+            {
+              configuration: "unbound",
+              execute: () => navigateToLibraryView("folders"),
+              group: "Navigate",
+              id: "reader.navigate.folders",
+              keywords: ["browse folders", "organization"],
+              label: "Go to Folders",
+              order: 53,
+              scope: "reader",
+            },
+            {
+              configuration: "unbound",
+              execute: () => navigateToLibraryView("series"),
+              group: "Navigate",
+              id: "reader.navigate.series",
+              keywords: ["browse series", "collections"],
+              label: "Go to Series",
+              order: 54,
+              scope: "reader",
+            },
+          ] satisfies QuickActionRegistration[])
+        : []),
       {
         ...commandDefinitions.readerHistoryBack,
         availability: navigationHistory.canGoBack
@@ -664,23 +770,27 @@ export function ReaderPage() {
         order: 80,
         scope: "reader",
       },
-      {
-        ...commandDefinitions.readerAnnotations,
-        canHandleEvent: canHandleReaderCommand,
-        execute: toggleAnnotations,
-        keywords: ["bookmarks", "highlights", "notes"],
-        order: 81,
-        scope: "reader",
-      },
-      {
-        ...commandDefinitions.readerBookmark,
-        availability: bookmarkAvailability,
-        canHandleEvent: canHandleReaderCommand,
-        execute: () => void toggleCurrentBookmark(),
-        keywords: ["bookmark", "reading location"],
-        order: 82,
-        scope: "reader",
-      },
+      ...(!temporary
+        ? ([
+            {
+              ...commandDefinitions.readerAnnotations,
+              canHandleEvent: canHandleReaderCommand,
+              execute: toggleAnnotations,
+              keywords: ["bookmarks", "highlights", "notes"],
+              order: 81,
+              scope: "reader",
+            },
+            {
+              ...commandDefinitions.readerBookmark,
+              availability: bookmarkAvailability,
+              canHandleEvent: canHandleReaderCommand,
+              execute: () => void toggleCurrentBookmark(),
+              keywords: ["bookmark", "reading location"],
+              order: 82,
+              scope: "reader",
+            },
+          ] satisfies QuickActionRegistration[])
+        : []),
       {
         ...commandDefinitions.readerSettings,
         canHandleEvent: canHandleReaderCommand,
@@ -770,12 +880,17 @@ export function ReaderPage() {
     returnToOrigin,
     publicationMode,
     sideSurface,
+    standalone,
     toggleAnnotations,
     toggleCurrentBookmark,
     toggleSettings,
     toggleNavigation,
+    temporary,
   ]);
-  useRegisterQuickActions("reader", retiring ? [] : quickActionCommands);
+  useRegisterQuickActions(
+    "reader",
+    retiring || standaloneCloseStatus === "closing" ? [] : quickActionCommands,
+  );
 
   const navigateToNavigationItem = useCallback(
     (itemId: string) =>
@@ -838,20 +953,20 @@ export function ReaderPage() {
 
   const handleReady = useCallback(
     (identity: Parameters<typeof readerSessionController.ready>[0]) => {
-      if (!progressController || isBookFileMissing || !readerSessionController.ready(identity)) {
-        return;
-      }
+      if (isBookFileMissing || !readerSessionController.ready(identity)) return;
       setReaderReady(true);
       activateToolbarVisibility();
-      progressController.recordOpened(identity);
+      progressController?.recordOpened(identity);
     },
     [activateToolbarVisibility, isBookFileMissing, progressController, readerSessionController],
   );
 
   const handleLocationChange = useCallback(
     (relocation: ReaderRelocation) => {
-      if (!readerSessionIdentity || !progressController) return;
-      const nextLocation = progressController.acceptRelocation(readerSessionIdentity, relocation);
+      if (!readerSessionIdentity || standaloneClosePending.current) return;
+      const nextLocation = progressController
+        ? progressController.acceptRelocation(readerSessionIdentity, relocation)
+        : normalizeReaderLocation(relocation);
       if (!nextLocation) return;
 
       setLocation(nextLocation);
@@ -904,7 +1019,7 @@ export function ReaderPage() {
 
   const handleContentKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (isReaderShortcutTargetBlocked(event.target)) return;
+      if (standaloneClosePending.current || isReaderShortcutTargetBlocked(event.target)) return;
       const sourceDocument =
         (event.target as { ownerDocument?: Document } | null)?.ownerDocument ??
         event.view?.document ??
@@ -915,27 +1030,29 @@ export function ReaderPage() {
   );
 
   let sourceError;
-  if (!book || book.isFileMissing) {
+  if (!temporary && (!book || book.isFileMissing)) {
     sourceError = (
       <section className="reader-error" role="alert">
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
         <div className="reader-status-page__actions">
-          <Button
-            busy={recoveryStatus === "rescanning"}
-            disabled={recoveryStatus === "rescanning"}
-            onClick={handleRescanAndReturn}
-            size="standard"
-            variant="secondary"
-          >
-            Rescan Library
-          </Button>
+          {!standalone ? (
+            <Button
+              busy={recoveryStatus === "rescanning"}
+              disabled={recoveryStatus === "rescanning"}
+              onClick={handleRescanAndReturn}
+              size="standard"
+              variant="secondary"
+            >
+              Rescan Library
+            </Button>
+          ) : null}
           <button className="text-link" onClick={returnToOrigin} type="button">
-            Back
+            {standalone ? "Close" : "Back"}
           </button>
         </div>
-        {recoveryStatus === "failed" ? (
+        {!temporary && recoveryStatus === "failed" ? (
           <p className="reader-status-page__error" data-tone="error" role="alert">
             The archive could not be scanned. Try again or return to the Library.
           </p>
@@ -944,7 +1061,7 @@ export function ReaderPage() {
     );
   }
 
-  const title = book ? bookTitle(book) : "Book file missing";
+  const title = book ? bookTitle(book) : (externalSession?.fileName ?? "Book file missing");
   const fileLease = readerSource.status === "ready" ? readerSource.lease : undefined;
   const isFileLoading = readerSource.status === "loading";
   const isSessionAwaitingSourcePublication =
@@ -965,7 +1082,9 @@ export function ReaderPage() {
         <p>
           {readerSource.status === "error"
             ? readerSource.error
-            : "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it."}
+            : temporary
+              ? "The selected EPUB could not be read."
+              : "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it."}
         </p>
         <div className="reader-status-page__actions">
           {readerSource.status === "error" && readerSource.retryable ? (
@@ -973,20 +1092,22 @@ export function ReaderPage() {
               Try again
             </Button>
           ) : null}
-          <Button
-            busy={recoveryStatus === "rescanning"}
-            disabled={recoveryStatus === "rescanning"}
-            onClick={handleRescanAndReturn}
-            size="standard"
-            variant="secondary"
-          >
-            Rescan Library
-          </Button>
+          {!standalone ? (
+            <Button
+              busy={recoveryStatus === "rescanning"}
+              disabled={recoveryStatus === "rescanning"}
+              onClick={handleRescanAndReturn}
+              size="standard"
+              variant="secondary"
+            >
+              Rescan Library
+            </Button>
+          ) : null}
           <button className="text-link" onClick={returnToOrigin} type="button">
-            Back
+            {standalone ? "Close" : "Back"}
           </button>
         </div>
-        {recoveryStatus === "failed" ? (
+        {!temporary && recoveryStatus === "failed" ? (
           <p className="reader-status-page__error" data-tone="error" role="alert">
             The archive could not be scanned. Try again or return to the Library.
           </p>
@@ -1011,6 +1132,7 @@ export function ReaderPage() {
         tabIndex={-1}
       >
         <ReaderExitPresentation
+          standalone={standalone}
           toolbarExpanded={toolbarVisibility.expanded}
           failure={controlledTransitions.exitFailure}
           onReturn={returnToOrigin}
@@ -1025,6 +1147,8 @@ export function ReaderPage() {
       data-reader-theme={readerTheme.base}
       data-toolbar-expanded={toolbarVisibility.expanded || undefined}
       data-reader-phase={readerSessionLifecycle.phase}
+      aria-busy={standaloneCloseStatus === "closing" || undefined}
+      inert={standaloneCloseStatus === "closing"}
       id={MAIN_CONTENT_ID}
       ref={readerMainRef}
       style={readerThemeStyle}
@@ -1038,6 +1162,9 @@ export function ReaderPage() {
           inert={!toolbarVisibility.expanded}
         >
           <ReaderToolbar
+            temporary={temporary}
+            standalone={standalone}
+            closeStatus={standaloneCloseStatus}
             backLabel={backLabel}
             chapterProgress={navigationState.chapterProgress}
             chapterTitle={chapterSequence.current?.label}
@@ -1117,7 +1244,7 @@ export function ReaderPage() {
                     Try again
                   </Button>
                   <button className="text-link" onClick={returnToOrigin} type="button">
-                    Back
+                    {standalone ? "Close" : "Back"}
                   </button>
                 </div>
               </section>
@@ -1135,16 +1262,21 @@ export function ReaderPage() {
                 initialCfi={progressController?.getInitialCfi()}
                 interactionBlocked={sideSurface !== null}
                 onError={handleViewerError}
-                onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
-                onHighlightInteractionClear={highlights.clearInteractionFeedback}
-                onHighlightInteractionError={highlights.reportInteractionFeedback}
+                allowAnnotations={!temporary}
+                onHighlightAnchorInvalid={temporary ? undefined : handleInvalidHighlightAnchor}
+                onHighlightInteractionClear={
+                  temporary ? undefined : highlights.clearInteractionFeedback
+                }
+                onHighlightInteractionError={
+                  temporary ? undefined : highlights.reportInteractionFeedback
+                }
                 onKeyDown={handleContentKeyDown}
                 onLocationChange={handleLocationChange}
                 onManageDictionaries={openDictionarySettings}
-                onOpenNote={openSelectionNote}
-                onCreateHighlight={highlights.create}
-                onRecolorHighlight={highlights.recolor}
-                onRemoveHighlight={removeHighlight}
+                onOpenNote={temporary ? undefined : openSelectionNote}
+                onCreateHighlight={temporary ? undefined : highlights.create}
+                onRecolorHighlight={temporary ? undefined : highlights.recolor}
+                onRemoveHighlight={temporary ? undefined : removeHighlight}
                 onNavigationChange={setNavigationState}
                 onNavigationHistoryChange={setNavigationHistory}
                 onPublicationSearchChange={setPublicationSearchState}
@@ -1202,18 +1334,18 @@ export function ReaderPage() {
           </div>
         ) : null}
 
-        {!readerSessionFailure && nextVolume ? (
+        {!standalone && !readerSessionFailure && nextVolume ? (
           <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
         ) : null}
 
         <ReaderSideDrawer
-          key={activeArchiveId}
+          key={activeArchiveId ?? externalSession?.token}
           open={sideSurface !== null}
           onDismiss={closeTopmost}
         >
           {sideSurface ? (
             <>
-              {annotationsOpen ? (
+              {!temporary && annotationsOpen ? (
                 <>
                   <LazyReaderAnnotationsPanel
                     onModuleReload={reloadReader}

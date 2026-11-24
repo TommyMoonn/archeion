@@ -18,7 +18,12 @@ import { IconButton } from "../../components/IconButton";
 
 export const READER_TOOLBAR_ID = "reader-toolbar";
 
+export type StandaloneCloseStatus = "closing" | "save-failed" | "close-failed";
+
 type ReaderToolbarProps = {
+  temporary?: boolean;
+  standalone?: boolean;
+  closeStatus?: StandaloneCloseStatus;
   chapterProgress?: number;
   chapterTitle?: string;
   hasChapterNavigation: boolean;
@@ -63,6 +68,9 @@ type ReaderToolbarProps = {
 };
 
 export function ReaderToolbar({
+  temporary = false,
+  standalone = false,
+  closeStatus,
   chapterProgress,
   chapterTitle,
   hasChapterNavigation,
@@ -109,7 +117,19 @@ export function ReaderToolbar({
     chapterProgress === undefined
       ? `Book ${percentage.toFixed(1)}%`
       : `Chapter ${chapterProgress}% · Book ${percentage.toFixed(1)}%`;
-  const statusLabel = progressSaveFailed ? `Not saved · ${positionLabel}` : positionLabel;
+  const closeFailed = closeStatus === "save-failed" || closeStatus === "close-failed";
+  const statusLabel =
+    closeStatus === "closing"
+      ? "Closing Reader…"
+      : closeStatus === "save-failed"
+        ? "Could not save changes. Try closing again."
+        : closeStatus === "close-failed"
+          ? "Could not close Reader. Try again."
+          : temporary
+            ? `Temporary · ${positionLabel}`
+            : progressSaveFailed
+              ? `Not saved · ${positionLabel}`
+              : positionLabel;
 
   return (
     <header className="reader-toolbar" id={READER_TOOLBAR_ID} ref={toolbarRef}>
@@ -122,7 +142,7 @@ export function ReaderToolbar({
         <span aria-hidden="true" className="icon-slot">
           <ArrowLeft />
         </span>
-        <span>Back</span>
+        <span>{standalone || temporary ? "Close" : "Back"}</span>
       </button>
       <div className="reader-toolbar__chapter-navigation">
         {hasChapterNavigation ? (
@@ -144,7 +164,11 @@ export function ReaderToolbar({
           <p aria-live="polite" title={chapterTitle ?? title}>
             {chapterTitle ?? title}
           </p>
-          <span data-error={progressSaveFailed || undefined} title={statusLabel}>
+          <span
+            data-error={progressSaveFailed || closeFailed || undefined}
+            role={closeFailed ? "alert" : undefined}
+            title={statusLabel}
+          >
             {statusLabel}
           </span>
         </div>
@@ -218,35 +242,40 @@ export function ReaderToolbar({
         >
           <List aria-hidden="true" />
         </IconButton>
-        <IconButton
-          aria-controls="reader-annotations"
-          aria-keyshortcuts={annotationsAriaKeyShortcuts}
-          aria-expanded={annotationsOpen}
-          label="Annotations"
-          onClick={onAnnotations}
-          ref={annotationButtonRef}
-          size="compact"
-          tooltip="Annotations"
-          tooltipPlacement="bottom"
-        >
-          <BookMarked aria-hidden="true" />
-        </IconButton>
-        <IconButton
-          aria-keyshortcuts={bookmarkAriaKeyShortcuts}
-          aria-pressed={bookmarkActive}
-          aria-busy={bookmarkBusy || undefined}
-          disabled={bookmarkToggleDisabled}
-          disabledReason={bookmarkToggleDisabledReason}
-          label="Bookmark"
-          onClick={onToggleBookmark}
-          size="compact"
-          tooltip={
-            bookmarkToggleDisabledReason ?? (bookmarkActive ? "Remove bookmark" : "Add bookmark")
-          }
-          tooltipPlacement="bottom"
-        >
-          <Bookmark aria-hidden="true" fill={bookmarkActive ? "currentColor" : "none"} />
-        </IconButton>
+        {!temporary ? (
+          <>
+            <IconButton
+              aria-controls="reader-annotations"
+              aria-keyshortcuts={annotationsAriaKeyShortcuts}
+              aria-expanded={annotationsOpen}
+              label="Annotations"
+              onClick={onAnnotations}
+              ref={annotationButtonRef}
+              size="compact"
+              tooltip="Annotations"
+              tooltipPlacement="bottom"
+            >
+              <BookMarked aria-hidden="true" />
+            </IconButton>
+            <IconButton
+              aria-keyshortcuts={bookmarkAriaKeyShortcuts}
+              aria-pressed={bookmarkActive}
+              aria-busy={bookmarkBusy || undefined}
+              disabled={bookmarkToggleDisabled}
+              disabledReason={bookmarkToggleDisabledReason}
+              label="Bookmark"
+              onClick={onToggleBookmark}
+              size="compact"
+              tooltip={
+                bookmarkToggleDisabledReason ??
+                (bookmarkActive ? "Remove bookmark" : "Add bookmark")
+              }
+              tooltipPlacement="bottom"
+            >
+              <Bookmark aria-hidden="true" fill={bookmarkActive ? "currentColor" : "none"} />
+            </IconButton>
+          </>
+        ) : null}
         <span className="reader-toolbar__divider" />
         <IconButton
           aria-keyshortcuts={settingsAriaKeyShortcuts}

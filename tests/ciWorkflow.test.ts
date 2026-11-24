@@ -440,7 +440,7 @@ describe("CI workflow contract", () => {
     ).not.toContain("--installers-only");
   });
 
-  it("smoke tests the same staged NSIS installer before either workflow uploads it", () => {
+  it("smoke tests both staged installers before either workflow uploads them", () => {
     const releaseWorkflow = fs.readFileSync(
       path.join(projectRoot, ".github", "workflows", "release.yml"),
       "utf8",
@@ -453,10 +453,16 @@ describe("CI workflow contract", () => {
       ["automatic release", releaseWorkflow, "Upload candidate artifact"],
     ]) {
       expect(source, name).toContain(smokeCommand);
+      expect(source, name).toContain(
+        "./scripts/smoke-windows-msi.ps1 -Installer artifacts/windows/Archeion-x64.msi",
+      );
       expect(source.indexOf("Verify staged installers and checksums"), name).toBeLessThan(
         source.indexOf("Smoke test staged NSIS installer"),
       );
       expect(source.indexOf("Smoke test staged NSIS installer"), name).toBeLessThan(
+        source.indexOf("Smoke test staged MSI installer"),
+      );
+      expect(source.indexOf("Smoke test staged MSI installer"), name).toBeLessThan(
         source.indexOf(upload),
       );
     }

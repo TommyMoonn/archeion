@@ -64,6 +64,8 @@ export async function runRuntimeFlows({
   fixtureRoot,
   logStep,
   evidenceRoot,
+  launchExternal,
+  applicationCount,
 }) {
   const sourcePath = path.join(fixtureRoot, "smoke.epub");
   const sourceBytes = await createEpubFixture(sourcePath);
@@ -377,4 +379,153 @@ export async function runRuntimeFlows({
       });
     });
   }
+
+  const externalPath = path.join(fixtureRoot, "Standalone 日本語.epub");
+  await createEpubFixture(externalPath);
+  const trackedPath = path.join(archiveRoot, "smoke.epub");
+  async function waitForReader(name, managed) {
+    await waitForIpc(driver);
+    const request = await driver.wait(
+      async () => {
+        const value = await invoke(driver, "cold_start_epub");
+        return value?.fileName === name ? value : false;
+      },
+      20_000,
+      `Unexpected Reader request: ${name}`,
+    );
+    const match = await invoke(driver, "standalone_reader_archive_match", { token: request.token });
+    assert.equal(Boolean(match), managed);
+    await driver.wait(
+      async () =>
+        driver.executeScript(
+          `return Boolean(
+      document.querySelector('.epub-container iframe') &&
+      document.querySelector('[aria-label="Close Reader"]') &&
+      Boolean(document.querySelector('[aria-label="Annotations"]')) === arguments[0])`,
+          managed,
+        ),
+      20_000,
+      `Reader did not render ${name} in the expected mode`,
+    );
+  }
+  await logStep("warm standalone EPUB handoff, deduplication, and independent close", async () => {
+    const mainHandle = await driver.getWindowHandle();
+    const originalUrl = await driver.getCurrentUrl();
+    const metadata = await invoke(driver, "load_archive_metadata", { rootPath: archiveRoot });
+    assert.ok(
+      Object.values(metadata.library.books).some((book) => book.relativePath === "smoke.epub"),
+      "Imported EPUB must have a managed record",
+    );
+    await Promise.all([launchExternal(externalPath), launchExternal(trackedPath)]);
+    const readers = await driver.wait(
+      async () => {
+        const handles = await driver.getAllWindowHandles();
+        return handles.length === 3 ? handles.filter((handle) => handle !== mainHandle) : false;
+      },
+      20_000,
+      "Expected two standalone Readers and the Library",
+    );
+    const readerHandles = new Map();
+    for (const handle of readers) {
+      await driver.switchTo().window(handle);
+      await waitForIpc(driver);
+      const request = await invoke(driver, "cold_start_epub");
+      assert.ok(request);
+      readerHandles.set(request.fileName, handle);
+      await waitForReader(request.fileName, request.fileName === "smoke.epub");
+    }
+    assert.deepEqual(
+      new Set(readerHandles.keys()),
+      new Set(["Standalone 日本語.epub", "smoke.epub"]),
+    );
+    await launchExternal(externalPath);
+    assert.deepEqual(
+      new Set(await driver.getAllWindowHandles()),
+      new Set([mainHandle, ...readers]),
+    );
+    assert.equal(await applicationCount(), 1);
+    const trackedReader = readerHandles.get("smoke.epub");
+    const temporaryReader = readerHandles.get("Standalone 日本語.epub");
+    await driver.switchTo().window(trackedReader);
+    await driver.executeScript(`document.querySelector('[aria-label="Close Reader"]').click()`);
+    await driver.switchTo().window(mainHandle);
+    await driver.wait(
+      async () => {
+        const handles = await driver.getAllWindowHandles();
+        return (
+          handles.length === 2 && handles.includes(mainHandle) && handles.includes(temporaryReader)
+        );
+      },
+      20_000,
+      "Managed Reader Close button did not close its own window",
+    );
+    assert.equal(await driver.getCurrentUrl(), originalUrl);
+
+    await launchExternal(trackedPath);
+    const reopenedReader = await driver.wait(
+      async () => {
+        const handles = await driver.getAllWindowHandles();
+        return (
+          handles.length === 3 &&
+          handles.find((handle) => handle !== mainHandle && handle !== temporaryReader)
+        );
+      },
+      20_000,
+      "Closed managed EPUB could not be reopened",
+    );
+    await driver.switchTo().window(reopenedReader);
+    await waitForReader("smoke.epub", true);
+
+    await driver.switchTo().window(temporaryReader);
+    await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+    await driver.switchTo().window(mainHandle);
+    await driver.wait(
+      async () => {
+        const handles = await driver.getAllWindowHandles();
+        return (
+          handles.length === 2 && handles.includes(mainHandle) && handles.includes(reopenedReader)
+        );
+      },
+      20_000,
+      "Temporary Reader native close did not close its own window",
+    );
+
+    await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+    await driver.switchTo().window(reopenedReader);
+    await driver.wait(
+      async () => {
+        const handles = await driver.getAllWindowHandles();
+        return handles.length === 1 && handles[0] === reopenedReader;
+      },
+      20_000,
+      "Closing the Library did not leave the managed Reader independent",
+    );
+    await driver.wait(
+      () =>
+        driver.executeScript(`return Boolean(document.querySelector('.epub-container iframe'))`),
+      20_000,
+      "Remaining Reader lost its publication when the Library closed",
+    );
+    await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+    await driver.wait(
+      async () => (await applicationCount()) === 0,
+      20_000,
+      "Last warm Reader did not exit the application",
+    );
+    await closeSession(driver, { exited: true });
+  });
+
+  await logStep("cold standalone Reader and last-window process exit", async () => {
+    driver = await startSession(externalPath);
+    await waitForReader("Standalone 日本語.epub", false);
+    assert.equal((await driver.getAllWindowHandles()).length, 1);
+    assert.equal(await applicationCount(), 1);
+    await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+    await driver.wait(
+      async () => (await applicationCount()) === 0,
+      20_000,
+      "Last Reader did not exit the application",
+    );
+    await closeSession(driver, { exited: true });
+  });
 }
