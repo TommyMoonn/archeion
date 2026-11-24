@@ -87,6 +87,7 @@ describe("per-book Reader presentation", () => {
     expect((await storage.getBook("book-1"))?.readerPresentation).toBe("publisher");
     expect(invokeMock.mock.calls.map(([command]) => command)).toEqual(["save_library_metadata"]);
     expect(invokeMock).toHaveBeenCalledWith("save_library_metadata", {
+      changedBookIds: ["book-1"],
       metadata: expect.objectContaining({
         version: 1,
         books: expect.objectContaining({

@@ -74,7 +74,6 @@ pub(super) fn read_external_epub_bytes(path: &Path) -> Result<Vec<u8>, String> {
         use std::{
             ffi::OsString,
             os::windows::{ffi::OsStringExt, io::AsRawHandle},
-            path::PathBuf,
         };
         use windows::Win32::{
             Foundation::HANDLE,
@@ -91,7 +90,7 @@ pub(super) fn read_external_epub_bytes(path: &Path) -> Result<Vec<u8>, String> {
         } as usize;
         if length == 0
             || length >= buffer.len()
-            || PathBuf::from(OsString::from_wide(&buffer[..length])) != path
+            || Path::new(&OsString::from_wide(&buffer[..length])) != path
         {
             return Err(changed());
         }
