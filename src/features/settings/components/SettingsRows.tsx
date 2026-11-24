@@ -120,11 +120,11 @@ export function SettingsSliderRow({
   value,
 }: SettingsSliderRowProps) {
   return (
-    <FeatureSettingsRow description={description} label={label}>
-      <div className="settings-slider grid settings-slider-columns items-center gap-slider-gap w-slider-row max-w-full">
+    <StandardSettingsRow description={description} label={label}>
+      <div className="grid settings-slider-columns items-center gap-slider-gap w-slider-row max-w-full">
         <span
           aria-hidden="true"
-          className="settings-slider__value text-text text-meta tabular-nums text-end whitespace-nowrap"
+          className="text-text text-meta tabular-nums text-end whitespace-nowrap"
         >
           {value}
           {suffix}
@@ -134,7 +134,7 @@ export function SettingsSliderRow({
           valueText={`${value}${suffix}`}
           max={max}
           min={min}
-          onValueChange={(next) => onChange(next)}
+          onValueChange={onChange}
           onThumbKeyDown={(event) => {
             if (
               [
@@ -155,6 +155,6 @@ export function SettingsSliderRow({
           value={value}
         />
       </div>
-    </FeatureSettingsRow>
+    </StandardSettingsRow>
   );
 }

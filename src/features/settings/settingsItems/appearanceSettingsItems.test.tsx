@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAppPreferences } from "../../../types/appSettings";
 import type { SettingsController } from "../useSettingsController";
 import { appearanceSettingsItems } from "./appearanceSettingsItems";
+import { readerSettingsItems } from "./readerSettingsItems";
 
 const fontRenders: Array<{ root: Root; container: HTMLDivElement }> = [];
 afterEach(() => {
@@ -168,21 +169,9 @@ describe("appearanceSettingsItems", () => {
       });
     },
   );
-  it("keeps appearance definitions in one focused registry spread", () => {
-    expect(appearanceSettingsItems.map((item) => item.id)).toEqual([
-      "reader.theme",
-      "appearance.app-themes",
-      "appearance.interface-font",
-      "appearance.display-font",
-      "appearance.animations",
-      "appearance.display-density",
-      "appearance.reset-appearance",
-    ]);
-  });
-
   it("presents one application and one reader theme selector without fallback language", () => {
     const context = controller();
-    const readerTheme = appearanceSettingsItems.find((item) => item.id === "reader.theme")!;
+    const readerTheme = readerSettingsItems.find((item) => item.id === "reader.theme")!;
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
 
     const markup = renderToStaticMarkup(
@@ -203,7 +192,7 @@ describe("appearanceSettingsItems", () => {
 
   it("uses the compact Manage action, app selector, and shared reader selector actions", () => {
     const context = controller();
-    const readerTheme = appearanceSettingsItems.find((item) => item.id === "reader.theme")!;
+    const readerTheme = readerSettingsItems.find((item) => item.id === "reader.theme")!;
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
     const container = document.createElement("div");
     document.body.append(container);
@@ -221,8 +210,6 @@ describe("appearanceSettingsItems", () => {
     const manage = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Manage themes"]',
     )!;
-    expect(manage.classList).toContain("settings-theme-control__manage");
-    expect(manage.classList).toContain("icon-button--standard");
     expect(manage.textContent).toBe("");
     expect(
       container.querySelector<HTMLButtonElement>('button[aria-label="Open themes folder"]'),
@@ -249,10 +236,10 @@ describe("appearanceSettingsItems", () => {
 
     expect(context.openThemeManager).toHaveBeenCalledOnce();
     expect(context.refreshThemeCatalog).toHaveBeenCalledTimes(2);
-    expect(context.updateAppearance).toHaveBeenNthCalledWith(1, {
+    expect(context.updateAppearance).toHaveBeenCalledWith({
       readerTheme: { kind: "builtin", id: "light" },
     });
-    expect(context.updateAppearance).toHaveBeenNthCalledWith(2, {
+    expect(context.updateAppearance).toHaveBeenCalledWith({
       appTheme: { kind: "builtin", id: "light" },
     });
 

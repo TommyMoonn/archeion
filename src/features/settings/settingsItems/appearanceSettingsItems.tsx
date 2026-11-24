@@ -7,7 +7,6 @@ import { IconButton } from "../../../components/IconButton";
 import { SegmentedControl } from "../../../components/SegmentedControl";
 import { Toggle } from "../../../components/Toggle";
 import type { InterfaceDensity } from "../../../types/appSettings";
-import { ReaderThemeSelect } from "../../themes/ReaderThemeSelect";
 import {
   applicationThemeOptions,
   applicationThemeValue,
@@ -28,24 +27,6 @@ const displayFontOptions = [
 ] as const;
 
 export const appearanceSettingsItems = [
-  {
-    deferredData: ["themeCatalog"],
-    description: "Choose the colors used while reading.",
-    id: "reader.theme",
-    label: "Reader theme",
-    render: (context) => (
-      <StandardSettingsRow description="Choose the colors used while reading." label="Reader theme">
-        <ReaderThemeSelect
-          entries={context.themeCatalogEntries}
-          onChange={(readerTheme) => void context.updateAppearance({ readerTheme })}
-          onOpen={() => void context.refreshThemeCatalog()}
-          selection={context.preferences.readerTheme}
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["theme", "light", "sepia", "dark", "epub reader", "custom reader theme"],
-    sectionId: "reader",
-  },
   {
     deferredData: ["themeCatalog"],
     description: "Choose the theme used across Archeion.",
