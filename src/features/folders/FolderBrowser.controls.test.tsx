@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -61,7 +62,7 @@ describe("FolderBrowser display controls", () => {
     const mostBooks = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
       (option) => option.textContent?.includes("Most books"),
     );
-    act(() => mostBooks?.click());
+    act(() => mostBooks && activateSelectOption(mostBooks));
     act(() => list?.click());
 
     expect(onSortChange).toHaveBeenCalledWith("most-books");

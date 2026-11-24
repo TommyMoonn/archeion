@@ -1173,7 +1173,8 @@ html[data-motion="on"] .reader-panel-loading span {
 }
 
 .reader-settings .app-select__option:hover,
-.reader-settings .app-select__option[data-active] {
+.reader-settings .app-select__option[data-active],
+.reader-settings .app-select__option[data-highlighted] {
   color: var(--reader-strong);
   background: var(--reader-surface);
 }
@@ -1561,7 +1562,8 @@ html[data-motion="on"] .reader-search__loading span {
 }
 
 .reader-annotations__sort .app-select__option:hover,
-.reader-annotations__sort .app-select__option[data-active] {
+.reader-annotations__sort .app-select__option[data-active],
+.reader-annotations__sort .app-select__option[data-highlighted] {
   color: var(--reader-strong);
   background: var(--reader-surface);
 }

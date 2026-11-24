@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../../test/activateSelectOption";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -196,7 +197,9 @@ describe("appearanceSettingsItems", () => {
     expect(markup).toContain("App themes");
     expect(markup).toContain("Choose the theme used across Archeion.");
     expect(markup).toContain("Moon Ink");
-    expect(markup).not.toMatch(/fallback|override|inherit/i);
+    const content = document.createElement("div");
+    content.innerHTML = markup;
+    expect(content.textContent).not.toMatch(/fallback|override|inherit/i);
   });
 
   it("uses the compact Manage action, app selector, and shared reader selector actions", () => {
@@ -235,15 +238,15 @@ describe("appearanceSettingsItems", () => {
 
     act(() => manage.click());
     act(() => readerSelect.click());
-    const lightReader = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    const lightReader = [...container.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (button) => button.textContent === "Light",
     )!;
-    act(() => lightReader.click());
+    act(() => activateSelectOption(lightReader));
     act(() => appSelect.click());
-    const archeionLight = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    const archeionLight = [...container.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (button) => button.textContent === "Archeion Light",
     )!;
-    act(() => archeionLight.click());
+    act(() => activateSelectOption(archeionLight));
 
     expect(context.openThemeManager).toHaveBeenCalledOnce();
     expect(context.refreshThemeCatalog).toHaveBeenCalledTimes(2);

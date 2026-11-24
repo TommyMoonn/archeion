@@ -91,6 +91,10 @@ a {
   outline-offset: 3px;
 }
 
+:root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible {
+  outline-offset: -2px;
+}
+
 @layer base {
   button:disabled,
   button[aria-disabled="true"] {

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -469,7 +470,7 @@ describe("series library surfaces", () => {
     const mostVolumes = Array.from(scope.querySelectorAll<HTMLElement>('[role="option"]')).find(
       (option) => option.textContent?.includes("Most volumes"),
     );
-    act(() => mostVolumes?.click());
+    act(() => mostVolumes && activateSelectOption(mostVolumes));
 
     expect(onSortChange).toHaveBeenCalledWith("most-volumes");
     expect(scope.querySelector(".series-grid")?.getAttribute("data-series-card-size")).toBe(

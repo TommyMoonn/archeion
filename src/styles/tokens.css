@@ -127,6 +127,8 @@
   --spacing-dialog-inset-narrow: 20px;
   --spacing-menu-min: 168px;
   --spacing-select-menu-min: 188px;
+  --spacing-select-trigger: min(164px, 100%);
+  --spacing-select-trigger-gap: 12px;
   --spacing-overlay-viewport-inset: 16px;
   --container-dialog: 430px;
   --container-popover: 420px;
@@ -300,6 +302,39 @@
 }
 
 /* The controls use distinct durations for press feedback and color transitions. */
+@utility transition-select {
+  transition:
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    border-color var(--motion-duration-standard) var(--ease-standard);
+}
+
+@utility select-positioner-size {
+  width: max-content;
+  min-width: min(
+    max(var(--anchor-width, 0px), var(--spacing-select-menu-min)),
+    var(--available-width, 100vw),
+    var(--container-popover)
+  );
+  max-width: min(
+    var(--container-popover),
+    var(--available-width, 100vw),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+}
+
+@utility leading-inherit {
+  line-height: inherit;
+}
+
+@utility max-h-select-available {
+  max-height: var(--available-height);
+}
+
+@utility select-option-columns {
+  grid-template-columns: minmax(0, 1fr) var(--spacing-icon-slot-compact);
+}
+
 @utility transition-action {
   transition:
     scale var(--motion-duration-fast) var(--ease-standard),

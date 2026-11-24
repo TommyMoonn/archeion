@@ -19,6 +19,7 @@ import { TypographyFixture } from "./typography-view";
 import { UpdateToast } from "../../../src/features/updates/UpdateToast";
 import { createUpdateToastFixture } from "./update-toast-backend";
 import { AboutUpdateFixture } from "./about-update-view";
+import { SelectFixture } from "./select-view";
 import { BusyActionsFixture } from "./busy-actions-view";
 
 const archive: KnownArchive = {
@@ -222,6 +223,7 @@ export function BrowserFixture() {
   useEffect(() => focusPresentationRuntime.start(document), []);
 
   const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "select") return <SelectFixture />;
   if (view === "busy-actions") return <BusyActionsFixture />;
   if (view === "archive-shell") return <ArchiveShellFixture />;
   if (view === "theme-manager") return <ThemeManagerFixture />;

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { act } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -98,11 +99,11 @@ async function moveFolderThroughDialog(
     destination.click();
   });
   await act(async () => {
-    const option = Array.from(
-      container.querySelectorAll<HTMLButtonElement>(".app-select__option"),
-    ).find((candidate) => candidate.textContent === destinationLabel);
+    const option = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
+      (candidate) => candidate.textContent === destinationLabel,
+    );
     if (!option) throw new Error(`The ${destinationLabel} destination was not rendered.`);
-    option.click();
+    activateSelectOption(option);
     await Promise.resolve();
   });
   await act(async () => {

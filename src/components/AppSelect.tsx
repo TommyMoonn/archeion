@@ -1,10 +1,13 @@
-import { ChevronDown, Check } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
+import { type ReactNode, useId, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { cn } from "@/utils/cn";
 import type { ControlSize } from "./Button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Tooltip } from "./Tooltip";
-import { useAppSelectPlacement } from "./useAppSelectPlacement";
-import { getNextEnabledIndex } from "./listboxNavigation";
 import { focusElementIfUsable } from "../utils/focusRestoration";
+import { focusPresentationRuntime } from "../app/inputModality";
+import { getNextEnabledIndex } from "./listboxNavigation";
+import { scrollAppSelectOptionIntoView } from "./useAppSelectPlacement";
 import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 
 export type AppSelectOption<TValue extends string> = {
@@ -36,16 +39,6 @@ type AppSelectProps<TValue extends string> = AppSelectAppearance & {
   value: TValue;
 };
 
-function getSelectedOrFirstEnabledIndex<TValue extends string>(
-  options: Array<AppSelectOption<TValue>>,
-  selectedIndex: number,
-): number {
-  if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) {
-    return selectedIndex;
-  }
-  return getNextEnabledIndex(options, -1, 1);
-}
-
 export function AppSelect<TValue extends string>({
   appearance = "default",
   ariaLabel,
@@ -64,48 +57,18 @@ export function AppSelect<TValue extends string>({
   const controlId = id ?? `app-select-${generatedId}`;
   const [open, setOpen] = useState(false);
   const [previousDisabled, setPreviousDisabled] = useState(disabled);
-
   if (previousDisabled !== disabled) {
     setPreviousDisabled(disabled);
     setOpen(false);
   }
-
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const selectedIndex = options.findIndex((option) => option.value === value);
-  const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : 0);
-  const resolvedActiveIndex =
-    activeIndex >= 0 && !options[activeIndex]?.disabled
-      ? activeIndex
-      : getSelectedOrFirstEnabledIndex(options, selectedIndex);
-  const selectedOption = useMemo(
-    () => options.find((option) => option.value === value) ?? options[0],
-    [options, value],
-  );
-  const optionId = (index: number) => `${controlId}-option-${index}`;
+  const restoreFocusRef = useRef(false);
+  const openingIndexRef = useRef<number | null>(null);
   const isOpen = previousDisabled === disabled && open && !disabled;
-  const activeOptionId =
-    isOpen && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined;
-  const contentRevision = useMemo(
-    () =>
-      isOpen
-        ? options
-            .map(
-              (option) =>
-                `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`,
-            )
-            .join("\u0001")
-        : "",
-    [isOpen, options],
-  );
-  const menuPlacement = useAppSelectPlacement({
-    activeOptionId,
-    contentRevision,
-    menuRef,
-    open: isOpen,
-    triggerRef: buttonRef,
-  });
+  const selectedOption = options.find((option) => option.value === value) ?? options[0];
+  const iconOnly = appearance === "icon-only";
 
   useTransientSurfaceOwnership({
     active: isOpen,
@@ -114,181 +77,166 @@ export function AppSelect<TValue extends string>({
     elementRef: rootRef,
     kind: "popover",
     onDismiss: (reason) => {
+      restoreFocusRef.current = reason === "escape";
       setOpen(false);
-      if (reason === "escape") focusElementIfUsable(buttonRef.current);
     },
     originRef: buttonRef,
     triggerRef: buttonRef,
   });
 
-  function chooseOption(option: AppSelectOption<TValue>) {
-    if (option.disabled) {
-      return;
-    }
-
-    onChange(option.value);
-    setOpen(false);
-    focusElementIfUsable(buttonRef.current);
-  }
-
-  function openListbox(nextActiveIndex: number): void {
-    setActiveIndex(nextActiveIndex);
-    if (isOpen) return;
-    setOpen(true);
-    onOpen?.();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const direction = event.key === "ArrowDown" ? 1 : -1;
-      const startIndex = isOpen
-        ? resolvedActiveIndex
-        : selectedIndex >= 0
-          ? selectedIndex
-          : direction === 1
-            ? -1
-            : 0;
-      const nextIndex = getNextEnabledIndex(options, startIndex, direction);
-
-      if (nextIndex >= 0) {
-        openListbox(nextIndex);
-      }
-      return;
-    }
-
-    if (event.key === "Home" || event.key === "End") {
-      event.preventDefault();
-      const startIndex = event.key === "Home" ? options.length - 1 : 0;
-      const direction = event.key === "Home" ? 1 : -1;
-      const nextIndex = getNextEnabledIndex(options, startIndex, direction);
-      if (nextIndex >= 0) {
-        openListbox(nextIndex);
-      }
-      return;
-    }
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      if (!isOpen) {
-        openListbox(getSelectedOrFirstEnabledIndex(options, selectedIndex));
-        return;
-      }
-
-      const activeOption = options[resolvedActiveIndex];
-      if (activeOption) {
-        chooseOption(activeOption);
-      }
-    }
-  }
+  // Base UI owns navigation after opening. Match the desktop's first/last and
+  // next/previous opening shortcuts without maintaining another active index.
+  useLayoutEffect(() => {
+    if (!isOpen || openingIndexRef.current === null) return;
+    const index = openingIndexRef.current;
+    openingIndexRef.current = null;
+    const frame = requestAnimationFrame(() => {
+      const menu = menuRef.current;
+      const option = menu?.querySelectorAll<HTMLElement>('[role="option"]')[index];
+      if (menu && option && focusElementIfUsable(option))
+        scrollAppSelectOptionIntoView(menu, option);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen]);
 
   return (
     <div
-      className={`app-select app-select--${size} app-select--${appearance} ${className}`.trim()}
+      className={cn(
+        "app-select relative inline-grid max-w-full text-text",
+        isOpen ? "z-40" : "z-1",
+        iconOnly ? "min-w-0" : "min-w-select-trigger",
+        `app-select--${size} app-select--${appearance}`,
+        className,
+      )}
+      ref={rootRef}
       onBlur={(event) => {
         const nextTarget = event.relatedTarget;
-        if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+        if (nextTarget instanceof Node && !event.currentTarget.contains(nextTarget)) {
+          restoreFocusRef.current = false;
           setOpen(false);
         }
       }}
-      ref={rootRef}
     >
       {label ? (
-        <span className="app-select__label" id={`${controlId}-label`}>
+        <span
+          className="app-select__label mb-control-gap-compact text-muted text-caption font-medium"
+          id={`${controlId}-label`}
+        >
           {label}
         </span>
       ) : null}
-      <Tooltip
-        content={
-          appearance === "icon-only" ? (ariaLabel ?? selectedOption?.label ?? "Select option") : ""
-        }
-      >
-        <button
-          aria-activedescendant={activeOptionId}
-          aria-autocomplete="none"
-          aria-controls={`${controlId}-menu`}
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-label={ariaLabel}
-          aria-labelledby={label ? `${controlId}-label ${controlId}-button` : undefined}
-          className="app-select__trigger"
-          disabled={disabled}
-          id={`${controlId}-button`}
-          onClick={() => {
-            if (isOpen) {
-              setOpen(false);
-              return;
-            }
-            openListbox(getSelectedOrFirstEnabledIndex(options, selectedIndex));
-          }}
-          onKeyDown={handleKeyDown}
-          ref={buttonRef}
-          role="combobox"
-          type="button"
-        >
-          {triggerIcon ? (
-            <span aria-hidden="true" className="app-select__trigger-icon icon-slot">
-              {triggerIcon}
-            </span>
-          ) : null}
-          {appearance === "default" ? (
-            <>
-              <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
-              <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                <ChevronDown />
-              </span>
-            </>
-          ) : null}
-        </button>
-      </Tooltip>
-      {isOpen ? (
-        <div
-          className="app-select__menu"
-          data-placement={menuPlacement?.placement}
-          id={`${controlId}-menu`}
-          aria-labelledby={`${controlId}-button`}
-          ref={menuRef}
-          role="listbox"
-          style={
-            menuPlacement
-              ? {
-                  left: menuPlacement.left,
-                  maxHeight: menuPlacement.maxHeight,
-                  top: menuPlacement.top,
-                  visibility: "visible",
-                  width: menuPlacement.width,
-                }
-              : { visibility: "hidden" }
+      <Select<TValue>
+        disabled={disabled}
+        items={options}
+        modal={false}
+        open={isOpen}
+        value={value}
+        onValueChange={(next, details) => {
+          if (
+            next === null ||
+            !options.some((option) => option.value === next && !option.disabled)
+          ) {
+            details.cancel();
+            return;
           }
-          tabIndex={-1}
-        >
-          {options.map((option, index) => (
-            <button
-              aria-disabled={option.disabled || undefined}
-              aria-selected={option.value === value}
-              className="app-select__option"
-              data-active={index === resolvedActiveIndex || undefined}
-              disabled={option.disabled}
-              id={optionId(index)}
-              key={option.value}
-              onClick={() => chooseOption(option)}
-              onMouseEnter={() => {
-                if (!option.disabled) setActiveIndex(index);
-              }}
-              role="option"
-              tabIndex={-1}
-              type="button"
-            >
-              <span>{option.label}</span>
-              {option.value === value ? (
-                <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                  <Check strokeWidth={2.25} />
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
+          onChange(next);
+        }}
+        onOpenChange={(next, details) => {
+          if (next && disabled) {
+            details.cancel();
+            return;
+          }
+          restoreFocusRef.current =
+            !next &&
+            (details.reason === "item-press" ||
+              details.reason === "escape-key" ||
+              details.reason === "trigger-press");
+          setOpen(next);
+          if (next && !isOpen) onOpen?.();
+        }}
+      >
+        <Tooltip content={iconOnly ? (ariaLabel ?? selectedOption?.label ?? "Select option") : ""}>
+          <SelectTrigger
+            aria-label={ariaLabel}
+            aria-labelledby={label ? `${controlId}-label ${controlId}-button` : undefined}
+            iconOnly={iconOnly}
+            id={`${controlId}-button`}
+            ref={buttonRef}
+            size={size}
+            type="button"
+            onKeyDown={(event) => {
+              if (disabled || isOpen) return;
+              const key = event.key;
+              if (key !== "ArrowDown" && key !== "ArrowUp" && key !== "Home" && key !== "End")
+                return;
+              const direction = key === "ArrowUp" || key === "End" ? -1 : 1;
+              const selected = options.findIndex((option) => option.value === value);
+              const start =
+                key === "Home"
+                  ? options.length - 1
+                  : key === "End"
+                    ? 0
+                    : selected >= 0
+                      ? selected
+                      : direction === 1
+                        ? -1
+                        : 0;
+              const index = getNextEnabledIndex(options, start, direction);
+              if (index < 0) return;
+              openingIndexRef.current = index;
+              focusPresentationRuntime.markKeyboardNavigation();
+              if (key === "Home" || key === "End") {
+                event.preventDefault();
+                restoreFocusRef.current = false;
+                setOpen(true);
+                onOpen?.();
+              }
+            }}
+          >
+            {triggerIcon ? (
+              <span aria-hidden="true" className="app-select__trigger-icon icon-slot text-muted">
+                {triggerIcon}
+              </span>
+            ) : null}
+            {!iconOnly ? (
+              <SelectValue className="app-select__value min-w-0 wrap-anywhere whitespace-normal">
+                {selectedOption?.label ?? "Select"}
+              </SelectValue>
+            ) : null}
+          </SelectTrigger>
+        </Tooltip>
+        {isOpen ? (
+          <SelectContent
+            aria-labelledby={`${controlId}-button`}
+            ref={menuRef}
+            container={rootRef}
+            finalFocus={() => (restoreFocusRef.current ? (buttonRef.current ?? false) : false)}
+            onKeyDown={(event) => {
+              if (event.key === "Tab" && event.shiftKey) {
+                // The local portal follows the trigger in DOM order. Start the
+                // native backward tab from the trigger, not the popup.
+                restoreFocusRef.current = false;
+                flushSync(() => setOpen(false));
+                focusElementIfUsable(buttonRef.current);
+                return;
+              }
+              if (["ArrowUp", "ArrowDown", "Home", "End"].includes(event.key))
+                focusPresentationRuntime.markKeyboardNavigation();
+            }}
+          >
+            {options.map((option) => (
+              <SelectItem
+                disabled={option.disabled}
+                key={option.value}
+                label={option.label}
+                value={option.value}
+              >
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        ) : null}
+      </Select>
     </div>
   );
 }

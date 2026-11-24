@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -51,8 +52,10 @@ describe("LibraryPage navigation and archive loading", () => {
     expect(visibleIds()).toEqual(["alpha", "beta", "gamma"]);
     const sortTrigger = await sort();
     await act(async () => sortTrigger.click());
-    const option = await waitForButtonWithText(document.body, "Recently added");
-    await act(async () => option.click());
+    const option = Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find(
+      (item) => item.textContent === "Recently added",
+    )!;
+    await act(async () => activateSelectOption(option));
     expect(visibleIds()).toEqual(["gamma", "beta", "alpha"]);
     expect(appPreferencesStore.getBooksCollectionSnapshot().sortBy).toBe("recently-added");
 
@@ -219,11 +222,11 @@ describe("LibraryPage navigation and archive loading", () => {
     });
 
     const seriesOption = Array.from(
-      session.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      session.container.querySelectorAll<HTMLElement>('[role="option"]'),
     ).find((option) => option.textContent?.trim() === "Dune");
 
     await act(async () => {
-      seriesOption?.click();
+      if (seriesOption) activateSelectOption(seriesOption);
       await Promise.resolve();
     });
 
@@ -740,10 +743,10 @@ describe("LibraryPage navigation and archive loading", () => {
     };
     const chooseSort = async (label: "Most books" | "Most volumes") => {
       const option = Array.from(
-        session.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+        session.container.querySelectorAll<HTMLElement>('[role="option"]'),
       ).find((candidate) => candidate.textContent?.includes(label));
       if (!option) throw new Error(`Sort option ${label} was not rendered.`);
-      await act(async () => option.click());
+      await act(async () => activateSelectOption(option));
     };
 
     expect(

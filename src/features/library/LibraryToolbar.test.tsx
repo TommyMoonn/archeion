@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -391,9 +392,9 @@ describe("LibraryToolbar", () => {
     act(() => seriesSelect?.click());
 
     const seriesOption = Array.from(
-      session.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      session.container.querySelectorAll<HTMLElement>('[role="option"]'),
     ).find((option) => option.textContent?.trim() === "Star Saga");
-    act(() => seriesOption?.click());
+    act(() => seriesOption && activateSelectOption(seriesOption));
 
     expect(onFilterChange).toHaveBeenCalledWith({
       ...createDefaultLibraryFilters(),

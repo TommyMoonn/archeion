@@ -253,7 +253,8 @@ describe("focus presentation contract", () => {
 
     expect(runtime).not.toContain("DIRECTIONAL_NAVIGATION_KEYS");
     expect(runtime).not.toContain("event.defaultPrevented &&");
-    expect(appSelect).not.toContain("markKeyboardNavigation");
+    // Base UI Select moves DOM focus to the highlighted option.
+    expect(appSelect).toContain("markKeyboardNavigation");
     expect(quickActions).not.toContain("markKeyboardNavigation");
     expect(contextMenu).toContain("markKeyboardNavigation");
     expect(segmentedControl).toContain("markKeyboardNavigation");
