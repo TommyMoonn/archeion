@@ -8,14 +8,15 @@ use super::{filesystem::normalize_archive_relative_path, metadata::LibraryMetada
 
 const MAX_LIBRARY_METADATA_BYTES: u64 = 16 * 1024 * 1024;
 
+fn windows_path_key(path: &str) -> String {
+    path.replace('\\', "/").to_lowercase()
+}
+
 fn path_key(path: &Path) -> String {
     let path = path.to_string_lossy();
-    #[cfg(windows)]
-    {
-        path.to_lowercase()
-    }
-    #[cfg(not(windows))]
-    {
+    if cfg!(windows) {
+        windows_path_key(&path)
+    } else {
         path.into_owned()
     }
 }
@@ -160,6 +161,18 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn windows_path_keys_match_native_and_archive_separators() {
+        assert_eq!(
+            windows_path_key(r"Books\Author\A 日本語.EPUB"),
+            windows_path_key("books/author/A 日本語.epub")
+        );
+        assert_ne!(
+            windows_path_key(r"Books\Author\A 日本語.EPUB"),
+            windows_path_key("books/another/A 日本語.epub")
+        );
     }
 
     #[test]

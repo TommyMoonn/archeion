@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="ArcheionEpubOpenWith" Guid="*" Win64="yes">
+        <!-- Tauri supplies the Archeion.epub ProgID. Explicitly advertise it
+             as an Open with candidate and register the executable itself. -->
+        <RegistryValue Root="HKMU" Key="Software\Classes\.epub\OpenWithProgids" Name="Archeion.epub" Type="string" Value="" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\Archeion.exe" Name="FriendlyAppName" Type="string" Value="Archeion" KeyPath="yes" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\Archeion.exe\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]Archeion.exe&quot;,0" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\Archeion.exe\SupportedTypes" Name=".epub" Type="string" Value="" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Applications\Archeion.exe\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]Archeion.exe&quot; &quot;%1&quot;" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>
