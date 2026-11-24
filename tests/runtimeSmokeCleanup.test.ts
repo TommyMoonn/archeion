@@ -94,8 +94,15 @@ describe("Windows runtime smoke cleanup", () => {
     expect(processes.has(43)).toBe(true);
   });
 
-  it("closes the session and all owned driver processes before deleting scratch state", async () => {
+  it("closes the session, driver, and directly launched Reader before deleting scratch state", async () => {
     const processes = ownedProcesses();
+    processes.set(43, {
+      ProcessId: 43,
+      ParentProcessId: 1,
+      Name: "ArcheionRuntimeSmoke.exe",
+      ExecutablePath: "C:\\scratch\\ArcheionRuntimeSmoke.exe",
+      StartedAt: "2026-09-30T00:00:02.0000000Z",
+    });
     const events: string[] = [];
     await cleanupOwnedRuntime({
       session: {},
@@ -104,6 +111,7 @@ describe("Windows runtime smoke cleanup", () => {
       },
       processHandle: { pid: 41 },
       closed: Promise.resolve({}),
+      coldReaderProcess: { pid: 43 },
       snapshot: async () => [...processes.values()],
       terminate: async (pid: number) => {
         events.push(`stop ${pid}`);
@@ -115,7 +123,7 @@ describe("Windows runtime smoke cleanup", () => {
         events.push("delete scratch");
       },
     });
-    expect(events).toEqual(["quit session", "stop 41", "stop 42", "delete scratch"]);
+    expect(events).toEqual(["quit session", "stop 41", "stop 42", "stop 43", "delete scratch"]);
   });
 
   it("removes owned directories after session shutdown fails when every owned process exited", async () => {

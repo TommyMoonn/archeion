@@ -114,13 +114,13 @@ export async function stopOwnedApplications(
   }
 }
 
-function collectOwnedProcesses(processes, rootPid, owned) {
+function collectOwnedProcesses(processes, rootPid, owned, expectedName = "tauri-driver.exe") {
   const root = processes.find((process) => process.ProcessId === rootPid);
   if (root) {
     assert.equal(
       root.Name.toLowerCase(),
-      "tauri-driver.exe",
-      `Owned tauri-driver PID ${rootPid} now belongs to ${root.Name}`,
+      expectedName,
+      `Owned ${expectedName} PID ${rootPid} now belongs to ${root.Name}`,
     );
     assert.ok(
       root.StartedAt && Number.isFinite(Date.parse(root.StartedAt)),
@@ -128,7 +128,7 @@ function collectOwnedProcesses(processes, rootPid, owned) {
     );
     const known = owned.get(rootPid);
     if (known && known.StartedAt !== root.StartedAt) {
-      throw new Error(`Owned tauri-driver PID ${rootPid} was reused before cleanup`);
+      throw new Error(`Owned ${expectedName} PID ${rootPid} was reused before cleanup`);
     }
     owned.set(rootPid, root);
   }
@@ -180,6 +180,7 @@ export async function shutdownOwnedDriver({
   closeSession,
   processHandle,
   closed,
+  coldReaderProcess,
   snapshot = listWindowsProcesses,
   terminate = terminateProcess,
   wait = pause,
@@ -201,7 +202,19 @@ export async function shutdownOwnedDriver({
   const owned = new Map();
   let ownershipEstablished = false;
   try {
-    collectOwnedProcesses(await snapshot(), processHandle.pid, owned);
+    const processes = await snapshot();
+    collectOwnedProcesses(processes, processHandle.pid, owned);
+    if (
+      coldReaderProcess?.pid &&
+      coldReaderProcess.exitCode == null &&
+      coldReaderProcess.signalCode == null
+    ) {
+      collectOwnedProcesses(processes, coldReaderProcess.pid, owned, "archeionruntimesmoke.exe");
+      assert.ok(
+        owned.has(coldReaderProcess.pid),
+        `Cannot verify ownership of cold Reader PID ${coldReaderProcess.pid}`,
+      );
+    }
     ownershipEstablished = true;
   } catch (error) {
     failures.push(error);

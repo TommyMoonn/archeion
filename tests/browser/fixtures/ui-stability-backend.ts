@@ -197,6 +197,8 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
     async (command, args) => {
       const input = args as Record<string, unknown>;
       switch (command) {
+        case "cold_start_epub":
+          return null;
         case "managed_window_shell_ready":
           utilityEvents.push({
             kind: "shell-ready",

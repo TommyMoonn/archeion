@@ -516,7 +516,7 @@ export async function runRuntimeFlows({
   });
 
   await logStep("cold standalone Reader and last-window process exit", async () => {
-    driver = await startSession([externalPath]);
+    driver = await startSession(externalPath);
     await waitForReader("Standalone 日本語.epub", false);
     assert.equal((await driver.getAllWindowHandles()).length, 1);
     assert.equal(await applicationCount(), 1);

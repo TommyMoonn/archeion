@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { once } from "node:events";
 import { createWriteStream } from "node:fs";
 import { lstat, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -97,6 +98,7 @@ async function main() {
 
   let driverProcess;
   let driverClosed;
+  let coldReaderProcess;
   let activeSession;
   let primaryError;
   let currentStep = "setup";
@@ -201,17 +203,36 @@ async function main() {
     await awaitDriver(port, driverProcess);
 
     const launchedAfter = Date.now();
-    const startSession = async (args = []) => {
+    const startSession = async (epubPath) => {
       const capabilities = new Capabilities();
-      capabilities.setBrowserName("wry");
-      capabilities.set("tauri:options", {
-        application: binaryPath,
-        args,
-        webviewOptions: { userDataFolder: path.join(runRoot, "webview-data") },
-      });
+      const userDataFolder = path.join(runRoot, "webview-data");
+      let serverPort = port;
+      if (epubPath) {
+        // EdgeDriver drops positional arguments. Launch the EPUB directly, then attach.
+        const debugPort = await freePort();
+        coldReaderProcess = spawn(binaryPath, [epubPath], {
+          windowsHide: true,
+          env: {
+            ...process.env,
+            WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-address=127.0.0.1 --remote-debugging-port=${debugPort}`,
+            WEBVIEW2_USER_DATA_FOLDER: userDataFolder,
+          },
+        });
+        await once(coldReaderProcess, "spawn");
+        capabilities.setBrowserName("webview2");
+        capabilities.set("ms:edgeChromium", true);
+        capabilities.set("ms:edgeOptions", { debuggerAddress: `127.0.0.1:${debugPort}` });
+        serverPort = nativePort;
+      } else {
+        capabilities.setBrowserName("wry");
+        capabilities.set("tauri:options", {
+          application: binaryPath,
+          webviewOptions: { userDataFolder },
+        });
+      }
       activeSession = await new Builder()
         .withCapabilities(capabilities)
-        .usingServer(`http://127.0.0.1:${port}`)
+        .usingServer(`http://127.0.0.1:${serverPort}`)
         .build();
       await activeSession.manage().setTimeouts({ script: 30_000 });
       return activeSession;
@@ -240,6 +261,7 @@ async function main() {
         closeSession,
         processHandle: driverProcess,
         closed: driverClosed,
+        coldReaderProcess,
         directories: [
           { target: runRoot, parent: scratchRoot },
           { target: appConfigPath, parent: process.env.APPDATA },
