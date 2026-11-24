@@ -77,7 +77,6 @@ describe("Dialog backdrop dismissal", () => {
     const input = container.querySelector("input")!;
     const body = container.querySelector(".dialog__body")!;
     const feedback = container.querySelector(".dialog__feedback")!;
-    expect(feedback.getAttribute("data-feedback-size")).toBe("summary");
     const footer = container.querySelector(".dialog__footer")!;
     input.focus();
     input.setSelectionRange(1, 3);

@@ -202,7 +202,6 @@ describe("BulkMetadataDialog", () => {
     expect(writing.getAttribute("aria-busy")).toBe("true");
     const back = button(container, "Back");
     expect(container.querySelector("dialog[open]")).not.toBeNull();
-    expect(container.querySelector(".dialog-loading-fallback")).toBeNull();
     expect(writing.disabled).toBe(true);
     expect(back.disabled).toBe(true);
     act(() => writing.click());

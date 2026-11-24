@@ -143,7 +143,6 @@ describe("AddEpubDialog replacement confirmation", () => {
     const cancel = buttonWithText(container, "Cancel");
 
     expect(container.querySelector("dialog[open]")).not.toBeNull();
-    expect(container.querySelector(".dialog-loading-fallback")).toBeNull();
     expect(adding.disabled).toBe(true);
     expect(cancel.disabled).toBe(true);
     act(() => cancel.click());

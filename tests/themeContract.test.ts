@@ -472,10 +472,6 @@ describe("theme token baseline", () => {
         ],
         [
           "src/styles/components/dialogs.css",
-          /\.dialog\s*{[^}]*background:\s*var\(--surface-main\);/,
-        ],
-        [
-          "src/styles/components/dialogs.css",
           /:is\(\.dialog, \.details-drawer, \.quick-actions\)::backdrop\s*{[^}]*background:\s*var\(--backdrop\);/,
         ],
         [

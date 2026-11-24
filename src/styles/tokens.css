@@ -123,6 +123,14 @@
   --spacing-sidebar-collapsed: 56px;
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
+  --spacing-dialog-panel: 24px;
+  --spacing-dialog-gap: 20px;
+  --spacing-dialog-gap-narrow: 12px;
+  --spacing-dialog-copy: 10px;
+  --spacing-dialog-footer: 9px;
+  --spacing-skeleton-label-width: min(8rem, 75%);
+  --spacing-skeleton-label-height: 0.65em;
+  --container-dialog-description: 65ch;
   --spacing-dialog-inset: 32px;
   --spacing-dialog-inset-narrow: 20px;
   --spacing-menu-min: 168px;
@@ -190,6 +198,26 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --spacing-dialog-frame: min(var(--dialog-width), calc(100% - var(--spacing-dialog-inset)));
+  --spacing-dialog-frame-narrow: min(
+    var(--dialog-width),
+    calc(100% - var(--spacing-dialog-inset-narrow))
+  );
+  --spacing-dialog-frame-height: calc(100dvh - var(--spacing-dialog-inset));
+  --spacing-dialog-frame-height-narrow: calc(100dvh - var(--spacing-dialog-inset-narrow));
+  --spacing-dialog-panel-height: calc(
+    100dvh - var(--spacing-dialog-inset) - 2 * var(--border-width)
+  );
+  --spacing-dialog-panel-height-narrow: calc(
+    100dvh - var(--spacing-dialog-inset-narrow) - 2 * var(--border-width)
+  );
+  --spacing-dialog-feedback: calc(
+    2 * var(--text-meta) * var(--text-meta--line-height) + 2 * var(--spacing-control-inset)
+  );
+  --spacing-dialog-feedback-summary: calc(
+    4 * var(--text-meta) * var(--text-meta--line-height) + 2 * var(--spacing-control-inset)
+  );
+  --spacing-dialog-feedback-narrow: calc(2 * var(--text-meta) * var(--text-meta--line-height));
   --font-interface: var(--font-ui);
   --font-app-display: var(--font-display);
   --spacing-segment-icon: var(--segment-icon-size);
@@ -278,6 +306,39 @@
 
 /* Keep shared animation definitions available to legacy CSS as well as utilities. */
 @theme static inline {
+  --animate-dialog-enter: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
+  --animate-dialog-fade-enter: dialog-presence-fade-enter var(--surface-duration)
+    var(--motion-ease-standard);
+  --animate-dialog-exit: dialog-exit var(--surface-exit-duration) var(--motion-ease-standard)
+    forwards;
+  @keyframes dialog-exit {
+    from {
+      opacity: var(--surface-from-opacity, 1);
+      transform: var(--surface-from-transform, scale(1));
+    }
+    to {
+      opacity: 0;
+      transform: var(--surface-from-transform, scale(1));
+    }
+  }
+  @keyframes dialog-presence-enter {
+    from {
+      opacity: var(--surface-from-opacity, 0.92);
+      transform: var(--surface-from-transform, scale(0.97));
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes dialog-presence-fade-enter {
+    from {
+      opacity: var(--surface-from-opacity, 0.92);
+    }
+    to {
+      opacity: 1;
+    }
+  }
   --animate-view-enter: app-motion-view-content-in var(--motion-duration-view) var(--ease-view);
   --animate-settings-enter: app-motion-settings-section-in var(--motion-duration-fast)
     var(--ease-standard);
@@ -540,4 +601,28 @@ html[data-density="compact"] {
     background var(--motion-duration-standard) var(--ease-standard),
     border-color var(--motion-duration-standard) var(--ease-standard),
     scale var(--motion-duration-fast) var(--ease-standard);
+}
+
+/* The dialog's inclusive viewport/container thresholds are part of its layout contract. */
+@custom-variant dialog-viewport-narrow {
+  @media (max-height: 520px), (max-width: 480px) {
+    @slot;
+  }
+}
+@custom-variant dialog-panel-narrow {
+  @container dialog-panel (max-width: 20rem) {
+    @slot;
+  }
+}
+@utility scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+@utility grid-cols-dialog-bottom {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@utility skeleton-label {
+  background: linear-gradient(var(--surface-raised), var(--surface-raised)) left center /
+    var(--spacing-skeleton-label-width) var(--spacing-skeleton-label-height) no-repeat;
 }

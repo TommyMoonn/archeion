@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { ExternalLink } from "lucide-react";
 
+import {
+  dialogFrameClass,
+  dialogPanelClass,
+  dialogCopyClass,
+  dialogTitleClass,
+  dialogFooterClass,
+} from "../../components/dialogStyles";
 import { Button } from "../../components/Button";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
@@ -64,7 +71,7 @@ export function ReaderExternalLinkDialog({
       ref={dialogRef}
       aria-describedby="reader-external-link-description"
       aria-labelledby="reader-external-link-title"
-      className="dialog reader-external-link-dialog"
+      className={`${dialogFrameClass} reader-external-link-dialog`}
       data-reader-ignore-shortcuts
       onCancel={(event) => {
         event.preventDefault();
@@ -73,9 +80,11 @@ export function ReaderExternalLinkDialog({
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
     >
-      <div className="dialog__panel">
-        <div className="dialog__copy constrained-user-content">
-          <h2 id="reader-external-link-title">Open external link?</h2>
+      <div className={dialogPanelClass}>
+        <div className={dialogCopyClass}>
+          <h2 className={dialogTitleClass} id="reader-external-link-title">
+            Open external link?
+          </h2>
           <p id="reader-external-link-description">
             This EPUB wants to open <strong>{host}</strong> in your browser.
           </p>
@@ -86,7 +95,7 @@ export function ReaderExternalLinkDialog({
             {error}
           </p>
         ) : null}
-        <div className="dialog__footer">
+        <div className={dialogFooterClass}>
           <Button
             disabled={opening}
             onClick={() => dismissal.requestDismissal()}

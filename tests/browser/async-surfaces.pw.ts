@@ -194,6 +194,15 @@ for (const [surface, chunk] of Object.entries(chunks).filter(
             .locator(".dialog-skeleton")
             .evaluate((element) => element.hasAttribute("inert")),
         ).toBe(true);
+        if (surface === "add") {
+          const label = page
+            .locator(".dialog-skeleton")
+            .getByText("Filename conflicts", { exact: true });
+          await expect(label).toBeVisible();
+          expect(
+            await label.evaluate((element) => getComputedStyle(element).backgroundImage),
+          ).toMatch(/linear-gradient/);
+        }
         const geometry = () =>
           page.locator("dialog").evaluate((dialog) => {
             const rect = (element: Element) => {

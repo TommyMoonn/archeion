@@ -26,6 +26,30 @@ async function openSurface(page: Page, surface: string, scale = 1) {
   expect(await page.locator("dialog").evaluate((dialog) => dialog.matches(":modal"))).toBe(true);
 }
 
+test("dialog follows the active surface color and keeps descriptions readable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await openSurface(page, "bulk");
+  const dialog = page.getByRole("dialog");
+  const description = dialog.getByText(
+    "Choose only the fields you intend to change. Unchecked metadata remains untouched.",
+  );
+  expect(
+    await description.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return element.getBoundingClientRect().height / parseFloat(style.lineHeight);
+    }),
+  ).toBeLessThanOrEqual(2);
+  for (const color of ["rgb(245, 245, 245)", "rgb(20, 25, 30)"]) {
+    await page.evaluate(
+      (value) => document.documentElement.style.setProperty("--surface-main", value),
+      color,
+    );
+    await expect(dialog).toHaveCSS("background-color", color);
+  }
+});
+
 for (const surface of ["add", "metadata"]) {
   test(`${surface} dialog actions use the standard control scale`, async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 900 });
@@ -83,12 +107,15 @@ async function reachableShell(page: Page) {
     .evaluateAll((elements) =>
       elements
         .filter((element) => /auto|scroll/.test(getComputedStyle(element).overflowY))
-        .map((element) => element.className),
+        .map((element) => element.getAttribute("aria-label")),
     );
-  expect(overflowOwners).toEqual(expect.arrayContaining(["dialog__body", "dialog__feedback"]));
-  expect(
-    overflowOwners.filter((name) => name !== "dialog__body" && name !== "dialog__feedback"),
-  ).toEqual([]);
+  expect(overflowOwners).toEqual(
+    expect.arrayContaining([
+      expect.stringMatching(/ content$/),
+      expect.stringMatching(/ feedback$/),
+    ]),
+  );
+  expect(overflowOwners.filter((name) => !name || !/ (content|feedback)$/.test(name))).toEqual([]);
 }
 
 async function keyboardScroll(page: Page, selector: string) {

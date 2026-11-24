@@ -54,7 +54,6 @@
 
   :where(
     .dialog,
-    .dialog-loading-fallback__panel,
     .quick-actions,
     .menu-popover,
     .app-select__menu,
@@ -87,7 +86,6 @@
 
   :where(
     .dialog,
-    .dialog-loading-fallback__panel,
     .quick-actions,
     .menu-popover,
     .app-select__menu,
