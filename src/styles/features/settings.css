@@ -135,7 +135,7 @@
 }
 
 html[data-motion="on"] .settings-section-transition[data-transition="section-change"] {
-  animation: app-motion-settings-section-in var(--motion-duration-fast) var(--motion-ease-standard);
+  animation: var(--animate-settings-enter);
 }
 
 .settings-section__header {
@@ -333,7 +333,7 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
 }
 
 html[data-motion="on"] .settings-status {
-  animation: app-motion-notice-in var(--motion-duration-fast) var(--motion-ease-standard);
+  animation: var(--animate-notice-enter);
 }
 
 .settings-row__meta {

@@ -54,7 +54,7 @@ describe("form semantics and control hit-area contract", () => {
   });
 
   it("retains existing compact and native-window target geometry", () => {
-    expect(tokens).toContain("--control-height-compact: 32px");
+    expect(tokens).toContain("--spacing-control-compact: 32px");
     expect(cssBlock(buttons, ".icon-button--compact")).toContain(
       "--icon-button-size: var(--control-height-compact)",
     );

@@ -468,7 +468,7 @@ html[data-density="compact"] .nav-item {
 
 @media (max-width: 820px) {
   :root {
-    --sidebar-width: 220px;
+    --sidebar-width: var(--spacing-sidebar-narrow);
     --library-sidebar-inset-end: 12px;
   }
 

@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--spacing-control-gap);
   min-height: var(--button-height, var(--control-height-prominent));
   padding: 0 var(--button-padding-inline, 17px);
   border-radius: var(--radius-control);
@@ -20,7 +20,7 @@
   --button-height: var(--control-height-compact);
   --button-padding-inline: 11px;
 
-  gap: 6px;
+  gap: var(--spacing-control-gap-compact);
   font-size: var(--type-meta);
 }
 

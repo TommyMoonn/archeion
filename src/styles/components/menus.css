@@ -56,8 +56,8 @@ details[open] > .menu-trigger {
   z-index: 1000;
   top: var(--context-menu-top, 0px);
   left: var(--context-menu-left, 0px);
-  max-width: calc(100vw - 16px);
-  max-height: calc(100vh - 16px);
+  max-width: calc(100vw - var(--spacing-overlay-viewport-inset));
+  max-height: calc(100vh - var(--spacing-overlay-viewport-inset));
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -65,9 +65,9 @@ details[open] > .menu-trigger {
 .menu-popover {
   display: grid;
   width: max-content;
-  min-width: min(168px, calc(100vw - 16px));
-  max-width: min(420px, calc(100vw - 16px));
-  padding: 5px;
+  min-width: min(var(--spacing-menu-min), calc(100vw - var(--spacing-overlay-viewport-inset)));
+  max-width: min(var(--container-popover), calc(100vw - var(--spacing-overlay-viewport-inset)));
+  padding: var(--spacing-menu-padding);
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-menu);
   background: var(--surface-raised);
@@ -79,7 +79,7 @@ details[open] > .menu-trigger {
   min-width: 0;
   grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-control-gap);
   width: 100%;
   min-height: var(--control-height-compact);
   padding: 7px 9px;

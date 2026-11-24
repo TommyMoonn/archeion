@@ -1,10 +1,17 @@
 .reader-page,
 .reader-status-page {
-  --type-caption: 0.6875rem;
-  --type-meta: 0.75rem;
-  --type-body: 0.8125rem;
-  --type-body-large: 0.875rem;
-  --type-title-small: 0.9375rem;
+  --text-caption: var(--text-reader-caption);
+  --text-meta: var(--text-reader-meta);
+  --text-body: var(--text-reader-body);
+  --text-body-large: var(--text-reader-body-large);
+  --text-title-small: var(--text-reader-title-small);
+
+  /* Legacy aliases must resolve in this scope, not inherit their root value. */
+  --type-caption: var(--text-caption);
+  --type-meta: var(--text-meta);
+  --type-body: var(--text-body);
+  --type-body-large: var(--text-body-large);
+  --type-title-small: var(--text-title-small);
 }
 
 .reader-page {
@@ -589,7 +596,7 @@ html[data-motion="on"] .reader-toolbar__back:active {
 
 html[data-motion="on"] .reader-loading__line,
 html[data-motion="on"] .reader-panel-loading span {
-  animation: loading-sheen 1.5s var(--motion-ease-standard) infinite;
+  animation: var(--animate-loading-sheen);
 }
 
 .reader-loading__line--short {
@@ -1389,7 +1396,7 @@ html[data-motion="on"] .reader-panel-loading span {
 }
 
 html[data-motion="on"] .reader-search__loading span {
-  animation: loading-sheen 1.5s var(--motion-ease-standard) infinite;
+  animation: var(--animate-loading-sheen);
 }
 
 @media (max-width: 760px) {

@@ -48,14 +48,14 @@ function cssBlock(selector: string, source: string): string | undefined {
 
 describe("Phase 0.4.0.6 UI integration gate", () => {
   it("preserves documented shared dimensions without banning fractional CSS elsewhere", () => {
-    const tokens = cssBlock(":root", tokensSource);
+    const tokens = cssBlock("@theme static", tokensSource);
     for (const [token, value] of [
-      ["--control-height-compact", "32px"],
-      ["--control-height-standard", "36px"],
-      ["--control-height-prominent", "40px"],
+      ["--spacing-control-compact", "32px"],
+      ["--spacing-control-standard", "36px"],
+      ["--spacing-control-prominent", "40px"],
       ["--border-width", "1px"],
-      ["--sidebar-width", "248px"],
-      ["--sidebar-collapsed-width", "56px"],
+      ["--spacing-sidebar-expanded", "248px"],
+      ["--spacing-sidebar-collapsed", "56px"],
     ]) {
       expect(tokens).toMatch(new RegExp(`${token}:\\s*${value};`));
     }

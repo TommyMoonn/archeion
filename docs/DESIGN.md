@@ -5,7 +5,7 @@
 
 This guide records the visual rules for Archeion's desktop app. It covers the application frame, Library, Reader controls, settings, dialogs, menus, and utility windows. It does not cover the layout or typography of EPUB content, the public website, or the documentation site.
 
-The guide describes the intended UI. Non-color tokens are defined in `src/styles/tokens.css`, built-in application and Reader colors in `themes/built-in/`, and token contracts in `src/themes/themeTokenRegistry.ts`. Update this guide when an accepted design decision changes these sources.
+The guide describes the intended UI. Tailwind owns static desktop tokens in `src/styles/tokens.css`, imported by the desktop CSS entry. Built-in application and Reader colors come from `themes/built-in/`, and the runtime token contract lives in `src/themes/themeTokenRegistry.ts`. Update this guide when an accepted design decision changes these sources.
 
 ## Design principles
 
@@ -37,6 +37,43 @@ Feature code reuses shared components such as `Button`, `IconButton`, `AppSelect
 Archeion's desktop UI uses React, Tailwind CSS v4, existing shared tokens, and `lucide-react`. The Vite plugin compiles utilities from `src/` and desktop browser fixtures. Preflight is disabled: `src/styles/index.css` retains the existing reset and unlayered styles, which take precedence over utility layers during migration. The website has its own styling toolchain.
 
 `components.json` configures the shadcn Base UI registry. Generated primitives belong in `src/components/ui/` and use the desktop `@/` alias. Use an explicitly versioned shadcn CLI when generating primitives. Adopt components through existing shared APIs as their consumers migrate; add registry dependencies and the class merge helper only when needed. Preserve Archeion's theme runtime and visual roles rather than adopting registry defaults.
+
+## Desktop styling and token ownership
+
+`tokens.css` defines the canonical Tailwind theme. `@theme static` emits shared static values even when only legacy CSS or JavaScript reads them. `@theme inline` exposes live application and Reader properties without resolving them at the document root. The default Tailwind palette and design scales are reset; shadcn components use Archeion roles instead of a second palette or theme provider.
+
+| Role                  | Utility examples                                                                                             | Ownership                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| App colors            | `bg-surface-main`, `text-text`, `border-line`, `outline-focus`                                               | Runtime app palette, including local preview overrides                                   |
+| Reader colors         | `bg-reader-bg`, `text-reader-text`, `border-reader-line`                                                     | Reader scope only; app controls in Reader still use their existing app roles             |
+| Typography            | `font-interface`, `font-app-display`, `font-mono`, `text-body`, `text-control-label`                         | Static role sizes and companions; runtime Interface and Display stacks                   |
+| Geometry              | `h-control-standard`, `size-icon-glyph-compact`, `size-icon-slot-standard`, `w-sidebar`, `max-w-popover`     | Shared pixel constraints; sidebar and collection density resolve through live properties |
+| Borders and elevation | `border-solid border-standard border-line`, `rounded-control`, `shadow-app-popover`, `shadow-cover-progress` | Static border/radius and cover elevation; live theme-derived shadows                     |
+| Motion                | `transition-colors duration-fast ease-standard`, `app-motion:motion-safe:animate-view-enter`                 | Shared easing and duration scales with runtime motion and OS reduced-motion gates        |
+| Responsive layout     | `window-narrow:`, `shell-narrow:`, `max-w-dialog`                                                            | Existing viewport thresholds and surface constraints                                     |
+
+Use standard utilities only when their value **and unit** match the baseline. The standard spacing scale is `0.25rem`; pixel-specific control, icon, sidebar, density, and overlay geometry use named spacing tokens. Reuse the same role when the meaning and value match. Add component-specific tokens only when their owning migration needs them. Tailwind `max-*` variants use an exclusive threshold, whereas legacy `max-width` media queries are inclusive; preserve the boundary when migrating a responsive selector. Named `--container-*` values above are surface width constraints, not a blanket set of container breakpoints.
+
+Compose utilities in JSX and share component variants. `@apply`, arbitrary utility values and properties, static inline styles, and hardcoded palette colors are prohibited in migrated desktop code. Arbitrary state or selector variants are reserved for relationships that built-in variants cannot express. Use named token-backed utilities when a built-in utility cannot express a needed property or calculation. Keep runtime CSS properties and inline styles for measured coordinates, resized widths, progress, theme swatches, and other genuinely dynamic values. Keep complete class names discoverable by the desktop source scan.
+
+Legacy `--type-*`, `--control-height-*`, `--icon-*`, and motion aliases remain only for their existing CSS consumers. Remove each alias when its last consumer migrates. `--font-ui` and `--font-display` are runtime outputs, not Tailwind theme names. Their static fallback stacks keep their existing names for the appearance runtime. The Reader UI and its status page override five canonical type sizes (caption, meta, body, body-large, and title-small) with their existing smaller values. Other roles, including control labels and supporting text, retain their application sizes. Theme Manager preview graphics retain their local `--theme-shell-*` properties rather than overriding the application palette. Prepaint, EPUB document styling, and forced-colors overrides retain their own established ownership.
+
+### Stacking and native surfaces
+
+Use ordinary numeric z-index utilities where they match the current role. Preserve local stacking contexts; equal numbers in unrelated contexts do not imply shared overlay ownership.
+
+| Existing layer                                           | Level   |
+| -------------------------------------------------------- | ------- |
+| Local Library and Reader content, controls, and overlays | 1–12    |
+| Update notice                                            | 15      |
+| Window titlebar                                          | 20      |
+| Open select container and menu                           | 40 / 60 |
+| Context menus and Quick Actions overlay                  | 1000    |
+| Tooltip                                                  | 1200    |
+| Keyboard skip link                                       | 1300    |
+| Appearance status                                        | 1500    |
+
+Native dialogs and backdrops use the browser top layer. Increasing z-index cannot replace their containment, focus, or dismissal behavior. Portal content must inherit the scope of the owning surface.
 
 ## Appearance and color
 
@@ -107,39 +144,39 @@ The bundled Inter faces are declared in `src/styles/fonts.css` and tracked by `s
 
 ### Type scale
 
-The type scale uses the semantic roles in `tokens.css`. Sizes use `rem` so browser and system text scaling can enlarge the interface.
+The Tailwind type scale uses the semantic `--text-*` roles in `tokens.css`. Sizes use `rem` so browser and system text scaling can enlarge the interface. Existing `--type-*` aliases reference the same values until their consumers migrate.
 
 | Token                  | Size        | Line height | Weight | Typical use                               |
 | ---------------------- | ----------- | ----------- | ------ | ----------------------------------------- |
-| `--type-caption`       | `0.75rem`   | `1.4`       | `400`  | Secondary labels and compact metadata     |
-| `--type-meta`          | `0.8125rem` | `1.4`       | `400`  | Supporting text and compact controls      |
-| `--type-body`          | `0.875rem`  | `1.5`       | `400`  | Primary application copy and navigation   |
-| `--type-body-large`    | `0.9375rem` | `1.55`      | `400`  | Emphasized body copy and descriptions     |
-| `--type-title-small`   | `1rem`      | `1.3`       | `600`  | Local titles and compact headings         |
-| `--type-title`         | `1.0625rem` | `1.2`       | `400`  | Application and surface titles            |
-| `--type-heading`       | `1.25rem`   | `1.25`      | `600`  | Section headings                          |
-| `--type-dialog-title`  | `1.5625rem` | `1.15`      | `400`  | Dialog headings; `-0.02em` tracking       |
-| `--type-section-title` | `1.75rem`   | `1.15`      | `400`  | Large local headings; `-0.025em` tracking |
-| `--type-page-title`    | `1.875rem`  | `1.1`       | `400`  | Page headings; `-0.03em` tracking         |
+| `--text-caption`       | `0.75rem`   | `1.4`       | `400`  | Secondary labels and compact metadata     |
+| `--text-meta`          | `0.8125rem` | `1.4`       | `400`  | Supporting text and compact controls      |
+| `--text-body`          | `0.875rem`  | `1.5`       | `400`  | Primary application copy and navigation   |
+| `--text-body-large`    | `0.9375rem` | `1.55`      | `400`  | Emphasized body copy and descriptions     |
+| `--text-title-small`   | `1rem`      | `1.3`       | `600`  | Local titles and compact headings         |
+| `--text-title`         | `1.0625rem` | `1.2`       | `400`  | Application and surface titles            |
+| `--text-heading`       | `1.25rem`   | `1.25`      | `600`  | Section headings                          |
+| `--text-dialog-title`  | `1.5625rem` | `1.15`      | `400`  | Dialog headings; `-0.02em` tracking       |
+| `--text-section-title` | `1.75rem`   | `1.15`      | `400`  | Large local headings; `-0.025em` tracking |
+| `--text-page-title`    | `1.875rem`  | `1.1`       | `400`  | Page headings; `-0.03em` tracking         |
 
-Display roles use `--type-display-line-height` (`1.05`), `--type-display-weight` (`400`), and `--type-display-letter-spacing` (`-0.03em`):
+Display roles use `--leading-display` (`1.05`), `--font-weight-regular` (`400`), and `--tracking-display` (`-0.03em`):
 
 | Token                    | Responsive size range            |
 | ------------------------ | -------------------------------- |
-| `--type-display-compact` | `clamp(1.875rem, 5vw, 2.375rem)` |
-| `--type-display-medium`  | `clamp(2.125rem, 5vw, 3rem)`     |
-| `--type-display-large`   | `clamp(2.375rem, 5vw, 3.5rem)`   |
+| `--text-display-compact` | `clamp(1.875rem, 5vw, 2.375rem)` |
+| `--text-display-medium`  | `clamp(2.125rem, 5vw, 3rem)`     |
+| `--text-display-large`   | `clamp(2.375rem, 5vw, 3.5rem)`   |
 
 Semantic aliases use this scale:
 
 | Alias                      | Definition                                      | Use                                      |
 | -------------------------- | ----------------------------------------------- | ---------------------------------------- |
-| `--type-application-title` | `--type-title` and its companions               | Mounted application wordmark             |
-| `--type-control-label`     | `--type-body`, line height `1.25`, weight `500` | Actionable labels                        |
-| `--type-body-supporting`   | `--type-meta`, line height `1.5`                | Explanatory copy                         |
-| `--type-code`              | `--type-meta`, line height `1.45`               | Paths, identifiers, and code-like values |
+| `--text-application-title` | `--text-title` and its companions               | Mounted application wordmark             |
+| `--text-control-label`     | `--text-body`, line height `1.25`, weight `500` | Actionable labels                        |
+| `--text-body-supporting`   | `--text-meta`, line height `1.5`                | Explanatory copy                         |
+| `--text-code`              | `--text-meta`, line height `1.45`               | Paths, identifiers, and code-like values |
 
-Each type role uses its matching `-line-height`, `-weight`, and `-letter-spacing` companions. The supported UI weights are `400`, `500`, `600`, and `700`. Use regular for body copy, medium for routine controls, semibold for local headings, and bold for rare emphasis. The type system does not add intermediate weights or one-off font-size aliases. Caption is the smallest application text role. Interactive labels, navigation, important status text, and primary metadata use at least that size.
+Each type role uses its matching `--line-height`, `--font-weight`, and `--letter-spacing` companions. The supported UI weights are `400`, `500`, `600`, and `700`. Use regular for body copy, medium for routine controls, semibold for local headings, and bold for rare emphasis. The type system does not add intermediate weights or one-off font-size aliases. Caption is the smallest application text role. Interactive labels, navigation, important status text, and primary metadata use at least that size.
 
 Font metric differences are handled through semantic layout roles. Styles do not target individual installed font names. Fonts and icons are preloaded only when a reproducible trace shows a loading problem. Current browser evidence did not justify a loading change. Native Windows verification remains separate.
 
@@ -158,23 +195,22 @@ Font metric differences are handled through semantic layout roles. Styles do not
 
 Comfortable density is the default. Compact density reduces spacing and selected control dimensions. Both modes use the same typography scale and text roles. The collection content offset is `20px` in comfortable density and `16px` in compact density.
 
-`tokens.css` does not define a repository-wide spacing scale. Components use their established gaps and layout variables. A single area does not add a new global spacing scale.
+`tokens.css` owns the shared spacing scale and existing fixed dimensions. Density changes `--collection-content-offset` through the canonical comfortable and compact values. Keep measured sidebar width separate from its fixed fallback geometry.
 
 Fractional CSS lengths are allowed for optical alignment, interpolation, and responsive
 layout. There is no whole-pixel rule across application styles. Preserve the documented
 shared dimensions below and the sidebar endpoints above through their semantic tokens;
-test those declarations and their consuming selectors rather than banning fractional
-values in unrelated styles. Rendered geometry may also be fractional under text scaling
+verify their rendered geometry rather than banning fractional values in unrelated styles. Rendered geometry may also be fractional under text scaling
 or Windows display scaling.
 
 ### Shared dimensions
 
-| Token                        | Value  | Use                            |
-| ---------------------------- | ------ | ------------------------------ |
-| `--control-height-compact`   | `32px` | Compact buttons and controls   |
-| `--control-height-standard`  | `36px` | Standard buttons and controls  |
-| `--control-height-prominent` | `40px` | Prominent buttons and controls |
-| `--border-width`             | `1px`  | Standard structural border     |
+| Token                         | Value  | Use                            |
+| ----------------------------- | ------ | ------------------------------ |
+| `--spacing-control-compact`   | `32px` | Compact buttons and controls   |
+| `--spacing-control-standard`  | `36px` | Standard buttons and controls  |
+| `--spacing-control-prominent` | `40px` | Prominent buttons and controls |
+| `--border-width`              | `1px`  | Standard structural border     |
 
 Dialog buttons use the standard `36px` control height and meta text scale. This keeps modal
 actions aligned with selectors and Settings actions without changing buttons elsewhere.
@@ -259,7 +295,7 @@ Components use the matching elevation token. Flat workspace areas do not need an
 
 Motion is disabled by default. Users can enable it when the operating system does not request reduced motion. When system reduced motion is active, motion durations are zero. Motion never delays dismissal, focus restoration, or user input.
 
-Use the shared duration vocabulary:
+Use the shared duration vocabulary. The `duration-*` utilities resolve the active `--motion-duration-*` property; `--duration-enabled-*` stores the corresponding static value. Apply animation utilities with `app-motion:motion-safe:` so disabling motion prevents even zero-duration animation events.
 
 | Token                          | Duration | Typical role                                          |
 | ------------------------------ | -------- | ----------------------------------------------------- |

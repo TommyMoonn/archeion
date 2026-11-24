@@ -36,10 +36,16 @@ const readerTheme = read("src/features/reader/readerTheme.ts");
 describe("typography role ownership", () => {
   it("separates routine medium emphasis from semibold local hierarchy", () => {
     expect(customProperty(tokens, "--font-weight-medium")).toBe("500");
-    expect(customProperty(tokens, "--type-control-label-weight")).toBe("var(--font-weight-medium)");
-    expect(customProperty(tokens, "--type-title-small-weight")).toBe("var(--font-weight-semibold)");
-    expect(customProperty(tokens, "--type-heading-weight")).toBe("var(--font-weight-semibold)");
-    expect(customProperty(tokens, "--type-body-weight")).toBe("var(--font-weight-regular)");
+    expect(customProperty(tokens, "--text-control-label--font-weight")).toBe(
+      "var(--font-weight-medium)",
+    );
+    expect(customProperty(tokens, "--text-title-small--font-weight")).toBe(
+      "var(--font-weight-semibold)",
+    );
+    expect(customProperty(tokens, "--text-heading--font-weight")).toBe(
+      "var(--font-weight-semibold)",
+    );
+    expect(customProperty(tokens, "--text-body--font-weight")).toBe("var(--font-weight-regular)");
   });
 
   it("exposes canonical application roles through scalable tokens", () => {
@@ -57,23 +63,23 @@ describe("typography role ownership", () => {
     ];
 
     for (const role of roles) {
-      const size = customProperty(tokens, `--type-${role}`);
+      const size = customProperty(tokens, `--text-${role}`);
       expect(size, `Missing size for ${role}`).toBeDefined();
       expect(size, `${role} must scale from the root font size`).not.toContain("px");
-      expect(customProperty(tokens, `--type-${role}-line-height`)).toBeDefined();
-      expect(customProperty(tokens, `--type-${role}-weight`)).toBeDefined();
+      expect(customProperty(tokens, `--text-${role}--line-height`)).toBeDefined();
+      expect(customProperty(tokens, `--text-${role}--font-weight`)).toBeDefined();
     }
 
     for (const role of ["display-compact", "display-medium", "display-large"]) {
-      const size = customProperty(tokens, `--type-${role}`);
+      const size = customProperty(tokens, `--text-${role}`);
       expect(size, `Missing size for ${role}`).toContain("rem");
       expect(size, `${role} must scale from the root font size`).not.toContain("px");
     }
 
     for (const role of ["application-title", "control-label", "body-supporting", "code"]) {
-      expect(customProperty(tokens, `--type-${role}`)).toMatch(/^var\(--type-/);
-      expect(customProperty(tokens, `--type-${role}-line-height`)).toBeDefined();
-      expect(customProperty(tokens, `--type-${role}-weight`)).toBeDefined();
+      expect(customProperty(tokens, `--text-${role}`)).toMatch(/^var\(--text-/);
+      expect(customProperty(tokens, `--text-${role}--line-height`)).toBeDefined();
+      expect(customProperty(tokens, `--text-${role}--font-weight`)).toBeDefined();
     }
   });
 

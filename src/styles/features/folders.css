@@ -23,7 +23,7 @@
 }
 
 html[data-motion="on"] .folder-tree__children {
-  animation: app-motion-disclosure-in var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: var(--animate-disclosure-enter);
 }
 
 .folder-tree__row {

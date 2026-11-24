@@ -94,11 +94,11 @@
   position: fixed;
   z-index: 60;
   width: max-content;
-  min-width: 188px;
-  max-width: min(420px, calc(100vw - 16px));
+  min-width: var(--spacing-select-menu-min);
+  max-width: min(var(--container-popover), calc(100vw - var(--spacing-overlay-viewport-inset)));
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 5px;
+  padding: var(--spacing-menu-padding);
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-menu);
   background: var(--surface-raised);
@@ -115,7 +115,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--icon-slot-compact);
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-control-gap);
   width: 100%;
   min-height: var(--control-height-compact);
   padding: 6px 8px;

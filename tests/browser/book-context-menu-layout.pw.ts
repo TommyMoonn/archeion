@@ -1,19 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { expect, test } from "@playwright/test";
 
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const styles = [
-  "src/styles/tokens.css",
-  "src/styles/reset.css",
-  "src/styles/base.css",
-  "src/styles/components/menus.css",
-  "src/styles/features/library.css",
-]
-  .map((relativePath) => fs.readFileSync(path.join(projectRoot, relativePath), "utf8"))
-  .join("\n");
 const labels = [
   "Read",
   "Add favorite",
@@ -28,6 +14,9 @@ test("book context menu keeps mono-font actions on one line and sizes to its con
   page,
 }) => {
   await page.setViewportSize({ width: 248, height: 353 });
+  const stylesheet = await page.request.get("/src/styles/index.css?direct");
+  expect(stylesheet.ok()).toBe(true);
+  const styles = await stylesheet.text();
   await page.setContent(`
     <style>${styles}</style>
     <style>html { font-size: 16px; } :root { --font-ui: monospace; }</style>

@@ -13,7 +13,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--spacing-control-gap-compact);
   min-height: var(--segmented-option-height, var(--control-height-compact));
   min-width: 0;
   padding: 0 11px;

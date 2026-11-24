@@ -2,8 +2,8 @@
   --surface-duration: var(--motion-duration-emphasized);
   --surface-exit-duration: var(--motion-duration-fast);
   transform-origin: center;
-  --dialog-width: 430px;
-  --dialog-inset: 32px;
+  --dialog-width: var(--container-dialog);
+  --dialog-inset: var(--spacing-dialog-inset);
   width: min(var(--dialog-width), calc(100% - var(--dialog-inset)));
   max-width: none;
   max-height: calc(100dvh - var(--dialog-inset));
@@ -206,7 +206,7 @@ html[data-motion="on"]
 
 @media (max-height: 520px), (max-width: 480px) {
   .dialog {
-    --dialog-inset: 20px;
+    --dialog-inset: var(--spacing-dialog-inset-narrow);
   }
 
   .dialog__panel {
