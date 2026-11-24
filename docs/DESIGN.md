@@ -266,7 +266,7 @@ Components use the matching elevation token. Flat workspace areas do not need an
 
 - Shared `Button` variants cover primary, secondary, ghost, and destructive actions. Each area has one clear primary action. Secondary actions have less visual weight.
 - `IconButton` is used for compact icon actions. Its layout slot stays stable, and each instance has an accessible name.
-- Shared `AppSelect`, `SegmentedControl`, `Toggle`, and menu components provide the common focus, selection, and disabled states. Feature components reuse them.
+- Shared `AppSelect`, `SegmentedControl`, `Toggle`, and menu components provide the common focus, selection, and disabled states. Feature components reuse them. Preference switches, segmented radio groups, and Settings sliders use Base UI primitives styled with semantic tokens. Reader progress seeking remains a separate control.
 - Interactive controls show hover, pressed, selected, disabled, invalid, and keyboard-focus states. Selection remains visible without relying on a small color change.
 - Busy actions keep their label and outer dimensions stable. A status message is not repeated in both visible and live-announced content. A spinner is used only when an operation lasts long enough for progress feedback to help.
 - Forms stay compact and keep visible labels and useful validation text. Narrow areas reflow locally. Error states use a semantic color and another cue, such as an outline or message.

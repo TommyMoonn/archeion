@@ -203,8 +203,11 @@
     background: Highlight;
   }
 
-  .toggle-control[aria-checked="true"] span {
-    background: HighlightText;
+  /* Reader palette rules are unlayered and more specific than the shared selection rule. */
+  .reader-control .segmented-control__option[aria-checked="true"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
   }
 
   :where(.book-card[data-selected], .book-row[data-selected]) {

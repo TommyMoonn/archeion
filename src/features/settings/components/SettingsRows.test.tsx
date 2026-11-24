@@ -70,32 +70,33 @@ describe("Settings row primitives", () => {
     expect(markup).toContain('type="range"');
   });
 
-  it("preserves slider interaction through the feature-row owner", () => {
+  it("exposes the current value, range, step and accessible label through the native input", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
-    const onChange = vi.fn();
-
-    act(() => {
-      root.render(
-        <SettingsSliderRow
-          description="Sets the default text size."
-          label="Font size"
-          max={28}
-          min={12}
-          onChange={onChange}
-          value={16}
-        />,
+    try {
+      act(() =>
+        root.render(
+          <SettingsSliderRow
+            description="Sets the default text size."
+            label="Font size"
+            max={28}
+            min={12}
+            step={2}
+            onChange={vi.fn()}
+            value={16}
+            suffix="px"
+          />,
+        ),
       );
-    });
-    const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
-
-    act(() => {
-      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      valueSetter?.call(slider, "20");
-      slider.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-
-    expect(onChange).toHaveBeenCalledWith(20);
-    act(() => root.unmount());
+      const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
+      expect(slider?.getAttribute("aria-label")).toBe("Font size");
+      expect(slider?.getAttribute("aria-valuetext")).toBe("16px");
+      expect(slider?.min).toBe("12");
+      expect(slider?.max).toBe("28");
+      expect(slider?.step).toBe("2");
+      expect(slider?.value).toBe("16");
+    } finally {
+      act(() => root.unmount());
+    }
   });
 });

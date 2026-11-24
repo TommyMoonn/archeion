@@ -251,3 +251,9 @@ a {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* The slider's native range input is visually hidden; show focus on its visible thumb. */
+:root[data-focus-presentation="keyboard-navigation"] [data-slot="slider-thumb"]:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}

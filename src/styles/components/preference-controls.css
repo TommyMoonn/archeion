@@ -1,0 +1,45 @@
+/* System colors distinguish the painted parts of these controls, not their hidden inputs. */
+@media (forced-colors: active) {
+  [data-slot="switch"] {
+    forced-color-adjust: none;
+    background: Canvas;
+    border-color: CanvasText;
+  }
+
+  [data-slot="switch-thumb"] {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  [data-slot="switch"][aria-checked="true"],
+  [data-slot="radio-group-item"][aria-checked="true"] {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+
+  [data-slot="switch"][aria-checked="true"] [data-slot="switch-thumb"] {
+    background: HighlightText;
+  }
+
+  [data-slot="radio-group-item"][aria-checked="true"] .segmented-control__icon {
+    forced-color-adjust: none;
+  }
+
+  [data-slot="slider-track"] {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+
+  [data-slot="slider-indicator"],
+  [data-slot="slider-thumb"] {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+
+  :root[data-focus-presentation="keyboard-navigation"] [data-slot="slider-thumb"]:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: 3px;
+  }
+}

@@ -1,4 +1,6 @@
 import { type ReactNode, useId } from "react";
+import { focusPresentationRuntime } from "@/app/inputModality";
+import { Slider } from "@/components/ui/slider";
 
 type SettingsRowFrameProps = {
   children: ReactNode;
@@ -105,19 +107,37 @@ export function SettingsSliderRow({
 }: SettingsSliderRowProps) {
   return (
     <FeatureSettingsRow description={description} label={label}>
-      <div className="settings-slider">
-        <span aria-hidden="true" className="settings-slider__value">
+      <div className="settings-slider grid settings-slider-columns items-center gap-slider-gap w-slider-row max-w-full">
+        <span
+          aria-hidden="true"
+          className="settings-slider__value text-text text-meta tabular-nums text-end whitespace-nowrap"
+        >
           {value}
           {suffix}
         </span>
-        <input
-          aria-label={label}
-          aria-valuetext={`${value}${suffix}`}
+        <Slider
+          label={label}
+          valueText={`${value}${suffix}`}
           max={max}
           min={min}
-          onChange={(event) => onChange(Number(event.currentTarget.value))}
+          onValueChange={(next) => onChange(next)}
+          onThumbKeyDown={(event) => {
+            if (
+              [
+                "ArrowLeft",
+                "ArrowRight",
+                "ArrowUp",
+                "ArrowDown",
+                "Home",
+                "End",
+                "PageUp",
+                "PageDown",
+              ].includes(event.key)
+            )
+              focusPresentationRuntime.markKeyboardNavigation();
+          }}
           step={step}
-          type="range"
+          largeStep={Math.max(step ?? 1, Math.round((max - min) / 10 / (step ?? 1)) * (step ?? 1))}
           value={value}
         />
       </div>

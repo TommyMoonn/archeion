@@ -133,6 +133,21 @@
   --spacing-font-picker-inset: 4px;
   --spacing-select-trigger: min(164px, 100%);
   --spacing-select-trigger-gap: 12px;
+  --spacing-control-inset: 2px;
+  --spacing-switch-compact: 34px;
+  --spacing-switch-standard: 38px;
+  --spacing-switch-height-compact: 20px;
+  --spacing-switch-height-standard: 22px;
+  --spacing-switch-thumb-compact: 14px;
+  --spacing-switch-thumb-standard: 16px;
+  --spacing-segment-inset: 3px;
+  --spacing-segment-icon-default: 38px;
+  --spacing-segment-glyph: 18px;
+  --spacing-slider-row: 240px;
+  --spacing-slider-gap: 12px;
+  --spacing-slider-hit: 26px;
+  --spacing-slider-track: 4px;
+  --spacing-slider-thumb: 16px;
   --spacing-overlay-viewport-inset: 16px;
   --container-dialog: 430px;
   --container-popover: 420px;
@@ -177,6 +192,11 @@
 @theme inline {
   --font-interface: var(--font-ui);
   --font-app-display: var(--font-display);
+  --spacing-segment-icon: var(--segment-icon-size);
+  --radius-segment: max(
+    0px,
+    calc(var(--radius-control) - var(--spacing-segment-inset) - var(--border-width))
+  );
   --spacing-sidebar: var(--sidebar-width);
   --spacing-collection-content: var(--collection-content-offset);
   --default-transition-duration: var(--motion-duration-standard);
@@ -244,6 +264,8 @@
   --color-reader-link-visited: var(--reader-link-visited);
   --color-backdrop: var(--backdrop);
   --color-action-primary-active: color-mix(in srgb, var(--accent-strong) 88%, var(--canvas-deep));
+  --color-switch-hover: color-mix(in srgb, var(--accent-soft) 86%, var(--accent) 14%);
+  --color-switch-active: color-mix(in srgb, var(--accent-soft) 76%, var(--accent) 24%);
   --color-action-neutral-active: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
   --color-action-danger-active: color-mix(in srgb, var(--danger-strong) 88%, var(--canvas-deep));
 
@@ -493,4 +515,29 @@ html[data-motion="on"] {
     outline: 2px solid var(--focus);
     outline-offset: -2px;
   }
+}
+
+@utility transition-switch-thumb {
+  transition:
+    translate var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard);
+}
+
+@utility settings-slider-columns {
+  grid-template-columns: 4ch minmax(0, 1fr);
+}
+
+:root {
+  --segment-icon-size: var(--spacing-segment-icon-default);
+}
+html[data-density="compact"] {
+  --segment-icon-size: var(--spacing-control-standard);
+}
+
+@utility transition-segment {
+  transition:
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    border-color var(--motion-duration-standard) var(--ease-standard),
+    scale var(--motion-duration-fast) var(--ease-standard);
 }

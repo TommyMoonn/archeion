@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { ControlSize } from "./Button";
+import { Switch } from "./ui/switch";
 import { Tooltip } from "./Tooltip";
 import { useOwnedTooltipAvailable } from "./tooltipStore";
 
@@ -28,26 +29,23 @@ export function Toggle({
   const ownedTooltipAvailable = useOwnedTooltipAvailable();
   const usesOwnedDisabledDescription = Boolean(ownedTooltipAvailable && hasExplainedDisabledState);
   const button = (
-    <button
-      aria-checked={checked}
+    <Switch
       aria-describedby={!usesOwnedDisabledDescription ? reasonId : undefined}
       aria-disabled={hasExplainedDisabledState || undefined}
       aria-label={label}
-      className={`toggle-control toggle-control--${size} ${className}`.trim()}
+      checked={checked}
+      className={className}
       disabled={disabled && !hasExplainedDisabledState}
+      readOnly={hasExplainedDisabledState}
       onClick={(event) => {
         if (disabled) {
           event.preventDefault();
           event.stopPropagation();
-          return;
         }
-        onChange(!checked);
       }}
-      role="switch"
-      type="button"
-    >
-      <span aria-hidden="true" />
-    </button>
+      onCheckedChange={(next) => onChange(next)}
+      size={size}
+    />
   );
   const control = ownedTooltipAvailable ? (
     <Tooltip content={hasExplainedDisabledState ? (disabledReason ?? "") : ""}>{button}</Tooltip>

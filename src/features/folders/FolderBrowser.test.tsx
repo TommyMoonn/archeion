@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -43,7 +45,6 @@ describe("FolderBrowser", () => {
       />,
     );
 
-    expect(markup).toContain("segmented-control--icon-only");
     expect(markup).toContain('role="radiogroup"');
     expect(markup).toContain('aria-label="Folder view"');
     expect(markup).toContain('aria-label="Cards"');
@@ -105,7 +106,10 @@ describe("FolderBrowser", () => {
     );
 
     expect(markup).toContain('aria-label="Cards"');
-    expect(markup).toContain('aria-checked="true" aria-label="Cards"');
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    expect(
+      document.querySelector('[role="radio"][aria-label="Cards"]')?.getAttribute("aria-checked"),
+    ).toBe("true");
   });
 
   it("keeps true-empty folders in the shared collection state geometry", () => {

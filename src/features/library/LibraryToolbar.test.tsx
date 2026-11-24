@@ -211,7 +211,6 @@ describe("LibraryToolbar", () => {
   it("uses the shared accessible icon-only collection view control", () => {
     const markup = renderToolbar();
 
-    expect(markup).toContain("segmented-control--icon-only");
     expect(markup).toContain('role="radiogroup"');
     expect(markup).toContain('aria-label="Library view"');
     expect(markup).toContain('aria-label="Grid"');

@@ -304,11 +304,6 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
   font-size: var(--type-meta);
 }
 
-.settings-row input[type="range"] {
-  width: 180px;
-  accent-color: var(--accent);
-}
-
 .settings-row input[type="checkbox"] {
   width: 34px;
   height: 18px;
@@ -386,33 +381,6 @@ html[data-motion="on"] .settings-status {
 .settings-row__control .segmented-control {
   min-width: min(188px, 100%);
   max-width: 100%;
-}
-
-.settings-row__control input[type="range"] {
-  width: min(220px, 28vw);
-}
-
-.settings-slider {
-  display: grid;
-  grid-template-columns: 4ch minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  width: 240px;
-  max-width: 100%;
-}
-
-.settings-slider__value {
-  color: var(--text);
-  font-size: var(--type-meta);
-  font-variant-numeric: tabular-nums;
-  text-align: end;
-  white-space: nowrap;
-}
-
-.settings-row__control .settings-slider input[type="range"] {
-  width: 100%;
-  min-width: 0;
-  margin-inline: 0;
 }
 
 .settings-row__meta code {
@@ -708,10 +676,6 @@ html[data-motion="on"] .settings-status {
   .settings-row {
     gap: 16px;
   }
-
-  .settings-row input[type="range"] {
-    width: 140px;
-  }
 }
 
 @container settings-section (max-width: 560px) {
@@ -730,8 +694,7 @@ html[data-motion="on"] .settings-status {
 
   .settings-row__control .app-select,
   .settings-theme-control .app-select,
-  .settings-row__control .segmented-control,
-  .settings-row__control input[type="range"] {
+  .settings-row__control .segmented-control {
     width: 100%;
   }
 

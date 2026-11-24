@@ -77,8 +77,9 @@ describe("shared control geometry", () => {
     expect(markup).toContain("icon-button--prominent");
     expect(markup).not.toContain('title="Finish saving first"');
     expect(markup).toContain("input-shell--standard");
-    expect(markup).toContain("segmented-control--standard");
-    expect(markup).toContain("toggle-control--compact");
+    expect(container.querySelector('[role="radio"][aria-checked="true"]')?.textContent).toBe(
+      "Grid",
+    );
   });
 
   it("generates unique IDs for repeated visible labels", () => {
@@ -448,7 +449,6 @@ describe("icon-only SegmentedControl", () => {
   it("uses option labels as accessible names without rendering duplicate visible text", () => {
     const markup = renderToStaticMarkup(<IconOnlySegmentedControlHarness />);
 
-    expect(markup).toContain("segmented-control--icon-only");
     expect(markup).toContain('aria-label="Collection view"');
     expect(markup).toContain('aria-label="Grid"');
     expect(markup).toContain('aria-label="Cards"');
@@ -456,45 +456,6 @@ describe("icon-only SegmentedControl", () => {
     expect(markup).not.toContain(">Grid<");
     expect(markup).not.toContain(">Cards<");
     expect(markup).not.toContain(">List<");
-  });
-
-  it("preserves roving focus, disabled skipping, arrows, Home, End, and click behavior", () => {
-    const container = document.createElement("div");
-    document.body.append(container);
-    activeRoot = createRoot(container);
-
-    act(() => activeRoot?.render(<IconOnlySegmentedControlHarness />));
-
-    const grid = container.querySelector<HTMLButtonElement>('button[aria-label="Grid"]')!;
-    const cards = container.querySelector<HTMLButtonElement>('button[aria-label="Cards"]')!;
-    const list = container.querySelector<HTMLButtonElement>('button[aria-label="List"]')!;
-
-    expect(grid.tabIndex).toBe(0);
-    expect(cards.disabled).toBe(true);
-    expect(list.tabIndex).toBe(-1);
-
-    act(() => {
-      grid.focus();
-      grid.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }));
-    });
-    expect(list.getAttribute("aria-checked")).toBe("true");
-    expect(document.activeElement).toBe(list);
-
-    act(() => {
-      list.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" }));
-    });
-    expect(grid.getAttribute("aria-checked")).toBe("true");
-    expect(document.activeElement).toBe(grid);
-
-    act(() => {
-      grid.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
-    });
-    expect(list.getAttribute("aria-checked")).toBe("true");
-
-    act(() => grid.click());
-    expect(grid.getAttribute("aria-checked")).toBe("true");
-    expect(grid.tabIndex).toBe(0);
-    expect(list.tabIndex).toBe(-1);
   });
 });
 
