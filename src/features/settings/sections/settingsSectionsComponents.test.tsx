@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -110,12 +112,10 @@ describe("settings section components", () => {
     },
   ])("renders the $title heading without a tab subtitle", ({ Section, title, description }) => {
     const markup = renderToStaticMarkup(<Section context={createController()} />);
-    const header = markup.match(/<header[^>]*>.*?<\/header>/)?.[0];
-
-    expect(markup).toContain(`<h2>${title}</h2>`);
-    expect(header).toBeDefined();
-    expect(header).not.toContain("<p");
-    expect(markup).not.toContain(description.replaceAll("'", "&#x27;"));
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector("header h2")?.textContent).toBe(title);
+    expect(content.querySelector("header p")).toBeNull();
+    expect(content.body.textContent).not.toContain(description);
   });
 
   it("renders the accepted Appearance labels", () => {

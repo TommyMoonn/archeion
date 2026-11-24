@@ -80,7 +80,11 @@ async function geometry(page: Page, plane: string) {
       return color;
     };
     return {
-      titlebar: rect(document.querySelector(".window-titlebar")!),
+      titlebar: {
+        ...rect(document.querySelector(".window-titlebar")!),
+        color: getComputedStyle(document.querySelector(".window-titlebar")!).backgroundColor,
+        border: getComputedStyle(document.querySelector(".window-titlebar")!).borderBottomColor,
+      },
       main: rect(document.querySelector("main")!),
       plane: {
         ...rect(document.querySelector(selector)!),
@@ -96,6 +100,7 @@ async function geometry(page: Page, plane: string) {
         canvas: resolvedColor("--canvas"),
         main: resolvedColor("--surface-main"),
         canvasDeep: resolvedColor("--canvas-deep"),
+        lineSubtle: resolvedColor("--line-subtle"),
         base: root.getPropertyValue("color-scheme"),
       },
       documentHeight: document.documentElement.scrollHeight,
@@ -142,6 +147,8 @@ for (const theme of ["dark", "light", "custom"] as const)
             .evaluate((node) => node.setAttribute("data-persistent-test", "original"));
         const before = await geometry(page, utility.plane);
         expect(before.documentHeight).toBe(before.viewportHeight);
+        expect(before.titlebar.color).toBe(before.tokens.canvasDeep);
+        expect(before.titlebar.border).toBe(before.tokens.lineSubtle);
         expect(before.plane.color).toBe(
           utility.mode === "about" || utility.mode === "archive-manager"
             ? before.tokens.main

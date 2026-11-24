@@ -10,6 +10,13 @@ type SettingsRowFrameProps = {
   variant: "action" | "compact" | "feature" | "standard";
 };
 
+const rowDensity = {
+  standard: "min-h-settings-row-standard py-settings-row-standard-inset",
+  feature: "min-h-settings-row-standard py-settings-row-standard-inset",
+  compact: "min-h-settings-row-compact py-settings-row-compact-inset",
+  action: "min-h-settings-row-action py-settings-row-action-inset",
+};
+
 function SettingsRowFrame({ children, description, label, note, variant }: SettingsRowFrameProps) {
   const generatedId = useId();
   const labelId = `settings-row-label-${generatedId}`;
@@ -21,23 +28,30 @@ function SettingsRowFrame({ children, description, label, note, variant }: Setti
     <div
       aria-describedby={describedBy}
       aria-labelledby={labelId}
-      className={`settings-row settings-row--${variant}`}
+      className={`settings-row settings-row--${variant} grid settings-row-columns items-center gap-dialog-panel m-0 border-0 border-b border-solid border-line transition-colors [&_code]:block [&_code]:max-w-full [&_code]:text-muted [&_code]:font-mono [&_code]:text-code [&_code]:wrap-anywhere [&_code]:whitespace-normal duration-standard ease-standard settings-window-narrow:gap-overlay-viewport-inset settings-row-narrow:grid-cols-1 settings-row-narrow:items-start settings-row-narrow:gap-dialog-copy ${rowDensity[variant]}`}
       role="group"
     >
-      <div className="settings-row__meta">
-        <strong id={labelId}>{label}</strong>
+      <div className="settings-row__meta grid min-w-0 gap-settings-small-gap [&>span]:text-muted [&>span]:text-body-supporting [&>span]:not-italic [&>small]:text-muted [&>small]:text-body-supporting [&>small]:not-italic">
+        <strong className="text-text text-control-label" id={labelId}>
+          {label}
+        </strong>
         {description ? (
-          <span className="settings-row__description" id={descriptionId}>
+          <span
+            className="settings-row__description max-w-settings-description wrap-anywhere"
+            id={descriptionId}
+          >
             {description}
           </span>
         ) : null}
         {note ? (
-          <span className="settings-row__note" id={noteId}>
+          <span className="settings-row__note text-muted" id={noteId}>
             {note}
           </span>
         ) : null}
       </div>
-      <div className="settings-row__control">{children}</div>
+      <div className="settings-row__control flex w-auto min-w-slider-row items-center justify-end settings-row-narrow:w-full settings-row-narrow:min-w-0 settings-row-narrow:flex-wrap settings-row-narrow:justify-stretch [&_.app-select]:settings-select-basis [&_.app-select]:w-slider-row [&_.app-select]:min-w-0 [&_.app-select]:max-w-full [&_.segmented-control]:settings-segment-min [&_.segmented-control]:max-w-full settings-row-narrow:[&_.app-select]:w-full settings-row-narrow:[&_.app-select]:basis-full settings-row-narrow:[&_.segmented-control]:w-full">
+        {children}
+      </div>
     </div>
   );
 }

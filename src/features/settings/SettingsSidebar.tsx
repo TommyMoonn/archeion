@@ -67,7 +67,7 @@ export function SettingsSidebar({
     <>
       <div aria-label="Settings search" className="settings-search-landmark" role="search">
         <Input
-          className="settings-search"
+          className="settings-search w-full min-h-settings-search [&>input]:min-w-0 [&>input]:text-meta-size [&>input::-webkit-search-cancel-button]:hidden [&>input::-webkit-search-cancel-button]:appearance-none"
           icon={<Search aria-hidden="true" />}
           aria-keyshortcuts={searchAriaKeyShortcuts}
           autoCapitalize="none"
@@ -83,10 +83,14 @@ export function SettingsSidebar({
           value={query}
         />
       </div>
-      <nav aria-label="Settings sections">
+      <nav
+        aria-label="Settings sections"
+        className="grid min-h-0 gap-settings-nav-gap overflow-y-auto pe-busy-inset settings-window-mobile:flex settings-window-mobile:gap-settings-small-gap settings-window-mobile:pb-busy-inset settings-window-mobile:overflow-x-auto settings-window-mobile:overflow-y-hidden settings-window-mobile:overscroll-x-contain settings-window-mobile:scrollbar-gutter-auto"
+      >
         {sections.map((section) => (
           <button
             aria-current={selectedSection === section.id ? "page" : undefined}
+            className="grid settings-nav-columns items-center gap-control-gap min-h-control-standard px-dialog-copy py-control-gap border-0 rounded-control text-muted bg-transparent text-body text-start no-underline transition-colors duration-standard ease-standard hover:text-text hover:bg-surface focus-visible:text-text focus-visible:bg-surface aria-[current=page]:text-text-strong aria-[current=page]:bg-surface-raised settings-window-mobile:min-w-max settings-window-mobile:flex-none"
             key={section.id}
             onClick={() => onSectionChange(section.id)}
             type="button"

@@ -137,7 +137,7 @@ function AppWindow({
       <TooltipProvider subscribeToRouteChanges={subscribeToRouteChanges}>
         <div className="window-app window-app--archive-manager">
           <SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />
-          <WindowTitlebar canMaximize={false} />
+          <WindowTitlebar canMaximize={false} utility />
           <div className="window-app__content">
             <UtilityWindowContentBoundary fallback={<ArchiveManagerWindowLoading failed />}>
               <Suspense fallback={<ArchiveManagerWindowLoading />}>

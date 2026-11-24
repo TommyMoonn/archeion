@@ -1,3 +1,4 @@
+import { SettingsSection } from "../components/SettingsSection";
 import { SurfacePresence } from "../../../components/SurfacePresence";
 import {
   ArrowDown,
@@ -409,7 +410,7 @@ export function DictionarySettingsView({
   }
 
   return (
-    <section className="settings-section dictionary-settings" ref={sectionRef}>
+    <SettingsSection className="dictionary-settings" ref={sectionRef}>
       <SettingsSectionHeader
         actions={
           <div className="dictionary-settings__header-actions">
@@ -612,7 +613,7 @@ export function DictionarySettingsView({
           />
         ) : null}
       </SurfacePresence>
-    </section>
+    </SettingsSection>
   );
 }
 

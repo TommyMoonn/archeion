@@ -34,7 +34,6 @@ describe("form semantics and control hit-area contract", () => {
   const windowFrame = read("src/styles/layout/window-frame.css");
   const forcedColors = read("src/styles/forced-colors.css");
   const archive = read("src/styles/features/archive.css");
-  const settings = read("src/styles/features/settings.css");
   const windowTitlebar = read("src/components/WindowTitlebar.tsx");
 
   it("retains existing compact and native-window target geometry", () => {
@@ -62,9 +61,6 @@ describe("form semantics and control hit-area contract", () => {
   it("keeps long errors and constrained forms locally reflowable", () => {
     expect(cssBlock(forms, ".form-error")).toContain("overflow-wrap: anywhere");
     expect(cssBlock(archive, "@container archive-detail (max-width: 360px)")).toContain(
-      "grid-template-columns: minmax(0, 1fr)",
-    );
-    expect(cssBlock(settings, "@container settings-section (max-width: 560px)")).toContain(
       "grid-template-columns: minmax(0, 1fr)",
     );
   });

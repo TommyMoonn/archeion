@@ -1,3 +1,4 @@
+import { SettingsSection } from "../../../src/features/settings/components/SettingsSection";
 import { useState } from "react";
 import { Copy } from "lucide-react";
 
@@ -53,10 +54,12 @@ export function TypographyFixture() {
           title="Library"
           view="grid"
         />
-        <section className="settings-section" style={{ marginBlock: 24 }}>
+        <SettingsSection style={{ marginBlock: 24 }}>
           <SettingsSectionHeader title="Preferences" description="Choose how Archeion appears." />
-          <div className="settings-section__group">
-            <h3>Appearance</h3>
+          <div className="settings-section__group grid">
+            <h3 className="m-0 pb-control-gap text-muted text-caption font-semibold tracking-settings-group uppercase">
+              Appearance
+            </h3>
             <StandardSettingsRow
               label="Application theme"
               description="Applies to application controls, not publication fonts."
@@ -73,7 +76,7 @@ export function TypographyFixture() {
               />
             </StandardSettingsRow>
           </div>
-        </section>
+        </SettingsSection>
         <Button onClick={() => setOpen(true)} variant="secondary">
           Edit archive name
         </Button>

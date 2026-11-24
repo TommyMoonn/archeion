@@ -1,3 +1,4 @@
+import { Alert } from "@/components/ui/alert";
 import { usePausableAutoDismiss } from "../../components/usePausableAutoDismiss";
 import type { AppPreferencesPersistenceStatus } from "../../stores/appPreferencesStore";
 
@@ -36,23 +37,24 @@ function StatusMessage({
   resetKey = message,
   tone,
 }: StatusMessageProps) {
-  const pauseHandlers = usePausableAutoDismiss<HTMLParagraphElement>({
+  const pauseHandlers = usePausableAutoDismiss<HTMLElement>({
     durationMs: SETTINGS_STATUS_AUTO_DISMISS_MS,
     enabled: autoDismiss && Boolean(onDismiss),
     onDismiss: () => onDismiss?.(),
     resetKey,
   });
 
+  const Message = tone === "error" ? Alert : "p";
   return (
-    <p
-      className="settings-status status-token"
+    <Message
+      className={`settings-status ${tone === "neutral" ? "border-line-strong text-muted bg-settings-neutral-status" : "status-token"} absolute end-settings-sidebar-inset bottom-overlay-viewport-inset max-w-settings-status-width m-0 px-button-compact py-settings-row-compact-inset border-standard border-solid rounded-pill shadow-app-tooltip text-meta leading-settings-status wrap-anywhere motion-safe:app-motion:animate-notice-enter`}
       data-tone={tone}
       role={tone === "error" ? "alert" : "status"}
       tabIndex={autoDismiss && Boolean(onDismiss) ? 0 : undefined}
       {...pauseHandlers}
     >
       {message}
-    </p>
+    </Message>
   );
 }
 

@@ -1,3 +1,4 @@
+import { SettingsSection } from "../components/SettingsSection";
 import { Search } from "lucide-react";
 import { useState } from "react";
 
@@ -16,7 +17,7 @@ export function KeyboardSettingsSection({ context }: { context: SettingsControll
     : items;
 
   return (
-    <section className="settings-section settings-section--keyboard">
+    <SettingsSection className="settings-section--keyboard [&>[data-settings-group]+[data-settings-group]]:mt-dialog-panel">
       <SettingsSectionHeader title="Keyboard" />
       <div
         aria-label="Keyboard shortcut search"
@@ -46,6 +47,6 @@ export function KeyboardSettingsSection({ context }: { context: SettingsControll
           No shortcuts match this search.
         </p>
       )}
-    </section>
+    </SettingsSection>
   );
 }

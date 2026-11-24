@@ -31,8 +31,7 @@ function renderFontRole(
   fontRenders.push({ root, container });
   act(() => root.render(item.render(context)));
   const trigger = () => container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
-  const options = () =>
-    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+  const options = () => Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
   const open = () => act(() => trigger().click());
   const query = (value: string) =>
     act(() => {
@@ -156,7 +155,7 @@ describe("appearanceSettingsItems", () => {
       const unavailable = rendered
         .options()
         .find((option) => option.textContent === `${name} (Unavailable)`)!;
-      expect(unavailable.disabled).toBe(true);
+      expect(unavailable.getAttribute("aria-disabled")).toBe("true");
       expect(unavailable.getAttribute("aria-selected")).toBe("true");
       expect(context.updateAppPreferences).not.toHaveBeenCalled();
       expect(context.preferences.appearance.interfaceFont).toEqual({

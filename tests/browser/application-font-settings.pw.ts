@@ -349,3 +349,62 @@ test("font rows and keyboard indicators retain contrast in both built-in appeara
     expect(ratios.description, JSON.stringify({ colors, ratios })).toBeGreaterThanOrEqual(4.5);
   }
 });
+
+test("Settings keeps navigation and row layout stable while searching and resizing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 760 });
+  await page.goto(fixture);
+  const navigation = page.getByRole("navigation", { name: "Settings sections" });
+  const search = page.getByRole("searchbox", { name: "Search settings" });
+  const content = page.getByRole("region", { name: "Settings content" });
+  const general = navigation.getByRole("button", { name: "General", exact: true });
+  const startup = page.getByRole("group", { name: "Startup behavior", exact: true });
+  await expect(general).toHaveAttribute("aria-current", "page");
+  await expect(startup).toBeVisible();
+  const selected = await general.evaluate((node) => {
+    const style = getComputedStyle(node);
+    const swatch = document.createElement("span");
+    swatch.style.backgroundColor = "var(--surface-raised)";
+    document.body.append(swatch);
+    const fill = getComputedStyle(swatch).backgroundColor;
+    swatch.remove();
+    return { background: style.backgroundColor, fill, leftBorder: style.borderInlineStartWidth };
+  });
+  expect(selected.background).toBe(selected.fill);
+  expect(selected.leftBorder).toBe("0px");
+  const wide = await startup.boundingBox();
+  const label = startup.locator("strong");
+  const control = startup.getByRole("combobox");
+  await expect(control).toHaveCSS("width", "240px");
+  expect((await control.boundingBox())!.x).toBeGreaterThan((await label.boundingBox())!.x);
+  const before = await content.boundingBox();
+  await search.fill("no such preference 87123");
+  await expect(page.getByText("No settings found for “no such preference 87123”.")).toBeVisible();
+  expect(await content.boundingBox()).toEqual(before);
+  await search.fill("");
+  await expect(startup).toBeVisible();
+  expect(await startup.boundingBox()).toEqual(wide);
+  await page.setViewportSize({ width: 600, height: 600 });
+  await expect(control).toBeVisible();
+  expect((await control.boundingBox())!.y).toBeGreaterThan((await label.boundingBox())!.y);
+  expect(
+    await page.evaluate(() => ({
+      height: document.documentElement.scrollHeight,
+      viewport: innerHeight,
+      width: document.documentElement.scrollWidth,
+      viewportWidth: innerWidth,
+    })),
+  ).toEqual({ height: 600, viewport: 600, width: 600, viewportWidth: 600 });
+  await content.evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await expect
+    .poll(() =>
+      content.evaluate((node) => node.scrollTop + node.clientHeight >= node.scrollHeight - 1),
+    )
+    .toBe(true);
+  await navigation.getByRole("button", { name: "Appearance", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Appearance", exact: true })).toBeVisible();
+  await expect.poll(() => content.evaluate((node) => node.scrollTop)).toBe(0);
+});

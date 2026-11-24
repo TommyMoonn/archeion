@@ -151,6 +151,31 @@
   --spacing-segment-inset: 3px;
   --spacing-segment-icon-default: 38px;
   --spacing-segment-glyph: 18px;
+  --spacing-settings-sidebar: 250px;
+  --spacing-settings-sidebar-narrow: 190px;
+  --spacing-settings-sidebar-inset: 18px;
+  --spacing-settings-search: 34px;
+  --spacing-settings-nav-gap: 3px;
+  --spacing-settings-small-gap: 4px;
+  --spacing-settings-content-short-top: 34px;
+  --spacing-settings-content-top: 42px;
+  --spacing-settings-content-bottom: 76px;
+  --spacing-settings-content-short-bottom: 56px;
+  --spacing-settings-content-narrow-inset: 28px;
+  --spacing-settings-row-standard: 64px;
+  --spacing-settings-row-action: 56px;
+  --spacing-settings-row-compact: 48px;
+  --spacing-settings-row-standard-inset: 11px;
+  --spacing-settings-row-action-inset: 9px;
+  --spacing-settings-row-compact-inset: 7px;
+  --spacing-settings-nav-icon: 18px;
+  --container-settings-section: 760px;
+  --container-settings-description: 54ch;
+  --container-settings-status: 360px;
+  --tracking-settings-eyebrow: 0.1em;
+  --tracking-settings-group: 0.08em;
+  --leading-settings-status: 1.35;
+  --leading-settings-empty: 1.55;
   --spacing-slider-row: 240px;
   --spacing-slider-gap: 12px;
   --spacing-slider-hit: 26px;
@@ -198,6 +223,11 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --spacing-settings-content-inset: clamp(30px, 6vw, 72px);
+  --spacing-settings-status-width: min(
+    var(--container-settings-status),
+    calc(100% - 2 * var(--spacing-settings-sidebar-inset))
+  );
   --spacing-dialog-frame: min(var(--dialog-width), calc(100% - var(--spacing-dialog-inset)));
   --spacing-dialog-frame-narrow: min(
     var(--dialog-width),
@@ -232,6 +262,7 @@
 
   --color-canvas: var(--canvas);
   --color-canvas-deep: var(--canvas-deep);
+  --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
@@ -625,4 +656,51 @@ html[data-density="compact"] {
 @utility skeleton-label {
   background: linear-gradient(var(--surface-raised), var(--surface-raised)) left center /
     var(--spacing-skeleton-label-width) var(--spacing-skeleton-label-height) no-repeat;
+}
+
+/* Settings geometry retains the inclusive legacy viewport and container thresholds. */
+@custom-variant settings-window-narrow {
+  @media (max-width: 820px) {
+    @slot;
+  }
+}
+@custom-variant settings-window-mobile {
+  @media (max-width: 620px) {
+    @slot;
+  }
+}
+@custom-variant settings-window-short {
+  @media (max-height: 640px) {
+    @slot;
+  }
+}
+@custom-variant settings-row-narrow {
+  @container settings-section (max-width: 560px) {
+    @slot;
+  }
+}
+@utility settings-window-columns {
+  grid-template-columns: var(--spacing-settings-sidebar) minmax(0, 1fr);
+}
+@utility settings-window-columns-narrow {
+  grid-template-columns: var(--spacing-settings-sidebar-narrow) minmax(0, 1fr);
+}
+@utility settings-window-mobile-rows {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+@utility settings-nav-columns {
+  grid-template-columns: var(--spacing-settings-nav-icon) minmax(0, 1fr);
+}
+@utility settings-row-columns {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@utility settings-select-basis {
+  flex: 0 0 var(--spacing-slider-row);
+}
+@utility settings-segment-min {
+  min-width: min(var(--spacing-select-menu-min), 100%);
+}
+@utility text-meta-size {
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
 }

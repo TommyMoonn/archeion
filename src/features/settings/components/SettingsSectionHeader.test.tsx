@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -9,15 +11,16 @@ describe("SettingsSectionHeader", () => {
       <SettingsSectionHeader description="Section context." title="Example" />,
     );
 
-    expect(markup).toContain("<header");
-    expect(markup).toContain("<h2>Example</h2>");
-    expect(markup).toContain("<p>Section context.</p>");
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector("header h2")?.textContent).toBe("Example");
+    expect(content.querySelector("header p")?.textContent).toBe("Section context.");
   });
 
   it("omits description markup when no description is defined", () => {
     const markup = renderToStaticMarkup(<SettingsSectionHeader title="Keyboard" />);
 
-    expect(markup).toContain("<h2>Keyboard</h2>");
-    expect(markup).not.toContain("<p");
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector("header h2")?.textContent).toBe("Keyboard");
+    expect(content.querySelector("header p")).toBeNull();
   });
 });

@@ -17,6 +17,8 @@ const merge = extendTailwindMerge({
         "input-gap",
         "input-inline",
         "search-field",
+        "settings-search",
+        "dialog-panel",
         "busy-inset",
         "icon-glyph-standard",
       ],

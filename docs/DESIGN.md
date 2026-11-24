@@ -217,6 +217,8 @@ or Windows display scaling.
 Dialog buttons use the standard `36px` control height and meta text scale. This keeps modal
 actions aligned with selectors and Settings actions without changing buttons elsewhere.
 
+Settings uses a shared Tailwind section layout, with a container-sized row layout that stacks labels and controls when space is constrained. Sidebar search and navigation retain their full-row selected fill; the content region owns vertical scrolling. Text-only Empty and Alert components preserve compact search and error feedback. Utility window titlebars use `canvas-deep` and a subtle divider, matching the Settings sidebar plane and reducing contrast at the content boundary. Native window outlines remain compositor-owned.
+
 ### Corners
 
 | Token              | Value   | Use                                                   |
