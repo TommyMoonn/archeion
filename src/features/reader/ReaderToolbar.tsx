@@ -20,6 +20,7 @@ export const READER_TOOLBAR_ID = "reader-toolbar";
 
 type ReaderToolbarProps = {
   temporary?: boolean;
+  standalone?: boolean;
   chapterProgress?: number;
   chapterTitle?: string;
   hasChapterNavigation: boolean;
@@ -65,6 +66,7 @@ type ReaderToolbarProps = {
 
 export function ReaderToolbar({
   temporary = false,
+  standalone = false,
   chapterProgress,
   chapterTitle,
   hasChapterNavigation,
@@ -128,7 +130,7 @@ export function ReaderToolbar({
         <span aria-hidden="true" className="icon-slot">
           <ArrowLeft />
         </span>
-        <span>{temporary ? "Close" : "Back"}</span>
+        <span>{standalone || temporary ? "Close" : "Back"}</span>
       </button>
       <div className="reader-toolbar__chapter-navigation">
         {hasChapterNavigation ? (

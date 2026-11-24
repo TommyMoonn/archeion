@@ -1,4 +1,5 @@
 import { BookOpenText, X } from "lucide-react";
+import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   useCallback,
@@ -369,8 +370,10 @@ export function ReaderPage({
   });
   const settleReaderLeave = useCallback(async () => {
     if (!(await settleNoteEditor())) return false;
-    return progressController?.flush() ?? true;
-  }, [progressController, settleNoteEditor]);
+    if (progressController && !(await progressController.flush())) return false;
+    if (standalone) await appPreferencesStore.flushPendingWrites();
+    return true;
+  }, [progressController, settleNoteEditor, standalone]);
   const retireReaderSession = useCallback(async () => {
     invalidateOpenRequests();
     const identity = readerSessionController.getSnapshot().lifecycle.identity;
@@ -538,9 +541,35 @@ export function ReaderPage({
     [activeArchiveId, leaveReader, navigate],
   );
 
+  const closeStandaloneReader = useCallback(
+    () => leaveReader(() => getCurrentWindow().destroy()),
+    [leaveReader],
+  );
+  useEffect(() => {
+    if (!standalone || !isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onCloseRequested((event) => {
+        event.preventDefault();
+        void closeStandaloneReader();
+      })
+      .then((stop) => {
+        if (disposed) stop();
+        else unlisten = stop;
+      })
+      .catch((error: unknown) => {
+        console.error("Unable to intercept standalone Reader close", error);
+      });
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [closeStandaloneReader, standalone]);
+
   const returnToOrigin = useCallback(() => {
     if (standalone) {
-      void leaveReader(() => getCurrentWindow().close());
+      void closeStandaloneReader();
       return;
     }
     void leaveReader(() =>
@@ -549,7 +578,7 @@ export function ReaderPage({
         state: returnDestination.state,
       }),
     );
-  }, [leaveReader, navigate, returnDestination, standalone]);
+  }, [closeStandaloneReader, leaveReader, navigate, returnDestination, standalone]);
 
   const readerSearchInputRef = useRef<HTMLInputElement>(null);
   const searchSurfaceWasOpenRef = useRef(false);
@@ -1098,6 +1127,7 @@ export function ReaderPage({
         >
           <ReaderToolbar
             temporary={temporary}
+            standalone={standalone}
             backLabel={backLabel}
             chapterProgress={navigationState.chapterProgress}
             chapterTitle={chapterSequence.current?.label}

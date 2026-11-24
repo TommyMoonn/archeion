@@ -81,6 +81,10 @@ jobs:
         shell: pwsh
         run: ./scripts/smoke-windows-installer.ps1 --installer artifacts/windows/Archeion-Setup-x64.exe
 
+      - name: Smoke test staged MSI installer
+        shell: pwsh
+        run: ./scripts/smoke-windows-msi.ps1 -Installer artifacts/windows/Archeion-x64.msi
+
       - name: Upload Windows installers
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

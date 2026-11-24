@@ -3,8 +3,10 @@
   <Fragment>
     <DirectoryRef Id="TARGETDIR">
       <Component Id="ArcheionEpubOpenWith" Guid="*" Win64="yes">
-        <!-- Tauri supplies the Archeion.epub ProgID. Explicitly advertise it
-             as an Open with candidate and register the executable itself. -->
+        <!-- Register the viewer without writing the extension's default value. -->
+        <RegistryValue Root="HKMU" Key="Software\Classes\Archeion.epub" Type="string" Value="EPUB eBook" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Archeion.epub\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]Archeion.exe&quot;,0" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\Archeion.epub\shell\open\command" Type="string" Value="&quot;[INSTALLDIR]Archeion.exe&quot; &quot;%1&quot;" />
         <RegistryValue Root="HKMU" Key="Software\Classes\.epub\OpenWithProgids" Name="Archeion.epub" Type="string" Value="" />
         <RegistryValue Root="HKMU" Key="Software\Classes\Applications\Archeion.exe" Name="FriendlyAppName" Type="string" Value="Archeion" KeyPath="yes" />
         <RegistryValue Root="HKMU" Key="Software\Classes\Applications\Archeion.exe\DefaultIcon" Type="string" Value="&quot;[INSTALLDIR]Archeion.exe&quot;,0" />

@@ -16,7 +16,11 @@ import {
   runWindowsCommand,
 } from "./windows-smoke-support.mjs";
 
-import { cleanupOwnedRuntime, requireContained } from "./runtime-smoke-cleanup.mjs";
+import {
+  cleanupOwnedRuntime,
+  listOwnedApplications,
+  requireContained,
+} from "./runtime-smoke-cleanup.mjs";
 import { runRuntimeFlows } from "../tests/runtime/windowsRuntimeSmoke.mjs";
 import { runWindowPlacementFlows } from "../tests/runtime/windowsWindowPlacement.mjs";
 
@@ -96,8 +100,12 @@ async function main() {
   let activeSession;
   let primaryError;
   let currentStep = "setup";
-  const closeSession = async (session) => {
-    await session.quit();
+  const closeSession = async (session, { exited = false } = {}) => {
+    try {
+      await session.quit();
+    } catch (error) {
+      if (!exited || error?.name !== "NoSuchSessionError") throw error;
+    }
     if (activeSession === session) activeSession = undefined;
   };
   const logStep = async (name, action) => {
@@ -192,11 +200,13 @@ async function main() {
     driverProcess.stderr.pipe(driverLog, { end: false });
     await awaitDriver(port, driverProcess);
 
-    const startSession = async () => {
+    const launchedAfter = Date.now();
+    const startSession = async (args = []) => {
       const capabilities = new Capabilities();
       capabilities.setBrowserName("wry");
       capabilities.set("tauri:options", {
         application: binaryPath,
+        args,
         webviewOptions: { userDataFolder: path.join(runRoot, "webview-data") },
       });
       activeSession = await new Builder()
@@ -210,6 +220,8 @@ async function main() {
       startSession,
       closeSession,
       fixtureRoot: path.join(runRoot, "fixtures"),
+      launchExternal: (file) => runWindowsCommand(binaryPath, [file], { timeout: 20_000 }),
+      applicationCount: async () => (await listOwnedApplications(binaryPath, launchedAfter)).length,
       logStep,
       evidenceRoot,
     });

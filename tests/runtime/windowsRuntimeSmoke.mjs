@@ -64,6 +64,8 @@ export async function runRuntimeFlows({
   fixtureRoot,
   logStep,
   evidenceRoot,
+  launchExternal,
+  applicationCount,
 }) {
   const sourcePath = path.join(fixtureRoot, "smoke.epub");
   const sourceBytes = await createEpubFixture(sourcePath);
@@ -377,4 +379,92 @@ export async function runRuntimeFlows({
       });
     });
   }
+
+  const externalPath = path.join(fixtureRoot, "Standalone 日本語.epub");
+  await createEpubFixture(externalPath);
+  const trackedPath = path.join(archiveRoot, "smoke.epub");
+  async function waitForReader(name, managed) {
+    await waitForIpc(driver);
+    const request = await driver.wait(
+      async () => {
+        const value = await invoke(driver, "cold_start_epub");
+        return value?.fileName === name ? value : false;
+      },
+      20_000,
+      `Unexpected Reader request: ${name}`,
+    );
+    const match = await invoke(driver, "standalone_reader_archive_match", { token: request.token });
+    assert.equal(Boolean(match), managed);
+    await driver.wait(
+      async () =>
+        driver.executeScript(
+          `return Boolean(
+      document.querySelector('.epub-container iframe') &&
+      document.querySelector('[aria-label="Close Reader"]') &&
+      Boolean(document.querySelector('[aria-label="Annotations"]')) === arguments[0])`,
+          managed,
+        ),
+      20_000,
+      `Reader did not render ${name} in the expected mode`,
+    );
+  }
+  await logStep("warm standalone EPUB handoff, deduplication, and independent close", async () => {
+    const mainHandle = await driver.getWindowHandle();
+    const originalUrl = await driver.getCurrentUrl();
+    const metadata = await invoke(driver, "load_archive_metadata", { rootPath: archiveRoot });
+    assert.ok(
+      Object.values(metadata.library.books).some((book) => book.relativePath === "smoke.epub"),
+      "Imported EPUB must have a managed record",
+    );
+    await Promise.all([launchExternal(externalPath), launchExternal(trackedPath)]);
+    const readers = await driver.wait(
+      async () => {
+        const handles = await driver.getAllWindowHandles();
+        return handles.length === 3 ? handles.filter((handle) => handle !== mainHandle) : false;
+      },
+      20_000,
+      "Expected two standalone Readers and the Library",
+    );
+    const names = new Set();
+    for (const handle of readers) {
+      await driver.switchTo().window(handle);
+      await waitForIpc(driver);
+      const request = await invoke(driver, "cold_start_epub");
+      assert.ok(request);
+      names.add(request.fileName);
+      await waitForReader(request.fileName, request.fileName === "smoke.epub");
+    }
+    assert.deepEqual(names, new Set(["Standalone 日本語.epub", "smoke.epub"]));
+    await launchExternal(externalPath);
+    assert.deepEqual(
+      new Set(await driver.getAllWindowHandles()),
+      new Set([mainHandle, ...readers]),
+    );
+    assert.equal(await applicationCount(), 1);
+    for (const [index, handle] of readers.entries()) {
+      await driver.switchTo().window(handle);
+      await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+      await driver.switchTo().window(mainHandle);
+      await driver.wait(
+        async () => (await driver.getAllWindowHandles()).length === 2 - index,
+        20_000,
+      );
+    }
+    assert.equal(await driver.getCurrentUrl(), originalUrl);
+  });
+
+  await logStep("cold standalone Reader and last-window process exit", async () => {
+    await closeSession(driver);
+    driver = await startSession([externalPath]);
+    await waitForReader("Standalone 日本語.epub", false);
+    assert.equal((await driver.getAllWindowHandles()).length, 1);
+    assert.equal(await applicationCount(), 1);
+    await driver.executeScript("void window.__TAURI__.window.getCurrentWindow().close()");
+    await driver.wait(
+      async () => (await applicationCount()) === 0,
+      20_000,
+      "Last Reader did not exit the application",
+    );
+    await closeSession(driver, { exited: true });
+  });
 }

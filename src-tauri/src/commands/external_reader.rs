@@ -77,7 +77,7 @@ impl Registry {
                 ReaderSession {
                     path,
                     request,
-                    ready: true,
+                    ready: false,
                 },
             );
         }
@@ -131,17 +131,7 @@ impl Registry {
             .get(label)
             .filter(|session| session.request.token == token)
             .ok_or("The external Reader session has ended.")?;
-        let path = PathBuf::from(&session.path);
-        let canonical = std::fs::canonicalize(&path)
-            .map_err(|_| "The selected EPUB is no longer available.".to_string())?;
-        if canonical != path
-            || !canonical
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("epub"))
-        {
-            return Err("The selected EPUB has changed since it was opened.".into());
-        }
-        Ok(canonical)
+        Ok(PathBuf::from(&session.path))
     }
 
     fn mark_ready(&mut self, label: &str) -> Result<bool, String> {
@@ -302,6 +292,12 @@ async fn resolve_standalone_managed_book(
     let (archive_id, root) = super::archive::read_active_archive_for_external_reader(app)?;
     let root_for_match = root.clone();
     let matched = tauri::async_runtime::spawn_blocking(move || {
+        if !super::cold_start_epub::is_local_reader_path(&root_for_match)
+            || !super::cold_start_epub::is_local_reader_path(&selected)
+            || std::fs::canonicalize(&selected).ok().as_ref() != Some(&selected)
+        {
+            return None;
+        }
         super::external_reader_match::match_active_archive_book(&root_for_match, &selected)
     })
     .await
@@ -312,6 +308,9 @@ async fn resolve_standalone_managed_book(
     if active.0 != archive_id || active.1 != root {
         return None;
     }
+    app.state::<ExternalReaderRegistry>()
+        .selected_path(window_label, token)
+        .ok()?;
     Some(StandaloneReaderManagedBook {
         archive_id,
         archive_root_path: root.to_str()?.to_owned(),
@@ -329,7 +328,7 @@ pub async fn read_external_reader_epub(
     // The window owns its token; webviews cannot request arbitrary filesystem paths.
     let path = readers.selected_path(window.label(), &token)?;
     tauri::async_runtime::spawn_blocking(move || {
-        super::epub_file_resource::read_epub_file_bytes(&path).map(tauri::ipc::Response::new)
+        super::epub_file_resource::read_external_epub_bytes(&path).map(tauri::ipc::Response::new)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -357,6 +356,7 @@ mod tests {
     #[test]
     fn deduplicates_canonical_files_and_preserves_independent_sessions() {
         let mut registry = Registry::new(Some("C:/Books/first.epub".into()));
+        assert!(!registry.may_focus("main"));
         assert_eq!(
             registry.route("C:/Books/first.epub".into()),
             Route::Focus("main".into())

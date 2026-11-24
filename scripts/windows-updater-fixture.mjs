@@ -72,8 +72,9 @@ export function createSmokeOverlay({
       createUpdaterArtifacts: true,
       publisher: "Archeion Smoke",
       windows: {
-        wix: { upgradeCode },
-        nsis: { installMode: "currentUser" },
+        // Synthetic update installers must never register the production EPUB handler.
+        wix: { upgradeCode, fragmentPaths: [], componentRefs: [] },
+        nsis: { installMode: "currentUser", installerHooks: null },
       },
     },
     plugins: {

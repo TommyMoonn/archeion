@@ -48,7 +48,12 @@ pub fn resolve_cold_start_epub_in(
         .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("file"))
     {
         let url = tauri::Url::parse(input).ok()?;
-        if url.query().is_some() || url.fragment().is_some() {
+        if url.query().is_some()
+            || url.fragment().is_some()
+            || url
+                .host_str()
+                .is_some_and(|host| !host.eq_ignore_ascii_case("localhost"))
+        {
             return None;
         }
         url.to_file_path().ok()?
@@ -66,15 +71,52 @@ pub fn resolve_cold_start_epub_in(
         }
     };
 
-    if !path
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("epub"))
+    let path = std::path::absolute(path).ok()?;
+    if !is_local_reader_path(&path)
+        || !path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("epub"))
         || !fs::metadata(&path).ok()?.is_file()
     {
         return None;
     }
 
-    fs::canonicalize(path).ok()?.to_str().map(str::to_owned)
+    let canonical = fs::canonicalize(path).ok()?;
+    if !is_local_reader_path(&canonical)
+        || !canonical
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("epub"))
+    {
+        return None;
+    }
+    canonical.to_str().map(str::to_owned)
+}
+
+// Reject UNC/device paths and mapped remote drives before touching the filesystem.
+// A canonical path is checked again to catch local junctions to remote targets.
+pub(super) fn is_local_reader_path(path: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        use windows::{core::PCWSTR, Win32::Storage::FileSystem::GetDriveTypeW};
+        let Some(Component::Prefix(prefix)) = path.components().next() else {
+            return false;
+        };
+        let drive = match prefix.kind() {
+            Prefix::Disk(drive) | Prefix::VerbatimDisk(drive) => drive,
+            _ => return false,
+        };
+        let root = [u16::from(drive), b':' as u16, b'\\' as u16, 0];
+        // SAFETY: root is a NUL-terminated UTF-16 drive root.
+        matches!(
+            unsafe { GetDriveTypeW(PCWSTR(root.as_ptr())) },
+            2 | 3 | 5 | 6
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        path.is_absolute()
+    }
 }
 
 #[cfg(test)]
@@ -145,6 +187,19 @@ mod tests {
         });
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn rejects_unc_and_device_paths_without_accessing_the_share() {
+        for path in [
+            r"\\server\share\book.epub",
+            r"\\?\UNC\server\share\book.epub",
+            r"\\.\C:\book.epub",
+        ] {
+            assert!(!is_local_reader_path(Path::new(path)));
+            assert_eq!(resolve_cold_start_epub(args(&[path])), None);
+        }
+    }
+
     #[test]
     fn ignores_invalid_and_unrelated_requests() {
         with_file(|path| {
@@ -165,6 +220,7 @@ mod tests {
                 args(&["app://local/book.epub"]),
                 args(&["file:///tmp/test.epub?download=1"]),
                 args(&["file:///invalid%zz.epub"]),
+                args(&["file://server/share/book.epub"]),
             ] {
                 assert_eq!(resolve_cold_start_epub(values), None);
             }

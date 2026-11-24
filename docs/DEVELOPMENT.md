@@ -91,39 +91,32 @@ pnpm exec tauri dev -- -- --open-epub "C:\Books\Example 日本語.epub"
 
 The first `--` separates runner arguments from application arguments. A
 packaged executable also accepts an EPUB path as its only positional argument,
-which is how Explorer's **Open with** command starts it. For this phase, a
-validated request opens a Reader-only selected-file placeholder; opening the
-EPUB content itself is part of the later temporary-session phase. Invalid
-requests fall back to ordinary startup without displaying an empty Reader.
+which is how Explorer's **Open with** command starts it. A valid request opens
+only a standalone Reader. Invalid requests fall back to ordinary startup.
 
-Before shipping, check the real NSIS and MSI installers on Windows. Each should
-add Archeion to **Open with** for `.epub`, leave an existing default EPUB app
-unchanged, accept filenames with spaces and non-ASCII characters, and exit
-when the Reader-only window closes. The NSIS installer restores the extension's
-previous default ProgID after registering Archeion as an available viewer.
-These installed-package checks are separate from the unbundled runtime smoke.
+## Test standalone EPUB requests on Windows
 
-## Test warm-launch EPUB requests on Windows
+Install each format independently in a clean Windows environment. Verify
+Archeion appears in **Open with** for `.epub` without changing the existing
+default viewer. Open a local EPUB with spaces and Unicode in its filename.
+Close the only Reader and confirm the application exits.
 
-After installing NSIS or MSI, launch Archeion normally and leave the Library open.
-Open an existing `.epub` through Explorer's **Open with > Archeion**. Its Reader
-placeholder should appear in a separate window, without navigating the Library
-or spawning a second application process. Repeat with the same file to focus
-that window, then open a different EPUB to create a second independent Reader.
+With the Library open, open a tracked EPUB from the active archive and an
+untracked EPUB from another folder. The tracked book should restore saved
+progress and annotations; the untracked file should not save book state.
+Opening the same file again focuses its Reader. Rapidly open different files,
+close one window, reopen its file, and verify the other windows stay open.
+A cold-start Reader can also accept another EPUB without opening the Library.
 
-For a CLI test, launch the installed `Archeion.exe` again with one EPUB path:
+The installed executable accepts the same arguments as the development app:
 
 ```powershell
 & "$env:LOCALAPPDATA\Archeion\Archeion.exe" --open-epub "C:\Books\Example 日本語.epub"
 ```
 
-Use the installed path for your installation; it may differ between NSIS and
-MSI. Rapidly open several different EPUBs, including filenames with spaces and
-Unicode, and verify that each window shows its own filename. Close one Reader
-and verify the others and the Library remain open. Reopen the closed file to
-check that a new window is created. Also start with a cold-launch Reader, then
-open another EPUB while it is running. Reading the EPUB contents remains
-out of scope until the temporary-session phase.
+Use the actual installation path for MSI. Verify unsupported network paths,
+removed files, malformed EPUBs and files over 256 MiB do not open unsafe
+sessions. See [TESTING.md](TESTING.md) for the installed-package smoke commands.
 
 ## Build installers locally
 

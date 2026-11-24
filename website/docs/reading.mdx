@@ -11,6 +11,14 @@ overview_description: "read, bookmark, highlight, and export notes."
 
 import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
 
+## Open an EPUB from Windows {#standalone-reader}
+
+Starting with Archeion 1.9.0, right-click a local EPUB in File Explorer and choose **Open with → Archeion**. This opens the Reader directly, without opening the Library. Opening another EPUB creates a separate Reader; opening the same file again focuses its existing window.
+
+If the file is already tracked in the active archive, the Reader uses that book's saved progress, bookmarks, highlights, notes, and layout. Changes save to that archive. A copy outside the archive, a book in another archive, or an untracked file opens as a temporary session instead. Temporary sessions do not save reading position, annotations, or book layout. Shared Reader appearance settings still apply.
+
+Local EPUB files up to 256 MiB are supported. Network paths are not supported for standalone reading. If a file has been moved or replaced, close the Reader and open it again from its current location.
+
 ## Read a book {#read-book}
 
 ### Open and navigate {#navigation}

@@ -84,10 +84,7 @@ pub fn run() {
             if let tauri::WindowEvent::ThemeChanged(theme) = event {
                 commands::app_appearance::system_scheme_changed(window.app_handle(), *theme);
             }
-            if matches!(
-                event,
-                tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed
-            ) {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
                 window
                     .app_handle()
                     .state::<commands::external_reader::ExternalReaderRegistry>()
