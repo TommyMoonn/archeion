@@ -55,8 +55,8 @@ note and regenerate; do not edit generated JSON or Changelog MDX prose.
 `pnpm run docs:check` checks freshness and Node-only documentation sources
 without writing. Neither command invokes legacy HTML/search generators or
 Docusaurus. The separate website build renders the React timeline and validates
-MDX, routes and fragments. The existing public site remains active until cutover;
-see [documentation maintenance](../docs/DOCUMENTATION.md#legacy-site-during-migration).
+MDX, routes and fragments. Docusaurus is the public site; see
+[documentation maintenance](../docs/DOCUMENTATION.md#production-cutover-and-legacy-retirement).
 
 The shared timeline vocabulary supports flat `-` or `*` bullets with indented
 prose continuations, inline bold, single-backtick code, and absolute HTTP(S) links.

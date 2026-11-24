@@ -1,6 +1,6 @@
 [package]
 name = "archeion"
-version = "1.8.0"
+version = "1.9.0"
 description = "A local-first desktop EPUB reader and archive manager"
 authors = ["Khoa Luong"]
 license = "GPL-3.0-only"
@@ -26,7 +26,7 @@ percent-encoding = "2"
 quick-xml = "0.42"
 reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "stream"] }
 notify = "8.2"
-rusqlite = { version = "0.41.1", default-features = false, features = ["bundled"] }
+rusqlite = { version = "0.43.0", default-features = false, features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"

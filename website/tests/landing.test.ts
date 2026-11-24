@@ -94,6 +94,7 @@ describe("rendered landing contracts (legacy scenario migration: website/README.
       "Batch actions",
       "publisher",
       "reading status",
+      "sort by date added",
       "export annotations",
     ])
       expect(library).toContain(text);
@@ -101,6 +102,8 @@ describe("rendered landing contracts (legacy scenario migration: website/README.
       "Reader settings",
       "Bookmarks and highlights",
       "Offline dictionaries",
+      "Open EPUBs from File Explorer",
+      "For books in your active archive",
       "four colors",
       "add notes",
       "selected words offline",

@@ -13,7 +13,7 @@ import { DocsAnchor } from "@site/src/components/docs/DocsAnchor";
 
 ## Open an EPUB from Windows {#standalone-reader}
 
-Starting with Archeion 1.9.0, right-click a local EPUB in File Explorer and choose **Open with → Archeion**. This opens the Reader directly, without opening the Library. Opening another EPUB creates a separate Reader; opening the same file again focuses its existing window.
+Starting with Archeion 1.9.0, right-click a local EPUB in File Explorer and choose **Open with → Archeion**. This opens the Reader directly, without opening the Library. Opening another EPUB creates a separate Reader; opening the same file again focuses its existing window. Close a standalone Reader using **Close** or the window titlebar X. Closing the Library leaves standalone Readers open.
 
 If the file is already tracked in the active archive, the Reader uses that book's saved progress, bookmarks, highlights, notes, and layout. Changes save to that archive. A copy outside the archive, a book in another archive, or an untracked file opens as a temporary session instead. Temporary sessions do not save reading position, annotations, or book layout. Shared Reader appearance settings still apply.
 
@@ -25,11 +25,11 @@ Local EPUB files up to 256 MiB are supported. Network paths are not supported fo
 
 The Reader toolbar includes:
 
-- Back to the Library.
+- Back to the Library when reading from the Library, or **Close** in a standalone Reader.
 - Previous and next chapter controls when available.
 - **Back in reading history** and **Forward in reading history**.
 - **Find in book** and **Book navigation**.
-- **Annotations** and the bookmark control.
+- **Annotations** and the bookmark control for managed books.
 - **Reader settings**.
 - Book and chapter progress.
 
@@ -49,7 +49,7 @@ Open **Appearance** in the Reader to change the controls available for the book:
 
 **Archeion** is the default book layout. It separates ordinary paragraphs without first-line indentation, centers their reading measure, and centers suitable standalone illustrations in both Paged and Continuous modes. Poetry, quotations, lists, tables, captions, and deliberate publisher compositions keep their structure.
 
-Choose **Publisher** to use the book's paragraph spacing, indentation, and flow placement. Your typeface, text size, line spacing, and Reader colors remain active, along with media safety limits. Book layout saves for this book in its archive; typography and colors remain shared Reader settings. You can switch back at any time. Fixed-layout EPUBs retain their designed pages and do not offer this selector.
+Choose **Publisher** to use the book's paragraph spacing, indentation, and flow placement. Your typeface, text size, line spacing, and Reader colors remain active, along with media safety limits. For tracked books, book layout saves to the archive; typography and colors remain shared Reader settings. Temporary sessions do not save book layout. You can switch back at any time. Fixed-layout EPUBs retain their designed pages and do not offer this selector.
 
 <DocsAnchor id="reader-typeface" />
 
@@ -62,6 +62,8 @@ Page width options are **Narrow**, **Comfortable**, **Wide**, and **Full**. Comf
 Changes save automatically. Successful saves are silent; the Reader shows an error when a setting could not be saved.
 
 ## Create annotations {#create-annotations}
+
+Annotation controls are available for books tracked in the active archive. Temporary standalone sessions do not save annotations.
 
 ### Bookmarks {#bookmarks}
 

@@ -49,7 +49,9 @@ describe("Docusaurus documentation navigation source", () => {
       if (!doc) throw new Error(`Missing ${id}`);
       return `/archeion/docs${doc.metadata.slug}`;
     });
-    expect(articleLinks("").filter((href) => href.startsWith("/archeion/docs/"))).toEqual(routes);
+    expect(
+      articleLinks("").filter((href) => href.startsWith("/archeion/docs/") && !href.includes("#")),
+    ).toEqual(routes);
   });
   it("keeps all authored article links and fragments inside the framework corpus", () => {
     for (const doc of documents) {

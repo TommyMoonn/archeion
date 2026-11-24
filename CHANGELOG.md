@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-24
+
+### Added
+
+- Added standalone Windows EPUB reading through File Explorer for local files up to 256 MiB. Cold launches open directly in Reader; warm launches open independent windows and focus an existing Reader for the same file. Exact matches in the active archive restore and save reading progress, bookmarks, annotations, and book layout. Other files use temporary sessions without book-state persistence.
+- Added **Mark as read** and **Undo mark as read** to Book details and the book context menu. Manual completion displays 100% without moving the saved reading position; clearing reading progress also removes the manual mark.
+- Added reading-percentage badges to book covers in Grid view and **Recently added** sorting in Library, Favorites, and folders. Unread covers remain unchanged; search relevance and Series ordering are preserved.
+- Added archive-wide annotation export to Markdown or versioned JSON from Settings → Storage → Archive maintenance, including annotations for missing EPUBs.
+- Added annotation JSON import with preview, exact book-ID matching, duplicate and conflicting annotation-ID skipping, detached annotation preservation, and pre-import backup. Markdown remains export-only.
+
+### Changed
+
+- Moved duplicate detection and EPUB issue checks to Archive maintenance. Requested diagnostics open their results in the Library.
+- Registered Archeion as an optional EPUB viewer in NSIS and MSI installers without assigning it as the Windows default application. Uninstall removes Archeion's association entries.
+- Consolidated the public website and documentation under Docusaurus, retaining legacy URL redirects and public resource paths. Workspace exports retain source and planning files while excluding generated output, caches, and large dictionary packages.
+- Local Windows staging supports unsigned NSIS-only or MSI-only builds; signed release staging still requires both installer formats.
+
+### Fixed
+
+- Normalized Windows path comparisons for external EPUBs so tracked books in nested folders can reuse saved state.
+- Scoped standalone EPUB reads to their owning window and validated opened file handles. Network and device paths, oversized files, and changed or redirected files are rejected.
+- Preserved unrelated book records when separate Reader windows save progress or per-book metadata.
+- Standalone Readers save managed state before closing through the toolbar or titlebar, without navigating into a Library route. Failed saves or close requests leave the Reader available for retry. Closing the Library does not retire other Reader windows, and closing the last window exits Archeion.
+
+### Removed
+
+- Removed Smart Views from Library navigation and preferences. Reading-status and missing-information filters, Continue Reading, and Archive maintenance cover the former destinations. Legacy preferences and routes are normalized without discarding unrelated settings.
+
 ## [1.8.0] - 2026-11-14
 
 ### Added
@@ -700,7 +728,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/TommyMoonn/archeion/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/TommyMoonn/archeion/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/TommyMoonn/archeion/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/TommyMoonn/archeion/compare/v1.5.6...v1.6.0

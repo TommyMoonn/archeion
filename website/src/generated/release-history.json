@@ -2,6 +2,12 @@
   "schemaVersion": 1,
   "entries": [
     {
+      "version": "1.9.0",
+      "date": "2026-11-24",
+      "sourcePath": "release-notes/v1.9.0.md",
+      "changes": "- Open EPUBs directly from Windows File Explorer with **Open with → Archeion**, without setting up a library. Open different books in separate Reader windows; opening the same file again focuses its existing window. Your default EPUB application stays unchanged.\n- Standalone Readers restore and save reading progress, bookmarks, highlights, notes, and book layout for EPUBs already tracked in the active archive. Other EPUBs open as temporary sessions without saving book data. Close the Library or any Reader without closing the other Reader windows.\n- Mark a book as read from Book details or its context menu without losing your saved reading position. Undo the mark to return to the status indicated by saved progress.\n- Book covers in Grid view show reading percentages for books you have started or marked as read. Sort books by **Recently added** in the Library, Favorites, or folders.\n- Export all annotations in the active archive as Markdown or JSON from **Settings → Storage → Archive maintenance**, without selecting every book first.\n- Import Archeion annotation JSON exports from Archive maintenance. Review matched books and importable annotations before confirming. Existing annotation IDs are skipped, and unmatched books are reported. Markdown remains export-only.\n- Smart Views have been removed. Use Library filters for reading status and missing information, **Continue Reading** for resumable books, and Archive maintenance to find duplicates or check EPUB issues."
+    },
+    {
       "version": "1.8.0",
       "date": "2026-11-14",
       "sourcePath": "release-notes/v1.8.0.md",
