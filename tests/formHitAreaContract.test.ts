@@ -31,7 +31,6 @@ describe("form semantics and control hit-area contract", () => {
   const toggles = read("src/styles/components/toggles.css");
   const base = read("src/styles/base.css");
   const tokens = read("src/styles/tokens.css");
-  const buttons = read("src/styles/components/buttons.css");
   const filesystem = read("src/styles/features/filesystem.css");
   const windowFrame = read("src/styles/layout/window-frame.css");
   const forcedColors = read("src/styles/forced-colors.css");
@@ -55,9 +54,6 @@ describe("form semantics and control hit-area contract", () => {
 
   it("retains existing compact and native-window target geometry", () => {
     expect(tokens).toContain("--spacing-control-compact: 32px");
-    expect(cssBlock(buttons, ".icon-button--compact")).toContain(
-      "--icon-button-size: var(--control-height-compact)",
-    );
     const titlebarControls = cssBlock(windowFrame, ".window-titlebar__controls button");
     expect(titlebarControls).toContain("width: 42px");
     expect(titlebarControls).toContain("height: var(--window-titlebar-height)");
@@ -66,9 +62,6 @@ describe("form semantics and control hit-area contract", () => {
   });
 
   it("uses non-color invalid geometry in ordinary and forced-colors modes", () => {
-    expect(cssBlock(forms, '.input-shell:has(input[aria-invalid="true"])')).toContain(
-      "outline: 2px dashed var(--error-strong)",
-    );
     expect(
       cssBlock(forms, '.form-field :where(input, select, textarea)[aria-invalid="true"],'),
     ).toContain("outline: 2px dashed var(--error-strong)");

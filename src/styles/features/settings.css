@@ -1024,8 +1024,8 @@ html[data-motion="on"] .settings-status {
 }
 
 .settings-window .button--prominent {
-  --button-height: var(--control-height-standard);
-  --button-padding-inline: 14px;
+  min-height: var(--spacing-control-standard);
+  padding-inline: var(--spacing-button-standard);
 }
 .settings-annotation-import-counts {
   display: grid;

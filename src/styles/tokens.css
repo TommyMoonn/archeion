@@ -109,6 +109,14 @@
   --spacing-control-prominent: 40px;
   --spacing-control-gap: 8px;
   --spacing-control-gap-compact: 6px;
+  --spacing-button-compact: 11px;
+  --spacing-button-standard: 14px;
+  --spacing-button-prominent: 17px;
+  --spacing-input-gap: 9px;
+  --spacing-input-inline: 13px;
+  --spacing-search-field: min(260px, 28vw);
+  --spacing-busy-inset: 2px;
+  --leading-control-label: var(--text-control-label--line-height);
   --spacing-menu-padding: 5px;
   --spacing-sidebar-expanded: 248px;
   --spacing-sidebar-narrow: 220px;
@@ -228,6 +236,9 @@
   --color-reader-quotation: var(--reader-quotation);
   --color-reader-link-visited: var(--reader-link-visited);
   --color-backdrop: var(--backdrop);
+  --color-action-primary-active: color-mix(in srgb, var(--accent-strong) 88%, var(--canvas-deep));
+  --color-action-neutral-active: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
+  --color-action-danger-active: color-mix(in srgb, var(--danger-strong) 88%, var(--canvas-deep));
 
   --shadow-app-card: var(--shadow-card);
   --shadow-app-tooltip: var(--shadow-tooltip);
@@ -244,6 +255,12 @@
   --animate-notice-enter: app-motion-notice-in var(--motion-duration-fast) var(--ease-standard);
   --animate-disclosure-enter: app-motion-disclosure-in var(--motion-duration-standard)
     var(--ease-standard);
+  --animate-button-busy: button-busy-turn 1s linear infinite;
+  @keyframes button-busy-turn {
+    to {
+      transform: rotate(360deg);
+    }
+  }
   --animate-loading-sheen: loading-sheen 1.5s var(--ease-standard) infinite;
 }
 
@@ -281,6 +298,28 @@
   --tw-duration: var(--motion-duration-loop);
   transition-duration: var(--motion-duration-loop);
 }
+
+/* The controls use distinct durations for press feedback and color transitions. */
+@utility transition-action {
+  transition:
+    scale var(--motion-duration-fast) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    border-color var(--motion-duration-standard) var(--ease-standard);
+}
+@utility transition-icon-action {
+  transition:
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    scale var(--motion-duration-fast) var(--ease-standard);
+}
+@utility transition-input-surface {
+  transition:
+    border-color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard);
+}
+@custom-variant control-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
+@custom-variant control-active (&:active:not(:disabled):not([aria-disabled="true"]));
+@custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
 
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
 

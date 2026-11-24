@@ -28,8 +28,6 @@ const cssSource = collectFiles(stylesRoot, ".css")
   .join("\n");
 const appShellSource = read("src/styles/layout/app-shell.css");
 const tokensSource = read("src/styles/tokens.css");
-const buttonsSource = read("src/styles/components/buttons.css");
-const formsSource = read("src/styles/components/forms.css");
 const menuSource = read("src/styles/components/menus.css");
 const archiveSource = read("src/styles/features/archive.css");
 const folderSource = read("src/styles/features/folders.css");
@@ -59,12 +57,6 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     ]) {
       expect(tokens).toMatch(new RegExp(`${token}:\\s*${value};`));
     }
-    expect(cssBlock(".button", buttonsSource)).toContain(
-      "min-height: var(--button-height, var(--control-height-prominent))",
-    );
-    expect(cssBlock(".input-shell", formsSource)).toContain(
-      "min-height: var(--input-height, var(--control-height-prominent))",
-    );
     expect(cssBlock(".app-shell", appShellSource)).toContain(
       "grid-template-columns: var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr)",
     );

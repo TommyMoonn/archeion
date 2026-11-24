@@ -44,11 +44,13 @@ body {
     var(--surface-main);
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 button,
@@ -89,10 +91,12 @@ a {
   outline-offset: 3px;
 }
 
-button:disabled,
-button[aria-disabled="true"] {
-  cursor: not-allowed;
-  opacity: 0.55;
+@layer base {
+  button:disabled,
+  button[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
 }
 
 a {

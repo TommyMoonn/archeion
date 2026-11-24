@@ -285,7 +285,6 @@ describe("forced-colors and focus visibility contract", () => {
   it("keeps wrapper-owned and reader focus visible without shadow-only treatment", () => {
     const normalizedReaderSource = normalizeSelectorWhitespace(readerSource);
     const focusContracts = [
-      cssBlock(".input-shell:has(input:focus-visible)", formsSource),
       cssBlock(
         ':root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible',
         formsSource,

@@ -1,6 +1,7 @@
 import { forwardRef, useId } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { ControlSize } from "./Button";
+import { Button as UiButton } from "./ui/button";
 import { Tooltip, type TooltipPlacement } from "./Tooltip";
 import { useOwnedTooltipAvailable } from "./tooltipStore";
 
@@ -45,7 +46,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     .filter(Boolean)
     .join(" ");
   const button = (
-    <button
+    <UiButton
       aria-describedby={descriptionIds || undefined}
       aria-disabled={disabled || undefined}
       aria-label={label}
@@ -62,12 +63,20 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       ref={ref}
       title={tooltipText ? undefined : title}
       type={type}
+      variant="icon"
+      size={
+        size === "compact"
+          ? "icon-compact"
+          : size === "prominent"
+            ? "icon-prominent"
+            : "icon-standard"
+      }
       {...props}
     >
       <span aria-hidden="true" className="icon-slot">
         {children}
       </span>
-    </button>
+    </UiButton>
   );
 
   const control = ownedTooltipAvailable ? (

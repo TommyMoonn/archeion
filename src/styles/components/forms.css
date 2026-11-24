@@ -1,66 +1,7 @@
-.input-shell {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: min(260px, 28vw);
-  min-height: var(--input-height, var(--control-height-prominent));
-  padding: 0 13px;
-  border: var(--border-width) solid var(--line);
-  border-radius: var(--radius-control);
-  color: var(--muted);
-  background: var(--surface);
-  transition:
-    border-color var(--motion-duration-standard) var(--motion-ease-standard),
-    background var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
-.input-shell--standard {
-  --input-height: var(--control-height-standard);
-}
-
-.input-shell--prominent {
-  --input-height: var(--control-height-prominent);
-}
-
-.input-shell:focus-within {
-  border-color: var(--accent-border);
-  background: var(--surface-raised);
-}
-
-.input-shell:has(input[aria-invalid="true"]) {
-  border-color: var(--error-strong);
-  outline: 2px dashed var(--error-strong);
-  outline-offset: 2px;
-}
-
-:root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-}
-
+/* The global focus outline belongs to the label, not its nested input.
+ * Keep this unlayered until the global focus rules migrate in F.4. */
 :root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible {
   outline: 0;
-}
-
-.input-shell:has(input:disabled) {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.input-shell input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  color: var(--text);
-  background: transparent;
-  font-size: var(--type-body);
-  font-weight: var(--type-body-weight);
-  line-height: var(--type-body-line-height);
-}
-
-.input-shell input::placeholder {
-  color: var(--muted);
 }
 
 .form-field {

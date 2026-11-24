@@ -3122,7 +3122,7 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .epub-issues-book__actions .button:last-child {
-  margin-inline-end: calc(-1 * var(--button-padding-inline));
+  margin-inline-end: calc(-1 * var(--spacing-button-compact));
 }
 
 @media (max-width: 680px) {

@@ -104,13 +104,6 @@ describe("focus presentation contract", () => {
     const contracts = [
       {
         innerSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
-        source: normalizeSelectorWhitespace(read("src/styles/components/forms.css")),
-        wrapperSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
-      },
-      {
-        innerSelector:
           ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
         source: normalizeSelectorWhitespace(read("src/styles/features/filesystem.css")),
         wrapperSelector:
@@ -143,9 +136,7 @@ describe("focus presentation contract", () => {
       {
         forcedSelector:
           ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
-        normalSource: normalizeSelectorWhitespace(read("src/styles/components/forms.css")),
-        normalSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
+        // The shared Input's normal outline is covered by the compiled browser test.
       },
       {
         forcedSelector:
@@ -179,12 +170,15 @@ describe("focus presentation contract", () => {
     expect(wrapperRule).not.toContain("!important");
     expect(wrapperSelectors.join(", ")).not.toContain(":where(");
     for (const contract of wrapperContracts) {
-      expect(cssBlock(contract.normalSelector, contract.normalSource)).toContain(
-        "outline: 2px solid",
-      );
       const forcedSpecificity = classLikeSpecificityUnits(contract.forcedSelector);
-      const normalSpecificity = classLikeSpecificityUnits(contract.normalSelector);
-      expect(forcedSpecificity).toBeGreaterThanOrEqual(normalSpecificity);
+      if (contract.normalSelector && contract.normalSource) {
+        expect(cssBlock(contract.normalSelector, contract.normalSource)).toContain(
+          "outline: 2px solid",
+        );
+        expect(forcedSpecificity).toBeGreaterThanOrEqual(
+          classLikeSpecificityUnits(contract.normalSelector),
+        );
+      }
       expect(forcedSpecificity).toBe(4);
       expect(contract.forcedSelector).toContain(
         ':root[data-focus-presentation="keyboard-navigation"]',
@@ -209,17 +203,9 @@ describe("focus presentation contract", () => {
   });
 
   it("retains calm pointer field state while reserving the full ring for keyboard focus", () => {
-    const forms = read("src/styles/components/forms.css");
     const filesystem = read("src/styles/features/filesystem.css");
     const reader = read("src/styles/features/reader.css");
 
-    expect(cssBlock(".input-shell:focus-within", forms)).toMatch(/border-color:[\s\S]*background:/);
-    expect(
-      cssBlock(
-        ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
-        forms,
-      ),
-    ).toContain("outline: 2px solid var(--focus)");
     expect(cssBlock(".epub-filename-field:focus-within", filesystem)).toContain(
       "border-color: var(--accent-border)",
     );

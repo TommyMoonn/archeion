@@ -192,8 +192,8 @@ html[data-motion="on"]
 
 /* Dialog actions use the standard control scale, not the app-wide prominent default. */
 .dialog .button {
-  --button-height: var(--control-height-standard);
-  --button-padding-inline: 14px;
+  min-height: var(--spacing-control-standard);
+  padding-inline: var(--spacing-button-standard);
 
   gap: 8px;
   font-size: var(--type-meta);
