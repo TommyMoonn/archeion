@@ -156,7 +156,7 @@ describe("forced-colors and focus visibility contract", () => {
   it("loads the bounded forced-colors layer after component and feature styles", () => {
     const indexSource = read("src/styles/index.css").trim();
 
-    expect(indexSource.endsWith('@import "./forced-colors.css";')).toBe(true);
+    expect(indexSource.match(/@import\s+[^;]+;/g)?.at(-1)).toBe('@import "./forced-colors.css";');
     expect(forcedColorsSource.trimStart()).toMatch(/^@media \(forced-colors: active\)/);
     expect(forcedColorsSource).not.toContain("forced-color-adjust: none");
     expect(forcedColorsBlock).not.toMatch(

@@ -101,6 +101,30 @@ describe("frontend architecture boundaries", () => {
     expect(combinedOutput(result)).toContain("imported: src/features/library/libraryModel.ts");
   });
 
+  it("checks desktop alias imports with the same rules as relative imports", () => {
+    const root = createFixture({
+      "src/components/control.ts": 'import "@/features/library/model";\n',
+      "src/features/library/model.ts": "export const model = true;\n",
+      "src/features/library/page.ts": 'import "@/utils/format";\n',
+      "src/utils/format.ts": "export const format = true;\n",
+    });
+    const result = runArchitecture(root, true);
+    const report = JSON.parse(result.stdout) as {
+      productionEdgeCount: number;
+      violations: { importer: string; imported: string; rule: string }[];
+    };
+
+    expect(result.status).toBe(1);
+    expect(report.productionEdgeCount).toBe(2);
+    expect(report.violations).toEqual([
+      expect.objectContaining({
+        importer: "src/components/control.ts",
+        imported: "src/features/library/model.ts",
+        rule: "forbidden-direction",
+      }),
+    ]);
+  });
+
   it("accepts valid production directions and established Reader-facing contracts", () => {
     const root = createFixture({
       "scripts/feature-domain-baseline.json": featureBaseline([

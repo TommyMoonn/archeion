@@ -1,3 +1,7 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
 @import "./fonts.css";
 @import "./tokens.css";
 @import "./built-in-palettes.css";
@@ -39,3 +43,6 @@
 @import "./features/theme-manager.css";
 
 @import "./forced-colors.css";
+
+@source "../";
+@source "../../tests/browser/fixtures";

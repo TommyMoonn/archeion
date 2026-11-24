@@ -34,7 +34,9 @@ The guide describes the intended UI. Non-color tokens are defined in `src/styles
 
 Feature code reuses shared components such as `Button`, `IconButton`, `AppSelect`, `SegmentedControl`, `Toggle`, `Dialog`, `MenuItem`, and `EmptyState`. Feature styles do not redefine a shared control's appearance. A shared component is extended only when multiple parts of the app need the same behavior and presentation.
 
-Archeion's application UI uses React components, CSS, shared tokens, and `lucide-react`. An isolated presentation change does not require another UI framework, styling framework, or icon library.
+Archeion's desktop UI uses React, Tailwind CSS v4, existing shared tokens, and `lucide-react`. The Vite plugin compiles utilities from `src/` and desktop browser fixtures. Preflight is disabled: `src/styles/index.css` retains the existing reset and unlayered styles, which take precedence over utility layers during migration. The website has its own styling toolchain.
+
+`components.json` configures the shadcn Base UI registry. Generated primitives belong in `src/components/ui/` and use the desktop `@/` alias. Use an explicitly versioned shadcn CLI when generating primitives. Adopt components through existing shared APIs as their consumers migrate; add registry dependencies and the class merge helper only when needed. Preserve Archeion's theme runtime and visual roles rather than adopting registry defaults.
 
 ## Appearance and color
 

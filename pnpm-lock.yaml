@@ -42,6 +42,9 @@ importers:
       '@playwright/test':
         specifier: 1.64.1
         version: 1.64.1
+      '@tailwindcss/vite':
+        specifier: 4.3.5
+        version: 4.3.5(vite@8.3.5(@types/node@26.6.6)(jiti@2.7.0)(terser@5.51.2))
       '@tauri-apps/cli':
         specifier: ^2.12.4
         version: 2.12.4
@@ -90,6 +93,9 @@ importers:
       selenium-webdriver:
         specifier: 4.52.0
         version: 4.52.0
+      tailwindcss:
+        specifier: 4.3.5
+        version: 4.3.5
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -2048,6 +2054,11 @@ packages:
 
   '@tailwindcss/postcss@4.3.5':
     resolution: {integrity: sha512-FAV37Tlx9wBiT/hkfgVD0Q6CWsP2oUX3lf28nrfjW8+ksILjnpuFulUqWDfNR4/ZiEHHDRBX8DUTzD1Rys687A==}
+
+  '@tailwindcss/vite@4.3.5':
+    resolution: {integrity: sha512-BCNiY0a1ZjdOHVqw7kyb7U72BwfMF3dfUuN+tQsLWky/J5JOI/r7abibglXfygrZhVO/3u3V+E25kkKTeMkXaQ==}
+    peerDependencies:
+      vite: ^5.2.0 || ^6 || ^7 || ^8
 
   '@tauri-apps/api@2.12.4':
     resolution: {integrity: sha512-pVmfis+4zT8H0Qhp3xPZx9Ju7kpzvA6rr/PSJPyuwfvucTQ8sVt61NYU9KMkK703UFlYadFmjKA4HhybOtN0gg==}
@@ -9312,6 +9323,13 @@ snapshots:
       '@tailwindcss/oxide': 4.3.5
       postcss: 8.5.33
       tailwindcss: 4.3.5
+
+  '@tailwindcss/vite@4.3.5(vite@8.3.5(@types/node@26.6.6)(jiti@2.7.0)(terser@5.51.2))':
+    dependencies:
+      '@tailwindcss/node': 4.3.5
+      '@tailwindcss/oxide': 4.3.5
+      tailwindcss: 4.3.5
+      vite: 8.3.5(@types/node@26.6.6)(jiti@2.7.0)(terser@5.51.2)
 
   '@tauri-apps/api@2.12.4': {}
 

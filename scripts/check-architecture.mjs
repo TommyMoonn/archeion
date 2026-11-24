@@ -196,11 +196,13 @@ function readModuleSpecifiers(filePath) {
   return [...specifiers];
 }
 
-function resolveLocalModule(importerPath, specifier) {
-  if (!specifier.startsWith(".")) return { kind: "external" };
-
-  const importerDirectory = path.dirname(importerPath);
-  const unresolvedBase = path.resolve(importerDirectory, specifier);
+function resolveLocalModule(projectRoot, importerPath, specifier) {
+  const unresolvedBase = specifier.startsWith("@/")
+    ? path.resolve(projectRoot, "src", specifier.slice(2))
+    : specifier.startsWith(".")
+      ? path.resolve(path.dirname(importerPath), specifier)
+      : null;
+  if (unresolvedBase === null) return { kind: "external" };
   const candidates = [];
 
   if (sourceExtensions.some((extension) => unresolvedBase.endsWith(extension))) {
@@ -472,7 +474,7 @@ function analyze(projectRoot) {
   const allEdges = [];
   for (const importer of modules) {
     for (const specifier of readModuleSpecifiers(importer.filePath)) {
-      const resolution = resolveLocalModule(importer.filePath, specifier);
+      const resolution = resolveLocalModule(projectRoot, importer.filePath, specifier);
       if (resolution.kind === "external" || resolution.kind === "asset") continue;
       if (resolution.kind === "unresolved") continue;
 

@@ -4,8 +4,7 @@ import { ReaderSidePanel } from "../../../src/features/reader/ReaderSidePanel";
 import { ReaderSideSurfaceLayer } from "../../../src/features/reader/ReaderSideSurfaceLayer";
 import { ReaderFootnotePopover } from "../../../src/features/reader/ReaderFootnotePopover";
 import { ReaderIllustrationViewer } from "../../../src/features/reader/ReaderIllustrationViewer";
-import "../../../src/styles/features/reader.css";
-import "../../../src/styles/features/reader-content-actions.css";
+import "../../../src/styles/index.css";
 
 /** Real production surfaces over the real renderer; no archive or app-shell state. */
 export function mountWheelOverlay(
