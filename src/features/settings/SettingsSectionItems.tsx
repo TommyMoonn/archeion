@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 
 import { getSettingsItemsForSection } from "./settingsItems";
-import type { SettingsItem, SettingsItemGroupStyle } from "./settingsItemTypes";
+import type { SettingsItem } from "./settingsItemTypes";
 import type { SettingsSection } from "./settingsSections";
 import type { SettingsController } from "./useSettingsController";
 
@@ -47,18 +47,15 @@ export function SettingsSectionItems({
   const nodes: ReactNode[] = [];
   let groupItems: SettingsItem[] = [];
   let activeGroup: string | undefined;
-  let activeGroupStyle: SettingsItemGroupStyle = "standard";
 
   function flushGroup() {
     if (!activeGroup || groupItems.length === 0) return;
 
     nodes.push(
       <div
-        className={
-          activeGroupStyle === "actions"
-            ? "settings-section__group settings-section__group--actions grid"
-            : "settings-section__group grid"
-        }
+        aria-label={activeGroup}
+        className="grid"
+        role="group"
         key={`${sectionId}-${activeGroup}`}
         data-settings-group=""
       >
@@ -75,7 +72,6 @@ export function SettingsSectionItems({
 
     groupItems = [];
     activeGroup = undefined;
-    activeGroupStyle = "standard";
   }
 
   for (const item of items) {
@@ -92,7 +88,6 @@ export function SettingsSectionItems({
     if (activeGroup !== item.groupLabel) {
       flushGroup();
       activeGroup = item.groupLabel;
-      activeGroupStyle = item.groupStyle ?? "standard";
     }
 
     groupItems.push(item);

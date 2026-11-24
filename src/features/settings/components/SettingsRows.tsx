@@ -28,23 +28,23 @@ function SettingsRowFrame({ children, description, label, note, variant }: Setti
     <div
       aria-describedby={describedBy}
       aria-labelledby={labelId}
-      className={`settings-row settings-row--${variant} grid settings-row-columns items-center gap-dialog-panel m-0 border-0 border-b border-solid border-line transition-colors [&_code]:block [&_code]:max-w-full [&_code]:text-muted [&_code]:font-mono [&_code]:text-code [&_code]:wrap-anywhere [&_code]:whitespace-normal duration-standard ease-standard settings-window-narrow:gap-overlay-viewport-inset settings-row-narrow:grid-cols-1 settings-row-narrow:items-start settings-row-narrow:gap-dialog-copy ${rowDensity[variant]}`}
+      className={`settings-row grid settings-row-columns items-center gap-dialog-panel m-0 border-0 border-b border-solid border-line transition-colors [&_code]:block [&_code]:max-w-full [&_code]:text-muted [&_code]:font-mono [&_code]:text-code [&_code]:wrap-anywhere [&_code]:whitespace-normal duration-standard ease-standard settings-window-narrow:gap-overlay-viewport-inset settings-row-narrow:grid-cols-1 settings-row-narrow:items-start settings-row-narrow:gap-dialog-copy ${rowDensity[variant]}`}
       role="group"
     >
-      <div className="settings-row__meta grid min-w-0 gap-settings-small-gap [&>span]:text-muted [&>span]:text-body-supporting [&>span]:not-italic [&>small]:text-muted [&>small]:text-body-supporting [&>small]:not-italic">
+      <div className="settings-row__meta grid min-w-0 gap-settings-small-gap">
         <strong className="text-text text-control-label" id={labelId}>
           {label}
         </strong>
         {description ? (
           <span
-            className="settings-row__description max-w-settings-description wrap-anywhere"
+            className="settings-row__description max-w-settings-description wrap-anywhere text-muted text-body-supporting not-italic"
             id={descriptionId}
           >
             {description}
           </span>
         ) : null}
         {note ? (
-          <span className="settings-row__note text-muted" id={noteId}>
+          <span className="text-muted text-body-supporting not-italic" id={noteId}>
             {note}
           </span>
         ) : null}

@@ -33,11 +33,7 @@ import {
 import type { SettingsSection } from "./settingsSections";
 import type { SettingsController } from "./useSettingsController";
 
-export type {
-  SettingsDeferredDataRequirement,
-  SettingsItem,
-  SettingsItemGroupStyle,
-} from "./settingsItemTypes";
+export type { SettingsDeferredDataRequirement, SettingsItem } from "./settingsItemTypes";
 
 function updateReader(context: SettingsController, changes: Partial<ReaderSettings>) {
   context.updateReader(changes);

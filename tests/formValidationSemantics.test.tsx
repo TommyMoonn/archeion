@@ -4,11 +4,9 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Toggle } from "../src/components/Toggle";
 import { ArchiveCreateView } from "../src/features/archive/ArchiveCreateView";
 import { RenameFileDialog } from "../src/features/filesystem/RenameFileDialog";
 import { FolderNameDialog } from "../src/features/folders/FolderNameDialog";
-import { StandardSettingsRow } from "../src/features/settings/components/SettingsRows";
 import type { Book } from "../src/types/book";
 
 let container: HTMLDivElement;
@@ -66,26 +64,6 @@ afterEach(() => {
 });
 
 describe("form validation semantics", () => {
-  it("associates Settings helper text with its visible control group", () => {
-    act(() => {
-      root.render(
-        <StandardSettingsRow description="Controls automatic archive scans." label="Watch archive">
-          <Toggle checked label="Watch archive" onChange={vi.fn()} />
-        </StandardSettingsRow>,
-      );
-    });
-
-    const group = container.querySelector<HTMLElement>(".settings-row")!;
-    const labelId = group.getAttribute("aria-labelledby");
-    const descriptionId = group.getAttribute("aria-describedby");
-
-    expect(group.getAttribute("role")).toBe("group");
-    expect(document.getElementById(labelId!)?.textContent).toBe("Watch archive");
-    expect(document.getElementById(descriptionId!)?.textContent).toBe(
-      "Controls automatic archive scans.",
-    );
-  });
-
   it("focuses and describes the first missing archive field without hiding submission", async () => {
     act(() => root.render(<ArchiveCreateOwner />));
 

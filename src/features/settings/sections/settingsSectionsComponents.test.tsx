@@ -132,12 +132,13 @@ describe("settings section components", () => {
   });
 
   it("renders window behavior under General", () => {
-    const markup = renderGeneral();
-
-    expect(markup).toContain("General");
-    expect(markup).toContain("Window behavior");
-    expect(markup).toContain("Remember window size and position");
-    expect(markup).toContain("Reset window");
+    const content = new DOMParser().parseFromString(renderGeneral(), "text/html");
+    const group = content.querySelector('[role="group"][aria-label="Window behavior"]');
+    expect(group?.querySelector("h3")?.textContent).toBe("Window behavior");
+    expect(
+      group?.querySelector('[role="switch"][aria-label="Remember window size and position"]'),
+    ).not.toBeNull();
+    expect(group?.querySelector("button:not([role])")?.textContent).toBe("Reset window");
   });
 
   it("renders the accepted Storage labels", () => {

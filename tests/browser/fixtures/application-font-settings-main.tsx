@@ -7,6 +7,8 @@ import { TooltipProvider } from "../../../src/components/Tooltip";
 import { createInstalledFontCatalog } from "../../../src/storage/installedFontCatalog";
 import { appPreferencesStore } from "../../../src/stores/appPreferencesStore";
 import { AppearanceRuntime } from "../../../src/themes/AppearanceRuntime";
+import { resolveTheme } from "../../../src/themes/resolveTheme";
+import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
 import type { AppPreferences } from "../../../src/types/appSettings";
 import { largeFontCatalog } from "./font-catalog";
 import "../../../src/styles/index.css";
@@ -80,6 +82,7 @@ const runtime = new AppearanceRuntime({
   fontCatalog: catalog,
 });
 runtime.start();
+if (parameters.has("custom")) runtime.applyPreview(resolveTheme(shellStressThemes.distinct).app);
 focusPresentationRuntime.start(document);
 const root = document.getElementById("root");
 if (!root) throw new Error("Application font Settings fixture root is missing.");

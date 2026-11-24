@@ -56,7 +56,7 @@ export function TypographyFixture() {
         />
         <SettingsSection style={{ marginBlock: 24 }}>
           <SettingsSectionHeader title="Preferences" description="Choose how Archeion appears." />
-          <div className="settings-section__group grid">
+          <div className="grid">
             <h3 className="m-0 pb-control-gap text-muted text-caption font-semibold tracking-settings-group uppercase">
               Appearance
             </h3>

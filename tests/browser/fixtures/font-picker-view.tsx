@@ -54,7 +54,7 @@ export function FontPickerFixture() {
   const content = (
     <SettingsSection style={{ inlineSize: "min(520px, 100%)" }}>
       <h1>Font picker fixture</h1>
-      <div className="settings-section__group grid">
+      <div className="grid">
         <StandardSettingsRow
           label="Family"
           description="Standalone picker; no preference persistence."

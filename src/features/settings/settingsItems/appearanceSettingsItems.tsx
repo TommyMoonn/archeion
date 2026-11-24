@@ -202,7 +202,6 @@ export const appearanceSettingsItems = [
   },
   {
     groupLabel: "Reset",
-    groupStyle: "actions",
     id: "appearance.reset-appearance",
     label: "Reset appearance settings",
     render: (context) => (

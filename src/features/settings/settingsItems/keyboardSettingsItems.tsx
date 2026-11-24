@@ -38,7 +38,6 @@ export const keyboardSettingsItems: readonly SettingsItem[] = [
   }),
   {
     groupLabel: "Reset shortcuts",
-    groupStyle: "actions",
     id: "keyboard.reset-all",
     label: "Reset all keyboard shortcuts",
     render: (context) => <ResetKeyboardShortcutsRow context={context} />,

@@ -21,10 +21,14 @@ describe("Settings row primitives", () => {
       </StandardSettingsRow>,
     );
 
-    expect(markup).toContain('role="group"');
-    expect(markup).toContain('aria-labelledby="settings-row-label-');
-    expect(markup).toContain('aria-describedby="settings-row-description-');
-    expect(markup).toContain("Controls automatic scans.");
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    const group = content.querySelector('[role="group"]');
+    expect(content.getElementById(group?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Watch archive",
+    );
+    expect(content.getElementById(group?.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Controls automatic scans.",
+    );
   });
 
   it("renders a compact one-line row without reserving description metadata", () => {
@@ -36,8 +40,8 @@ describe("Settings row primitives", () => {
       </CompactSettingsRow>,
     );
 
-    expect(markup).not.toContain("aria-describedby");
     const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector('[role="group"]')?.hasAttribute("aria-describedby")).toBe(false);
     expect(content.querySelector("button")?.disabled).toBe(true);
     expect(content.querySelector("button")?.textContent).toBe("Reset");
   });
@@ -51,10 +55,14 @@ describe("Settings row primitives", () => {
       </SettingsActionRow>,
     );
 
-    expect(markup).toContain('aria-describedby="settings-row-note-');
-    expect(markup).toContain("Repair in progress.");
-    expect(markup).toContain('aria-busy="true"');
-    expect(markup).toContain("disabled");
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    const group = content.querySelector('[role="group"]');
+    expect(content.getElementById(group?.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Repair in progress.",
+    );
+    const button = content.querySelector("button");
+    expect(button?.getAttribute("aria-busy")).toBe("true");
+    expect(button?.disabled).toBe(true);
   });
 
   it("preserves the specialized control and its group label", () => {

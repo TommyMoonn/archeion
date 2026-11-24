@@ -54,7 +54,7 @@ function changeSearch(value: string) {
 
 function groupLabels() {
   return Array.from(
-    container.querySelectorAll<HTMLElement>(".settings-section__group > h3"),
+    container.querySelectorAll<HTMLElement>("[data-settings-group] > h3"),
     (heading) => heading.textContent,
   );
 }
