@@ -180,7 +180,7 @@ export function buttonWithText(container: HTMLElement, text: string): HTMLButton
 const ASYNC_SURFACE_RENDER_TIMEOUT_MS = 1_000;
 const ASYNC_SURFACE_RENDER_POLL_MS = 10;
 
-async function waitForRenderedElement<T extends HTMLElement>(
+export async function waitForRenderedElement<T extends HTMLElement>(
   findElement: () => T | undefined,
   errorMessage: string,
 ): Promise<T> {

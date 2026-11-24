@@ -19,6 +19,8 @@ import {
   setupLibraryPageTestSuite,
   waitForButtonWithLabel,
   waitForButtonWithText,
+  waitForRenderedElement,
+  waitForSeriesOverview,
 } from "./LibraryPage.testUtils";
 
 function deferred<T>() {
@@ -66,20 +68,6 @@ async function flushRestoration(): Promise<void> {
     )
       return;
   }
-}
-
-async function waitForSelector<T extends Element>(
-  container: HTMLElement,
-  selector: string,
-): Promise<T> {
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const element = container.querySelector<T>(selector);
-    if (element) return element;
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
-  }
-  throw new Error(`Element ${selector} was not rendered.`);
 }
 
 describe.each(["grid", "list"] as const)("%s reader-return restoration", (view) => {
@@ -445,11 +433,11 @@ describe("mounted reader-return surfaces", () => {
   });
 
   it.each([
-    ["duplicates", "Duplicates", "requestDuplicateAnalysis"],
-    ["epub-issues", "EPUB Issues", "requestDiagnostics"],
+    ["duplicates", "Duplicates", "requestDuplicateAnalysis", "No duplicate groups"],
+    ["epub-issues", "EPUB Issues", "requestDiagnostics", "No EPUB issues"],
   ] as const)(
     "restores the originating %s integrity location for a current archive book",
-    async (view, title, requestMethod) => {
+    async (view, title, requestMethod, emptyTitle) => {
       const target = {
         ...selectionBook("integrity-book", "Integrity Book"),
         modifiedAt: "2026-08-01T00:00:00.000Z",
@@ -490,7 +478,13 @@ describe("mounted reader-return surfaces", () => {
       await vi.waitFor(() =>
         expect(archiveIntegrityCommandClient[requestMethod]).toHaveBeenCalled(),
       );
-      await waitForSelector(session.container, `.${view}-content[data-surface-state="empty"]`);
+      await waitForRenderedElement(
+        () =>
+          [...session.container.querySelectorAll("h2")].find(
+            (heading) => heading.textContent === emptyTitle,
+          ),
+        `Empty integrity view for ${title} was not rendered.`,
+      );
       await flushRestoration();
 
       const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
@@ -702,14 +696,11 @@ describe("mounted reader-return surfaces", () => {
       },
     });
     suite.trackRoot(session.root);
-    const seriesTitle = await waitForSelector<HTMLElement>(
-      session.container,
-      "#series-overview-title",
-    );
+    await waitForSeriesOverview(session.container);
     await flushRestoration();
 
     const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
-    expect(seriesTitle.textContent).toBe("Series");
+    expect(session.container.querySelector("main h1")?.textContent).toBe("Series");
     expect(pageShell.scrollTop).toBe(240);
     expect(document.activeElement).toBe(pageShell);
   });

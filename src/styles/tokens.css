@@ -471,7 +471,7 @@
 }
 
 @utility max-h-select-available {
-  max-height: var(--available-height);
+  max-height: var(--available-height, 100vh);
 }
 
 @utility select-option-columns {
