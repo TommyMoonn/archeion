@@ -270,6 +270,56 @@ pub fn handle_second_instance(app: &tauri::AppHandle, args: Vec<String>, cwd: St
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StandaloneReaderManagedBook {
+    archive_id: String,
+    archive_root_path: String,
+    book_id: String,
+    relative_path: String,
+}
+
+// Only the file already owned by this native window may receive managed identity.
+// Invalid or ambiguous matches remain temporary Reader sessions.
+#[tauri::command]
+pub async fn standalone_reader_archive_match(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    token: String,
+) -> Result<Option<StandaloneReaderManagedBook>, String> {
+    Ok(resolve_standalone_managed_book(&app, window.label(), &token).await)
+}
+
+async fn resolve_standalone_managed_book(
+    app: &tauri::AppHandle,
+    window_label: &str,
+    token: &str,
+) -> Option<StandaloneReaderManagedBook> {
+    let selected = app
+        .state::<ExternalReaderRegistry>()
+        .selected_path(window_label, token)
+        .ok()?;
+    let (archive_id, root) = super::archive::read_active_archive_for_external_reader(app)?;
+    let root_for_match = root.clone();
+    let matched = tauri::async_runtime::spawn_blocking(move || {
+        super::external_reader_match::match_active_archive_book(&root_for_match, &selected)
+    })
+    .await
+    .ok()??;
+    // If another window selected a different archive during the lookup,
+    // it is no longer safe to grant managed state for this request.
+    let active = super::archive::read_active_archive_for_external_reader(app)?;
+    if active.0 != archive_id || active.1 != root {
+        return None;
+    }
+    Some(StandaloneReaderManagedBook {
+        archive_id,
+        archive_root_path: root.to_str()?.to_owned(),
+        book_id: matched.book_id,
+        relative_path: matched.relative_path,
+    })
+}
+
 #[tauri::command]
 pub async fn read_external_reader_epub(
     window: tauri::WebviewWindow,

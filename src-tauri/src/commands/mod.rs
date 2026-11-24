@@ -43,6 +43,7 @@ pub mod epub_writeback;
 pub(crate) mod export_file;
 pub mod external;
 pub mod external_reader;
+mod external_reader_match;
 pub mod filesystem;
 pub(crate) mod font_catalog;
 pub(crate) mod font_family;

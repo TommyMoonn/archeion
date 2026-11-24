@@ -121,9 +121,17 @@ export function ReaderRoute() {
   return <ReaderPage key={createReaderSessionKey(bookId, startMode)} />;
 }
 
-export function ReaderPage({ externalSession }: { externalSession?: ExternalReaderRequest }) {
-  const temporary = Boolean(externalSession);
-  const book = useLoaderData() as Book | undefined;
+export function ReaderPage({
+  externalSession,
+  managedBook,
+}: {
+  externalSession?: ExternalReaderRequest;
+  managedBook?: Book;
+}) {
+  const standalone = Boolean(externalSession);
+  const temporary = standalone && !managedBook;
+  const loadedBook = useLoaderData() as Book | undefined;
+  const book = managedBook ?? loadedBook;
   const bookId = temporary ? undefined : book?.id;
   const navigate = useNavigate();
   const setExitFrame = useContext(ReaderExitFrameContext)?.setFrame;
@@ -246,7 +254,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
   const activeArchiveId = temporary ? null : archiveSession.archiveId;
   const returnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
   const returnDestination = readerReturnNavigation(returnContext);
-  const backLabel = temporary ? "Close Reader" : readerReturnAccessibleLabel(returnContext);
+  const backLabel = standalone ? "Close Reader" : readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appearance.persistenceFailed;
   const readerSource = useReaderSource({
@@ -493,7 +501,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
   );
   const nextVolume = useReaderSeriesContinuation({
     book,
-    isReaderReady: readerReady,
+    isReaderReady: readerReady && !standalone,
     progressPercent: location.percentage,
     storage,
   });
@@ -531,8 +539,8 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
   );
 
   const returnToOrigin = useCallback(() => {
-    if (temporary) {
-      void getCurrentWindow().close();
+    if (standalone) {
+      void leaveReader(() => getCurrentWindow().close());
       return;
     }
     void leaveReader(() =>
@@ -541,7 +549,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
         state: returnDestination.state,
       }),
     );
-  }, [leaveReader, navigate, returnDestination, temporary]);
+  }, [leaveReader, navigate, returnDestination, standalone]);
 
   const readerSearchInputRef = useRef<HTMLInputElement>(null);
   const searchSurfaceWasOpenRef = useRef(false);
@@ -602,7 +610,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
     const canHandleReaderCommand = (event: KeyboardEvent) => isReaderKeyboardCommandEligible(event);
 
     const commands: QuickActionRegistration[] = [
-      ...(!temporary
+      ...(!standalone
         ? [
             {
               configuration: "unbound",
@@ -627,7 +635,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
         order: 41,
         scope: "reader",
       },
-      ...(!temporary
+      ...(!standalone
         ? ([
             {
               configuration: "unbound",
@@ -812,6 +820,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
     returnToOrigin,
     publicationMode,
     sideSurface,
+    standalone,
     toggleAnnotations,
     toggleCurrentBookmark,
     toggleSettings,
@@ -965,7 +974,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
         <div className="reader-status-page__actions">
-          {!temporary ? (
+          {!standalone ? (
             <Button
               busy={recoveryStatus === "rescanning"}
               disabled={recoveryStatus === "rescanning"}
@@ -977,7 +986,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
             </Button>
           ) : null}
           <button className="text-link" onClick={returnToOrigin} type="button">
-            {temporary ? "Close" : "Back"}
+            {standalone ? "Close" : "Back"}
           </button>
         </div>
         {!temporary && recoveryStatus === "failed" ? (
@@ -989,7 +998,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
     );
   }
 
-  const title = externalSession?.fileName ?? (book ? bookTitle(book) : "Book file missing");
+  const title = book ? bookTitle(book) : (externalSession?.fileName ?? "Book file missing");
   const fileLease = readerSource.status === "ready" ? readerSource.lease : undefined;
   const isFileLoading = readerSource.status === "loading";
   const isSessionAwaitingSourcePublication =
@@ -1020,7 +1029,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
               Try again
             </Button>
           ) : null}
-          {!temporary ? (
+          {!standalone ? (
             <Button
               busy={recoveryStatus === "rescanning"}
               disabled={recoveryStatus === "rescanning"}
@@ -1032,7 +1041,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
             </Button>
           ) : null}
           <button className="text-link" onClick={returnToOrigin} type="button">
-            {temporary ? "Close" : "Back"}
+            {standalone ? "Close" : "Back"}
           </button>
         </div>
         {!temporary && recoveryStatus === "failed" ? (
@@ -1168,7 +1177,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
                     Try again
                   </Button>
                   <button className="text-link" onClick={returnToOrigin} type="button">
-                    {temporary ? "Close" : "Back"}
+                    {standalone ? "Close" : "Back"}
                   </button>
                 </div>
               </section>
@@ -1258,7 +1267,7 @@ export function ReaderPage({ externalSession }: { externalSession?: ExternalRead
           </div>
         ) : null}
 
-        {!readerSessionFailure && nextVolume ? (
+        {!standalone && !readerSessionFailure && nextVolume ? (
           <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
         ) : null}
 

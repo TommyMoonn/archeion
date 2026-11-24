@@ -7,6 +7,7 @@ import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import { ReaderArchiveSessionContext } from "../archive/readerArchiveSession";
 import { LibraryPage } from "../library/LibraryPage";
 import { createStorage as createLibraryStorage } from "../library/LibraryPage.testUtils";
 import { installLibrarySidebarMedia } from "../library/librarySidebarMedia.testUtils";
@@ -590,6 +591,52 @@ describe("ReaderPage Quick Actions", () => {
     expect(commandLabels.join(" ")).not.toMatch(
       /toggle bookmark|toggle annotations|go to library/i,
     );
+  });
+
+  it("opens a tracked external EPUB with its managed annotations and Reader controls", async () => {
+    archiveState = { status: "setup", path: null, error: null, archives: [] };
+    vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(archiveState);
+    const initializeArchive = vi.spyOn(archiveStore, "initialize");
+    const trackedBook = { ...book, progressCfi: "epubcfi(/6/4)", progressPercent: 42 };
+    const storage = { ...createStorage(), ...createReaderLibrarySnapshotFixture([trackedBook]) };
+    const router = createMemoryRouter(
+      [
+        {
+          path: "/",
+          HydrateFallback: () => null,
+          loader: () => null,
+          element: (
+            <ReaderPage
+              externalSession={{ token: "tracked-session-token", fileName: "日本語.epub" }}
+              managedBook={trackedBook}
+            />
+          ),
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <LibraryStorageContext.Provider value={storage}>
+          <ReaderArchiveSessionContext value={{ archiveId: "archive-books", rootPath: "D:/Books" }}>
+            <QuickActionsProvider>
+              <RouterProvider router={router} />
+            </QuickActionsProvider>
+          </ReaderArchiveSessionContext>
+        </LibraryStorageContext.Provider>,
+      );
+    });
+
+    expect(externalReaderMock.read).toHaveBeenCalledExactlyOnceWith("tracked-session-token");
+    expect(storage.loadBookFile).not.toHaveBeenCalled();
+    expect(storage.listAnnotations).toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Bookmark"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Annotations"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Close Reader"]')).not.toBeNull();
+    expect(initializeArchive).not.toHaveBeenCalled();
   });
 
   it("keeps missing-file recovery inside the Reader destination without acquiring a source", async () => {

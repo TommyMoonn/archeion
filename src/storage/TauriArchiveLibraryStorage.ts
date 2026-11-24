@@ -55,6 +55,7 @@ import {
   reportArchiveCacheWarning,
 } from "./tauri/operationTypes";
 import { WritebackOperations } from "./tauri/writebackOperations";
+import { normalizeArchiveRelativePath } from "./pathSafety";
 
 function reportImportOutcomeWarnings(
   report: (warning: ArchiveOperationWarning) => void,
@@ -193,6 +194,46 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.coverPromises.clear();
     this.mutationCoordinator.reset();
     this.annotationRepository.reset();
+  }
+
+  // Window-local managed session. Unlike rescan(), this parses only the selected
+  // EPUB and loads its existing metadata without rewriting the active Library.
+  async openStandaloneBook(
+    rootPath: string,
+    bookId: string,
+    relativePath: string,
+  ): Promise<Book | undefined> {
+    this.reset(rootPath);
+    const scope = this.createArchiveCommandScope();
+    const expectedPath = normalizeArchiveRelativePath(relativePath).toLowerCase();
+    const [metadata, scan] = await Promise.all([
+      this.commands.invoke("load_archive_metadata", undefined, scope.rootPath),
+      this.commands.invoke(
+        "scan_archive_epub_paths",
+        { relativePaths: [relativePath] },
+        scope.rootPath,
+      ),
+    ]);
+    this.assertCurrentArchiveScope(scope);
+    const record = metadata.library.books[bookId];
+    if (
+      !record ||
+      normalizeArchiveRelativePath(record.relativePath).toLowerCase() !== expectedPath
+    ) {
+      return undefined;
+    }
+    if (
+      scan.books.length !== 1 ||
+      normalizeArchiveRelativePath(scan.books[0].relativePath).toLowerCase() !== expectedPath
+    ) {
+      return undefined;
+    }
+    return this.mutationCoordinator.initializeStandaloneBook(
+      scope,
+      metadata,
+      scan.books[0],
+      bookId,
+    );
   }
 
   flushPendingWrites(): Promise<void> {

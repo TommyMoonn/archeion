@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 export type ExternalReaderRequest = Readonly<{ token: string; fileName: string }>;
 
@@ -6,4 +6,19 @@ export type ExternalReaderRequest = Readonly<{ token: string; fileName: string }
 export async function readExternalReaderEpub(token: string): Promise<Blob> {
   const bytes = await invoke<ArrayBuffer>("read_external_reader_epub", { token });
   return new Blob([bytes], { type: "application/epub+zip" });
+}
+
+export type StandaloneReaderManagedBook = Readonly<{
+  archiveId: string;
+  archiveRootPath: string;
+  bookId: string;
+  relativePath: string;
+}>;
+
+// The native window owns the selected path. The caller supplies only its opaque token.
+export async function findStandaloneReaderManagedBook(
+  token: string,
+): Promise<StandaloneReaderManagedBook | null> {
+  if (!isTauri()) return null;
+  return invoke<StandaloneReaderManagedBook | null>("standalone_reader_archive_match", { token });
 }
