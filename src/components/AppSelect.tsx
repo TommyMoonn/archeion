@@ -7,7 +7,7 @@ import { Tooltip } from "./Tooltip";
 import { focusElementIfUsable } from "../utils/focusRestoration";
 import { focusPresentationRuntime } from "../app/inputModality";
 import { getNextEnabledIndex } from "./listboxNavigation";
-import { scrollAppSelectOptionIntoView } from "./useAppSelectPlacement";
+import { scrollAppSelectOptionIntoView } from "./appSelectPlacement";
 import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 
 export type AppSelectOption<TValue extends string> = {

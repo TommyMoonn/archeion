@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn";
 import {
   APP_SELECT_TRIGGER_GAP,
   APP_SELECT_VIEWPORT_MARGIN,
-  getAppSelectFixedCoordinateSpace,
+  getAppSelectFixedScaleY,
 } from "../appSelectPlacement";
 
 // The desktop viewport, rather than a scrollable parent, bounds this popup.
@@ -68,7 +68,7 @@ export function SelectContent({
         side="bottom"
         sideOffset={() =>
           APP_SELECT_TRIGGER_GAP /
-          (container.current ? getAppSelectFixedCoordinateSpace(container.current).scaleY : 1)
+          (container.current ? getAppSelectFixedScaleY(container.current) : 1)
         }
         className="z-60 select-positioner-size"
       >

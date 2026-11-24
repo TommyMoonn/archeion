@@ -1,13 +1,19 @@
-import { Check, ChevronDown } from "lucide-react";
-import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { cn } from "@/utils/cn";
 import { focusElementIfUsable } from "../utils/focusRestoration";
 import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 import type { ControlSize } from "./Button";
-import { Input } from "./Input";
 import { Tooltip } from "./Tooltip";
-import { getNextEnabledIndex } from "./listboxNavigation";
-import { useAppSelectPlacement } from "./useAppSelectPlacement";
+import { scrollAppSelectOptionIntoView } from "./appSelectPlacement";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from "./ui/combobox";
 
 export type FontPickerSelection<TValue extends string = string> =
   { kind: "pinned"; value: TValue } | { kind: "system"; family: string };
@@ -40,15 +46,6 @@ type FontRow<TValue extends string> = {
   selection: FontPickerSelection<TValue>;
 };
 
-type FontPickerSession = {
-  activeByKeyboard: boolean;
-  activeKey: string | null;
-  query: string;
-};
-
-const MENU_HEIGHT = 360;
-const MENU_MIN_WIDTH = 224;
-
 function selectionKey(selection: FontPickerSelection<string>): string {
   return selection.kind === "pinned"
     ? `pinned:${selection.value}`
@@ -70,19 +67,21 @@ export function FontPicker<TValue extends string>({
 }: FontPickerProps<TValue>) {
   const generatedId = useId();
   const controlId = id ?? `font-picker-${generatedId}`;
-  const listId = `${controlId}-list`;
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [session, setSession] = useState<FontPickerSession | null>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [keyboardActive, setKeyboardActive] = useState(false);
   const [previousDisabled, setPreviousDisabled] = useState(disabled);
   if (previousDisabled !== disabled) {
     setPreviousDisabled(disabled);
-    setSession(null);
+    setOpen(false);
+    setQuery("");
+    setKeyboardActive(false);
   }
-  const isOpen = session !== null && !disabled && previousDisabled === disabled;
+  const isOpen = open && !disabled && previousDisabled === disabled;
   const selectedKey = selectionKey(value);
 
   const rows = useMemo(() => {
@@ -117,39 +116,59 @@ export function FontPicker<TValue extends string>({
     ? `${value.family} (Unavailable)`
     : (rows.find((row) => row.key === selectedKey)?.label ??
       (value.kind === "system" ? value.family : value.value));
-  const query = session?.query.trim().toLowerCase() ?? "";
-  const availableRows: FontRow<TValue>[] = unavailable
-    ? [...rows, { disabled: true, key: selectedKey, label: selectedLabel, selection: value }]
-    : rows;
-  const visibleRows = availableRows.filter((row) => row.label.toLowerCase().includes(query));
-  const requestedActive = visibleRows.findIndex(
-    (row) => row.key === session?.activeKey && !row.disabled,
+  const availableRows = useMemo(
+    () =>
+      unavailable
+        ? [...rows, { disabled: true, key: selectedKey, label: selectedLabel, selection: value }]
+        : rows,
+    [rows, unavailable, selectedKey, selectedLabel, value],
   );
-  const selectedIndex = visibleRows.findIndex((row) => row.key === selectedKey && !row.disabled);
-  const activeIndex =
-    requestedActive >= 0
-      ? requestedActive
-      : !query && selectedIndex >= 0
-        ? selectedIndex
-        : getNextEnabledIndex(visibleRows, -1, 1);
-  const optionId = (index: number) => `${controlId}-option-${index}`;
-  const activeOptionId = isOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined;
-  const menuPlacement = useAppSelectPlacement({
-    activeOptionId,
-    contentRevision: JSON.stringify(visibleRows.map((row) => [row.key, row.label, row.disabled])),
-    maxMenuHeight: MENU_HEIGHT,
-    menuRef,
-    minMenuWidth: MENU_MIN_WIDTH,
-    open: isOpen,
-    scrollRef: listRef,
-    triggerRef: buttonRef,
-    widthStrategy: "trigger",
-  });
+  const visibleRows = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return availableRows.filter((row) => row.label.toLowerCase().includes(normalized));
+  }, [availableRows, query]);
+  const selectedRow = availableRows.find((row) => row.key === selectedKey) ?? null;
 
-  const readyToFocus = isOpen && menuPlacement !== null;
+  // Base UI owns virtual focus. When opening or replacing the filtered list,
+  // its active item can be cleared during item registration. Restore the
+  // opening/query anchor through the primitive's existing hover interaction.
   useLayoutEffect(() => {
-    if (readyToFocus) focusElementIfUsable(inputRef.current);
-  }, [readyToFocus]);
+    if (!isOpen) return;
+    let cancelled = false;
+    function restoreHighlight() {
+      if (cancelled) return;
+      const list = listRef.current;
+      const input = inputRef.current;
+      if (!list || !input) return;
+      const active = input.ownerDocument.getElementById(
+        input.getAttribute("aria-activedescendant") ?? "",
+      );
+      if (active && list.contains(active) && active.getAttribute("aria-disabled") !== "true")
+        return;
+      const first = list.querySelector<HTMLElement>('[role="option"]:not([aria-disabled="true"])');
+      const selected =
+        !query &&
+        list.querySelector<HTMLElement>('[aria-selected="true"]:not([aria-disabled="true"])');
+      const row = selected || first;
+      if (!row) return;
+      row.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+      scrollAppSelectOptionIntoView(list, row);
+    }
+    // Wait for the primitive's layout registration before reading its active row.
+    queueMicrotask(restoreHighlight);
+    const frame = requestAnimationFrame(restoreHighlight);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [isOpen, query]);
+
+  function close(restoreFocus: boolean) {
+    if (restoreFocus) focusElementIfUsable(buttonRef.current);
+    setOpen(false);
+    setQuery("");
+    setKeyboardActive(false);
+  }
 
   useTransientSurfaceOwnership({
     active: isOpen,
@@ -158,181 +177,143 @@ export function FontPicker<TValue extends string>({
     elementRef: rootRef,
     kind: "popover",
     onDismiss: (reason) => {
-      setSession(null);
-      if (reason === "escape") focusElementIfUsable(buttonRef.current);
+      close(reason === "escape");
     },
     originRef: buttonRef,
     triggerRef: buttonRef,
   });
 
-  function choose(row: FontRow<TValue>) {
-    if (row.disabled) return;
-    onChange(row.selection);
-    setSession(null);
-    focusElementIfUsable(buttonRef.current);
-  }
-
-  function navigate(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const direction = event.key === "ArrowDown" ? 1 : -1;
-      const next = getNextEnabledIndex(
-        visibleRows,
-        activeIndex < 0 ? (direction === 1 ? -1 : 0) : activeIndex,
-        direction,
-      );
-      if (next >= 0)
-        setSession(
-          (current) =>
-            current && {
-              ...current,
-              activeByKeyboard: true,
-              activeKey: visibleRows[next].key,
-            },
-        );
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (activeIndex >= 0) choose(visibleRows[activeIndex]);
-    }
-    // Home, End, Space and horizontal arrows retain native search-field editing behavior.
-  }
-
   return (
     <div
-      className={`app-select app-select--${size} app-select--default font-picker ${className}`.trim()}
+      className={cn(
+        "app-select relative inline-grid max-w-full min-w-select-trigger text-text font-picker",
+        isOpen ? "z-40" : "z-1",
+        `app-select--${size} app-select--default`,
+        className,
+      )}
+      ref={rootRef}
       onBlur={(event) => {
         if (
-          !(event.relatedTarget instanceof Node) ||
+          event.relatedTarget instanceof Node &&
           !event.currentTarget.contains(event.relatedTarget)
-        ) {
-          setSession(null);
-        }
+        )
+          close(false);
       }}
-      ref={rootRef}
     >
-      <Tooltip content={selectedLabel} onlyWhenTruncated=".app-select__value">
-        <button
-          aria-busy={catalogLoading || undefined}
-          aria-controls={isOpen ? listId : undefined}
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-label={`${ariaLabel}: ${selectedLabel}`}
-          className="app-select__trigger"
-          disabled={disabled}
-          id={`${controlId}-button`}
-          onClick={() =>
-            setSession(isOpen ? null : { activeByKeyboard: false, query: "", activeKey: null })
+      <Combobox<FontRow<TValue>>
+        autoHighlight
+        disabled={disabled}
+        filteredItems={visibleRows}
+        items={availableRows}
+        inputValue={query}
+        isItemEqualToValue={(row, selected) => row.key === selected.key}
+        itemToStringLabel={(row) => row.label}
+        itemToStringValue={(row) => row.key}
+        modal={false}
+        open={isOpen}
+        value={selectedRow}
+        onInputValueChange={(next) => {
+          setQuery(next);
+          setKeyboardActive(false);
+        }}
+        onItemHighlighted={(_, details) => setKeyboardActive(details.reason === "keyboard")}
+        onValueChange={(next, details) => {
+          if (!next || next.disabled || details.reason !== "item-press") {
+            details.cancel();
+            return;
           }
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-              event.preventDefault();
-              setSession({ activeByKeyboard: false, query: "", activeKey: null });
+          onChange(next.selection);
+        }}
+        onOpenChange={(next, details) => {
+          if (next) {
+            if (disabled) {
+              details.cancel();
+              return;
             }
-          }}
-          ref={buttonRef}
-          type="button"
-        >
-          <span className="app-select__value">{selectedLabel}</span>
-          <span aria-hidden="true" className="icon-slot icon-slot--compact">
-            <ChevronDown />
-          </span>
-        </button>
-      </Tooltip>
-      {isOpen ? (
-        <div
-          className="app-select__menu font-picker__popover"
-          data-placement={menuPlacement?.placement}
-          ref={menuRef}
-          style={
-            menuPlacement
-              ? {
-                  left: menuPlacement.left,
-                  maxHeight: Math.min(MENU_HEIGHT, menuPlacement.maxHeight),
-                  top: menuPlacement.top,
-                  visibility: "visible",
-                  width: menuPlacement.width,
-                }
-              : { visibility: "hidden" }
+            setOpen(true);
+          } else {
+            close(["item-press", "escape-key", "trigger-press"].includes(details.reason));
           }
-        >
-          <div className="font-picker__header">
-            <Input
-              aria-activedescendant={activeOptionId}
-              aria-autocomplete="list"
-              aria-controls={listId}
-              aria-expanded="true"
+        }}
+      >
+        <Tooltip content={selectedLabel} onlyWhenTruncated=".app-select__value">
+          <ComboboxTrigger
+            aria-busy={catalogLoading || undefined}
+            aria-label={`${ariaLabel}: ${selectedLabel}`}
+            id={`${controlId}-button`}
+            ref={buttonRef}
+            role="button"
+            size={size}
+          >
+            <span className="app-select__value min-w-0 wrap-anywhere whitespace-normal">
+              {selectedLabel}
+            </span>
+          </ComboboxTrigger>
+        </Tooltip>
+        {isOpen ? (
+          <ComboboxContent
+            container={rootRef}
+            initialFocus={inputRef}
+            finalFocus={false}
+            data-keyboard-navigation={keyboardActive || undefined}
+          >
+            <ComboboxInput
+              aria-label={`Search fonts for ${ariaLabel}`}
               autoComplete="off"
-              className="font-picker__search"
-              label={`Search fonts for ${ariaLabel}`}
-              onChange={(event) =>
-                setSession({ activeByKeyboard: false, query: event.target.value, activeKey: null })
-              }
-              onKeyDown={navigate}
               placeholder="Search fonts…"
               ref={inputRef}
-              role="combobox"
-              size="standard"
+              onKeyDown={(event) => {
+                if (
+                  event.nativeEvent.isComposing ||
+                  event.keyCode === 229 ||
+                  event.key === "Home" ||
+                  event.key === "End"
+                ) {
+                  event.preventBaseUIHandler();
+                  return;
+                }
+                if (event.key !== "Enter") return;
+                const list = listRef.current;
+                const active = event.currentTarget.ownerDocument.getElementById(
+                  event.currentTarget.getAttribute("aria-activedescendant") ?? "",
+                );
+                if (
+                  active &&
+                  list?.contains(active) &&
+                  active.getAttribute("aria-disabled") !== "true"
+                )
+                  return;
+                // The filtered list may have just registered its rows. Commit
+                // through the primitive rather than closing with no selection.
+                event.preventBaseUIHandler();
+                event.preventDefault();
+                list
+                  ?.querySelector<HTMLElement>('[role="option"]:not([aria-disabled="true"])')
+                  ?.click();
+              }}
               spellCheck={false}
               type="search"
-              value={session.query}
             />
-          </div>
-          <div
-            aria-label={ariaLabel}
-            className="font-picker__list"
-            id={listId}
-            ref={listRef}
-            role="listbox"
-            tabIndex={-1}
-          >
-            {visibleRows.map((row, index) => (
-              <button
-                aria-disabled={row.disabled || undefined}
-                aria-selected={row.key === selectedKey}
-                className="app-select__option"
-                data-active={index === activeIndex || undefined}
-                data-keyboard-active={
-                  session.activeByKeyboard && index === activeIndex ? "true" : undefined
-                }
-                disabled={row.disabled}
-                id={optionId(index)}
-                key={row.key}
-                onClick={() => choose(row)}
-                onMouseEnter={() => {
-                  if (!row.disabled)
-                    setSession(
-                      (current) =>
-                        current && {
-                          ...current,
-                          activeByKeyboard: false,
-                          activeKey: row.key,
-                        },
-                    );
-                }}
-                onPointerDown={(event) => event.preventDefault()}
-                role="option"
-                tabIndex={-1}
-                type="button"
-              >
-                <span>{row.label}</span>
-                {row.key === selectedKey ? (
-                  <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                    <Check strokeWidth={2.25} />
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-          <div
-            aria-atomic="true"
-            className={visibleRows.length ? "sr-only" : "font-picker__empty"}
-            role="status"
-          >
-            {visibleRows.length ? "" : catalogLoading ? "Loading fonts…" : "No fonts found."}
-          </div>
-        </div>
-      ) : null}
+            <ComboboxList
+              aria-label={ariaLabel}
+              ref={listRef}
+              className="font-picker__list min-h-0 px-font-picker-inset pb-font-picker-inset overflow-x-hidden overflow-y-auto overscroll-contain"
+            >
+              {visibleRows.map((row, index) => (
+                <ComboboxItem disabled={row.disabled} index={index} key={row.key} value={row}>
+                  {row.label}
+                </ComboboxItem>
+              ))}
+            </ComboboxList>
+            <ComboboxEmpty
+              className={visibleRows.length ? "sr-only" : "px-3 py-2 text-muted text-meta"}
+              role="status"
+            >
+              {catalogLoading ? "Loading fonts…" : "No fonts found."}
+            </ComboboxEmpty>
+          </ComboboxContent>
+        ) : null}
+      </Combobox>
     </div>
   );
 }

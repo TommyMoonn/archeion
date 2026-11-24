@@ -127,6 +127,10 @@
   --spacing-dialog-inset-narrow: 20px;
   --spacing-menu-min: 168px;
   --spacing-select-menu-min: 188px;
+  --spacing-font-picker-menu-min: 224px;
+  --spacing-font-picker-search: 28px;
+  --spacing-font-picker-max-height: 360px;
+  --spacing-font-picker-inset: 4px;
   --spacing-select-trigger: min(164px, 100%);
   --spacing-select-trigger-gap: 12px;
   --spacing-overlay-viewport-inset: 16px;
@@ -188,6 +192,7 @@
   --color-surface-main: var(--surface-main);
   --color-surface-main-raised: var(--surface-main-raised);
   --color-line: var(--line);
+  --color-font-picker-divider: color-mix(in srgb, var(--line) 60%, transparent);
   --color-line-strong: var(--line-strong);
   --color-text: var(--text);
   --color-text-strong: var(--text-strong);
@@ -467,5 +472,25 @@ html[data-motion="on"] {
     --motion-duration-emphasized: 0ms;
     --motion-duration-view: 0ms;
     --motion-duration-loop: 0ms;
+  }
+}
+
+@utility font-picker-positioner-size {
+  width: min(
+    max(var(--anchor-width, 0px), var(--spacing-font-picker-menu-min)),
+    var(--container-popover),
+    var(--available-width, 100vw),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+}
+
+@utility max-h-font-picker-available {
+  max-height: min(var(--spacing-font-picker-max-height), var(--available-height, 100vh));
+}
+
+@utility font-picker-keyboard-outline {
+  [data-keyboard-navigation] &[data-highlighted] {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
   }
 }

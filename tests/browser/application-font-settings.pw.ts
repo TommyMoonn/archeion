@@ -277,11 +277,11 @@ for (const scenario of [
     if (scenario.forced) {
       expect(
         await page
-          .locator('[role="option"][data-keyboard-active="true"]')
+          .locator('[data-keyboard-navigation] [role="option"][data-highlighted]')
           .evaluate((option) => parseFloat(getComputedStyle(option).outlineWidth)),
       ).toBeGreaterThanOrEqual(2);
       const colors = await page
-        .locator('[role="option"][data-keyboard-active="true"]')
+        .locator('[data-keyboard-navigation] [role="option"][data-highlighted]')
         .evaluate((option) => ({
           label: getComputedStyle(option.firstElementChild!).color,
           row: getComputedStyle(option).color,
@@ -318,8 +318,10 @@ test("font rows and keyboard indicators retain contrast in both built-in appeara
     await page.keyboard.press("ArrowDown");
     const colors = await page.evaluate(() => {
       const popover = document.querySelector(".font-picker__popover")!;
-      const active = document.querySelector('[role="option"][data-keyboard-active="true"]')!;
-      const normal = document.querySelector('[role="option"]:not([data-active])')!;
+      const active = document.querySelector(
+        '[data-keyboard-navigation] [role="option"][data-highlighted]',
+      )!;
+      const normal = document.querySelector('[role="option"]:not([data-highlighted])')!;
       const content = document.querySelector(".settings-window")!;
       const description = document.querySelector(
         '[data-setting-id="appearance.interface-font"] .settings-row__description',

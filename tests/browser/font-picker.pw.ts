@@ -99,11 +99,11 @@ for (const scenario of [
     expect(box.x).toBeGreaterThanOrEqual(7);
     expect(box.x + box.width).toBeLessThanOrEqual(scenario.width - 7);
     expect(
-      await popover.evaluate((element) => parseFloat((element as HTMLElement).style.width)),
+      await popover.evaluate((element) => (element as HTMLElement).offsetWidth),
     ).toBeGreaterThanOrEqual(224);
     expect(box.y).toBeGreaterThanOrEqual(7);
     expect(box.y + box.height).toBeLessThanOrEqual(scenario.height - 7);
-    if (scenario.name === "above") await expect(popover).toHaveAttribute("data-placement", "above");
+    if (scenario.name === "above") await expect(popover).toHaveAttribute("data-side", "top");
     await page.keyboard.press("ArrowUp");
     await expectActiveVisible(page);
     await search(page).fill("Long family");
@@ -143,6 +143,10 @@ test("empty and unavailable states have distinct accessible semantics without mu
   const missing = page.getByRole("option", { name: "Missing Family (Unavailable)" });
   await expect(missing).toHaveAttribute("aria-selected", "true");
   await expect(missing).toHaveAttribute("aria-disabled", "true");
+  await search(page).fill("Missing Family");
+  await page.keyboard.press("Enter");
+  await expect(search(page)).toBeFocused();
+  await expect(page.getByTestId("selection-count")).toHaveText("0");
   await search(page).fill("unknown");
   await expect(page.getByRole("option")).toHaveCount(0);
   await expect(page.locator(".font-picker__popover").getByRole("status")).toHaveText(
@@ -175,8 +179,13 @@ test("uses a quiet search header aligned with option labels and balanced row ins
   page,
 }) => {
   await page.goto(fixture);
-  await trigger(page).click();
+  await trigger(page).focus();
+  await page.keyboard.press("Enter");
+  await expect(search(page)).toBeFocused();
   await search(page).fill("Default choice");
+  await expect(search(page)).toHaveCSS("outline-style", "none");
+  await expect(search(page)).toHaveCSS("border-top-width", "0px");
+  await expect(search(page)).toHaveCSS("box-shadow", "none");
 
   const layout = await page.evaluate(() => {
     const menu = document.querySelector<HTMLElement>(".font-picker__popover")!;
@@ -231,7 +240,6 @@ test("separates pointer hover from keyboard focus", async ({ page }) => {
 
   const hovered = page.getByRole("option", { name: "Alpha Serif", exact: true });
   await hovered.hover();
-  await expect(hovered).not.toHaveAttribute("data-keyboard-active", "true");
   await expect(hovered).toHaveCSS("outline-style", "none");
   const hoverBackground = await hovered.evaluate((row) => getComputedStyle(row).backgroundColor);
   const menuBackground = await page
@@ -240,7 +248,9 @@ test("separates pointer hover from keyboard focus", async ({ page }) => {
   expect(hoverBackground).not.toBe(menuBackground);
 
   await search(page).press("ArrowDown");
-  const keyboardActive = page.locator('[role="option"][data-keyboard-active="true"]');
+  const keyboardActive = page.locator(
+    '[data-keyboard-navigation] [role="option"][data-highlighted]',
+  );
   await expect(keyboardActive).toHaveCount(1);
   await expect(keyboardActive).toHaveCSS("outline-style", "solid");
   expect(
@@ -256,8 +266,9 @@ test("forced colors retain visible selected and keyboard-active indicators", asy
   await trigger(page).focus();
   await page.keyboard.press("ArrowDown");
   await expect(search(page)).toBeFocused();
+  await expect(search(page)).toHaveCSS("outline-style", "none");
   await page.keyboard.press("ArrowDown");
-  const activeRow = page.locator('[role="option"][data-keyboard-active="true"]');
+  const activeRow = page.locator('[data-keyboard-navigation] [role="option"][data-highlighted]');
   expect(
     await activeRow.evaluate((row) => parseFloat(getComputedStyle(row).outlineWidth)),
   ).toBeGreaterThanOrEqual(2);
@@ -283,8 +294,10 @@ test("rendered row text and keyboard indicator meet contrast against the actual 
   await search(page).press("ArrowDown");
   const colors = await page.evaluate(() => {
     const popover = document.querySelector(".font-picker__popover")!;
-    const active = document.querySelector('[role="option"][data-keyboard-active="true"]')!;
-    const normal = document.querySelector('[role="option"]:not([data-active])')!;
+    const active = document.querySelector(
+      '[data-keyboard-navigation] [role="option"][data-highlighted]',
+    )!;
+    const normal = document.querySelector('[role="option"]:not([data-highlighted])')!;
     return {
       background: getComputedStyle(popover).backgroundColor,
       text: getComputedStyle(normal).color,
