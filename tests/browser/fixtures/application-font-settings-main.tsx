@@ -28,7 +28,12 @@ const parameters = new URLSearchParams(location.search);
 // Settings also enumerates custom themes. Keep unrelated native I/O deterministic,
 // while leaving browser preference persistence and the real theme runtime intact.
 mockIPC((command) => {
-  if (command === "list_theme_packages") return [];
+  if (command === "list_theme_packages") {
+    return parameters.has("theme-choice") ? [shellStressThemes.distinct.id] : [];
+  }
+  if (command === "read_theme_manifest" && parameters.has("theme-choice")) {
+    return JSON.stringify(shellStressThemes.distinct);
+  }
   if (command === "refresh_theme_catalog" || command === "load_theme_catalog_revision") {
     return { revision: 0 };
   }

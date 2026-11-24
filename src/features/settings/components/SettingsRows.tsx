@@ -49,7 +49,7 @@ function SettingsRowFrame({ children, description, label, note, variant }: Setti
           </span>
         ) : null}
       </div>
-      <div className="settings-row__control flex w-auto min-w-slider-row items-center justify-end settings-row-narrow:w-full settings-row-narrow:min-w-0 settings-row-narrow:flex-wrap settings-row-narrow:justify-stretch [&_.app-select]:settings-select-basis [&_.app-select]:w-slider-row [&_.app-select]:min-w-0 [&_.app-select]:max-w-full [&_.segmented-control]:settings-segment-min [&_.segmented-control]:max-w-full settings-row-narrow:[&_.app-select]:w-full settings-row-narrow:[&_.app-select]:basis-full settings-row-narrow:[&_.segmented-control]:w-full">
+      <div className="settings-row__control flex w-auto min-w-slider-row items-center justify-end settings-row-narrow:w-full settings-row-narrow:min-w-0 settings-row-narrow:flex-wrap settings-row-narrow:justify-stretch [&>.app-select]:settings-select-basis [&>.app-select]:w-slider-row [&>.app-select]:min-w-0 [&>.app-select]:max-w-full [&_.segmented-control]:settings-segment-min [&_.segmented-control]:max-w-full settings-row-narrow:[&>.app-select]:w-full settings-row-narrow:[&>.app-select]:basis-full settings-row-narrow:[&_.segmented-control]:w-full">
         {children}
       </div>
     </div>

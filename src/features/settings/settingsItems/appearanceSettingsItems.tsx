@@ -35,9 +35,10 @@ export const appearanceSettingsItems = [
     label: "App themes",
     render: (context) => (
       <FeatureSettingsRow description="Choose the theme used across Archeion." label="App themes">
-        <div className="settings-theme-control">
+        <div className="flex min-w-0 max-w-full items-center justify-end gap-control-gap settings-row-narrow:w-full">
           <AppSelect
             ariaLabel="App themes"
+            className="w-slider-row min-w-0 settings-row-narrow:w-auto settings-row-narrow:flex-1"
             onChange={(value) =>
               void context.updateAppearance({ appTheme: decodeApplicationTheme(value) })
             }
@@ -49,7 +50,7 @@ export const appearanceSettingsItems = [
             value={applicationThemeValue(context.preferences.appTheme)}
           />
           <IconButton
-            className="settings-theme-control__manage"
+            className="shrink-0"
             disabled={context.themeCatalogLoading}
             disabledReason="Themes are loading."
             label="Manage themes"

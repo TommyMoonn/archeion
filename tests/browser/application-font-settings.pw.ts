@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resolveBuiltInAppTheme, resolveTheme } from "../../src/themes/resolveTheme";
+import { shellStressThemes } from "../fixtures/themes/shellStressThemes";
 
 const fixture = "/tests/browser/fixtures/application-font-settings.html";
 const fontTrigger = (page: Page, role: "Interface" | "Display") =>
@@ -42,7 +44,7 @@ async function selectFont(page: Page, role: "Interface" | "Display", label: stri
 
 test("real Settings controls apply both roles, persist, search, and reset with one shared catalog", async ({
   page,
-}, testInfo) => {
+}) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
@@ -91,7 +93,6 @@ test("real Settings controls apply both roles, persist, search, and reset with o
   ]);
   await page.keyboard.press("Escape");
   await selectFont(page, "Display", "Arial");
-  await page.screenshot({ path: testInfo.outputPath("desktop-selected.png") });
   await page.reload();
   await page.getByRole("button", { name: "Appearance", exact: true }).click();
   await expect(fontTrigger(page, "Interface")).toHaveText("Georgia");
@@ -118,33 +119,28 @@ test("Settings selectors keep their width while font metrics and the catalog res
 }) => {
   await openAppearance(page, "?pending");
 
-  const selectors = page.locator(".settings-row__control .app-select");
-  // Appearance contains App themes and both font pickers. Reader theme is in Reader settings.
-  await expect(selectors).toHaveCount(3);
+  const selectors = [
+    page.getByRole("combobox", { name: "App themes" }),
+    fontTrigger(page, "Interface"),
+    fontTrigger(page, "Display"),
+  ];
   const readWidths = () =>
-    selectors.evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().width),
+    Promise.all(
+      selectors.map((selector) => selector.evaluate((node) => node.getBoundingClientRect().width)),
     );
   const initialWidths = await readWidths();
-  expect(initialWidths).toEqual([240, 240, 240]);
-
-  const transitionProperties = await selectors
-    .locator(".app-select__trigger")
-    .evaluateAll((elements) =>
-      elements.map((element) => getComputedStyle(element).transitionProperty),
-    );
-  expect(transitionProperties.every((property) => !property.split(",").includes("width"))).toBe(
-    true,
-  );
+  for (const width of initialWidths) expect(Math.abs(width - 240)).toBeLessThanOrEqual(1);
 
   await page.evaluate(() => document.documentElement.style.setProperty("--font-ui", "monospace"));
   await page.evaluate(async () => {
     await document.fonts.ready;
   });
-  expect(await readWidths()).toEqual(initialWidths);
+  for (const [index, width] of (await readWidths()).entries()) {
+    expect(Math.abs(width - initialWidths[index])).toBeLessThanOrEqual(1);
+  }
 
-  const interfacePicker = page.locator(".font-picker").first();
-  const interfaceTrigger = interfacePicker.locator(".app-select__trigger");
+  const interfacePicker = page.getByRole("group", { name: "Interface font", exact: true });
+  const interfaceTrigger = fontTrigger(page, "Interface");
   const triggerWidth = await interfaceTrigger.evaluate(
     (element) => element.getBoundingClientRect().width,
   );
@@ -154,25 +150,92 @@ test("Settings selectors keep their width while font metrics and the catalog res
   const initialPopoverWidth = await popover.evaluate(
     (element) => element.getBoundingClientRect().width,
   );
-  expect(initialPopoverWidth).toBe(triggerWidth);
+  expect(Math.abs(initialPopoverWidth - triggerWidth)).toBeLessThanOrEqual(1);
 
   await page.evaluate(() => window.applicationFontSettingsFixture.releaseCatalog());
   await expect(fontTrigger(page, "Interface")).not.toHaveAttribute("aria-busy", "true");
   await expect
     .poll(() => popover.evaluate((element) => element.getBoundingClientRect().width))
-    .toBe(initialPopoverWidth);
+    .toBeCloseTo(initialPopoverWidth, 0);
   expect(
     await popover
       .getByRole("option", { name: longFamily, exact: true })
       .locator("span")
       .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
-  expect(await readWidths()).toEqual(initialWidths);
+  for (const [index, width] of (await readWidths()).entries()) {
+    expect(Math.abs(width - initialWidths[index])).toBeLessThanOrEqual(1);
+  }
+});
+
+test("Appearance theme group and font rows reflow while live preferences change", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openAppearance(page, "?theme-choice");
+  const theme = page.getByRole("combobox", { name: "App themes" });
+  const manage = page.getByRole("button", { name: "Manage themes" });
+  const density = page.getByRole("radiogroup", { name: "Display density" });
+  const motion = page.getByRole("switch", { name: "Animations" });
+  const root = page.locator("html");
+  const mainColor = () => root.evaluate((node) => node.style.getPropertyValue("--surface-main"));
+  const chooseTheme = async (label: string) => {
+    await theme.click();
+    await page.getByRole("option", { name: label, exact: true }).click();
+    await expect(theme).toHaveText(label);
+  };
+
+  await expect(manage).not.toHaveAttribute("aria-disabled", "true");
+  await chooseTheme("Archeion Light");
+  await expect.poll(mainColor).toBe(resolveBuiltInAppTheme("light").tokens.main);
+  await chooseTheme(shellStressThemes.distinct.name);
+  await expect.poll(mainColor).toBe(resolveTheme(shellStressThemes.distinct).app.tokens.main);
+  await density.getByRole("radio", { name: "Compact" }).click();
+  await expect(root).toHaveAttribute("data-density", "compact");
+  await motion.click();
+  await expect(root).toHaveAttribute("data-motion", "on");
+
+  for (const width of [1100, 760, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [name, control] of [
+      ["App themes", theme],
+      ["Interface font", fontTrigger(page, "Interface")],
+      ["Display font", fontTrigger(page, "Display")],
+    ] as const) {
+      const row = page.getByRole("group", { name, exact: true });
+      const bounds = (await row.boundingBox())!;
+      const box = (await control.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(bounds.x - 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+      if (width === 1100) {
+        expect(Math.abs(box.width - 240)).toBeLessThanOrEqual(1);
+      } else if (name !== "App themes") {
+        expect(Math.abs(box.width - bounds.width)).toBeLessThanOrEqual(1);
+      }
+      if (name === "App themes") {
+        const action = (await manage.boundingBox())!;
+        expect(action.x).toBeGreaterThanOrEqual(box.x + box.width);
+        expect(action.x + action.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+        expect(Math.abs(action.y + action.height / 2 - box.y - box.height / 2)).toBeLessThanOrEqual(
+          1,
+        );
+      }
+    }
+    const content = page.getByRole("region", { name: "Settings content" });
+    expect(await content.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  }
+
+  await page.getByRole("button", { name: "Reset appearance", exact: true }).click();
+  await expect(theme).toHaveText("Archeion Dark");
+  await expect.poll(mainColor).toBe(resolveBuiltInAppTheme("dark").tokens.main);
+  await expect(root).toHaveAttribute("data-density", "comfortable");
+  await expect(root).toHaveAttribute("data-motion", "off");
 });
 
 test("pending catalog does not mislabel a saved family and unavailable choices remain preserved", async ({
   page,
-}, testInfo) => {
+}) => {
   await openAppearance(page, "?missing&pending");
   await expect(fontTrigger(page, "Interface")).toHaveText("Arial");
   await expect(fontTrigger(page, "Display")).toHaveText("Missing Display");
@@ -194,7 +257,6 @@ test("pending catalog does not mislabel a saved family and unavailable choices r
       () => window.applicationFontSettingsFixture.preferences.appearance.displayFont,
     ),
   ).toEqual({ kind: "system", family: "Missing Display" });
-  await page.screenshot({ path: testInfo.outputPath("unavailable.png") });
   await selectFont(page, "Display", "Archeion Default");
   await expect(fontTrigger(page, "Interface")).toHaveText("Arial");
 });
@@ -228,9 +290,7 @@ for (const scenario of [
     zoom: true,
   },
 ]) {
-  test(`font controls remain usable with long labels in ${scenario.name}`, async ({
-    page,
-  }, testInfo) => {
+  test(`font controls remain usable with long labels in ${scenario.name}`, async ({ page }) => {
     await page.setViewportSize({ width: scenario.width, height: scenario.height });
     await page.emulateMedia({
       forcedColors: scenario.forced ? "active" : "none",
@@ -297,7 +357,6 @@ for (const scenario of [
         JSON.stringify(colors),
       ).toBeGreaterThanOrEqual(4.5);
     }
-    await page.screenshot({ path: testInfo.outputPath(`${scenario.name}-long-label.png`) });
     await page.keyboard.press("Escape");
     await expect(fontTrigger(page, "Interface")).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

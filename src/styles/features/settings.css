@@ -13,21 +13,6 @@
   line-height: 1.5;
 }
 
-.settings-theme-control {
-  display: grid;
-  grid-template-columns: 240px auto;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.settings-theme-control .app-select {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-}
-
 .settings-annotation-export-actions {
   display: flex;
   flex-wrap: wrap;
@@ -303,11 +288,6 @@
 }
 
 @container settings-section (max-width: 560px) {
-  .settings-theme-control {
-    grid-template-columns: minmax(0, 1fr) auto;
-    width: 100%;
-  }
-
   .settings-section :where(.keyboard-shortcut-row__controls, .keyboard-shortcut-binding-control) {
     width: 100%;
     flex-wrap: wrap;

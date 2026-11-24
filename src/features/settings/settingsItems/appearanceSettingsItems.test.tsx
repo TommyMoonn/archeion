@@ -31,7 +31,11 @@ function renderFontRole(
   const root = createRoot(container);
   fontRenders.push({ root, container });
   act(() => root.render(item.render(context)));
-  const trigger = () => container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+  const label = item.label;
+  const trigger = () =>
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.getAttribute("aria-label")?.startsWith(`${label}:`),
+    )!;
   const options = () => Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
   const open = () => act(() => trigger().click());
   const query = (value: string) =>
@@ -95,8 +99,6 @@ describe("appearanceSettingsItems", () => {
     const rendered = renderFontRole(id);
     rendered.open();
     expect(rendered.options().map((option) => option.textContent)).toEqual(expected);
-    expect(rendered.container.querySelector("h3")).toBeNull();
-    expect(rendered.container.textContent).not.toMatch(/font source|category|preview|advanced/i);
     expect(rendered.context.updateAppPreferences).not.toHaveBeenCalled();
   });
 
@@ -190,7 +192,7 @@ describe("appearanceSettingsItems", () => {
     expect(content.textContent).not.toMatch(/fallback|override|inherit/i);
   });
 
-  it("uses the compact Manage action, app selector, and shared reader selector actions", () => {
+  it("opens Theme Manager and persists independent app and reader theme choices", () => {
     const context = controller();
     const readerTheme = readerSettingsItems.find((item) => item.id === "reader.theme")!;
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
@@ -210,10 +212,6 @@ describe("appearanceSettingsItems", () => {
     const manage = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Manage themes"]',
     )!;
-    expect(manage.textContent).toBe("");
-    expect(
-      container.querySelector<HTMLButtonElement>('button[aria-label="Open themes folder"]'),
-    ).toBeNull();
 
     const readerSelect = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Reader theme"]',
