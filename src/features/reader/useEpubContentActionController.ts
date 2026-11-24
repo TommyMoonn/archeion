@@ -155,9 +155,17 @@ export function useEpubContentActionController({
     ) => {
       const target = anchor?.focusTarget;
       if (!target) return;
-      window.requestAnimationFrame(() =>
-        focusElementIfRestorationOwned(target, { closingSurface, requestIsCurrent }),
-      );
+      const schedule = () => {
+        window.requestAnimationFrame(() =>
+          focusElementIfRestorationOwned(target, { closingSurface, requestIsCurrent }),
+        );
+      };
+      // A retained native modal keeps the EPUB inert until its exit completes.
+      if (closingSurface instanceof HTMLDialogElement && closingSurface.open) {
+        closingSurface.addEventListener("close", schedule, { once: true });
+      } else {
+        schedule();
+      }
     },
     [],
   );
@@ -190,9 +198,17 @@ export function useEpubContentActionController({
       const current = externalRef.current;
       const closingSurface = activeReaderContentSurface("reader-external-link-dialog");
       if (current?.opening) return;
+      const operation = operationRef.current;
       setExternal(null);
       if (shouldRestoreFocus)
-        restoreFocus(current?.anchor, () => externalRef.current === null, closingSurface);
+        restoreFocus(
+          current?.anchor,
+          () =>
+            mountedRef.current &&
+            operationRef.current === operation &&
+            externalRef.current === null,
+          closingSurface,
+        );
     },
     [restoreFocus, setExternal],
   );
@@ -643,7 +659,11 @@ export function useEpubContentActionController({
         if (!isCurrentOperation(operation, session) || externalRef.current !== opening) return;
         const closingSurface = activeReaderContentSurface("reader-external-link-dialog");
         setExternal(null);
-        restoreFocus(current.anchor, () => externalRef.current === null, closingSurface);
+        restoreFocus(
+          current.anchor,
+          () => isCurrentOperation(operation, session) && externalRef.current === null,
+          closingSurface,
+        );
       },
       () => {
         if (!isCurrentOperation(operation, session) || externalRef.current !== opening) return;

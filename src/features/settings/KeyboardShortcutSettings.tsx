@@ -163,7 +163,6 @@ function KeyboardShortcutCaptureDialog({
 
   return (
     <Dialog
-      className="dialog--keybind"
       closeOnBackdropClick={false}
       footer={
         <>

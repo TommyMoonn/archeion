@@ -111,7 +111,9 @@ test("keyboard-only shortcut capture rejects conflicts, saves, and restores focu
   await expect(trigger).toHaveText("Ctrl+Shift+K");
 });
 
-test("pointer-opened keybind capture stays still and visibly indicates focus", async ({ page }) => {
+test("pointer-opened keybind capture keeps stable layout and visibly indicates focus", async ({
+  page,
+}) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto(fixture);
   await page.getByRole("button", { name: "Keyboard", exact: true }).click();
@@ -130,25 +132,27 @@ test("pointer-opened keybind capture stays still and visibly indicates focus", a
   const cancel = dialog.getByRole("button", { name: "Cancel" });
   await expect(capture).toBeFocused();
   const samples = await dialog.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) throw new Error("Dialog element is missing");
     const animation = element
       .getAnimations()
       .find(
         (candidate) =>
-          candidate instanceof CSSAnimation &&
-          candidate.animationName.startsWith("dialog-presence-"),
+          candidate instanceof CSSAnimation && candidate.animationName === "dialog-presence-enter",
       );
     if (!animation || !animation.effect) throw new Error("Dialog entrance is missing");
     const duration = Number(animation.effect.getTiming().duration);
     const targets = [
       element,
-      ...element.querySelectorAll("h2, [aria-label='Shortcut capture'], button"),
+      ...element.querySelectorAll<HTMLElement>("h2, [aria-label='Shortcut capture'], button"),
     ];
     const sample = (time: number) => {
       animation.currentTime = time;
-      return targets.map((target) => {
-        const { x, y, width, height } = target.getBoundingClientRect();
-        return [x, y, width, height];
-      });
+      return targets.map((target) => [
+        target.offsetLeft,
+        target.offsetTop,
+        target.offsetWidth,
+        target.offsetHeight,
+      ]);
     };
     const start = sample(0);
     const middle = sample(duration / 2);
@@ -156,13 +160,8 @@ test("pointer-opened keybind capture stays still and visibly indicates focus", a
     animation.finish();
     return { start, middle, end };
   });
-  for (const bounds of [samples.start, samples.middle]) {
-    bounds.forEach((rect, index) => {
-      rect.forEach((value, coordinate) => {
-        expect(Math.abs(value - samples.end[index][coordinate])).toBeLessThanOrEqual(1);
-      });
-    });
-  }
+  expect(samples.start).toEqual(samples.end);
+  expect(samples.middle).toEqual(samples.end);
   await expect(capture.getByText("Press a shortcut", { exact: true })).toBeVisible();
   await expect(save.locator("svg")).toBeVisible();
   const focusedBorder = await capture.evaluate((element) => getComputedStyle(element).borderColor);

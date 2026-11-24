@@ -2,15 +2,8 @@ import { SurfacePresenceContext } from "./modalPresenceContext";
 import { useCallback, useContext, useId, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { DialogShellContext, type DialogShellOwner } from "./DialogShellContext";
-import {
-  dialogFrameClass,
-  dialogPanelClass,
-  dialogCopyClass,
-  dialogTitleClass,
-  dialogRegionClass,
-  dialogBodyClass,
-  dialogFooterClass,
-} from "./dialogStyles";
+import { dialogRegionClass, dialogBodyClass } from "./dialogStyles";
+import { DialogFrame, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { useModalDialogLifecycle } from "./useModalDialogLifecycle";
 
 type DialogProps = {
@@ -93,14 +86,12 @@ function StandaloneDialog({
   });
 
   return (
-    <dialog
+    <DialogFrame
       ref={dialogRef}
-      className={[dialogFrameClass, layout === "workspace" ? "dialog--workspace" : "", className]
-        .filter(Boolean)
-        .join(" ")}
+      className={className}
+      workspace={layout === "workspace"}
       aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
-      aria-modal="true"
       onCancel={modal.onCancel}
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
@@ -123,7 +114,7 @@ function StandaloneDialog({
           />
         </DialogShellContext>
       </SurfacePresenceContext>
-    </dialog>
+    </DialogFrame>
   );
 }
 
@@ -160,11 +151,9 @@ export function DialogPanel({
   const content = (
     <>
       {!hosted ? (
-        <div className={dialogCopyClass}>
-          <h2 className={dialogTitleClass} id={titleId}>
-            {title}
-          </h2>
-        </div>
+        <DialogHeader>
+          <DialogTitle id={titleId}>{title}</DialogTitle>
+        </DialogHeader>
       ) : null}
       {description || children ? (
         <div
@@ -202,10 +191,10 @@ export function DialogPanel({
               {feedback}
             </div>
           ) : null}
-          {footer ? <div className={dialogFooterClass}>{footer}</div> : null}
+          {footer ? <DialogFooter>{footer}</DialogFooter> : null}
         </div>
       ) : null}
     </>
   );
-  return hosted ? content : <div className={dialogPanelClass}>{content}</div>;
+  return hosted ? content : <DialogContent>{content}</DialogContent>;
 }

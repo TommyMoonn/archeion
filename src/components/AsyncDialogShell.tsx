@@ -12,12 +12,7 @@ import {
 } from "react";
 
 import { Button } from "./Button";
-import {
-  dialogFrameClass,
-  dialogPanelClass,
-  dialogCopyClass,
-  dialogTitleClass,
-} from "./dialogStyles";
+import { DialogFrame, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { DialogPanel } from "./Dialog";
 import { DialogShellContext, type DialogShellOptions } from "./DialogShellContext";
 import { useModalDialogLifecycle } from "./useModalDialogLifecycle";
@@ -190,12 +185,12 @@ export function AsyncDialogShell({
   });
 
   return (
-    <dialog
+    <DialogFrame
       ref={dialogRef}
-      className={`${dialogFrameClass} ${workspace ? "dialog--workspace" : ""} ${className}`}
+      className={className}
+      workspace={workspace}
       aria-labelledby={titleId}
       aria-describedby={hasDescription ? descriptionId : undefined}
-      aria-modal="true"
       aria-busy={isLoading || undefined}
       onCancel={modal.onCancel}
       onPointerDown={modal.onPointerDown}
@@ -208,12 +203,12 @@ export function AsyncDialogShell({
         }
       }}
     >
-      <div className={dialogPanelClass}>
-        <div className={dialogCopyClass}>
-          <h2 className={dialogTitleClass} ref={titleRef} tabIndex={-1} id={titleId}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle ref={titleRef} tabIndex={-1} id={titleId}>
             {visibleTitle}
-          </h2>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <SurfacePresenceContext value={null}>
           <DialogShellContext value={shell}>
             <Suspense
@@ -259,7 +254,7 @@ export function AsyncDialogShell({
             </Suspense>
           </DialogShellContext>
         </SurfacePresenceContext>
-      </div>
-    </dialog>
+      </DialogContent>
+    </DialogFrame>
   );
 }

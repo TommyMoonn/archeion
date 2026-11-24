@@ -174,3 +174,52 @@ test("palette baseline dismisses immediately; presence supplies a bounded exit w
   expect(await page.evaluate(() => window.modalLifetime.submits)).toBe(1);
   await expect(page.locator("dialog")).toHaveCount(0);
 });
+
+test("Reader external link confirmation retains the native modal through shared exit", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/browser/fixtures/modal-lifetime.html?surface=reader-link");
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
+    document.documentElement.style.setProperty("--motion-duration-fast", "1500ms");
+  });
+  await page.getByRole("button", { name: "Open surface" }).click();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  const dialog = page.locator("dialog");
+  const entered = await dialog.evaluate((element) => {
+    const entrance = element
+      .getAnimations()
+      .find(
+        (animation) =>
+          animation instanceof CSSAnimation && animation.animationName === "dialog-presence-enter",
+      );
+    if (!entrance) return false;
+    entrance.finish();
+    element.addEventListener(
+      "close",
+      () => {
+        document.documentElement.dataset.nativeDialogClosed = "true";
+      },
+      { once: true },
+    );
+    return true;
+  });
+  expect(entered).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveAttribute("data-surface-state", "closing");
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await dialog.evaluate((element) => {
+    const exit = element
+      .getAnimations()
+      .find(
+        (animation) =>
+          animation instanceof CSSAnimation && animation.animationName === "dialog-exit",
+      );
+    if (!exit) throw new Error("Shared dialog exit is missing");
+    exit.finish();
+  });
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-native-dialog-closed", "true");
+  expect(await page.evaluate(() => window.modalLifetime.dismissals)).toBe(1);
+});
