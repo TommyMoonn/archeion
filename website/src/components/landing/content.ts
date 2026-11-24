@@ -39,7 +39,7 @@ export const libraryFeatures: readonly LandingFeature[] = [
   {
     title: "Search and filters",
     description:
-      "Search your books, sort results, and filter by series, subject, language, publisher, or reading status.",
+      "Search your books, sort by date added, and filter by series, subject, language, publisher, or reading status.",
     icon: Search,
   },
   {
@@ -54,12 +54,13 @@ export const readingFeatures: readonly LandingFeature[] = [
   {
     title: "Reader settings",
     description:
-      "Choose paged or continuous reading, typeface, line spacing, page width, and colors.",
+      "Open EPUBs from File Explorer. Choose paged or continuous reading, typeface, line spacing, page width, and colors.",
     icon: BookOpen,
   },
   {
     title: "Bookmarks and highlights",
-    description: "Save reading positions, highlight passages in four colors, and add notes.",
+    description:
+      "For books in your active archive, save reading positions, highlight passages in four colors, and add notes.",
     icon: Bookmark,
   },
   {

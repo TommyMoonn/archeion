@@ -13,6 +13,7 @@ test("six factual cards replace interactive Library and Reader demos", async ({ 
   for (const claim of [
     "filter by series, subject, language, publisher, or reading status",
     "Move selected books, update book details, regenerate covers, and export annotations",
+    "Open EPUBs from File Explorer",
     "paged or continuous reading, typeface, line spacing, page width, and colors",
     "highlight passages in four colors, and add notes",
     "Install compatible dictionaries to look up selected words offline",
