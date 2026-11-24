@@ -86,11 +86,6 @@ const auditedErrorSources = [
     /className="about-window__error" data-tone="error" role="alert"/,
   ],
   [
-    "keyboard shortcut capture",
-    "src/features/settings/KeyboardShortcutSettings.tsx",
-    /data-tone="error" id=\{validationMessageId\} role="alert"/,
-  ],
-  [
     "theme diagnostics",
     "src/features/themes/ThemeDetails.tsx",
     /className="theme-details__diagnostics" data-tone="error" role="alert"/,

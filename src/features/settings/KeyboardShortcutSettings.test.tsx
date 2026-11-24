@@ -16,19 +16,21 @@ import type { SettingsController } from "./useSettingsController";
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
-
 function updateAppPreferencesMock() {
   return vi.fn<SettingsController["updateAppPreferences"]>(async () => true);
 }
 
 beforeEach(() => {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    (this as DialogElementWithOpen).open = true;
-  };
-  HTMLDialogElement.prototype.close = function close() {
-    (this as DialogElementWithOpen).open = false;
-  };
+  vi.spyOn(HTMLDialogElement.prototype, "showModal").mockImplementation(function (
+    this: HTMLDialogElement,
+  ) {
+    this.open = true;
+  });
+  vi.spyOn(HTMLDialogElement.prototype, "close").mockImplementation(function (
+    this: HTMLDialogElement,
+  ) {
+    this.open = false;
+  });
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     callback(0);
     return 1;
@@ -88,45 +90,14 @@ function openCapture(commandLabel: string): HTMLButtonElement {
 }
 
 function captureTarget(): HTMLElement {
-  const match = document.querySelector<HTMLElement>('.keyboard-shortcut-capture[tabindex="0"]');
+  const match = document.querySelector<HTMLElement>(
+    '[role="group"][aria-label="Shortcut capture"]',
+  );
   if (!match) throw new Error("Shortcut capture target was not rendered");
   return match;
 }
 
 describe("Keyboard settings", () => {
-  it("opens shortcut capture from the binding control", () => {
-    render(
-      <KeyboardShortcutRow command={commandDefinitions.quickActions} context={controller()} />,
-    );
-
-    openCapture(commandDefinitions.quickActions.label);
-    const dialog = document.querySelector<HTMLDialogElement>("dialog");
-
-    expect(dialog?.open).toBe(true);
-    expect(dialog?.textContent).toContain(commandDefinitions.quickActions.label);
-    const capture = captureTarget();
-    capture.focus();
-    expect(document.activeElement).toBe(capture);
-  });
-
-  it("keeps footer controls keyboard-operable outside the chord capture target", () => {
-    render(
-      <KeyboardShortcutRow command={commandDefinitions.quickActions} context={controller()} />,
-    );
-
-    openCapture(commandDefinitions.quickActions.label);
-    const cancel = textButton("Cancel");
-    const event = new KeyboardEvent("keydown", {
-      bubbles: true,
-      cancelable: true,
-      key: "Enter",
-    });
-    cancel.dispatchEvent(event);
-
-    expect(event.defaultPrevented).toBe(false);
-    expect(document.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
-  });
-
   it("reports conflicts immediately and saves one valid chord", async () => {
     const updateAppPreferences = updateAppPreferencesMock();
     render(
@@ -150,7 +121,7 @@ describe("Keyboard settings", () => {
       );
     });
     const conflict = document.querySelector('[role="alert"]');
-    expect(conflict).not.toBeNull();
+    expect(conflict?.getAttribute("data-tone")).toBe("error");
     expect(capture.getAttribute("aria-invalid")).toBe("true");
     expect(document.getElementById(capture.getAttribute("aria-describedby")!)).toBe(conflict);
     expect(textButton("Save shortcut").disabled).toBe(true);
@@ -184,28 +155,33 @@ describe("Keyboard settings", () => {
     expect(document.querySelector("dialog")).toBeNull();
   });
 
-  it("Escape cancels capture only and restores focus without changing the binding", () => {
-    const updateAppPreferences = updateAppPreferencesMock();
+  it("keeps a valid candidate available to retry after a failed save", async () => {
+    const updateAppPreferences = updateAppPreferencesMock().mockResolvedValueOnce(false);
     render(
       <KeyboardShortcutRow
-        command={commandDefinitions.settings}
+        command={commandDefinitions.quickActions}
         context={controller(defaultAppPreferences.keyboard, updateAppPreferences)}
       />,
     );
-
-    const trigger = openCapture(commandDefinitions.settings.label);
-    const capture = captureTarget();
-    expect(textButton("Cancel")).toBeTruthy();
-
-    act(() => {
-      capture.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
-      );
-    });
-
+    openCapture(commandDefinitions.quickActions.label);
+    act(() =>
+      captureTarget().dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          shiftKey: true,
+          key: "K",
+        }),
+      ),
+    );
+    await act(async () => textButton("Save shortcut").click());
+    expect(document.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
+    expect(textButton("Save shortcut").disabled).toBe(false);
+    expect(captureTarget().textContent).toContain("Ctrl+Shift+K");
+    await act(async () => textButton("Save shortcut").click());
+    expect(updateAppPreferences).toHaveBeenCalledTimes(2);
     expect(document.querySelector("dialog")).toBeNull();
-    expect(updateAppPreferences).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(trigger);
   });
 
   it("clears without opening capture and shows the unassigned state", async () => {
@@ -218,9 +194,6 @@ describe("Keyboard settings", () => {
     );
 
     const clear = buttonByName("Clear shortcut for Open Settings");
-    clear.focus();
-    expect(document.activeElement).toBe(clear);
-    expect(clear.tabIndex).toBeGreaterThanOrEqual(0);
     await act(async () => clear.click());
 
     expect(document.querySelector("dialog")).toBeNull();

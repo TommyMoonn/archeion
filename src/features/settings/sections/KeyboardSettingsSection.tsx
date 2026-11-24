@@ -2,6 +2,7 @@ import { SettingsSection } from "../components/SettingsSection";
 import { Search } from "lucide-react";
 import { useState } from "react";
 
+import { EmptyDescription } from "../../../components/ui/empty";
 import { Input } from "../../../components/Input";
 import { SettingsSectionItems } from "../SettingsSectionItems";
 import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
@@ -19,16 +20,12 @@ export function KeyboardSettingsSection({ context }: { context: SettingsControll
   return (
     <SettingsSection className="settings-section--keyboard [&>[data-settings-group]+[data-settings-group]]:mt-dialog-panel">
       <SettingsSectionHeader title="Keyboard" />
-      <div
-        aria-label="Keyboard shortcut search"
-        className="keyboard-settings__search"
-        role="search"
-      >
+      <div aria-label="Keyboard shortcut search" className="mb-dialog-panel" role="search">
         <Input
           autoCapitalize="none"
           autoComplete="off"
           autoCorrect="off"
-          className="keyboard-settings__search-input"
+          className="w-full max-w-shortcut-search"
           icon={<Search aria-hidden="true" />}
           label="Search shortcuts"
           name="keyboard-shortcut-search"
@@ -43,9 +40,9 @@ export function KeyboardSettingsSection({ context }: { context: SettingsControll
       {filteredItems.length > 0 ? (
         <SettingsSectionItems context={context} items={filteredItems} sectionId="keyboard" />
       ) : (
-        <p className="keyboard-settings__empty" role="status">
+        <EmptyDescription className="text-body-supporting" role="status">
           No shortcuts match this search.
-        </p>
+        </EmptyDescription>
       )}
     </SettingsSection>
   );

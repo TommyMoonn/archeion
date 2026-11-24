@@ -3,6 +3,7 @@ import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { Kbd } from "../../components/ui/kbd";
 import type { KeyboardBinding } from "../../types/keyboard";
 import {
   effectiveKeyboardBinding,
@@ -93,11 +94,17 @@ export function KeyboardShortcutDocumentationRow({
   label: string;
 }) {
   const control = (
-    <div aria-label={`${label} keys`} className="keyboard-shortcut-keycaps">
+    <div
+      aria-label={`${label} keys`}
+      className="flex min-w-0 max-w-full flex-wrap justify-end gap-control-gap-compact"
+    >
       {bindings.map((binding, index) => (
-        <kbd key={`${formatKeyboardBinding(binding)}-${index}`}>
+        <Kbd
+          className="settings-row-narrow:wrap-anywhere settings-row-narrow:whitespace-normal"
+          key={`${formatKeyboardBinding(binding)}-${index}`}
+        >
           {formatKeyboardBinding(binding)}
-        </kbd>
+        </Kbd>
       ))}
     </div>
   );
@@ -155,9 +162,8 @@ function KeyboardShortcutCaptureDialog({
 
   return (
     <Dialog
-      className="keyboard-shortcut-capture-dialog"
       closeOnBackdropClick={false}
-      description="Press one shortcut. Escape cancels without changing the current binding."
+      description="Press one shortcut. Tab moves to the dialog actions. Escape cancels without changing the current binding."
       footer={
         <>
           <Button onClick={onClose} variant="secondary">
@@ -174,9 +180,13 @@ function KeyboardShortcutCaptureDialog({
       <div
         aria-describedby={validation ? validationMessageId : undefined}
         aria-invalid={validation?.ok === false || undefined}
-        autoFocus
-        className="keyboard-shortcut-capture"
+        aria-label="Shortcut capture"
+        data-dialog-initial-focus
+        className="grid min-w-0 min-h-shortcut-capture place-content-center gap-dialog-copy rounded-control border-standard border-solid border-line-strong bg-surface p-dialog-gap text-center wrap-anywhere"
+        role="group"
         onKeyDown={(event) => {
+          // Tab and Shift+Tab are navigation, never assignable shortcuts.
+          if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) return;
           event.preventDefault();
           event.stopPropagation();
           if (event.key === "Escape") {
@@ -199,14 +209,25 @@ function KeyboardShortcutCaptureDialog({
         }}
         tabIndex={0}
       >
-        <strong>{candidate ? formatKeyboardBinding(candidate) : "Press a shortcut"}</strong>
+        <strong className="min-w-0 text-text font-mono text-title-small wrap-anywhere">
+          {candidate ? formatKeyboardBinding(candidate) : "Press a shortcut"}
+        </strong>
         {validation?.ok === false ? (
-          <p data-tone="error" id={validationMessageId} role="alert">
+          <p
+            className="m-0 min-w-0 max-w-shortcut-feedback text-body-supporting text-danger wrap-anywhere"
+            data-tone="error"
+            id={validationMessageId}
+            role="alert"
+          >
             {validation.reason}
           </p>
         ) : null}
         {validation?.ok === true ? (
-          <p id={validationMessageId} role="status">
+          <p
+            className="m-0 min-w-0 max-w-shortcut-feedback text-body-supporting text-muted wrap-anywhere"
+            id={validationMessageId}
+            role="status"
+          >
             Shortcut available.
           </p>
         ) : null}

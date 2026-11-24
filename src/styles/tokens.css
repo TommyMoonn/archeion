@@ -172,6 +172,9 @@
   --container-settings-section: 760px;
   --container-settings-description: 54ch;
   --container-settings-status: 360px;
+  --container-shortcut-search: 360px;
+  --container-shortcut-feedback: 38ch;
+  --spacing-shortcut-capture: 112px;
   --tracking-settings-eyebrow: 0.1em;
   --tracking-settings-group: 0.08em;
   --leading-settings-status: 1.35;
