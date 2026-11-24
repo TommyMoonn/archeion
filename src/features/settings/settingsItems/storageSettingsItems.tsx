@@ -169,7 +169,7 @@ export const storageSettingsItems = [
         description="Save bookmarks, highlights, and notes from the active archive."
         label="Export annotations"
       >
-        <div className="settings-annotation-export-actions">
+        <div className="flex min-w-0 flex-wrap gap-control-gap">
           <Button
             disabled={context.annotationExportBusy}
             disabledReason="An annotation export is in progress"

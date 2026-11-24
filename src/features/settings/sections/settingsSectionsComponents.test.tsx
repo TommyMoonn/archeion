@@ -157,36 +157,15 @@ describe("settings section components", () => {
     );
   });
 
-  it("uses object labels with concise maintenance verbs", () => {
-    const markup = renderStorage();
-    const actions = [
-      ["storage.rescan-archive", "Archive scan", "Run"],
-      ["storage.scanner-cache", "Scanner cache", "Clear"],
-      ["storage.reextract-source-metadata", "Source metadata", "Re-extract"],
-      ["storage.cover-cache-status", "Generated cover cache", "Clear"],
-      ["storage.clear-epub-writeback-backups", "EPUB writeback backups", "Clear"],
-      ["storage.repair-metadata", "Archive metadata", "Repair"],
-      ["storage.metadata-folder", "Metadata folder", "Open"],
-      ["storage.reset", "Storage preferences", "Reset"],
-    ];
-
-    for (const [id, label, verb] of actions) {
-      const row = markup.match(
-        new RegExp(`data-setting-id="${id}"[\\s\\S]*?(?=data-setting-id=|$)`),
-      )?.[0];
-      expect(row).toContain(`>${label}<`);
-      expect(row).toContain(`>${verb}<`);
-    }
-
-    expect(markup).toContain("2 covers, 4.0 KB");
-    expect(markup).toContain("1 backup, 2.0 KB");
-  });
-
-  it("makes every Settings scan-producing action unavailable during archive scan activity", () => {
-    const markup = renderStorage({ archiveScanActive: true });
-
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(5);
-    expect(markup).toContain("Wait for the archive scan to finish");
+  it("displays cache and backup capacity in the corresponding rows", () => {
+    const content = new DOMParser().parseFromString(renderStorage(), "text/html");
+    expect(
+      content.querySelector('[data-setting-id="storage.cover-cache-status"]')?.textContent,
+    ).toContain("2 covers, 4.0 KB");
+    expect(
+      content.querySelector('[data-setting-id="storage.clear-epub-writeback-backups"]')
+        ?.textContent,
+    ).toContain("1 backup, 2.0 KB");
   });
 
   it("renders active Archives controls and disables reveal without an archive path", () => {

@@ -84,12 +84,71 @@ describe("StorageSettingsSection maintenance routing", () => {
     }
     expect(exportAnnotations).toHaveBeenCalledTimes(2);
   });
+
+  it("blocks scan-dependent actions during an active scan and disables unavailable backups", () => {
+    const openConfirmation = vi.fn();
+    const openIntegrityResults = vi.fn();
+    const context = {
+      archiveAvailable: true,
+      archiveScanActive: true,
+      cache: null,
+      epubWritebackBackupStatus: null,
+      epubWritebackBackupStatusState: "unavailable",
+      files: defaultAppPreferences.filesAndMetadata,
+      openConfirmation,
+      openIntegrityResults,
+      updateFiles: vi.fn(),
+    } as unknown as SettingsController;
+    act(() => root.render(<StorageSettingsSection context={context} />));
+    for (const id of [
+      "storage.rescan-archive",
+      "storage.find-duplicates",
+      "storage.check-epub-issues",
+      "storage.reextract-source-metadata",
+      "storage.repair-metadata",
+    ]) {
+      const button = actionButton(container, id);
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      act(() => button.click());
+    }
+    expect(openIntegrityResults).not.toHaveBeenCalled();
+    expect(openConfirmation).not.toHaveBeenCalled();
+    const backups = actionButton(container, "storage.clear-epub-writeback-backups");
+    expect(backups.disabled).toBe(true);
+    expect(backups.closest("[data-setting-id]")?.textContent).toContain(
+      "Backup status unavailable.",
+    );
+    act(() => backups.click());
+    expect(openConfirmation).not.toHaveBeenCalled();
+    act(() =>
+      root.render(
+        <StorageSettingsSection
+          context={{
+            ...context,
+            archiveScanActive: false,
+            epubWritebackBackupStatus: { fileCount: 2, totalBytes: 4096 },
+            epubWritebackBackupStatusState: "loaded",
+          }}
+        />,
+      ),
+    );
+    expect(actionButton(container, "storage.rescan-archive").hasAttribute("aria-disabled")).toBe(
+      false,
+    );
+    expect(actionButton(container, "storage.clear-epub-writeback-backups").disabled).toBe(false);
+    act(() => clickAction(container, "storage.clear-epub-writeback-backups"));
+    expect(openConfirmation).toHaveBeenCalledExactlyOnceWith("clearEpubWritebackBackups");
+  });
 });
 
-function clickAction(container: Element, settingId: string) {
+function actionButton(container: Element, settingId: string) {
   const button = container.querySelector<HTMLButtonElement>(
     `[data-setting-id="${settingId}"] button`,
   );
   if (!button) throw new Error(`Action button not rendered for ${settingId}`);
-  button.click();
+  return button;
+}
+
+function clickAction(container: Element, settingId: string) {
+  actionButton(container, settingId).click();
 }

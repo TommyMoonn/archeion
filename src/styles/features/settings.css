@@ -13,12 +13,6 @@
   line-height: 1.5;
 }
 
-.settings-annotation-export-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .dictionary-settings {
   display: grid;
   gap: 20px;
@@ -425,26 +419,4 @@
   .keyboard-shortcut-row__controls {
     width: 100%;
   }
-}
-
-.settings-annotation-import-counts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 16px;
-  margin: 0;
-}
-
-.settings-annotation-import-counts dd {
-  margin: 0;
-  text-align: end;
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-annotation-import-unmatched {
-  margin-block-start: 12px;
-}
-
-.settings-annotation-import-unmatched pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
