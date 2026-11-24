@@ -87,6 +87,6 @@ Consumers that rewrite JSON should preserve fields they do not recognize. Incomp
 
 ## Portability and privacy limits {#portability}
 
-Keep the export beside a backup of the source EPUB if you need its location context later. It is a portable record of annotations, not a full archive backup or a promise of annotation import or round-trip restoration. For actual recovery, see [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/).
+Keep the export beside a backup of the source EPUB if you need its location context later. JSON exports can be imported into the active archive when book IDs match. Neither format is a full archive backup; importing cannot restore missing EPUBs or guarantee that old locations still resolve. For actual recovery, see [Troubleshooting and recovery](/archeion/docs/reference/troubleshooting/).
 
 Exports can contain book titles, quoted passages, personal notes, and location references. Review the document before sharing it. See [Archive storage](/archeion/docs/reference/archive-storage/#ownership) for the local-first data model.
