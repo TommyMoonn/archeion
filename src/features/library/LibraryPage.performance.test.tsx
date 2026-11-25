@@ -33,7 +33,7 @@ vi.mock("./BookCover", () => ({
   BookCover: ({ book, className }: { book: Book; className?: string }) => {
     if (!className) {
       gridCoverRenderCounts.set(book.id, (gridCoverRenderCounts.get(book.id) ?? 0) + 1);
-    } else if (className === "book-cover--series") {
+    } else if (className.split(" ").includes("book-cover--series")) {
       seriesCoverRenderCounts.set(book.id, (seriesCoverRenderCounts.get(book.id) ?? 0) + 1);
     }
     return <span data-cover-book-id={book.id} />;

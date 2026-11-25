@@ -101,6 +101,9 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   const cardSize = params.get("cardSize");
   if (cardSize === "small" || cardSize === "large")
     preferences.library.collections.books.cardSize = cardSize;
+  const seriesCardSize = params.get("seriesCardSize");
+  if (seriesCardSize === "small" || seriesCardSize === "large")
+    preferences.library.collections.series.cardSize = seriesCardSize;
   const folderCardSize = params.get("folderCardSize");
   if (folderCardSize === "small" || folderCardSize === "large")
     preferences.library.collections.folders.cardSize = folderCardSize;
@@ -220,6 +223,15 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         folderPath: "",
         size: epub.byteLength + i,
         modifiedAt: 1,
+        ...(params.has("series")
+          ? {
+              sourceMetadata: {
+                series: i < 4 ? "Star Saga" : `Series ${Math.floor(i / 4)}`,
+                volume: String(i % 4 === 3 ? 5 : (i % 4) + 1),
+                creator: "Fixture author",
+              },
+            }
+          : {}),
         ...(params.has("longBookMetadata") && i === 0
           ? {
               sourceMetadata: {

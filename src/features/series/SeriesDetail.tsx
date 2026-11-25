@@ -2,6 +2,7 @@ import { ArrowLeft, ChevronRight, CircleCheck, Layers, CircleAlert } from "lucid
 import { useId } from "react";
 
 import { Button } from "../../components/Button";
+import { Badge } from "../../components/ui/badge";
 import { EmptyState } from "../../components/EmptyState";
 import type { ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
@@ -21,7 +22,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
   if (!entry) {
     return (
       <section
-        className="collection-content series-detail series-detail--missing"
+        className="collection-content series-detail series-detail--missing mx-auto w-full max-w-collection-workspace gap-series-detail-gap"
         data-surface-state="empty"
       >
         <EmptyState
@@ -44,17 +45,24 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
   }
 
   return (
-    <section aria-labelledby="series-detail-title" className="series-detail">
+    <section
+      aria-labelledby="series-detail-title"
+      className="series-detail mx-auto grid w-full max-w-collection-workspace gap-series-detail-gap"
+    >
       <SeriesDetailHeader entry={entry} onBack={onBack} onRead={onRead} />
 
       {entry.missingVolumeHints.length > 0 || entry.duplicateVolumeHints.length > 0 ? (
-        <div className="series-hints">
+        <div className="series-hints grid grid-cols-2 gap-series-hint-gap series-narrow:grid-cols-1">
           <SeriesHintGroup label="Possible gaps" hints={entry.missingVolumeHints} />
           <SeriesHintGroup label="Repeated volumes" hints={entry.duplicateVolumeHints} />
         </div>
       ) : null}
 
-      <div aria-label="Series volumes" className="series-volumes" role="list">
+      <div
+        aria-label="Series volumes"
+        className="series-volumes grid gap-control-gap pb-page-bottom page-short:pt-series-volumes-short-top"
+        role="list"
+      >
         {entry.books.map((book) => (
           <SeriesVolumeRow
             book={book}
@@ -85,7 +93,7 @@ function SeriesVolumeRow({
 
   return (
     <article
-      className="series-volume"
+      className="series-volume min-w-0"
       data-reader-book-id={book.id}
       data-current={isCurrent || undefined}
       data-unread={isFirstUnread || undefined}
@@ -96,7 +104,7 @@ function SeriesVolumeRow({
         aria-describedby={book.isFileMissing ? missingDescriptionId : undefined}
         aria-disabled={book.isFileMissing || undefined}
         aria-label={`${bookActionLabel(book)} ${bookTitle(book)}`}
-        className="series-volume__open"
+        className="series-volume__open grid w-full min-w-0 series-volume-columns items-center gap-series-volume-gap rounded-menu border-standard border-solid border-line bg-series-volume px-series-card-inset-medium py-series-volume-inset-block text-start text-inherit cursor-pointer transition-input-surface control-hover:border-line-strong control-hover:bg-surface-raised focus-visible:border-line-strong focus-visible:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-58 aria-disabled:cursor-not-allowed aria-disabled:opacity-58 series-narrow:series-volume-columns-narrow series-narrow:gap-series-volume-gap-narrow"
         onClick={(event) => {
           if (book.isFileMissing) {
             event.preventDefault();
@@ -107,25 +115,38 @@ function SeriesVolumeRow({
         }}
         type="button"
       >
-        <BookCover book={book} className="book-cover--series-volume" />
-        <span className="series-volume__copy">
-          <span className="series-volume__meta">
+        <BookCover
+          book={book}
+          className="book-cover--series-volume w-series-volume-cover rounded-small series-narrow:w-series-volume-cover-narrow"
+        />
+        <span className="series-volume__copy grid min-w-0 gap-series-volume-copy-gap">
+          <span className="series-volume__meta flex flex-wrap items-center gap-x-control-gap gap-y-series-copy-gap text-muted text-caption-size font-semibold tracking-field-label uppercase">
             <span>{book.sourceMetadata?.volume || "Volume unknown"}</span>
-            {isCurrent ? <span data-marker="current">Current volume</span> : null}
-            {isFirstUnread ? <span data-marker="unread">First unread</span> : null}
+            {isCurrent ? (
+              <SeriesVolumeMarker marker="current">Current volume</SeriesVolumeMarker>
+            ) : null}
+            {isFirstUnread ? (
+              <SeriesVolumeMarker marker="unread">First unread</SeriesVolumeMarker>
+            ) : null}
           </span>
-          <strong className="series-volume__title">{bookTitle(book)}</strong>
+          <strong className="series-volume__title m-0 block truncate text-text-strong text-body leading-inherit font-semibold">
+            {bookTitle(book)}
+          </strong>
           {bookAuthor(book) ? (
-            <span className="series-volume__author">{bookAuthor(book)}</span>
+            <span className="series-volume__author m-0 block truncate text-muted text-caption-size">
+              {bookAuthor(book)}
+            </span>
           ) : null}
-          <span className="series-volume__progress">
+          <span className="series-volume__progress flex items-center gap-series-copy-gap text-muted text-caption-size tabular-nums">
             <span>{bookProgressLabel(book)}</span>
-            {status === "completed" ? <CircleCheck aria-hidden="true" size={14} /> : null}
+            {status === "completed" ? (
+              <CircleCheck aria-hidden="true" className="text-success" size={14} />
+            ) : null}
           </span>
         </span>
-        <span className="series-volume__action">
-          <span>{bookActionLabel(book)}</span>
-          <ChevronRight aria-hidden="true" size={16} />
+        <span className="series-volume__action inline-flex min-w-series-volume-action items-center justify-end gap-series-grid-gap text-text text-caption-size font-medium series-narrow:min-w-0">
+          <span className="series-narrow:hidden">{bookActionLabel(book)}</span>
+          <ChevronRight aria-hidden="true" className="text-muted-soft" size={16} />
         </span>
       </button>
       {book.isFileMissing ? (
@@ -137,17 +158,34 @@ function SeriesVolumeRow({
   );
 }
 
+function SeriesVolumeMarker({
+  marker,
+  children,
+}: {
+  marker: "current" | "unread";
+  children: string;
+}) {
+  return (
+    <Badge
+      data-marker={marker}
+      className="border-series-marker-border bg-accent-soft px-series-marker-inline py-control-inset text-accent-strong leading-inherit font-semibold tracking-normal normal-case whitespace-normal block shrink"
+    >
+      {children}
+    </Badge>
+  );
+}
+
 function SeriesHintGroup({ hints, label }: { hints: string[]; label: string }) {
   if (hints.length === 0) {
     return null;
   }
 
   return (
-    <section className="series-hint-group">
-      <CircleAlert aria-hidden="true" size={17} />
+    <section className="series-hint-group grid series-hint-columns gap-series-hint-gap rounded-control border-standard border-solid border-series-hint-border bg-series-hint px-button-standard py-series-card-inset-medium text-muted">
+      <CircleAlert aria-hidden="true" className="mt-px text-accent" size={17} />
       <div>
-        <h2>{label}</h2>
-        <ul>
+        <h2 className="m-0 text-text text-caption-size font-semibold">{label}</h2>
+        <ul className="m-0 mt-series-copy-gap grid list-none gap-series-volume-copy-gap p-0 text-caption">
           {hints.map((hint) => (
             <li key={hint}>{hint}</li>
           ))}

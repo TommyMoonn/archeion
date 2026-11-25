@@ -54,8 +54,8 @@ export function SeriesOverviewHeader({
         <p className="eyebrow">Your collection</p>
         <h1 id="series-overview-title">Series</h1>
       </div>
-      <div className="library-header__actions library-header__actions--search-only series-header__actions">
-        <div aria-label="Series search" className="series-search" role="search">
+      <div className="library-header__actions library-header__actions--search-only series-header__actions justify-self-end">
+        <div aria-label="Series search" className="library-search" role="search">
           <Input
             disabled={pending}
             aria-keyshortcuts={searchAriaKeyShortcuts}
@@ -75,7 +75,7 @@ export function SeriesOverviewHeader({
           />
           {query ? (
             <IconButton
-              className="series-search__clear"
+              className="library-search__clear [&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
               disabled={pending}
               label="Clear series search"
               onClick={onClearSearch}

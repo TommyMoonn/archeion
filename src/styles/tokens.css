@@ -192,6 +192,40 @@
   --spacing-folder-list-glyph: 19px;
   --spacing-folder-card-glyph: 22px;
   --spacing-folder-menu-width: 140px;
+  /* Series uses fixed pixel tracks and insets at every interface text size. */
+  --spacing-series-grid-gap: 12px;
+  --spacing-series-grid-bottom: 32px;
+  --spacing-series-column-small: 260px;
+  --spacing-series-column-medium: 320px;
+  --spacing-series-column-large: 400px;
+  --spacing-series-cover-small: 58px;
+  --spacing-series-cover-medium: 72px;
+  --spacing-series-cover-large: 88px;
+  --spacing-series-card-gap-medium: 16px;
+  --spacing-series-card-gap-large: 19px;
+  --spacing-series-card-inset-small: 10px;
+  --spacing-series-card-inset-medium: 13px;
+  --spacing-series-card-inset-large: 16px;
+  --spacing-series-copy-gap: 5px;
+  --spacing-series-detail-gap: 20px;
+  --spacing-series-back-height: 34px;
+  --spacing-series-back-gap: 7px;
+  --spacing-series-back-inset: 9px;
+  --spacing-series-header-gap: 30px;
+  --spacing-series-title-top: 3px;
+  --container-series-title: 780px;
+  --spacing-series-summary-top: 11px;
+  --spacing-series-hint-gap: 10px;
+  --spacing-series-volume-cover: 54px;
+  --spacing-series-volume-cover-narrow: 46px;
+  --spacing-series-volume-gap: 15px;
+  --spacing-series-volume-gap-narrow: 11px;
+  --spacing-series-volume-inset-block: 11px;
+  --spacing-series-volume-copy-gap: 3px;
+  --spacing-series-volume-action: 94px;
+  --spacing-series-volumes-short-top: 18px;
+  --spacing-series-marker-inline: 6px;
+  --tracking-normal: 0em;
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
@@ -380,6 +414,11 @@
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
+  --color-series-card: color-mix(in srgb, var(--surface) 72%, transparent);
+  --color-series-volume: color-mix(in srgb, var(--surface) 60%, transparent);
+  --color-series-hint: color-mix(in srgb, var(--accent) 5%, transparent);
+  --color-series-hint-border: color-mix(in srgb, var(--accent) 24%, var(--line));
+  --color-series-marker-border: color-mix(in srgb, var(--accent) 30%, var(--line));
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
@@ -644,6 +683,69 @@
 
 @utility folder-card-grid-large {
   grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-large-column), 1fr));
+}
+
+/* Local card geometry is inherited by memoized children, not passed as render props. */
+@utility series-size-small {
+  --series-cover-width: var(--spacing-series-cover-small);
+  --series-card-gap: var(--spacing-series-grid-gap);
+  --series-card-inset: var(--spacing-series-card-inset-small);
+}
+@utility series-size-medium {
+  --series-cover-width: var(--spacing-series-cover-medium);
+  --series-card-gap: var(--spacing-series-card-gap-medium);
+  --series-card-inset: var(--spacing-series-card-inset-medium);
+}
+@utility series-size-large {
+  --series-cover-width: var(--spacing-series-cover-large);
+  --series-card-gap: var(--spacing-series-card-gap-large);
+  --series-card-inset: var(--spacing-series-card-inset-large);
+}
+@utility series-grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-series-column-small), 1fr));
+}
+@utility series-grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-series-column-medium), 1fr));
+}
+@utility series-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-series-column-large), 1fr));
+}
+@utility series-card-columns {
+  grid-template-columns: var(--series-cover-width) minmax(0, 1fr) auto;
+}
+@utility series-hint-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@utility series-volume-columns {
+  grid-template-columns: var(--spacing-series-volume-cover) minmax(0, 1fr) auto;
+}
+@utility series-volume-columns-narrow {
+  grid-template-columns: var(--spacing-series-volume-cover-narrow) minmax(0, 1fr) auto;
+}
+@utility series-card-inset {
+  padding: var(--series-card-inset);
+}
+@utility series-card-gap {
+  gap: var(--series-card-gap);
+}
+@utility series-cover-width {
+  width: var(--series-cover-width);
+}
+@utility border-b-line {
+  border-bottom: var(--border-width) solid var(--line);
+}
+@utility text-caption-size {
+  font-size: var(--text-caption);
+}
+@custom-variant series-stacked {
+  @media (max-width: 900px) {
+    @slot;
+  }
+}
+@custom-variant series-narrow {
+  @media (max-width: 620px) {
+    @slot;
+  }
 }
 
 @utility transition-folder-menu {

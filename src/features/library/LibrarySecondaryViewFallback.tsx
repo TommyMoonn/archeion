@@ -51,7 +51,10 @@ export function SeriesDetailFallback({
   onRetry?: () => void;
 }) {
   return (
-    <section className="series-detail" aria-labelledby={entry ? "series-detail-title" : undefined}>
+    <section
+      className="series-detail mx-auto grid w-full max-w-collection-workspace gap-series-detail-gap"
+      aria-labelledby={entry ? "series-detail-title" : undefined}
+    >
       <LibrarySecondaryViewFallback
         loadingLabel="Loading series details"
         header={
@@ -74,7 +77,10 @@ export function SeriesOverviewFallback({
   ...props
 }: ComponentProps<typeof SeriesOverviewHeader> & { onRetry?: () => void }) {
   return (
-    <section className="series-overview" aria-labelledby="series-overview-title">
+    <section
+      className="series-overview mx-auto w-full max-w-collection-workspace"
+      aria-labelledby="series-overview-title"
+    >
       <LibrarySecondaryViewFallback
         loadingLabel="Loading series"
         header={<SeriesOverviewHeader {...props} pending />}

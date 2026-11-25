@@ -11,10 +11,6 @@ const libraryStyles = readFileSync(
   new URL("../../styles/features/library.css", import.meta.url),
   "utf8",
 );
-const seriesStyles = readFileSync(
-  new URL("../../styles/features/series.css", import.meta.url),
-  "utf8",
-);
 const libraryWorkspaceSource = readFileSync(
   new URL("./LibrarySecondaryViewFallback.tsx", import.meta.url),
   "utf8",
@@ -76,13 +72,6 @@ describe("collection content spacing ownership", () => {
     expect(collectionContentStyles).not.toContain(
       'html[data-motion="on"] .library-content--books,',
     );
-  });
-
-  it("scopes collection card sizes to their owning result surfaces", () => {
-    expect(libraryStyles).not.toContain("html[data-card-size");
-    expect(seriesStyles).toContain('.series-grid--grid[data-series-card-size="small"]');
-    expect(seriesStyles).toContain('.series-grid--grid[data-series-card-size="large"]');
-    expect(seriesStyles).toContain(".series-grid--list[data-series-card-size]");
   });
 
   it("keeps book state alignment inside a stable collection boundary", () => {

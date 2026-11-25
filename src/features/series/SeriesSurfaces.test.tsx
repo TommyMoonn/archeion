@@ -1,8 +1,6 @@
 // @vitest-environment happy-dom
 
 import { activateSelectOption } from "../../test/activateSelectOption";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -13,29 +11,11 @@ import { deriveSeriesEntries } from "./seriesDerivation";
 import { SeriesDetail } from "./SeriesDetail";
 import { SeriesOverview } from "./SeriesOverview";
 
-const seriesStyles = readFileSync(resolve(process.cwd(), "src/styles/features/series.css"), "utf8");
 const seriesCoverRenderCounts = vi.hoisted(() => new Map<string, number>());
-
-function cssBlock(source: string, selector: string): string {
-  const selectorIndex = source.indexOf(selector);
-  if (selectorIndex < 0) throw new Error(`Missing CSS selector: ${selector}`);
-  const openingBrace = source.indexOf("{", selectorIndex + selector.length);
-  if (openingBrace < 0) throw new Error(`Missing opening brace for: ${selector}`);
-
-  let depth = 0;
-  for (let index = openingBrace; index < source.length; index += 1) {
-    if (source[index] === "{") depth += 1;
-    if (source[index] !== "}") continue;
-    depth -= 1;
-    if (depth === 0) return source.slice(openingBrace + 1, index);
-  }
-
-  throw new Error(`Missing closing brace for: ${selector}`);
-}
 
 vi.mock("../library/BookCover", () => ({
   BookCover: ({ book, className = "" }: { book: Book; className?: string }) => {
-    if (className === "book-cover--series") {
+    if (className.split(" ").includes("book-cover--series")) {
       seriesCoverRenderCounts.set(book.id, (seriesCoverRenderCounts.get(book.id) ?? 0) + 1);
     }
     return <div className={className} data-cover-book={book.id} />;
@@ -409,7 +389,7 @@ describe("series library surfaces", () => {
     );
   });
 
-  it("places the count on row two and switches the series collection between grid and list", () => {
+  it("announces the result count and routes view changes through the controlled preference", () => {
     const entries = deriveSeriesEntries([
       ...seriesBooks(),
       createBook({
@@ -434,18 +414,18 @@ describe("series library surfaces", () => {
       />,
     );
 
-    const controls = scope.querySelector(".series-overview__controls");
-    const collection = scope.querySelector(".series-grid");
+    const count = scope.querySelector(".series-overview__controls [aria-live=polite]");
+    const gridButton = scope.querySelector<HTMLButtonElement>('[role="radio"][aria-label="Grid"]');
     const listButton = scope.querySelector<HTMLButtonElement>('[role="radio"][aria-label="List"]');
 
-    expect(controls?.firstElementChild?.textContent).toBe("2 series");
-    expect(controls?.lastElementChild?.querySelector('[aria-label="Series view"]')).not.toBeNull();
-    expect(collection?.classList.contains("series-grid--grid")).toBe(true);
+    expect(count?.textContent).toBe("2 series");
+    expect(gridButton?.getAttribute("aria-checked")).toBe("true");
+    expect(listButton?.getAttribute("aria-checked")).toBe("false");
 
     act(() => listButton?.click());
 
     expect(onViewChange).toHaveBeenCalledWith("list");
-    expect(collection?.classList.contains("series-grid--grid")).toBe(true);
+    expect(gridButton?.getAttribute("aria-checked")).toBe("true");
   });
 
   it("routes sort changes through the controlled preference callback", () => {
@@ -478,15 +458,6 @@ describe("series library surfaces", () => {
     );
   });
 
-  it("keeps the full series open target visibly interactive", () => {
-    const openTargetStyles = cssBlock(seriesStyles, ".series-card__open");
-    const hoverStyles = cssBlock(seriesStyles, ".series-card:hover,\n.series-card:focus-within");
-
-    expect(openTargetStyles).toContain("width: 100%;");
-    expect(openTargetStyles).toContain("cursor: pointer;");
-    expect(hoverStyles).toContain("background: var(--surface-raised);");
-  });
-
   it("uses the shared collection-content layout for series empty states", () => {
     const scope = mount(
       <SeriesOverview
@@ -507,7 +478,6 @@ describe("series library surfaces", () => {
 
     expect(content?.getAttribute("data-surface-state")).toBe("empty");
     expect(content?.querySelector(":scope > .empty-state")).not.toBeNull();
-    expect(seriesStyles).not.toContain(".series-overview > .empty-state");
   });
 
   it("preserves the Series search-empty recovery action", () => {
@@ -584,8 +554,6 @@ describe("series library surfaces", () => {
       scope.querySelector('[data-marker="unread"]')?.parentElement?.parentElement?.textContent,
     ).toContain("The Return");
     expect(scope.textContent).toContain("Vol. 01");
-    expect(seriesStyles).not.toContain(".series-volume[data-current]");
-    expect(seriesStyles).not.toContain(".series-volume[data-unread]");
     expect(volumeRows.every((row) => row.querySelectorAll("button").length === 1)).toBe(true);
 
     const currentVolume = volumeRows[1]?.querySelector<HTMLButtonElement>(
@@ -632,19 +600,6 @@ describe("series library surfaces", () => {
     });
     expect(document.activeElement).toBe(currentVolume);
     expect(onRead).not.toHaveBeenCalled();
-  });
-
-  it("makes each series volume row a full-width interactive surface", () => {
-    const openStyles = cssBlock(seriesStyles, ".series-volume__open");
-    const hoverStyles = cssBlock(
-      seriesStyles,
-      '.series-volume__open:hover:not(:disabled):not([aria-disabled="true"]),\n.series-volume__open:focus-visible',
-    );
-
-    expect(openStyles).toContain("width: 100%;");
-    expect(openStyles).toContain("cursor: pointer;");
-    expect(hoverStyles).toContain("border-color: var(--line-strong);");
-    expect(hoverStyles).toContain("background: var(--surface-raised);");
   });
 
   it("shows a recovery state for a stale series location", () => {
