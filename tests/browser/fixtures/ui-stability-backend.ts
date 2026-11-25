@@ -98,7 +98,9 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
       preferences.library.detailsWidth = savedDetails.detailsWidth;
   }
   preferences.library.collections.books.viewMode = params.get("view") === "list" ? "list" : "grid";
-  if (params.get("cardSize") === "small") preferences.library.collections.books.cardSize = "small";
+  const cardSize = params.get("cardSize");
+  if (cardSize === "small" || cardSize === "large")
+    preferences.library.collections.books.cardSize = cardSize;
   preferences.automaticallyCheckForUpdates = false;
   preferences.rememberWindowState = false;
   preferences.restoreLastReader = false;

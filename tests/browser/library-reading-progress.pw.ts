@@ -121,6 +121,13 @@ for (const { width, theme, cardSize } of [
     expect(coverBox.y + coverBox.height - badgeBox.y - badgeBox.height).toBeCloseTo(9, 1);
     expect(badgeBox.width).toBeLessThan(coverBox.width / 2);
     expect(badgeBox.height).toBeLessThan(coverBox.height / 4);
+    await expect(badge).toHaveCSS("border-radius", "6px");
+    const title = card.locator(".book-card__copy strong");
+    const titleLines = await title.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return node.getBoundingClientRect().height / parseFloat(style.lineHeight);
+    });
+    expect(titleLines).toBeCloseTo(2, 1);
 
     const x = badgeBox.x + badgeBox.width / 2;
     const y = badgeBox.y + badgeBox.height / 2;
@@ -151,3 +158,70 @@ for (const { width, theme, cardSize } of [
     }
   });
 }
+
+test("selected grid covers keep an in-bounds accent border and do not lift on hover", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 850 });
+  await page.goto(`${fixture}&motion=off`);
+  const card = page.locator(".book-card").first();
+  const primary = card.locator(".book-card__select");
+  const cover = card.locator(".book-cover");
+  await expect(cover).toHaveAttribute("data-cover-state", "available");
+  await page.mouse.move(0, 0);
+  const before = await cover.boundingBox();
+  await page.getByRole("button", { name: "Select books", exact: true }).click();
+  await primary.focus();
+  await page.keyboard.press("Space");
+  await expect(primary).toHaveAttribute("aria-pressed", "true");
+  await expect(cover).toHaveCSS("border-top-width", "2px");
+  await expect(cover).toHaveCSS("border-right-width", "2px");
+  await expect(cover).toHaveCSS("border-bottom-width", "2px");
+  await expect(cover).toHaveCSS("border-left-width", "2px");
+  await expect.poll(() => cover.boundingBox()).toEqual(before);
+  const selectedBorder = await cover.evaluate((node) => getComputedStyle(node).borderTopColor);
+  await primary.hover();
+  await expect(cover).toHaveCSS("border-top-color", selectedBorder);
+  await expect(cover).toHaveCSS("transform", "none");
+  await expect(card.locator(".book-favorite")).toHaveCSS("visibility", "hidden");
+  await expect(card.getByRole("button", { name: /^Actions for / })).toBeVisible();
+  await page.emulateMedia({ forcedColors: "active" });
+  const hasHighlight = await cover.evaluate((node) => {
+    const sample = document.createElement("div");
+    sample.style.border = "2px solid Highlight";
+    document.body.append(sample);
+    const matches =
+      getComputedStyle(node).borderTopColor === getComputedStyle(sample).borderTopColor;
+    sample.remove();
+    return matches;
+  });
+  expect(hasHighlight).toBe(true);
+});
+
+test("Continue Reading keeps compact covers and remains actionable as the grid narrows", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 850 });
+  await page.goto(`${fixture}&motion=off`);
+  await expect(page.locator(".book-card")).toHaveCount(2);
+  await page.evaluate(() => window.uiStabilityFixture.suggestLastRead(false));
+  const resume = page.getByRole("region", { name: "Continue reading" });
+  const buttons = resume.locator(".continue-book");
+  await expect(buttons).toHaveCount(2);
+  await expect(buttons.first()).toContainText("42%");
+  const cover = buttons.first().locator(".book-cover");
+  await expect(cover).toHaveCSS("width", "42px");
+  await expect(cover).toHaveCSS("height", "63px");
+  await expect(resume).toHaveCSS("border-bottom-width", "1px");
+  await expect(resume).toHaveCSS("border-top-width", "0px");
+  await page.setViewportSize({ width: 560, height: 850 });
+  const boxes = await buttons.evaluateAll((nodes) =>
+    nodes.map((node) => node.getBoundingClientRect().toJSON()),
+  );
+  expect(boxes[1].top).toBeGreaterThanOrEqual(boxes[0].bottom);
+  expect(boxes[0].left).toBeCloseTo(boxes[1].left, 1);
+  await expect(cover).toHaveCSS("width", "42px");
+  await buttons.first().focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate(() => window.uiStabilityState?.().route)).toBe("reader");
+});

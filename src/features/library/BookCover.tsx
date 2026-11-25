@@ -1,6 +1,7 @@
 import { BookOpenText } from "lucide-react";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
+import { cn } from "../../utils/cn";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { ReadonlyBook } from "../../types/book";
 import {
@@ -100,7 +101,12 @@ function CoverResource({
   return (
     <div
       ref={coverRef}
-      className={`book-cover ${state !== "available" ? "book-cover--placeholder" : ""} ${className}`.trim()}
+      className={cn(
+        "book-cover relative w-full aspect-[2/3] overflow-hidden rounded-menu border-standard border-solid border-line bg-surface shadow-app-card transition-[border-color,transform] duration-standard ease-standard",
+        state !== "available" &&
+          "book-cover--placeholder grid place-items-center text-muted-soft [background:linear-gradient(90deg,color-mix(in_srgb,var(--text-strong)_4%,transparent),transparent_14%),var(--surface)] after:absolute after:top-[9%] after:bottom-[9%] after:left-[11%] after:w-px after:bg-line after:content-['']",
+        className,
+      )}
       data-cover-state={state}
       aria-hidden="true"
       title={state === "unavailable" ? "Cover unavailable" : undefined}
@@ -108,6 +114,7 @@ function CoverResource({
       {coverUrl ? (
         <img
           alt=""
+          className="block h-full w-full object-cover"
           src={coverUrl}
           onError={() => {
             setCoverUrl(null);

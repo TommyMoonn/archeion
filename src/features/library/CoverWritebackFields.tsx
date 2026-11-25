@@ -1,6 +1,7 @@
 import { Image, Upload } from "lucide-react";
 import type { Ref } from "react";
 import { Button } from "../../components/Button";
+import { Skeleton } from "../../components/ui/skeleton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { ReadonlyBook, EpubCoverFraming, EpubCoverPreparation } from "../../types/book";
 import { BookCover } from "./BookCover";
@@ -40,7 +41,7 @@ export function CoverWritebackFields({
     <div className="cover-writeback">
       <div className="cover-writeback__book">
         {skeleton ? (
-          <div className="book-cover cover-writeback__current-cover" />
+          <Skeleton className="book-cover cover-writeback__current-cover relative w-full aspect-[2/3] overflow-hidden rounded-menu border-standard border-solid border-line shadow-app-card" />
         ) : (
           <BookCover book={book} className="cover-writeback__current-cover" />
         )}

@@ -12,6 +12,7 @@ import {
   openContextMenuFromPointer,
   useContextMenuController,
 } from "../../components/contextMenuController";
+import { Badge } from "../../components/ui/badge";
 import { IconButton } from "../../components/IconButton";
 import type { ReadonlyBook } from "../../types/book";
 import { displayedBookProgress } from "../reading/readingProgress";
@@ -112,7 +113,7 @@ function BookCardComponent({
 
   return (
     <article
-      className="book-card"
+      className="book-card group/card relative min-w-0 [&:has(.book-menu[data-open])]:z-[3]"
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
@@ -124,7 +125,13 @@ function BookCardComponent({
         aria-describedby={description ? descriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : `View details for ${title}`}
         aria-pressed={selectionMode ? selected : inspected}
-        className="book-card__select"
+        className={[
+          "book-card__select block w-full cursor-pointer border-none bg-transparent p-0 text-start text-inherit [content-visibility:auto] [contain-intrinsic-size:auto_360px]",
+          selected || inspected
+            ? "[&_.book-cover]:border-[2px] [&_.book-cover]:border-accent"
+            : "[&:hover_.book-cover]:border-line-strong",
+          selectionMode ? "" : "[&:hover_.book-cover]:[transform:translateY(-1px)]",
+        ].join(" ")}
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
         ref={primaryActionRef}
@@ -132,12 +139,23 @@ function BookCardComponent({
       >
         <BookCover book={book}>
           {progressPercent === null ? null : (
-            <span className="book-card__progress-badge">{progressPercent}%</span>
+            <Badge
+              variant="cover-overlay"
+              className="book-card__progress-badge pointer-events-none absolute end-[8px] bottom-[8px] z-[1] min-h-[22px]"
+            >
+              {progressPercent}%
+            </Badge>
           )}
         </BookCover>
-        <span className="book-card__copy">
-          <strong>{title}</strong>
-          {author ? <span>{author}</span> : null}
+        <span className="book-card__copy block h-[78px] overflow-hidden px-[2px] pt-[13px]">
+          <strong className="m-0 line-clamp-2 text-ellipsis h-[2.8em] text-text text-body font-semibold leading-[1.4]">
+            {title}
+          </strong>
+          {author ? (
+            <span className="mt-[5px] block truncate text-muted text-meta leading-inherit">
+              {author}
+            </span>
+          ) : null}
         </span>
       </button>
       {description ? (
@@ -148,7 +166,7 @@ function BookCardComponent({
       {selectionMode || selected ? (
         <span
           aria-hidden="true"
-          className="book-selection-control book-selection-control--card"
+          className="book-selection-control book-selection-control--card top-[8px] left-[8px]"
           data-selected={selected || undefined}
         >
           {selected ? <Check aria-hidden="true" size={15} strokeWidth={2.25} /> : null}
@@ -156,7 +174,7 @@ function BookCardComponent({
       ) : null}
       <IconButton
         aria-pressed={book.isFavorite}
-        className="book-favorite"
+        className="book-favorite absolute top-[8px] left-[8px] z-[2] border-[color-mix(in_srgb,var(--text)_11%,transparent)] bg-[color-mix(in_srgb,var(--canvas-deep)_88%,transparent)] text-text opacity-0 group-hover/card:opacity-100 hover:opacity-100 focus-visible:opacity-100 data-[active=true]:opacity-100 data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/card:pointer-events-none group-data-[selection-mode=true]/card:invisible [@media(hover:none)]:opacity-100"
         data-active={book.isFavorite || undefined}
         label={`Favorite ${title}`}
         onClick={() => onToggleFavorite(book)}

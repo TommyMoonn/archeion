@@ -55,15 +55,6 @@ describe("collection content spacing ownership", () => {
     expect(selectionBar).not.toContain("box-shadow");
   });
 
-  it("reserves exactly two clamped title lines before every grid-card author", () => {
-    const title = cssBlock(libraryStyles, ".book-card__copy strong");
-
-    expect(title).toContain("block-size: 2.8em;");
-    expect(title).toContain("line-height: 1.4;");
-    expect(title).toContain("text-overflow: ellipsis;");
-    expect(title).toContain("-webkit-line-clamp: 2;");
-  });
-
   it("publishes one normal and compact semantic collection offset", () => {
     expect(tokens).toMatch(/--spacing-collection-comfortable:\s*20px;/u);
     expect(tokens).toMatch(/--spacing-collection-compact:\s*16px;/u);
@@ -86,7 +77,6 @@ describe("collection content spacing ownership", () => {
     expect(collectionContentStyles).toMatch(
       /\.collection-content:not\(\.library-content--books\)\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
     );
-    expect(libraryStyles).toMatch(/\.book-grid\s*\{[^}]*padding:\s*0 0 32px;/s);
     expect(libraryStyles).toMatch(/\.book-list\s*\{[^}]*padding:\s*0 0 40px;/s);
     expect(libraryStyles).not.toMatch(/\.book-(?:grid|list)\s*\{[^}]*padding-top:/s);
   });
@@ -109,8 +99,6 @@ describe("collection content spacing ownership", () => {
   });
 
   it("scopes collection card sizes to their owning result surfaces", () => {
-    expect(libraryStyles).toContain('.book-grid[data-book-card-size="small"]');
-    expect(libraryStyles).toContain('.book-grid[data-book-card-size="large"]');
     expect(libraryStyles).not.toContain("html[data-card-size");
     expect(folderStyles).toContain('.folder-browser__items--cards[data-folder-card-size="small"]');
     expect(folderStyles).toContain('.folder-browser__items--cards[data-folder-card-size="large"]');
@@ -120,7 +108,6 @@ describe("collection content spacing ownership", () => {
   });
 
   it("keeps book state alignment inside a stable collection boundary", () => {
-    expect(libraryStyles).toMatch(/\.continue-reading\s*\{[^}]*margin:\s*0 auto;/s);
     expect(collectionContentStyles).toMatch(
       /\.collection-content:not\(\.library-content--books\)\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
     );

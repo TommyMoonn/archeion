@@ -339,3 +339,43 @@ for (const view of ["grid", "list"] as const) {
     }
   }
 }
+
+test("grid card sizes and fixed spacing survive narrow layouts and larger text", async ({
+  page,
+}) => {
+  for (const [cardSize, minimum] of [
+    ["small", 120],
+    ["medium", 150],
+    ["large", 190],
+  ] as const) {
+    await page.setViewportSize({ width: 1280, height: 850 });
+    await page.goto(`${fixture}?count=50&cardSize=${cardSize}&motion=off`);
+    const grid = page.locator(".book-grid");
+    await expect(grid).toHaveAttribute("data-book-card-size", cardSize);
+    await expect(grid).toBeVisible();
+    await expect(grid.locator(".book-card").first()).toBeVisible();
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "24px";
+    });
+    for (const width of [1280, 560]) {
+      await page.setViewportSize({ width, height: 850 });
+      const columns = await grid.evaluate((node) =>
+        getComputedStyle(node).gridTemplateColumns.split(" ").map(parseFloat),
+      );
+      if (width === 560 && cardSize === "medium") expect(columns).toHaveLength(2);
+      else expect(Math.min(...columns)).toBeGreaterThanOrEqual(minimum - 1);
+      await expect(grid).toHaveCSS("column-gap", width === 560 ? "14px" : "20px");
+      await expect(grid).toHaveCSS("row-gap", width === 560 ? "24px" : "28px");
+      await expect(grid).toHaveCSS("padding-bottom", "32px");
+      await page.evaluate(() => {
+        document.documentElement.dataset.density = "compact";
+      });
+      await expect(grid).toHaveCSS("column-gap", "18px");
+      await expect(grid).toHaveCSS("row-gap", "22px");
+      await expect(grid).toHaveCSS("padding-bottom", "28px");
+      await page.evaluate(() => {
+        document.documentElement.dataset.density = "comfortable";
+      });
+    }
+  }
+});
