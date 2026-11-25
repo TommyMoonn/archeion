@@ -15,6 +15,7 @@ function runtime(overrides: Partial<WindowStateRuntime> = {}): WindowStateRuntim
     availableWorkAreas: async () => [{ height: 1040, width: 1920, x: 0, y: 0 }],
     capture: async () => ({ height: 800, maximized: false, width: 1280, x: 20, y: 30 }),
     isDesktop: true,
+    isVisible: async () => false,
     label: "main",
     maximize: vi.fn(async () => undefined),
     onMoved: async () => () => undefined,
@@ -56,6 +57,55 @@ describe("window state", () => {
     await expect(
       restoreMainWindowState(preferences, runtime({ label: "archive-manager" })),
     ).resolves.toBe(false);
+  });
+
+  it.each([false, true])(
+    "leaves an already visible main window alone on reload (saved maximized: %s)",
+    async (maximized) => {
+      const appRuntime = runtime({ isVisible: async () => true });
+      const preferences: AppPreferences = {
+        ...defaultAppPreferences,
+        rememberWindowState: true,
+        window: { height: 700, maximized, width: 1000, x: 40, y: 50 },
+      };
+
+      await expect(restoreMainWindowState(preferences, appRuntime)).resolves.toBe(false);
+      expect(appRuntime.setSize).not.toHaveBeenCalled();
+      expect(appRuntime.setPosition).not.toHaveBeenCalled();
+      expect(appRuntime.maximize).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still restores a saved maximized window during a hidden cold launch", async () => {
+    const appRuntime = runtime();
+    const preferences: AppPreferences = {
+      ...defaultAppPreferences,
+      rememberWindowState: true,
+      window: { height: 700, maximized: true, width: 1000, x: 40, y: 50 },
+    };
+
+    await expect(restoreMainWindowState(preferences, appRuntime)).resolves.toBe(true);
+    expect(appRuntime.setSize).toHaveBeenCalledWith(1000, 700);
+    expect(appRuntime.setPosition).toHaveBeenCalledWith(40, 50);
+    expect(appRuntime.maximize).toHaveBeenCalledOnce();
+  });
+
+  it("does not resize when the native visibility check fails", async () => {
+    const appRuntime = runtime({
+      isVisible: async () => {
+        throw new Error("Window is unavailable");
+      },
+    });
+    const preferences: AppPreferences = {
+      ...defaultAppPreferences,
+      rememberWindowState: true,
+      window: { height: 700, maximized: true, width: 1000, x: 40, y: 50 },
+    };
+
+    await expect(restoreMainWindowState(preferences, appRuntime)).resolves.toBe(false);
+    expect(appRuntime.setSize).not.toHaveBeenCalled();
+    expect(appRuntime.setPosition).not.toHaveBeenCalled();
+    expect(appRuntime.maximize).not.toHaveBeenCalled();
   });
 
   it("saves debounced geometry only while the preference is enabled", async () => {

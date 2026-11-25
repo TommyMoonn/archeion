@@ -169,6 +169,7 @@ describe("Native window runtime contracts", () => {
       "core:window:allow-available-monitors",
       "core:window:allow-hide",
       "core:window:allow-is-maximized",
+      "core:window:allow-is-visible",
       "core:window:allow-maximize",
       "core:window:allow-outer-position",
       "core:window:allow-outer-size",
