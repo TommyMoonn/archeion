@@ -18,3 +18,12 @@ it("merges named control dimensions without dropping other geometry", () => {
     ),
   ).toBe("rounded-control size-control-compact gap-control-gap-compact px-button-compact");
 });
+
+it("allows toolbar overrides of shared control width and radius", () => {
+  expect(
+    cn(
+      "min-w-select-trigger rounded-control",
+      "min-w-[178px] rounded-[var(--library-utility-child-radius)]",
+    ),
+  ).toBe("min-w-[178px] rounded-[var(--library-utility-child-radius)]");
+});

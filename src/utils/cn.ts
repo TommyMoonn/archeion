@@ -5,6 +5,7 @@ import { extendTailwindMerge } from "tailwind-merge";
 const merge = extendTailwindMerge({
   extend: {
     theme: {
+      radius: ["control"],
       spacing: [
         "control-compact",
         "control-standard",
@@ -18,6 +19,7 @@ const merge = extendTailwindMerge({
         "checkbox-large",
         "checkbox-margin",
         "checkbox-start",
+        "select-trigger",
         "field-label",
         "field-inline",
         "field-standard",

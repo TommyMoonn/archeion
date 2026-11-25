@@ -90,7 +90,7 @@
     .reader-note-feedback,
     .theme-preview-controls,
     .page-shell[data-import-drop-active="true"]::after,
-    .library-filter__popover,
+    [data-slot="popover-content"],
     .library-feedback__token
   ) {
     border-color: CanvasText;
@@ -118,7 +118,7 @@
     .reader-note-feedback,
     .theme-preview-controls,
     .page-shell[data-import-drop-active="true"]::after,
-    .library-filter__popover,
+    [data-slot="popover-content"],
     .library-feedback__token
   ) {
     box-shadow: none;

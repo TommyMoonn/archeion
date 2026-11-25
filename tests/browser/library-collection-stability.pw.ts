@@ -50,6 +50,15 @@ test("populated Library grid and list fill the same width as their toolbar", asy
       { width: 1280, height: 800 },
     ]) {
       await page.setViewportSize(viewport);
+      const sort = page.getByRole("combobox", { name: "Sort library" });
+      await expect
+        .poll(async () => (await sort.boundingBox())?.width ?? 0)
+        .toBeGreaterThanOrEqual(177);
+      for (const label of ["Select books", "Rescan archive"]) {
+        const icon = page.getByRole("button", { name: label, exact: true }).locator(".icon-slot");
+        await expect(icon).toHaveCSS("width", "18px");
+        await expect(icon).toHaveCSS("height", "18px");
+      }
       await expect
         .poll(() =>
           collection.evaluate((node) => {

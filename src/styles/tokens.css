@@ -165,6 +165,7 @@
   --spacing-sidebar-expanded: 248px;
   --spacing-sidebar-narrow: 220px;
   --spacing-sidebar-collapsed: 56px;
+  --spacing-collection-header-gap: 24px;
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
@@ -876,4 +877,21 @@ html[data-density="compact"] {
 
 @utility sidebar-nav-mobile-flex {
   flex: 1 0 auto;
+}
+
+/* Library toolbar and filters retain the original inclusive layout thresholds. */
+@custom-variant collection-header-stacked {
+  @container collection-header (max-width: 900px) {
+    @slot;
+  }
+}
+@custom-variant collection-header-narrow {
+  @container collection-header (max-width: 560px) {
+    @slot;
+  }
+}
+@custom-variant collection-viewport-stacked {
+  @media (max-width: 1100px) {
+    @slot;
+  }
 }

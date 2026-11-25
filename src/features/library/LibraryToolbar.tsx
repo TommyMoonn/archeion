@@ -85,13 +85,19 @@ export function LibraryToolbar({
       className={selectionMode ? "library-header relative z-5" : "library-header"}
       data-selection-mode={selectionMode ? "true" : undefined}
     >
-      <div className="library-header__primary-row">
-        <div aria-hidden={selectionMode || undefined} className="library-header__title">
+      <div className="library-header__primary-row relative grid col-span-full grid-cols-[minmax(180px,1fr)_auto] items-end gap-collection-header-gap min-w-0 collection-viewport-stacked:grid-cols-1 collection-header-stacked:grid-cols-[minmax(0,1fr)]">
+        <div
+          aria-hidden={selectionMode || undefined}
+          className={`library-header__title ${selectionMode ? "invisible pointer-events-none" : ""}`}
+        >
           <p className="eyebrow">Your collection</p>
           <h1>{title}</h1>
         </div>
 
-        <div aria-hidden={selectionMode || undefined} className="library-header__actions">
+        <div
+          aria-hidden={selectionMode || undefined}
+          className={`library-header__actions ${selectionMode ? "invisible pointer-events-none" : ""}`}
+        >
           <div aria-label="Library search" className="library-search" role="search">
             <Input
               aria-keyshortcuts={searchAriaKeyShortcuts}
@@ -119,10 +125,14 @@ export function LibraryToolbar({
               </IconButton>
             ) : null}
           </div>
-          <div className="library-header__utilities" aria-label="Library utilities" role="group">
+          <div
+            className="library-header__utilities inline-flex items-center gap-[2px] min-h-control-standard p-px border-standard border-solid border-line rounded-control bg-surface [--library-utility-child-radius:calc(var(--radius-control)-1px-var(--border-width))]"
+            aria-label="Library utilities"
+            role="group"
+          >
             <IconButton
               aria-pressed={selectionMode}
-              className="library-select-button"
+              className="library-select-button size-control-compact rounded-[var(--library-utility-child-radius)] aria-pressed:border-line-strong aria-pressed:text-text-strong aria-pressed:bg-surface-raised [&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
               label="Select books"
               onClick={onToggleSelectionMode}
               tooltip={selectionMode ? "Finish selecting books" : "Select books"}
@@ -135,7 +145,7 @@ export function LibraryToolbar({
           <span aria-hidden="true" className="library-header__action-divider" />
           <Button
             busy={isImporting}
-            className="library-add-button"
+            className="library-add-button rounded-control [&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
             disabled={isImporting}
             icon={<Plus aria-hidden="true" strokeWidth={2.25} />}
             onClick={onOpenAddEpub}
@@ -146,15 +156,15 @@ export function LibraryToolbar({
         </div>
 
         {selectionBarProps ? (
-          <div className="library-header__selection-row">
+          <div className="library-header__selection-row absolute z-1 inset-0 flex items-center min-w-0">
             <LibrarySelectionBar {...selectionBarProps} />
           </div>
         ) : null}
       </div>
 
-      <div className="library-header__control-group">
+      <div className="library-header__control-group col-span-full grid gap-[10px] collection-viewport-stacked:row-start-2">
         <div className="library-controls">
-          <div className="library-controls__filters">
+          <div className="library-controls__filters flex items-center gap-[10px]">
             <LibraryFilterPopover
               filters={filters}
               onChange={onFilterChange}
@@ -172,7 +182,7 @@ export function LibraryToolbar({
           <div className="library-controls__display">
             <AppSelect
               ariaLabel="Sort library"
-              className="library-sort-select"
+              className="library-sort-select min-w-[178px]"
               onChange={onSortChange}
               options={librarySortOptions}
               value={sort}
