@@ -252,6 +252,8 @@ Application icons use named imports from `lucide-react`. Application surfaces do
 
 Shared tooltips use the shadcn Base UI Tooltip popup and collision positioning. The application retains one controlled timing owner (500 ms pointer, 250 ms keyboard), modality and truncation gating, persistent descriptions, and dismissal on navigation, Escape, scroll and resize. Tooltips portal into their owning native dialog or Reader scope and use the existing caption, surface, shadow and motion tokens.
 
+Shared action menus use adapted shadcn Base UI menu items, popups and collision positioning for both point and element invocations. The existing controller owns dismissal, keyboard routing and focus restoration. Point invocations use a virtual anchor with the nonmodal Menu root because the Context Menu root requires modal focus trapping, which conflicts with outside pointer focus and Tab navigation. The browser check using the modal root failed because the outside button was inaccessible. Unavailable actions without explanations remain native disabled buttons; explained actions remain keyboard reachable. Pending archive disclosure and Reader palette styles remain separate until their feature migrations.
+
 Every icon-only control has an accessible name. Controls with an unclear purpose also have a tooltip. Collapsed navigation keeps its accessible label when the visible text is hidden.
 
 ### Borders and elevation

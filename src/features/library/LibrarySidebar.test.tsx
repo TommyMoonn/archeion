@@ -434,9 +434,9 @@ describe("LibrarySidebar", () => {
 
   it("keeps the archive switcher focused on known archives and management", () => {
     const markup = renderSidebar();
-    const archiveRows = markup.match(
-      /<button class="menu-item menu-item--no-icon archive-switcher__archive"[\s\S]*?<\/button>/g,
-    );
+    const parsed = document.createElement("div");
+    parsed.innerHTML = markup;
+    const archiveRows = parsed.querySelectorAll("button.archive-switcher__archive");
 
     expect(markup).toContain("Books");
     expect(markup).toContain("Comics");
@@ -449,7 +449,7 @@ describe("LibrarySidebar", () => {
     expect(markup).not.toContain("E:\\Comics");
     expect(markup.match(/role="separator"/g)).toHaveLength(1);
     expect(archiveRows).toHaveLength(1);
-    expect(archiveRows?.[0]).not.toContain("<svg");
+    expect(archiveRows[0]?.querySelector("svg")).toBeNull();
     expect(markup).toContain("archive-switcher__current menu-item menu-item--trailing-icon");
     expect(markup).toContain("archive-switcher__menu menu-popover");
     expect(markup).toContain("menu-trigger menu-trigger--disclosure");

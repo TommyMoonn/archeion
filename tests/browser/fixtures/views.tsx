@@ -21,6 +21,7 @@ import { createUpdateToastFixture } from "./update-toast-backend";
 import { AboutUpdateFixture } from "./about-update-view";
 import { SelectFixture } from "./select-view";
 import { BusyActionsFixture } from "./busy-actions-view";
+import { ActionMenuFixture } from "./action-menu-view";
 import { TooltipFixture } from "./tooltip-view";
 
 const archive: KnownArchive = {
@@ -216,6 +217,7 @@ export function BrowserFixture() {
   useEffect(() => focusPresentationRuntime.start(document), []);
 
   const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "action-menu") return <ActionMenuFixture />;
   if (view === "tooltip") return <TooltipFixture />;
   if (view === "select") return <SelectFixture />;
   if (view === "busy-actions") return <BusyActionsFixture />;

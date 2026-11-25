@@ -91,7 +91,8 @@ a {
   outline-offset: 3px;
 }
 
-:root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"] .menu-item:focus-visible {
   outline-offset: -2px;
 }
 

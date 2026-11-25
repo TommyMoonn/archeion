@@ -118,6 +118,7 @@
   --spacing-busy-inset: 2px;
   --leading-control-label: var(--text-control-label--line-height);
   --spacing-menu-padding: 5px;
+  --spacing-menu-item-block: 7px;
   --spacing-sidebar-expanded: 248px;
   --spacing-sidebar-narrow: 220px;
   --spacing-sidebar-collapsed: 56px;
@@ -238,6 +239,15 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --spacing-menu-viewport-min: min(
+    var(--spacing-menu-min),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+  --container-menu-viewport: min(
+    var(--container-popover),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+  --spacing-menu-viewport-height: calc(100vh - var(--spacing-overlay-viewport-inset));
   --container-tooltip-viewport: min(
     var(--container-tooltip),
     calc(100vw - var(--spacing-overlay-viewport-inset))
@@ -745,4 +755,8 @@ html[data-density="compact"] {
 @utility text-meta-size {
   font-size: var(--text-meta);
   line-height: var(--text-meta--line-height);
+}
+
+@utility menu-item-columns {
+  grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
 }

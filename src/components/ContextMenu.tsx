@@ -6,27 +6,25 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useMemo,
   type ButtonHTMLAttributes,
-  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 
 import { focusPresentationRuntime } from "../app/inputModality";
-import { MenuItem } from "./MenuItem";
+import { PrimitiveMenuItem } from "./MenuItem";
+import { DropdownMenu, DropdownMenuContent } from "./ui/dropdown-menu";
+import { ContextMenu, ContextMenuContent } from "./ui/context-menu";
+import { cn } from "@/utils/cn";
 import { Tooltip, type TooltipPlacement } from "./Tooltip";
 import { useOwnedTooltipAvailable } from "./tooltipStore";
 import {
   isTopmostTransientSurface,
   useTransientSurfaceOwnership,
 } from "../utils/transientSurfaceOwnership";
-import type {
-  ContextMenuAnchor,
-  ContextMenuController,
-  ContextMenuInvocation,
-} from "./contextMenuController";
+import type { ContextMenuController, ContextMenuInvocation } from "./contextMenuController";
 
 export type ContextMenuAction = {
   className?: string;
@@ -39,8 +37,9 @@ export type ContextMenuAction = {
   onSelect: () => void;
 };
 
-const VIEWPORT_MARGIN = 8;
-const ANCHOR_GAP = 4;
+const menuTriggerClassName =
+  "menu-trigger inline-grid size-control-compact place-items-center p-0 border-standard border-solid border-transparent rounded-control text-muted bg-transparent cursor-pointer list-none transition-select hover:border-line-strong hover:text-text-strong hover:bg-surface-hover control-active:border-line-strong control-active:text-text-strong control-active:bg-action-neutral-active";
+
 let activeMenu: { close: () => void; token: object } | null = null;
 
 function navigableMenuItems(menu: HTMLElement): HTMLButtonElement[] {
@@ -51,41 +50,6 @@ function navigableMenuItems(menu: HTMLElement): HTMLButtonElement[] {
 
 function isActivatableMenuItem(item: HTMLButtonElement): boolean {
   return !item.disabled && item.getAttribute("aria-disabled") !== "true";
-}
-
-function exactPosition(
-  anchor: ContextMenuAnchor,
-  menuRect: DOMRect,
-): { left: number; top: number } {
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
-  const maximumLeft = Math.max(VIEWPORT_MARGIN, viewportWidth - menuRect.width - VIEWPORT_MARGIN);
-  const maximumTop = Math.max(VIEWPORT_MARGIN, viewportHeight - menuRect.height - VIEWPORT_MARGIN);
-
-  let left: number;
-  let top: number;
-
-  if (anchor.type === "point") {
-    left = anchor.x;
-    top = anchor.y;
-
-    if (top + menuRect.height > viewportHeight - VIEWPORT_MARGIN) {
-      top = anchor.y - menuRect.height;
-    }
-  } else {
-    const anchorRect = anchor.element.getBoundingClientRect();
-    left = anchorRect.left;
-    top = anchorRect.bottom + ANCHOR_GAP;
-
-    if (top + menuRect.height > viewportHeight - VIEWPORT_MARGIN) {
-      top = anchorRect.top - menuRect.height - ANCHOR_GAP;
-    }
-  }
-
-  return {
-    left: Math.min(Math.max(left, VIEWPORT_MARGIN), maximumLeft),
-    top: Math.min(Math.max(top, VIEWPORT_MARGIN), maximumTop),
-  };
 }
 
 type ContextMenuTriggerProps = Omit<
@@ -175,7 +139,8 @@ export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTrigg
         aria-expanded={controller.isOpen}
         aria-haspopup="menu"
         aria-label={label}
-        className={`menu-trigger ${className}`.trim()}
+        data-slot="action-menu-trigger"
+        className={cn(menuTriggerClassName, className)}
         disabled={Boolean(disabled) && !hasDisabledReason}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
@@ -227,34 +192,32 @@ export function ContextMenuSurface({
   const menuTokenRef = useRef<object>({});
   const focusedInvocationRef = useRef<ContextMenuInvocation | null>(null);
   const previousDismissKeyRef = useRef(dismissKey);
-  const [position, setPosition] = useState({ left: 0, top: 0 });
+  const [menuElement, setMenuElement] = useState<HTMLDivElement | null>(null);
   const invocation = controller.invocation;
 
-  const reposition = useCallback(() => {
-    const menu = menuRef.current;
-    if (!menu || !invocation) return;
-    const next = exactPosition(invocation.anchor, menu.getBoundingClientRect());
-    setPosition((current) =>
-      current.left === next.left && current.top === next.top ? current : next,
-    );
+  const anchor = useMemo(() => {
+    if (!invocation) return undefined;
+    if (invocation.anchor.type === "element") return invocation.anchor.element;
+    const { x, y } = invocation.anchor;
+    return { getBoundingClientRect: () => new DOMRect(x, y, 0, 0) };
   }, [invocation]);
 
-  useLayoutEffect(() => {
-    if (!invocation) return;
-    reposition();
+  const assignMenu = useCallback((element: HTMLDivElement | null) => {
+    menuRef.current = element;
+    setMenuElement(element);
+  }, []);
 
-    const menu = menuRef.current;
-    if (!menu) return;
-    if (focusedInvocationRef.current !== invocation) {
-      focusedInvocationRef.current = invocation;
-      const items = navigableMenuItems(menu);
-      const target = invocation.focusTarget === "last" ? items.at(-1) : items[0];
-      if (invocation.focusTarget) target?.focus();
-    }
-  });
+  useLayoutEffect(() => {
+    if (!invocation || !menuElement || focusedInvocationRef.current === invocation) return;
+    focusedInvocationRef.current = invocation;
+    const items = navigableMenuItems(menuElement);
+    const target = invocation.focusTarget === "last" ? items.at(-1) : items[0];
+    if (invocation.focusTarget) target?.focus();
+    else menuElement.focus({ preventScroll: true });
+  }, [invocation, menuElement]);
 
   useTransientSurfaceOwnership({
-    active: invocation !== null,
+    active: invocation !== null && menuElement !== null,
     closeOnModalOpen: true,
     dismissOnOutsidePointer: true,
     elementRef: menuRef,
@@ -266,8 +229,8 @@ export function ContextMenuSurface({
     trigger: invocation?.triggerElement ?? null,
   });
 
-  useEffect(() => {
-    if (!invocation) return;
+  useLayoutEffect(() => {
+    if (!invocation || !menuElement) return;
 
     const currentInvocation = invocation;
     const token = menuTokenRef.current;
@@ -361,10 +324,6 @@ export function ContextMenuSurface({
     window.addEventListener("popstate", closeWithoutFocus);
     window.addEventListener("hashchange", closeWithoutFocus);
 
-    const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => reposition());
-    if (menuRef.current) resizeObserver?.observe(menuRef.current);
-
     return () => {
       if (activeMenu?.token === token) activeMenu = null;
       window.removeEventListener("keydown", handleKeyDown, true);
@@ -373,9 +332,8 @@ export function ContextMenuSurface({
       window.removeEventListener("resize", closeWithoutFocus);
       window.removeEventListener("popstate", closeWithoutFocus);
       window.removeEventListener("hashchange", closeWithoutFocus);
-      resizeObserver?.disconnect();
     };
-  }, [controller, invocation, reposition]);
+  }, [controller, invocation, menuElement]);
 
   useEffect(() => {
     if (previousDismissKeyRef.current !== dismissKey) {
@@ -386,33 +344,42 @@ export function ContextMenuSurface({
 
   if (!invocation || typeof document === "undefined") return null;
 
-  const style = {
-    "--context-menu-left": `${position.left}px`,
-    "--context-menu-top": `${position.top}px`,
-  } as CSSProperties;
-
-  return createPortal(
-    <div
-      aria-label={ariaLabel}
-      className={`context-menu menu-popover ${className}`.trim()}
-      ref={menuRef}
-      role="menu"
-      style={style}
+  const point = invocation.anchor.type === "point";
+  const Root = point ? ContextMenu : DropdownMenu;
+  const Content = point ? ContextMenuContent : DropdownMenuContent;
+  const origin =
+    invocation.anchor.type === "element" ? invocation.anchor.element : invocation.restoreFocusTo;
+  const container = origin?.closest<HTMLElement>("dialog[open], .reader-page, .reader-status-page");
+  // The existing controller owns dismissal and focus restoration for external invocations.
+  return (
+    <Root
+      open
+      modal={false}
+      highlightItemOnHover={false}
+      onOpenChange={(_, details) => details.cancel()}
     >
-      {actions.map((action) => (
-        <MenuItem
-          className={action.className}
-          danger={action.danger}
-          disabled={action.disabled}
-          disabledReason={action.disabledReason}
-          icon={action.icon}
-          key={action.id}
-          onClick={() => controller.runAction(action.onSelect)}
-        >
-          {action.label}
-        </MenuItem>
-      ))}
-    </div>,
-    document.body,
+      <Content
+        anchor={anchor}
+        container={container ?? undefined}
+        aria-label={ariaLabel}
+        className={className}
+        ref={assignMenu}
+      >
+        {actions.map((action) => (
+          <PrimitiveMenuItem
+            point={point}
+            className={action.className}
+            danger={action.danger}
+            disabled={action.disabled}
+            disabledReason={action.disabledReason}
+            icon={action.icon}
+            key={action.id}
+            onClick={() => controller.runAction(action.onSelect)}
+          >
+            {action.label}
+          </PrimitiveMenuItem>
+        ))}
+      </Content>
+    </Root>
   );
 }
