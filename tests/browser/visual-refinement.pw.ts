@@ -114,7 +114,7 @@ for (const theme of ["light", "dark", "custom"]) {
   }
 }
 
-test("Add EPUB uses the shared centered entrance without reflow", async ({ page }) => {
+test("Add EPUB expands as one surface and settles before the fade completes", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/tests/browser/fixtures/ui-stability.html?count=0&motion=on");
@@ -140,36 +140,39 @@ test("Add EPUB uses the shared centered entrance without reflow", async ({ page 
     if (!animation?.effect) throw new Error("Shared dialog entrance is missing");
     const duration = Number(animation.effect.getTiming().duration);
     const targets = [element, ...element.querySelectorAll<HTMLElement>("h2, input, button")];
-    const capture = (time: number) => {
-      animation.currentTime = time;
+    const pose = () => {
       const bounds = element.getBoundingClientRect();
       return {
-        layout: targets.map((target) => [
-          target.offsetLeft,
-          target.offsetTop,
-          target.offsetWidth,
-          target.offsetHeight,
-        ]),
+        positions: targets.map((target) => {
+          const { x, y, width, height } = target.getBoundingClientRect();
+          return [x, y, width, height];
+        }),
         center: [bounds.x + bounds.width / 2, bounds.y + bounds.height / 2],
-        width: bounds.width,
         opacity: Number(getComputedStyle(element).opacity),
       };
     };
+    const capture = (time: number) => {
+      animation.currentTime = time;
+      return pose();
+    };
+    animation.pause();
     const start = capture(0);
-    const middle = capture(duration / 2);
+    const middle = capture(duration * 0.65);
     const end = capture(duration);
     animation.finish();
-    return { start, middle, end };
+    const settled = pose();
+    return { start, middle, end, settled };
   });
 
-  expect(samples.start.layout).toEqual(samples.end.layout);
-  expect(samples.middle.layout).toEqual(samples.end.layout);
+  for (const [index, position] of samples.start.positions.entries()) {
+    expect(position[2] / samples.end.positions[index][2]).toBeCloseTo(0.985, 3);
+  }
+  expect(samples.middle.positions).toEqual(samples.end.positions);
+  expect(samples.settled.positions).toEqual(samples.end.positions);
   for (const pose of [samples.start, samples.middle]) {
     expect(Math.abs(pose.center[0] - samples.end.center[0])).toBeLessThanOrEqual(1);
     expect(Math.abs(pose.center[1] - samples.end.center[1])).toBeLessThanOrEqual(1);
   }
-  expect(samples.start.width / samples.end.width).toBeCloseTo(0.97, 2);
-  expect(samples.middle.width).toBeGreaterThan(samples.start.width);
   expect(samples.start.opacity).toBeLessThan(samples.end.opacity);
   expect(samples.end.opacity).toBe(1);
 });

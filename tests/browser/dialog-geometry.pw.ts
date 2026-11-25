@@ -17,6 +17,7 @@ async function bounds(page: Page) {
 }
 
 async function openSurface(page: Page, surface: string, scale = 1) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`/tests/browser/fixtures/dialog-geometry.html?surface=${surface}`);
   await page.evaluate((size) => {
     document.documentElement.style.fontSize = `${16 * size}px`;
