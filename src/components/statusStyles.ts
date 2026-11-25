@@ -18,4 +18,4 @@ export const statusCodeClass =
   "status-page__code m-0 text-accent text-code font-bold tracking-settings-eyebrow";
 
 export const appearanceNoticeClass =
-  "appearance-status--visible fixed z-1500 top-12 end-4 max-w-appearance-notice max-h-appearance-notice overflow-auto p-4 border-standard border-solid border-line rounded-control text-text bg-canvas shadow-app-popover";
+  "appearance-status--visible fixed z-1500 top-12 end-4 max-w-appearance-notice max-h-appearance-notice-height overflow-auto p-4 border-standard border-solid border-line rounded-control text-text bg-canvas shadow-app-popover";

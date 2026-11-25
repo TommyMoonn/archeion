@@ -546,7 +546,7 @@ for (const scale of [1, 1.25, 1.5]) {
         : sidebarGeometry.left + 27.5;
     for (const selector of [
       ".library-titlebar-composition button",
-      ".archive-switcher summary > .icon-slot",
+      ".archive-switcher__trigger > .icon-slot",
     ]) {
       const center = await page.locator(selector).evaluate((node) => {
         const rect = node.getBoundingClientRect();
@@ -561,9 +561,13 @@ for (const scale of [1, 1.25, 1.5]) {
       }),
     );
     for (const center of iconCenters) expect(center).toBeCloseTo(expectedLeadingIconCenter, 1);
-    await page.getByLabel("Current archive:", { exact: false }).click();
-    await expect(page.getByRole("button", { name: "Manage archives", exact: true })).toBeVisible();
+    const archiveTrigger = page.getByRole("button", { name: "Current archive:", exact: false });
+    await archiveTrigger.click();
+    await expect(
+      page.getByRole("menuitem", { name: "Manage archives", exact: true }),
+    ).toBeVisible();
     await page.keyboard.press("Escape");
+    await expect(archiveTrigger).toBeFocused();
     await page.keyboard.press("Tab");
     expect(await page.evaluate(() => Boolean(document.activeElement?.closest("[inert]")))).toBe(
       false,

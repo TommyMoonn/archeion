@@ -84,7 +84,7 @@ describe("collection content spacing ownership", () => {
 
   it("starts Library grid and list results from the shared parent-owned offset", () => {
     expect(collectionContentStyles).toMatch(
-      /\.collection-content\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
+      /\.collection-content:not\(\.library-content--books\)\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
     );
     expect(libraryStyles).toMatch(/\.book-grid\s*\{[^}]*padding:\s*0 0 32px;/s);
     expect(libraryStyles).toMatch(/\.book-list\s*\{[^}]*padding:\s*0 0 40px;/s);
@@ -122,16 +122,10 @@ describe("collection content spacing ownership", () => {
   it("keeps book state alignment inside a stable collection boundary", () => {
     expect(libraryStyles).toMatch(/\.continue-reading\s*\{[^}]*margin:\s*0 auto;/s);
     expect(collectionContentStyles).toMatch(
-      /\.collection-content\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
+      /\.collection-content:not\(\.library-content--books\)\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
     );
     expect(collectionContentStyles).toMatch(
       /\.collection-content:not\(\.library-content--books\):is\([\s\S]*?\)\s*\{[^}]*align-content:\s*center;/s,
-    );
-    expect(cssBlock(collectionContentStyles, "\n.library-content--books ")).toContain(
-      "padding-block: var(--collection-content-offset) 0;",
-    );
-    expect(cssBlock(collectionContentStyles, ".collection-content__state")).toContain(
-      "place-items: center;",
     );
     expect(collectionContentStyles).toMatch(
       /\.collection-content > \.empty-state,\s*\.collection-content > \.collection-content__loading\s*\{[^}]*justify-self:\s*center;[^}]*margin:\s*0;/s,

@@ -329,13 +329,12 @@ describe("LibraryPage collection callback stability", () => {
     });
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
 
+    const trigger = container.querySelector<HTMLButtonElement>(".archive-switcher__trigger")!;
+    await act(async () => trigger.click());
     await act(async () => {
-      const details = container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
-      details.open = true;
-      Array.from(details.querySelectorAll<HTMLButtonElement>("button"))
+      Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
         .find((button) => button.textContent?.trim() === "Reveal archive folder")!
         .click();
-      await Promise.resolve();
     });
     expect(revealActiveArchive).toHaveBeenCalledTimes(1);
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });

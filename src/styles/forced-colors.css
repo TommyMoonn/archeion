@@ -194,7 +194,7 @@
   }
 
   :where(
-    .nav-item.active,
+    .nav-item[aria-current="page"],
     .folder-tree__select[data-active],
     .settings-sidebar nav button[aria-current="page"],
     .archive-switcher__current[aria-current="true"],

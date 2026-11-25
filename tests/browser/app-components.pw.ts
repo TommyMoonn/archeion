@@ -204,14 +204,25 @@ test("responsive titlebar removal focuses current navigation and archive utiliti
   await page.setViewportSize({ width: 480, height: 800 });
   await expect(navigation.getByRole("button", { name: "Series" })).toBeFocused();
   await page.setViewportSize({ width: 1280, height: 800 });
-  const summary = page.locator(".archive-switcher summary");
+  const trigger = page.getByRole("button", { name: "Current archive:", exact: false });
+  await trigger.click();
+  const menu = page.getByRole("menu", { name: "Archives" });
+  await expect(menu.getByRole("menuitem", { name: "Fixture archive" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await expect(menu).toHaveCSS("min-width", "168px");
+  await expect(menu).toHaveCSS("max-width", "420px");
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(trigger).toBeFocused();
   for (const label of ["Reveal archive folder", "Manage archives"]) {
-    await summary.click();
-    const action = page.getByRole("button", { name: label, exact: true });
+    await trigger.click();
+    const action = page.getByRole("menuitem", { name: label, exact: true });
     await action.focus();
     await action.press("Enter");
-    await expect(page.locator(".archive-switcher")).not.toHaveAttribute("open");
-    await expect(summary).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(trigger).toBeFocused();
   }
 });
 

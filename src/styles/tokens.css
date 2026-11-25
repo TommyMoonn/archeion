@@ -153,6 +153,15 @@
   --leading-control-label: var(--text-control-label--line-height);
   --spacing-menu-padding: 5px;
   --spacing-menu-item-block: 7px;
+  --spacing-sidebar-inset: 12px;
+  --spacing-sidebar-collapsed-inset: 6px;
+  --spacing-sidebar-section: 14px;
+  --tracking-sidebar-label: 0.06em;
+  --spacing-sidebar-mobile: min(42dvh, 240px);
+  --spacing-collection-workspace-height: clamp(420px, 63vh, 720px);
+  --spacing-collection-workspace-height-short: 320px;
+  --spacing-collection-workspace-height-narrow: 55vh;
+  --container-collection-workspace: 1440px;
   --spacing-sidebar-expanded: 248px;
   --spacing-sidebar-narrow: 220px;
   --spacing-sidebar-collapsed: 56px;
@@ -278,6 +287,7 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --shadow-sidebar-drop: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
   --spacing-menu-viewport-min: min(
     var(--spacing-menu-min),
     calc(100vw - var(--spacing-overlay-viewport-inset))
@@ -334,7 +344,7 @@
   --default-transition-timing-function: var(--ease-standard);
 
   --container-appearance-notice: min(32rem, calc(100vw - 2rem));
-  --spacing-appearance-notice: calc(100dvh - 4rem);
+  --spacing-appearance-notice-height: calc(100dvh - 4rem);
   --spacing-page-inline: clamp(20px, 2.5vw, 40px);
   --color-status-success: color-mix(in srgb, var(--success-soft) 72%, var(--surface-raised));
   --color-status-warning: color-mix(in srgb, var(--accent-soft) 72%, var(--surface-raised));
@@ -828,3 +838,42 @@ html[data-density="compact"] {
   }
 }
 @custom-variant page-compact (&:is(html[data-density="compact"] *));
+
+/* The navigation highlight follows the interpolated shell track, not the collapse flag. */
+@utility sidebar-nav-width {
+  width: calc(
+    var(--library-sidebar-current-width) - 2 * var(--spacing-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+}
+@utility sidebar-nav-padding {
+  padding-inline: calc(
+    (
+        var(--sidebar-collapsed-width) - 2 * var(--spacing-sidebar-collapsed-inset) -
+          var(--border-width) - var(--icon-slot-standard)
+      ) /
+      2
+  );
+}
+@utility sidebar-nav-columns {
+  grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
+}
+@utility sidebar-nav-collapsed-columns {
+  grid-template-columns: calc(
+    var(--sidebar-collapsed-width) - 2 * var(--spacing-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+}
+@utility sidebar-footer-columns {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+@utility sidebar-mobile-columns {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@utility min-h-inherit {
+  min-block-size: inherit;
+}
+
+@utility sidebar-nav-mobile-flex {
+  flex: 1 0 auto;
+}

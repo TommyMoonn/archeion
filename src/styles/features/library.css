@@ -422,12 +422,6 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   pointer-events: none;
 }
 
-.nav-item[data-import-drop-active="true"] {
-  color: var(--text-strong);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
-}
-
 .book-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -868,15 +862,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .book-details-resize-handle {
-  position: absolute;
-  z-index: 8;
-  inset-block: 0;
   inset-inline-start: 0;
-  width: 8px;
-  touch-action: none;
-  user-select: none;
-  cursor: col-resize;
-  outline: none;
 }
 
 .book-details-resize-handle:hover,

@@ -35,6 +35,37 @@ for (const view of ["grid", "list"] as const) {
   });
 }
 
+test("populated Library grid and list fill the same width as their toolbar", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(`${fixture}?count=50&motion=off`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".book-grid")).toHaveAttribute("data-window-total", "50");
+
+  for (const view of ["grid", "list"] as const) {
+    await page.evaluate((nextView) => window.uiStabilityFixture.setView(nextView), view);
+    const collection = page.locator(view === "grid" ? ".book-grid" : ".book-list");
+    await expect(collection).toHaveAttribute("data-window-total", "50");
+    for (const viewport of [
+      { width: 1920, height: 1080 },
+      { width: 1920, height: 640 },
+      { width: 1280, height: 800 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await expect
+        .poll(() =>
+          collection.evaluate((node) => {
+            const toolbar = document.querySelector(".library-header")!.getBoundingClientRect();
+            const results = node.getBoundingClientRect();
+            return Math.max(
+              Math.abs(results.left - toolbar.left),
+              Math.abs(results.right - toolbar.right),
+            );
+          }),
+        )
+        .toBeLessThan(1);
+    }
+  }
+});
+
 for (const width of [1280, 900]) {
   test(`selection header morphs without moving the collection at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });

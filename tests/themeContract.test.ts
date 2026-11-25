@@ -443,8 +443,8 @@ describe("theme token baseline", () => {
 
       const applicationSurfaceContracts = [
         [
-          "src/styles/layout/app-shell.css",
-          /\.sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
+          "src/features/library/LibrarySidebar.tsx",
+          /className="sidebar [^"]*\bbg-surface-sidebar\b/,
         ],
         [
           "src/styles/layout/window-frame.css",
@@ -488,6 +488,7 @@ describe("theme token baseline", () => {
       expect(appVariables.get("--darkening")).toBe(resolved.app.tokens.darkening);
 
       const tokensSource = fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8");
+      expect(tokensSource).toMatch(/--color-surface-sidebar:\s*var\(--surface-sidebar\);/);
       expect(tokensSource).toMatch(
         /--backdrop:\s*color-mix\(in srgb, var\(--darkening\) [\d.]+%, transparent\);/,
       );

@@ -530,19 +530,17 @@ describe("LibraryPage Quick Actions", () => {
       .spyOn(archiveStore, "revealActiveArchive")
       .mockResolvedValue(true);
     const rendered = await renderLibrary();
-    const details = rendered.container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
-    revealActiveArchive.mockImplementation(async () => {
-      expect(details.open).toBe(false);
-      expect(document.activeElement).toBe(details.querySelector("summary"));
-      return true;
-    });
+    const trigger = rendered.container.querySelector<HTMLButtonElement>(
+      ".archive-switcher__trigger",
+    )!;
+    await act(async () => trigger.click());
     await act(async () => {
-      details.open = true;
-      Array.from(details.querySelectorAll<HTMLButtonElement>("button"))
+      Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
         .find((button) => button.textContent?.trim() === "Reveal archive folder")!
         .click();
-      await Promise.resolve();
     });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
 
     expect(revealActiveArchive).toHaveBeenCalledOnce();
     expect(revealActiveArchive).toHaveBeenCalledWith(readyArchive.archive);
