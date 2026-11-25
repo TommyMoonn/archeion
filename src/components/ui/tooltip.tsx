@@ -31,13 +31,13 @@ export function TooltipContent({
         collisionPadding={8}
         collisionAvoidance={{ side: "flip", align: "shift", fallbackAxisSide: "none" }}
         positionMethod="fixed"
-        className="pointer-events-none z-1200 w-max max-w-tooltip-viewport"
+        className="pointer-events-none z-1200 w-max"
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           role="tooltip"
           className={cn(
-            "app-tooltip pointer-events-none max-w-full whitespace-normal wrap-anywhere border-standard border-solid border-line rounded-small bg-surface-raised px-control-gap py-control-gap-compact text-caption text-text-strong text-center shadow-app-tooltip origin-bottom data-[side=right]:origin-left data-[side=bottom]:origin-top data-[side=left]:origin-right motion-safe:app-motion:animate-tooltip-enter",
+            "app-tooltip pointer-events-none w-max max-w-tooltip-viewport data-[side=left]:max-w-tooltip-side data-[side=right]:max-w-tooltip-side whitespace-normal wrap-anywhere border-standard border-solid border-line rounded-small bg-surface-raised px-control-gap py-control-gap-compact text-caption text-text-strong text-center shadow-app-tooltip origin-bottom data-[side=right]:origin-left data-[side=bottom]:origin-top data-[side=left]:origin-right motion-safe:app-motion:animate-tooltip-enter",
             className,
           )}
           {...props}

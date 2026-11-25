@@ -240,6 +240,10 @@
 @theme inline {
   --container-tooltip-viewport: min(
     var(--container-tooltip),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+  --container-tooltip-side: min(
+    var(--container-tooltip),
     var(--available-width, 100vw),
     calc(100vw - var(--spacing-overlay-viewport-inset))
   );
