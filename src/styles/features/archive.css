@@ -12,11 +12,6 @@
   background: var(--canvas-deep);
 }
 
-.archive-loading {
-  color: var(--muted);
-  font-size: var(--type-body);
-}
-
 .archive-manager-shell {
   display: grid;
   height: 100%;
@@ -572,14 +567,6 @@ html[data-motion="on"]
   line-height: 1.35;
   overflow-wrap: anywhere;
   white-space: normal;
-}
-
-.archive-create-form .form-required {
-  margin-inline-start: 4px;
-  color: var(--error-strong);
-  font-size: var(--type-caption);
-  font-weight: var(--type-control-label-weight);
-  letter-spacing: normal;
 }
 
 .archive-create-form__row .input-shell {

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateCheckbox } from "../../test/activateCheckbox";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -95,14 +96,14 @@ describe("BulkMetadataDialog", () => {
     });
 
     expect(container.textContent).toContain("Mixed values");
-    const seriesToggle = container.querySelector<HTMLInputElement>(
-      '.bulk-metadata-field input[type="checkbox"]',
+    const seriesToggle = container.querySelector<HTMLElement>(
+      '[role="checkbox"][aria-label="Series"]',
     )!;
     const seriesInput = container.querySelector<HTMLInputElement>(
       'input[aria-label="New series"]',
     )!;
     act(() => {
-      seriesToggle.click();
+      activateCheckbox(seriesToggle);
       setInputValue(seriesInput, "Shared Series");
     });
     const seriesHelpId = seriesInput.getAttribute("aria-describedby");
@@ -142,9 +143,7 @@ describe("BulkMetadataDialog", () => {
     });
 
     expect(container.textContent).toContain("Use one tag per line. Commas remain part of the tag.");
-    const tagToggle = container.querySelector<HTMLInputElement>(
-      '.bulk-metadata-field--tags input[type="checkbox"]',
-    )!;
+    const tagToggle = container.querySelector<HTMLElement>('[role="checkbox"][aria-label="Tags"]')!;
     const textarea = container.querySelector<HTMLTextAreaElement>(
       'textarea[aria-label="Tags to apply"]',
     )!;
@@ -155,7 +154,7 @@ describe("BulkMetadataDialog", () => {
         ?.getAttribute("aria-describedby"),
     ).toBe("bulk-metadata-subjects-help");
     act(() => {
-      tagToggle.click();
+      activateCheckbox(tagToggle);
       setTextareaValue(textarea, "Science\r\nTechnology");
     });
     act(() => button(container, "Review changes").click());
@@ -177,14 +176,14 @@ describe("BulkMetadataDialog", () => {
       root?.render(<BulkMetadataDialog books={books} onApply={onApply} onClose={vi.fn()} />);
     });
 
-    const seriesToggle = container.querySelector<HTMLInputElement>(
-      '.bulk-metadata-field input[type="checkbox"]',
+    const seriesToggle = container.querySelector<HTMLElement>(
+      '[role="checkbox"][aria-label="Series"]',
     )!;
     const seriesInput = container.querySelector<HTMLInputElement>(
       'input[aria-label="New series"]',
     )!;
     act(() => {
-      seriesToggle.click();
+      activateCheckbox(seriesToggle);
       setInputValue(seriesInput, "Shared Series");
     });
     act(() => button(container, "Review changes").click());
@@ -227,14 +226,14 @@ describe("BulkMetadataDialog", () => {
       );
     });
 
-    const seriesToggle = container.querySelector<HTMLInputElement>(
-      '.bulk-metadata-field input[type="checkbox"]',
+    const seriesToggle = container.querySelector<HTMLElement>(
+      '[role="checkbox"][aria-label="Series"]',
     )!;
     const seriesInput = container.querySelector<HTMLInputElement>(
       'input[aria-label="New series"]',
     )!;
     act(() => {
-      seriesToggle.click();
+      activateCheckbox(seriesToggle);
       setInputValue(seriesInput, "Shared Series");
     });
     act(() => button(container, "Review changes").click());
@@ -245,7 +244,6 @@ describe("BulkMetadataDialog", () => {
 
     const alert = container.querySelector<HTMLElement>('[role="alert"]');
     expect(alert?.textContent).toBe("The EPUB could not be updated.");
-    expect(alert?.classList.contains("form-error")).toBe(true);
     expect(document.activeElement).toBe(update);
     expect(onClose).not.toHaveBeenCalled();
 
@@ -275,9 +273,9 @@ describe("BulkMetadataDialog", () => {
 
     onClose.mockClear();
     act(() => {
-      container
-        .querySelector<HTMLInputElement>('.bulk-metadata-field input[type="checkbox"]')
-        ?.click();
+      activateCheckbox(
+        container.querySelector<HTMLElement>('[role="checkbox"][aria-label="Series"]')!,
+      );
       button(container, "Cancel").click();
     });
     expect(container.textContent).toContain("Discard metadata changes?");

@@ -1,3 +1,4 @@
+import { CollectionLoading } from "../../components/CollectionLoading";
 import { Tooltip } from "../../components/Tooltip";
 import {
   BookOpen,
@@ -183,9 +184,7 @@ export function LibraryEpubIssuesView({
         ) : null}
 
         {initialLoading ? (
-          <div className="collection-content__loading library-loading" role="status">
-            <span>Checking EPUB files</span>
-          </div>
+          <CollectionLoading message={"Checking EPUB files"} />
         ) : failedWithoutSnapshot ? (
           <div role="alert">
             <EmptyState

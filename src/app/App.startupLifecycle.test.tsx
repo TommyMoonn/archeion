@@ -299,6 +299,7 @@ describe("App window mode and startup shell ownership", () => {
 
     await renderApp();
     expect(mocks.initializeMainStartup).not.toHaveBeenCalled();
+    expect(container?.querySelector('[role="status"] span')?.textContent).toBe("Opening Archeion");
 
     await act(async () => request.resolve(null));
     await flushStartup();

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateCheckbox } from "../../test/activateCheckbox";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -256,7 +257,7 @@ describe("ThemeManagerSurface behavior", () => {
     expect(button(controls, "Use theme").getAttribute("aria-disabled")).toBe("true");
     act(() => button(controls, "Use theme").click());
     expect(services.keepPreview).not.toHaveBeenCalled();
-    expect(controls.querySelector('input[type="checkbox"]')).not.toBeNull();
+    expect(controls.querySelector('[role="checkbox"]')).not.toBeNull();
     act(() => button(controls, "Revert").click());
     expect(services.clearPreview).toHaveBeenCalledOnce();
     expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
@@ -265,7 +266,7 @@ describe("ThemeManagerSurface behavior", () => {
 
     act(() => button(container, "Preview").click());
     const nextControls = container.querySelector<HTMLElement>(".theme-preview-controls")!;
-    act(() => nextControls.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    act(() => activateCheckbox(nextControls.querySelector<HTMLElement>('[role="checkbox"]')!));
     expect(button(nextControls, "Use theme").getAttribute("aria-disabled")).toBeNull();
     await act(async () => button(nextControls, "Use theme").click());
     await settle();

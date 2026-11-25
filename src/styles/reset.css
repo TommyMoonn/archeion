@@ -10,8 +10,8 @@
 }
 
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: var(--spacing-scrollbar);
+  height: var(--spacing-scrollbar);
 }
 
 *::-webkit-scrollbar-button {

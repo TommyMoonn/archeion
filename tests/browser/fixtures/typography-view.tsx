@@ -1,3 +1,5 @@
+import { Field, FieldLabel, fieldInputClassName } from "../../../src/components/ui/field";
+import { Input as FieldInput } from "../../../src/components/ui/input";
 import { SettingsSection } from "../../../src/features/settings/components/SettingsSection";
 import { useState } from "react";
 import { Copy } from "lucide-react";
@@ -87,10 +89,14 @@ export function TypographyFixture() {
             onClose={() => setOpen(false)}
             footer={<Button onClick={() => setOpen(false)}>Save name</Button>}
           >
-            <label className="form-field">
-              <span>Archive name</span>
-              <input value={name} onChange={(event) => setName(event.currentTarget.value)} />
-            </label>
+            <Field>
+              <FieldLabel>Archive name</FieldLabel>
+              <FieldInput
+                className={fieldInputClassName}
+                value={name}
+                onChange={(event) => setName(event.currentTarget.value)}
+              />
+            </Field>
             <div className="menu-popover">
               <ActionListButton icon={<Copy aria-hidden="true" />} onClick={ignore}>
                 Copy archive path

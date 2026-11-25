@@ -73,7 +73,7 @@ const auditedErrorSources = [
   [
     "filesystem dialogs",
     "src/features/filesystem/AddEpubDialog.tsx",
-    /className="form-error add-epub-dialog__error" role="alert"/,
+    /<FieldError className="add-epub-dialog__error" role="alert"/,
   ],
   [
     "library metadata",

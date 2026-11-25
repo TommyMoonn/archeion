@@ -1,3 +1,4 @@
+import { FieldRequired } from "../../components/ui/field";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -138,7 +139,7 @@ export function ArchiveCreateView({
           <div className="archive-create-form__row archive-create-form__row--input">
             <div className="archive-create-form__label-block">
               <label htmlFor="archive-create-name" id={nameLabelId}>
-                Archive name <span className="form-required">Required</span>
+                Archive name <FieldRequired>Required</FieldRequired>
               </label>
               <span id={nameDescriptionId}>Creates a folder with this name.</span>
             </div>
@@ -181,7 +182,7 @@ export function ArchiveCreateView({
           >
             <div className="archive-create-form__row-copy">
               <span className="archive-create-form__row-label" id={locationLabelId}>
-                Location <span className="form-required">Required</span>
+                Location <FieldRequired>Required</FieldRequired>
               </span>
               <span
                 className="archive-create-form__row-description"

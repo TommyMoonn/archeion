@@ -134,7 +134,7 @@ describe("FolderBrowser", () => {
     expect(markup).toContain("No folders yet");
     expect(markup).toContain("button--standard folder-browser__add-button");
     expect(markup.match(/Add folder/g)).toHaveLength(1);
-    const emptyStateMarkup = markup.slice(markup.indexOf('class="empty-state"'));
+    const emptyStateMarkup = markup.slice(markup.indexOf('data-slot="empty"'));
     expect(emptyStateMarkup).not.toContain("Add folder");
   });
 

@@ -24,6 +24,11 @@ function fixtureDelay(value: string | null, fallback: number): number {
 
 /** Generated identities only. No file system, network archive or personal data access. */
 export async function installUIStabilityBackend(params: URLSearchParams) {
+  const coldStart = params.has("holdColdStart")
+    ? new Promise<void>((resolve) => {
+        window.addEventListener("fixture:release-cold-start", () => resolve(), { once: true });
+      })
+    : Promise.resolve();
   const settingsDelay = fixtureDelay(params.get("settingsDelay"), 80);
   const sourceDelay = fixtureDelay(params.get("sourceDelay"), 100);
   const archiveDelay = fixtureDelay(params.get("archiveDelay"), 100);
@@ -198,6 +203,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
       const input = args as Record<string, unknown>;
       switch (command) {
         case "cold_start_epub":
+          await coldStart;
           return null;
         case "managed_window_shell_ready":
           utilityEvents.push({

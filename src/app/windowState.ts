@@ -26,6 +26,7 @@ export type WindowStateRuntime = {
   availableWorkAreas: () => Promise<WindowWorkArea[]>;
   capture: () => Promise<PersistedWindowState>;
   isDesktop: boolean;
+  isVisible: () => Promise<boolean>;
   label: string;
   maximize: () => Promise<void>;
   onMoved: (listener: () => void) => Promise<() => void>;
@@ -64,6 +65,7 @@ export function createWindowStateRuntime(): WindowStateRuntime {
         throw new Error("Window state is unavailable outside the desktop app.");
       },
       isDesktop: false,
+      isVisible: async () => false,
       label: MAIN_WINDOW_LABEL,
       maximize: async () => undefined,
       onMoved: async () => () => undefined,
@@ -92,6 +94,7 @@ export function createWindowStateRuntime(): WindowStateRuntime {
       };
     },
     isDesktop: desktop,
+    isVisible: () => appWindow.isVisible(),
     label: appWindow.label,
     maximize: () => appWindow.maximize(),
     onMoved: (listener) => appWindow.onMoved(listener),
@@ -171,6 +174,12 @@ export async function restoreMainWindowState(
   }
 
   try {
+    // The native main window starts hidden. Reloading its webview must not
+    // reapply persisted bounds to an already displayed window.
+    if (await runtime.isVisible()) {
+      return false;
+    }
+
     const restored = clampWindowStateToWorkAreas(
       preferences.window,
       await runtime.availableWorkAreas(),

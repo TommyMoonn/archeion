@@ -33,7 +33,7 @@ export function PageShell({
     >
       {sidebar}
       <main
-        className="page-shell"
+        className="page-shell relative min-w-0 h-auto min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-gutter-stable m-0 pt-page-top px-page-inline pb-page-bottom border-0 rounded-none bg-surface-main shadow-none page-short:pt-page-short-top page-short:pb-page-short-bottom page-narrow:px-dialog-panel page-mobile:px-collection-loading page-mobile:pt-field-standard page-mobile:pb-page-compact-bottom page-compact:pt-page-compact-top page-compact:pb-page-compact-bottom"
         data-import-drop-active={importDropTarget?.active || undefined}
         data-import-drop-destination={importDropTarget?.destination}
         data-import-drop-id={importDropTarget?.id}

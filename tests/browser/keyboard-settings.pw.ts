@@ -111,7 +111,7 @@ test("keyboard-only shortcut capture rejects conflicts, saves, and restores focu
   await expect(trigger).toHaveText("Ctrl+Shift+K");
 });
 
-test("pointer-opened keybind capture keeps stable layout and visibly indicates focus", async ({
+test("pointer-opened keybind capture expands as one surface and visibly indicates focus", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
@@ -143,25 +143,45 @@ test("pointer-opened keybind capture keeps stable layout and visibly indicates f
     const duration = Number(animation.effect.getTiming().duration);
     const targets = [
       element,
-      ...element.querySelectorAll<HTMLElement>("h2, [aria-label='Shortcut capture'], button"),
+      ...element.querySelectorAll("h2, [aria-label='Shortcut capture'], button"),
     ];
-    const sample = (time: number) => {
-      animation.currentTime = time;
-      return targets.map((target) => [
-        target.offsetLeft,
-        target.offsetTop,
-        target.offsetWidth,
-        target.offsetHeight,
-      ]);
+    const pose = () => ({
+      bounds: targets.map((target) => target.getBoundingClientRect().toJSON()),
+      opacity: Number(getComputedStyle(element).opacity),
+    });
+    const sample = (fraction: number) => {
+      animation.currentTime = duration * fraction;
+      return pose();
     };
+    animation.pause();
     const start = sample(0);
-    const middle = sample(duration / 2);
-    const end = sample(duration);
+    const middle = sample(0.3);
+    const late = sample(0.65);
+    const end = sample(1);
     animation.finish();
-    return { start, middle, end };
+    return { start, middle, late, end, settled: pose() };
   });
-  expect(samples.start).toEqual(samples.end);
-  expect(samples.middle).toEqual(samples.end);
+  expect(samples.start.opacity).toBe(0);
+  expect(samples.middle.opacity).toBeGreaterThan(samples.start.opacity);
+  expect(samples.late.opacity).toBeGreaterThan(samples.middle.opacity);
+  expect(samples.end.opacity).toBe(1);
+  expect(samples.start.bounds[0].width / samples.end.bounds[0].width).toBeCloseTo(0.985, 3);
+  for (const frame of [samples.start, samples.middle]) {
+    const scale = frame.bounds[0].width / samples.end.bounds[0].width;
+    const centerX = frame.bounds[0].x + frame.bounds[0].width / 2;
+    const centerY = frame.bounds[0].y + frame.bounds[0].height / 2;
+    expect(centerX).toBeCloseTo(samples.end.bounds[0].x + samples.end.bounds[0].width / 2, 1);
+    expect(centerY).toBeCloseTo(samples.end.bounds[0].y + samples.end.bounds[0].height / 2, 1);
+    for (const [index, rect] of frame.bounds.entries()) {
+      const final = samples.end.bounds[index];
+      expect(rect.width / final.width).toBeCloseTo(scale, 3);
+      expect(rect.x - centerX).toBeCloseTo((final.x - centerX) * scale, 1);
+      expect(rect.y - centerY).toBeCloseTo((final.y - centerY) * scale, 1);
+    }
+  }
+  expect(samples.middle.bounds[0].width).toBeGreaterThan(samples.start.bounds[0].width);
+  expect(samples.late.bounds).toEqual(samples.end.bounds);
+  expect(samples.settled.bounds).toEqual(samples.end.bounds);
   await expect(capture.getByText("Press a shortcut", { exact: true })).toBeVisible();
   await expect(save.locator("svg")).toBeVisible();
   const focusedBorder = await capture.evaluate((element) => getComputedStyle(element).borderColor);
@@ -192,6 +212,23 @@ test("forced colors retain visible focus and conflict feedback", async ({ page }
   await page.keyboard.press("Enter");
   const capture = page.getByRole("group", { name: "Shortcut capture" });
   await expect(capture).toBeFocused();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveCSS("border-top-width", "1px");
+  expect(
+    await dialog.evaluate((element) => {
+      const probe = document.createElement("span");
+      probe.style.color = "CanvasText";
+      probe.style.backgroundColor = "Canvas";
+      document.body.append(probe);
+      const expected = getComputedStyle(probe);
+      const actual = getComputedStyle(element);
+      const matches =
+        actual.borderTopColor === expected.color &&
+        actual.backgroundColor === expected.backgroundColor;
+      probe.remove();
+      return matches;
+    }),
+  ).toBe(true);
   await page.keyboard.press("Control+Comma");
   const error = page.getByRole("alert");
   await expect(error).toContainText("conflicts");

@@ -1,3 +1,5 @@
+import { statusActionsClass, statusLinkClass } from "../../components/statusStyles";
+import { StatusPage } from "../../components/StatusPage";
 import { BookOpenText, X } from "lucide-react";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -1032,11 +1034,11 @@ export function ReaderPage({
   let sourceError;
   if (!temporary && (!book || book.isFileMissing)) {
     sourceError = (
-      <section className="reader-error" role="alert">
+      <StatusPage as="section" className="reader-error" role="alert">
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
-        <div className="reader-status-page__actions">
+        <div className={statusActionsClass}>
           {!standalone ? (
             <Button
               busy={recoveryStatus === "rescanning"}
@@ -1048,7 +1050,7 @@ export function ReaderPage({
               Rescan Library
             </Button>
           ) : null}
-          <button className="text-link" onClick={returnToOrigin} type="button">
+          <button className={statusLinkClass} onClick={returnToOrigin} type="button">
             {standalone ? "Close" : "Back"}
           </button>
         </div>
@@ -1057,7 +1059,7 @@ export function ReaderPage({
             The archive could not be scanned. Try again or return to the Library.
           </p>
         ) : null}
-      </section>
+      </StatusPage>
     );
   }
 
@@ -1076,7 +1078,7 @@ export function ReaderPage({
     (readerSource.status === "error" || !fileLease)
   ) {
     sourceError = (
-      <section className="reader-error" role="alert">
+      <StatusPage as="section" className="reader-error" role="alert">
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>EPUB could not be opened</h1>
         <p>
@@ -1086,7 +1088,7 @@ export function ReaderPage({
               ? "The selected EPUB could not be read."
               : "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it."}
         </p>
-        <div className="reader-status-page__actions">
+        <div className={statusActionsClass}>
           {readerSource.status === "error" && readerSource.retryable ? (
             <Button onClick={readerSource.retry} size="standard" variant="secondary">
               Try again
@@ -1103,7 +1105,7 @@ export function ReaderPage({
               Rescan Library
             </Button>
           ) : null}
-          <button className="text-link" onClick={returnToOrigin} type="button">
+          <button className={statusLinkClass} onClick={returnToOrigin} type="button">
             {standalone ? "Close" : "Back"}
           </button>
         </div>
@@ -1112,7 +1114,7 @@ export function ReaderPage({
             The archive could not be scanned. Try again or return to the Library.
           </p>
         ) : null}
-      </section>
+      </StatusPage>
     );
   }
 
@@ -1235,19 +1237,19 @@ export function ReaderPage({
         <div className="reader-content-stage" aria-busy={opening || undefined}>
           {sourceError ??
             (readerSessionFailure ? (
-              <section className="reader-error" role="alert">
+              <StatusPage as="section" className="reader-error" role="alert">
                 <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
                 <h1>EPUB could not be opened</h1>
                 <p>{readerSessionFailure.message}</p>
-                <div className="reader-status-page__actions">
+                <div className={statusActionsClass}>
                   <Button onClick={handleSessionRetry} size="standard" variant="secondary">
                     Try again
                   </Button>
-                  <button className="text-link" onClick={returnToOrigin} type="button">
+                  <button className={statusLinkClass} onClick={returnToOrigin} type="button">
                     {standalone ? "Close" : "Back"}
                   </button>
                 </div>
-              </section>
+              </StatusPage>
             ) : fileLease &&
               readerSessionIdentity &&
               (readerSessionLifecycle.phase === "starting" ||

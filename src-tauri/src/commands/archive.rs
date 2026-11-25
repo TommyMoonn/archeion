@@ -722,7 +722,11 @@ fn emit_archive_registry_changed(
 }
 
 fn show_and_focus_window(window: &tauri::WebviewWindow) -> Result<(), String> {
-    window.show().map_err(|error| error.to_string())?;
+    if !window.is_visible().map_err(|error| error.to_string())?
+        || window.is_minimized().map_err(|error| error.to_string())?
+    {
+        window.show().map_err(|error| error.to_string())?;
+    }
     window.set_focus().map_err(|error| error.to_string())?;
     Ok(())
 }

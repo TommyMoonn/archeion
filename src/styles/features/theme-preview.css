@@ -62,12 +62,6 @@
   line-height: 1.4;
 }
 
-.theme-preview-controls__warning input {
-  flex: none;
-  margin: 2px 0 0;
-  accent-color: var(--accent);
-}
-
 .theme-preview-controls__actions {
   display: flex;
   flex: none;

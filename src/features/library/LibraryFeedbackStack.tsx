@@ -1,3 +1,4 @@
+import { statusToneTextClass } from "../../components/statusStyles";
 import { CircleCheck, CircleAlert, X } from "lucide-react";
 
 import { IconButton } from "../../components/IconButton";
@@ -37,7 +38,7 @@ function LibraryFeedbackItem({ onDismiss, token }: LibraryFeedbackItemProps) {
   return (
     <section
       aria-atomic="true"
-      className="library-feedback__token status-token"
+      className="library-feedback__token"
       data-has-detail={Boolean(token.detail || token.details?.length)}
       data-tone={token.tone}
       role={token.tone === "error" ? "alert" : "status"}
@@ -45,7 +46,7 @@ function LibraryFeedbackItem({ onDismiss, token }: LibraryFeedbackItemProps) {
     >
       {feedbackIcon(token.tone)}
       <div className="library-feedback__copy">
-        <p>{token.title}</p>
+        <p className={statusToneTextClass[token.tone]}>{token.title}</p>
         {token.detail ? <span>{token.detail}</span> : null}
         {token.details?.length ? (
           <details>

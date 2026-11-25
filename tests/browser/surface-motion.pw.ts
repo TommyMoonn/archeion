@@ -3,54 +3,55 @@ import { expect, test } from "@playwright/test";
 const fixture = "/tests/browser/fixtures/modal-lifetime.html";
 test.use({ video: "retain-on-failure" });
 
-test("interrupted dialog entry keeps its displayed size through exit and mid-exit reopen", async ({
+test("interrupted dialog entry preserves rendered bounds and reverses opacity through exit and reopen", async ({
   page,
 }, info) => {
   await page.goto(fixture);
   await page.getByRole("button", { name: "Open surface" }).focus();
-  const entering = await page.evaluate(() => {
+  const samples = await page.evaluate(async () => {
+    document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
     document.documentElement.style.setProperty("--motion-duration-fast", "1500ms");
     window.modalLifetime.show();
     const dialog = document.querySelector("dialog")!;
-    const entry = dialog
-      .getAnimations()
-      .find((a) => (a as CSSAnimation).animationName === "dialog-presence-enter")!;
-    entry.pause();
-    entry.currentTime = Number(entry.effect!.getTiming().duration) * 0.4;
-    return {
-      bounds: dialog.getBoundingClientRect().toJSON(),
-      opacity: Number(getComputedStyle(dialog).opacity),
+    const animation = (name: string) => {
+      const match = dialog
+        .getAnimations()
+        .find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === name);
+      if (!match?.effect) throw new Error(`Missing ${name} animation`);
+      return match;
     };
-  });
-  await page.keyboard.press("Escape");
-  const samples = await page.locator("dialog").evaluate((dialog) => {
     const pose = () => ({
       bounds: dialog.getBoundingClientRect().toJSON(),
       opacity: Number(getComputedStyle(dialog).opacity),
     });
-    const exit = dialog
-      .getAnimations()
-      .find((a) => (a as CSSAnimation).animationName === "dialog-exit")!;
-    exit.pause();
+    const entry = animation("dialog-presence-enter");
+    await entry.ready;
+    entry.currentTime = Number(entry.effect!.getTiming().duration) * 0.4;
+    const entering = pose();
+    // Seek the running animation; pausing it can retain its effect after the CSS rule changes.
+    window.modalLifetime.close();
+    const exit = animation("dialog-exit");
     exit.currentTime = 0;
     const start = pose();
     exit.currentTime = Number(exit.effect!.getTiming().duration) / 2;
     const half = pose();
     window.modalLifetime.show();
+    animation("dialog-presence-enter").currentTime = 0;
     const reopened = pose();
     dialog.getAnimations({ subtree: true }).forEach((a) => a.finish());
-    return { start, half, reopened };
+    return { entering, start, half, reopened };
   });
   await info.attach("interrupted-closing.json", {
-    body: JSON.stringify({ entering, ...samples }, null, 2),
+    body: JSON.stringify(samples, null, 2),
     contentType: "application/json",
   });
-  // Computed transforms serialize to a rounded matrix when the lifecycle samples the pose.
+  // Interruption must not move the frame while the opacity reverses.
   for (const dimension of ["x", "y", "width", "height"] as const) {
-    expect(samples.start.bounds[dimension]).toBeCloseTo(entering.bounds[dimension], 2);
+    expect(samples.start.bounds[dimension]).toBeCloseTo(samples.entering.bounds[dimension], 2);
     expect(samples.half.bounds[dimension]).toBeCloseTo(samples.start.bounds[dimension], 2);
     expect(samples.reopened.bounds[dimension]).toBeCloseTo(samples.half.bounds[dimension], 2);
   }
+  expect(samples.start.opacity).toBeCloseTo(samples.entering.opacity, 2);
   expect(samples.half.opacity).toBeLessThan(samples.start.opacity);
   expect(samples.reopened.opacity).toBeCloseTo(samples.half.opacity, 2);
   await page.keyboard.press("Escape");
@@ -254,7 +255,7 @@ for (const width of [1280, 390]) {
 }
 
 for (const scale of [1, 1.25, 1.5]) {
-  test(`centered modal bounds and text stay proportional at emulated scale ${scale}`, async ({
+  test(`centered modal expands together and settles early at emulated scale ${scale}`, async ({
     browser,
     baseURL,
   }, info) => {
@@ -277,17 +278,24 @@ for (const scale of [1, 1.25, 1.5]) {
       const duration = Number(animation.effect!.getTiming().duration);
       const pose = () => ({
         bounds: dialog.getBoundingClientRect().toJSON(),
-        control: dialog.querySelector("button")!.getBoundingClientRect().toJSON(),
+        controls: [...dialog.querySelectorAll("h2, button")].map((control) =>
+          control.getBoundingClientRect().toJSON(),
+        ),
         opacity: Number(getComputedStyle(dialog).opacity),
-        origin: getComputedStyle(dialog).transformOrigin,
       });
       animation.currentTime = 0;
       const first = pose();
+      animation.currentTime = duration * 0.65;
+      const late = pose();
       animation.currentTime = duration;
       const last = pose();
+      animation.finish();
+      const settled = pose();
       return {
         first,
+        late,
         last,
+        settled,
         duration,
         focused: dialog.contains(document.activeElement),
         modal: dialog.matches(":modal"),
@@ -297,17 +305,21 @@ for (const scale of [1, 1.25, 1.5]) {
       body: JSON.stringify(samples, null, 2),
       contentType: "application/json",
     });
-    expect(samples.first.bounds.width / samples.last.bounds.width).toBeCloseTo(0.97, 2);
-    expect(samples.first.opacity).toBeGreaterThanOrEqual(0.9);
+    expect(samples.first.bounds.width / samples.last.bounds.width).toBeCloseTo(0.985, 3);
+    for (const [index, control] of samples.first.controls.entries()) {
+      expect(control.width / samples.last.controls[index].width).toBeCloseTo(0.985, 3);
+    }
+    expect(samples.late.bounds).toEqual(samples.last.bounds);
+    expect(samples.late.controls).toEqual(samples.last.controls);
+    expect(samples.settled.bounds).toEqual(samples.last.bounds);
+    expect(samples.settled.controls).toEqual(samples.last.controls);
+    expect(samples.first.opacity).toBeLessThan(samples.last.opacity);
+    expect(samples.first.opacity).toBe(0);
     expect(samples.duration).toBeGreaterThanOrEqual(160);
     expect(samples.duration).toBeLessThanOrEqual(180);
     for (const frame of [samples.first, samples.last]) {
       expect(frame.bounds.x + frame.bounds.width / 2).toBeCloseTo(500, 0);
       expect(frame.bounds.y + frame.bounds.height / 2).toBeCloseTo(400, 0);
-      expect((frame.control.x - frame.bounds.x) / frame.bounds.width).toBeCloseTo(
-        (samples.last.control.x - samples.last.bounds.x) / samples.last.bounds.width,
-        3,
-      );
     }
     expect(samples.focused && samples.modal).toBe(true);
     await page.keyboard.press("Escape");

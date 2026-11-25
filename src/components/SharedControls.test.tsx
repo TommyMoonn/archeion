@@ -280,7 +280,6 @@ describe("shared control geometry", () => {
     const enabledDescriptionId = enabled?.getAttribute("aria-describedby") ?? "";
     const unavailableDescriptionId = unavailable?.getAttribute("aria-describedby") ?? "";
     expect(document.getElementById(enabledDescriptionId)?.textContent).toBe("Open archive");
-    expect(document.getElementById(unavailableDescriptionId)?.getAttribute("role")).toBe("tooltip");
     expect(document.getElementById(unavailableDescriptionId)?.textContent).toBe(
       "Choose an archive first",
     );
@@ -297,7 +296,7 @@ describe("shared control geometry", () => {
       vi.advanceTimersByTime(500);
     });
 
-    expect(document.querySelector(".app-tooltip")?.textContent).toBe("Choose an archive first");
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe("Choose an archive first");
     expect(onEnabledClick).toHaveBeenCalledOnce();
     expect(onUnavailableClick).not.toHaveBeenCalled();
     vi.useRealTimers();

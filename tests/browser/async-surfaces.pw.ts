@@ -396,9 +396,28 @@ for (const [surface, chunk] of [
       await page.goto(`${fixture}?surface=${surface}`);
       const header = page.locator(".library-header");
       await expect(header).toBeVisible();
+      const content = page.locator(".collection-content");
+      const spinner = content.getByRole("status");
+      await expect(spinner).toBeVisible();
       const before = await header.boundingBox();
+      const bounds = await content.boundingBox();
+      const indicator = await spinner.boundingBox();
+      if (!bounds || !indicator) throw new Error("Loading surface is missing geometry");
+      expect(
+        Math.abs(indicator.x + indicator.width / 2 - bounds.x - bounds.width / 2),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(indicator.y + indicator.height / 2 - bounds.y - bounds.height / 2),
+      ).toBeLessThanOrEqual(1);
       release();
-      await expect(page.getByText("Opening view…", { exact: true })).toHaveCount(0);
+      if (surface === "series") {
+        await expect(page.getByRole("heading", { name: "No series metadata" })).toBeVisible();
+      } else {
+        await expect(content).toHaveClass(
+          new RegExp(`${surface === "issues" ? "epub-issues" : "duplicates"}-content`),
+        );
+        await expect(content.getByRole("status")).toBeVisible();
+      }
       expect(await header.boundingBox()).toEqual(before);
     } finally {
       release();

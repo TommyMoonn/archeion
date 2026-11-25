@@ -101,6 +101,8 @@ const publicCrossLayerModules = new Map([
   ["src/app/useAsyncRouteLeaveGuard.ts", new Set(["features"])],
   ["src/app/windowMode.ts", new Set(["features"])],
   ["src/components/SkipLink.tsx", new Set(["storage"])],
+  // The React storage provider renders its own pending presentation.
+  ["src/components/LoadingStatus.tsx", new Set(["storage"])],
   ["src/features/commands/commandBindings.ts", new Set(["stores"])],
 ]);
 

@@ -442,7 +442,9 @@ describe("LibraryToolbar", () => {
     expect(session.container.querySelector('[aria-label="Active filters"]')?.textContent).toContain(
       "In progress",
     );
-    expect(session.container.querySelector(".library-filter__count")?.textContent).toBe("2");
+    expect(
+      session.container.querySelector('summary[aria-label="Filter library"]')?.textContent,
+    ).toBe("Filters2");
 
     const removeSeries = session.container.querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Series: Star Saga filter"]',
@@ -462,7 +464,9 @@ describe("LibraryToolbar", () => {
     activeRoot = session.root;
 
     expect(session.container.querySelector('[aria-label="Active filters"]')).toBeNull();
-    expect(session.container.querySelector(".library-filter__count")).toBeNull();
+    expect(
+      session.container.querySelector('summary[aria-label="Filter library"]')?.textContent,
+    ).toBe("Filters");
     expect(session.container.querySelector('[aria-label="1 book shown"]')?.textContent).toBe(
       "1 book",
     );

@@ -1,3 +1,4 @@
+import { statusLinkClass } from "../../components/statusStyles";
 import { Minus, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
@@ -186,7 +187,11 @@ export function ReaderSettingsPanel({
                   <p className="reader-settings__status" data-error role="alert">
                     Book layout could not be saved. The saved layout has been restored.
                   </p>
-                  <button className="text-link" onClick={onPresentationRetry} type="button">
+                  <button
+                    className={`${statusLinkClass} mt-status-link-gap`}
+                    onClick={onPresentationRetry}
+                    type="button"
+                  >
                     Retry saving book layout
                   </button>
                 </div>

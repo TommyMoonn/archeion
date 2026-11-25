@@ -17,7 +17,7 @@ The modal config runs both lifecycle and motion suites. Evidence goes to
 `test-results/modal-lifetime/` and `test-results/async-surfaces/`.
 
 The motion cases record paused entry/exit bounds, opaque drawer travel at 1280px and 390px,
-proportional modal/control bounds, native focus containment/return, one scrim through nesting,
+coordinated modal/control expansion with stable late-entry bounds, native focus containment/return, one scrim through nesting,
 same-commit replacement, backdrop interruption/reversal, and cold/warm input-to-paint frames.
 JSON attachments are retained inside Playwright traces when tracing is enabled. Browser
 device scale factors 1/1.25/1.5 and larger fixture text are emulations, not Windows DPI proof.

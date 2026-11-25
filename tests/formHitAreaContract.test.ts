@@ -59,7 +59,6 @@ describe("form semantics and control hit-area contract", () => {
   });
 
   it("keeps long errors and constrained forms locally reflowable", () => {
-    expect(cssBlock(forms, ".form-error")).toContain("overflow-wrap: anywhere");
     expect(cssBlock(archive, "@container archive-detail (max-width: 360px)")).toContain(
       "grid-template-columns: minmax(0, 1fr)",
     );

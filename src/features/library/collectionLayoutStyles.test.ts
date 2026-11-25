@@ -3,10 +3,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const tokens = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
-const appShellStyles = readFileSync(
-  new URL("../../styles/layout/app-shell.css", import.meta.url),
-  "utf8",
-);
 const collectionContentStyles = readFileSync(
   new URL("../../styles/layout/collection-content.css", import.meta.url),
   "utf8",
@@ -50,13 +46,6 @@ function cssBlock(source: string, selector: string): string {
 }
 
 describe("collection content spacing ownership", () => {
-  it("uses the shared page shell to keep horizontal gutters compact across views", () => {
-    const pageShell = cssBlock(appShellStyles, ".page-shell");
-
-    expect(pageShell).toContain("padding: 42px clamp(20px, 2.5vw, 40px) 36px;");
-    expect(pageShell).not.toContain("4.5vw");
-  });
-
   it("keeps the selection ribbon on the search-surface treatment", () => {
     const selectionBar = cssBlock(libraryStyles, "\n.library-selection-bar");
 
@@ -84,7 +73,9 @@ describe("collection content spacing ownership", () => {
   });
 
   it("routes the primary Library and Series views through the same content layout owner", () => {
-    expect(libraryWorkspaceSource).toContain('className="collection-content library-content"');
+    expect(libraryWorkspaceSource).toMatch(
+      /className="collection-content library-content(?: [^"]*)?"/,
+    );
     expect(seriesOverviewSource).toContain(
       'className="collection-content series-overview__content"',
     );

@@ -10,7 +10,6 @@ import {
   Tooltip,
   TooltipProvider,
 } from "./Tooltip";
-import { resolveTooltipPosition } from "./tooltipPosition";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -84,8 +83,6 @@ describe("Tooltip", () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(visibleTooltip()?.textContent).toBe("Open archive actions");
-    expect(visibleTooltip()?.dataset.positioned).toBe("true");
-    expect(visibleTooltip()?.style.visibility).toBe("visible");
     expect(document.querySelectorAll(".app-tooltip")).toHaveLength(1);
 
     act(() => trigger.dispatchEvent(pointerEvent("pointerout")));
@@ -118,8 +115,7 @@ describe("Tooltip", () => {
 
     const tooltip = visibleTooltip();
     expect(tooltip?.textContent).toBe("Close book details");
-    expect(tooltip?.parentElement).toBe(dialog);
-    expect(tooltip?.style.visibility).toBe("visible");
+    expect(tooltip?.closest("dialog")).toBe(dialog);
   });
 
   it("uses the shorter keyboard delay and dismisses on blur, pointer down, and Escape", () => {
@@ -274,6 +270,36 @@ describe("Tooltip", () => {
     expect(visibleTooltip()).toBeNull();
   });
 
+  it("keeps the focused trigger mounted as its description is added and removed", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (content: string) => {
+      act(() => {
+        root?.render(
+          <TooltipProvider>
+            <Tooltip content={content}>
+              <button type="button">Import</button>
+            </Tooltip>
+          </TooltipProvider>,
+        );
+      });
+    };
+
+    render("");
+    const trigger = container.querySelector("button")!;
+    act(() => trigger.focus());
+    render("Import in progress");
+    expect(document.activeElement).toBe(trigger);
+    const descriptionId = trigger.getAttribute("aria-describedby");
+    expect(document.getElementById(descriptionId ?? "")?.textContent).toBe("Import in progress");
+
+    render("");
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.hasAttribute("aria-describedby")).toBe(false);
+    expect(document.getElementById(descriptionId ?? "")).toBeNull();
+  });
+
   it("opens truncated-text help only when the measured target is clipped", () => {
     container = document.createElement("div");
     document.body.append(container);
@@ -309,69 +335,5 @@ describe("Tooltip", () => {
       vi.advanceTimersByTime(TOOLTIP_POINTER_OPEN_DELAY_MS);
     });
     expect(visibleTooltip()?.textContent).toBe("A complete folder name");
-  });
-});
-
-describe("resolveTooltipPosition", () => {
-  const viewport = { viewportHeight: 300, viewportWidth: 400 };
-  const tooltip = { tooltipHeight: 40, tooltipWidth: 100 };
-
-  it.each([
-    {
-      expected: "bottom",
-      preferredPlacement: "top" as const,
-      triggerRect: { bottom: 30, height: 20, left: 180, right: 220, top: 10, width: 40 },
-    },
-    {
-      expected: "top",
-      preferredPlacement: "bottom" as const,
-      triggerRect: { bottom: 290, height: 20, left: 180, right: 220, top: 270, width: 40 },
-    },
-    {
-      expected: "right",
-      preferredPlacement: "left" as const,
-      triggerRect: { bottom: 160, height: 20, left: 10, right: 50, top: 140, width: 40 },
-    },
-    {
-      expected: "left",
-      preferredPlacement: "right" as const,
-      triggerRect: { bottom: 160, height: 20, left: 350, right: 390, top: 140, width: 40 },
-    },
-  ])("flips $preferredPlacement at its viewport edge", (input) => {
-    expect(resolveTooltipPosition({ ...input, ...tooltip, ...viewport }).placement).toBe(
-      input.expected,
-    );
-  });
-
-  it("clamps the secondary axis at the left, right, top, and bottom viewport edges", () => {
-    const left = resolveTooltipPosition({
-      ...tooltip,
-      ...viewport,
-      preferredPlacement: "bottom",
-      triggerRect: { bottom: 120, height: 20, left: 0, right: 20, top: 100, width: 20 },
-    });
-    const right = resolveTooltipPosition({
-      ...tooltip,
-      ...viewport,
-      preferredPlacement: "top",
-      triggerRect: { bottom: 120, height: 20, left: 380, right: 400, top: 100, width: 20 },
-    });
-    const top = resolveTooltipPosition({
-      ...tooltip,
-      ...viewport,
-      preferredPlacement: "right",
-      triggerRect: { bottom: 20, height: 20, left: 150, right: 170, top: 0, width: 20 },
-    });
-    const bottom = resolveTooltipPosition({
-      ...tooltip,
-      ...viewport,
-      preferredPlacement: "left",
-      triggerRect: { bottom: 300, height: 20, left: 230, right: 250, top: 280, width: 20 },
-    });
-
-    expect(left.left).toBe(8);
-    expect(right.left).toBe(292);
-    expect(top.top).toBe(8);
-    expect(bottom.top).toBe(252);
   });
 });

@@ -346,7 +346,7 @@ describe("BookCoverWritebackDialog", () => {
     expect(
       container?.querySelector<HTMLImageElement>('img[alt="Final replacement cover preview"]'),
     ).toHaveProperty("src", "blob:preview");
-    expect(container?.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(container?.querySelector('[role="checkbox"]')).toBeNull();
     expect(container?.textContent).not.toContain("EPUB action");
     expect(container?.textContent).not.toContain("Preview — not yet saved");
     expect(container?.textContent).not.toContain(

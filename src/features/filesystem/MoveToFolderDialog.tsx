@@ -1,3 +1,4 @@
+import { FieldError } from "../../components/ui/field";
 import { MoveRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -68,9 +69,7 @@ export function MoveToFolderDialog({
       title={title}
       feedback={
         error ? (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
+          <FieldError role="alert">{error}</FieldError>
         ) : (
           <p role="status">{isSaving ? "Moving…" : ""}</p>
         )

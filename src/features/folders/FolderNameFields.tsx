@@ -1,3 +1,5 @@
+import { Field, FieldLabel, fieldInputClassName } from "../../components/ui/field";
+import { Input as FieldInput } from "../../components/ui/input";
 import type { FormEvent, Ref } from "react";
 export function FolderNameFields({
   formId,
@@ -18,9 +20,10 @@ export function FolderNameFields({
 }) {
   return (
     <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
-      <label className="form-field">
-        <span>Name</span>
-        <input
+      <Field>
+        <FieldLabel>Name</FieldLabel>
+        <FieldInput
+          className={fieldInputClassName}
           aria-describedby={validationError ? validationErrorId : undefined}
           aria-invalid={validationError ? true : undefined}
           autoFocus
@@ -32,7 +35,7 @@ export function FolderNameFields({
           required
           value={name}
         />
-      </label>
+      </Field>
     </form>
   );
 }

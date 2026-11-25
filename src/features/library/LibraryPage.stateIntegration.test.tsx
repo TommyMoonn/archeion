@@ -38,6 +38,9 @@ describe("LibraryPage shell state integration", () => {
     expect(titlebarActions).not.toBeNull();
     expect(loadingContent?.getAttribute("data-surface-state")).toBe("loading");
     expect(loadingContent?.getAttribute("aria-busy")).toBe("true");
+    expect(
+      loadingContent?.querySelector('[role="status"][aria-label="Loading library"]'),
+    ).not.toBeNull();
 
     act(() => loadController.publishModel([], []));
 
@@ -85,7 +88,9 @@ describe("LibraryPage shell state integration", () => {
     expect(
       session.container.querySelector(".collection-content")?.getAttribute("data-surface-state"),
     ).toBe("results");
-    expect(session.container.textContent).not.toContain("Loading library");
+    expect(
+      session.container.querySelector('[role="status"][aria-label="Loading library"]'),
+    ).toBeNull();
   });
 
   it("distinguishes a true empty archive from an empty search without replacing the shell", async () => {
@@ -181,7 +186,9 @@ describe("LibraryPage shell state integration", () => {
 
     expect(loadingContent?.getAttribute("data-surface-state")).toBe("loading");
     expect(loadingContent?.getAttribute("aria-busy")).toBe("true");
-    expect(loadingContent?.textContent).toContain("Loading folders");
+    expect(
+      loadingContent?.querySelector('[role="status"][aria-label="Loading folders"]'),
+    ).not.toBeNull();
     expect(loadingContent?.textContent).not.toContain("No folders");
 
     act(() => loadController.publishModel([], []));
@@ -230,7 +237,9 @@ describe("LibraryPage shell state integration", () => {
         .querySelector(".folder-browser__content")
         ?.getAttribute("data-surface-state"),
     ).toBe("results");
-    expect(session.container.textContent).not.toContain("Loading folders");
+    expect(
+      session.container.querySelector('[role="status"][aria-label="Loading folders"]'),
+    ).toBeNull();
   });
 
   it("keeps the Series shell mounted while initial loading becomes ready empty", async () => {
@@ -299,6 +308,8 @@ describe("LibraryPage shell state integration", () => {
         .querySelector(".series-overview__content")
         ?.getAttribute("data-surface-state"),
     ).toBe("results");
-    expect(session.container.textContent).not.toContain("Loading series");
+    expect(
+      session.container.querySelector('[role="status"][aria-label="Loading series"]'),
+    ).toBeNull();
   });
 });

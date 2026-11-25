@@ -157,19 +157,6 @@
   color: var(--muted-soft);
 }
 
-.series-loading {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.series-loading span {
-  min-height: 136px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-
 .series-detail__back {
   display: inline-flex;
   align-items: center;
@@ -393,8 +380,7 @@
 }
 
 @media (max-height: 640px) {
-  .series-grid,
-  .series-loading {
+  .series-grid {
     padding-top: 20px;
   }
 

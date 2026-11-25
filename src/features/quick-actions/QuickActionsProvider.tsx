@@ -1,3 +1,4 @@
+import { appearanceNoticeClass } from "../../components/statusStyles";
 import { SurfacePresence } from "../../components/SurfacePresence";
 import {
   lazy,
@@ -329,7 +330,7 @@ export function QuickActionsProvider({
     <QuickActionsContext.Provider value={contextValue}>
       {children}
       {settingsOpenFailed && (
-        <div className="appearance-status--visible">
+        <div className={appearanceNoticeClass}>
           <p role="alert">Settings could not open. Try again.</p>
           <Button onClick={openSettings}>Open Settings</Button>
           <Button onClick={() => setSettingsOpenFailed(false)}>Dismiss</Button>

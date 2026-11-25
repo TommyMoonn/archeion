@@ -1,4 +1,17 @@
 @media (forced-colors: active) {
+  [data-slot="checkbox"] {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  [data-slot="checkbox"][aria-checked="true"],
+  [data-slot="checkbox"][aria-checked="mixed"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
   .app-tooltip {
     color: CanvasText;
     background: Canvas;
@@ -76,7 +89,6 @@
     .reader-highlight-feedback,
     .reader-note-feedback,
     .theme-preview-controls,
-    .empty-state__glow,
     .page-shell[data-import-drop-active="true"]::after,
     .library-filter__popover,
     .library-feedback__token
@@ -105,7 +117,6 @@
     .reader-highlight-feedback,
     .reader-note-feedback,
     .theme-preview-controls,
-    .empty-state__glow,
     .page-shell[data-import-drop-active="true"]::after,
     .library-filter__popover,
     .library-feedback__token

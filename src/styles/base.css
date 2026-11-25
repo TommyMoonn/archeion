@@ -6,26 +6,6 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.appearance-status--visible {
-  position: fixed;
-  z-index: 1500;
-  inset-block-start: 3rem;
-  inset-inline-end: 1rem;
-  max-width: min(32rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 4rem);
-  overflow: auto;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  color: var(--text);
-  background: var(--canvas);
-  box-shadow: var(--shadow-popover);
-}
-
-.appearance-status__notice p {
-  margin-block: 0 0.75rem;
-}
-
 body {
   min-width: 320px;
   min-height: 100dvh;
@@ -91,7 +71,8 @@ a {
   outline-offset: 3px;
 }
 
-:root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"] .menu-item:focus-visible {
   outline-offset: -2px;
 }
 
@@ -103,8 +84,10 @@ a {
   }
 }
 
-a {
-  color: inherit;
+@layer base {
+  a {
+    color: inherit;
+  }
 }
 
 .skip-link {

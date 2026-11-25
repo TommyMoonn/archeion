@@ -1,3 +1,4 @@
+import { statusToneClass } from "../../components/statusStyles";
 import { Alert } from "@/components/ui/alert";
 import { usePausableAutoDismiss } from "../../components/usePausableAutoDismiss";
 import type { AppPreferencesPersistenceStatus } from "../../stores/appPreferencesStore";
@@ -47,7 +48,7 @@ function StatusMessage({
   const Message = tone === "error" ? Alert : "p";
   return (
     <Message
-      className={`settings-status ${tone === "neutral" ? "border-line-strong text-muted bg-settings-neutral-status" : "status-token"} absolute end-settings-sidebar-inset bottom-overlay-viewport-inset max-w-settings-status-width m-0 px-button-compact py-settings-row-compact-inset border-standard border-solid rounded-pill shadow-app-tooltip text-meta leading-settings-status wrap-anywhere motion-safe:app-motion:animate-notice-enter`}
+      className={`settings-status ${tone === "neutral" ? "border-line-strong text-muted bg-settings-neutral-status" : statusToneClass[tone]} absolute end-settings-sidebar-inset bottom-overlay-viewport-inset max-w-settings-status-width m-0 px-button-compact py-settings-row-compact-inset border-standard border-solid rounded-pill shadow-app-tooltip text-meta leading-settings-status wrap-anywhere motion-safe:app-motion:animate-notice-enter`}
       data-tone={tone}
       role={tone === "error" ? "alert" : "status"}
       tabIndex={autoDismiss && Boolean(onDismiss) ? 0 : undefined}

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function bounds(page: Page) {
   return page.locator("dialog[open]").evaluate((dialog) => {
@@ -17,6 +17,7 @@ async function bounds(page: Page) {
 }
 
 async function openSurface(page: Page, surface: string, scale = 1) {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(`/tests/browser/fixtures/dialog-geometry.html?surface=${surface}`);
   await page.evaluate((size) => {
     document.documentElement.style.fontSize = `${16 * size}px`;
@@ -89,6 +90,42 @@ for (const surface of ["add", "metadata"]) {
   });
 }
 
+async function expectAlignedControl(page: Page, control: Locator) {
+  const dialog = page.getByRole("dialog");
+  await expect(control).toBeVisible();
+  await expect
+    .poll(async () => {
+      const [field, title, action] = await Promise.all([
+        control.boundingBox(),
+        dialog.locator(".dialog__copy").boundingBox(),
+        dialog.locator(".dialog__footer .button").last().boundingBox(),
+      ]);
+      if (!field || !title || !action) return Infinity;
+      return Math.max(
+        Math.abs(field.x - title.x),
+        Math.abs(field.x + field.width - action.x - action.width),
+      );
+    })
+    .toBeLessThanOrEqual(1);
+}
+
+async function expectAlignedForm(page: Page, surface: string) {
+  const dialog = page.getByRole("dialog");
+  const control =
+    surface === "rename"
+      ? dialog.locator(".epub-filename-field")
+      : surface === "metadata"
+        ? dialog.getByRole("textbox", { name: "Title", exact: true })
+        : surface === "bulk"
+          ? dialog.locator(".bulk-metadata-field--tags")
+          : surface === "cover"
+            ? dialog.locator(".cover-writeback__book")
+            : surface.startsWith("folder")
+              ? dialog.getByRole("textbox", { name: "Name", exact: true })
+              : dialog.getByRole("combobox").first();
+  await expectAlignedControl(page, control);
+}
+
 async function reachableShell(page: Page) {
   const geometry = await bounds(page);
   const viewport = page.viewportSize()!;
@@ -155,6 +192,7 @@ for (const viewport of [
     }) => {
       await page.setViewportSize(viewport);
       await openSurface(page, "metadata", scale);
+      await expectAlignedForm(page, "metadata");
       const baseline = await bounds(page);
       await reachableShell(page);
       await keyboardScroll(page, ".dialog__body");
@@ -195,6 +233,7 @@ for (const surface of ["add", "move", "rename", "folder", "bulk"]) {
     }) => {
       await page.setViewportSize({ width: 480, height: 520 });
       await openSurface(page, surface, scale);
+      await expectAlignedForm(page, surface);
       if (surface === "bulk") {
         await page.getByRole("checkbox", { name: /^Series/ }).check();
         await page.getByRole("textbox", { name: "New series", exact: true }).fill("New series");
@@ -227,6 +266,7 @@ for (const scale of [1, 2]) {
   }) => {
     await page.setViewportSize({ width: 480, height: 520 });
     await openSurface(page, "cover", scale);
+    await expectAlignedForm(page, "cover");
     const baseline = await bounds(page);
     await reachableShell(page);
     await page.getByRole("button", { name: "Choose image", exact: true }).click();
@@ -354,6 +394,7 @@ for (const surface of ["add-empty", "move", "rename", "folder-create", "folder",
   test(`${surface} keeps short content compact at desktop size`, async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 900 });
     await openSurface(page, surface);
+    await expectAlignedForm(page, surface);
     const spacing = await page.locator("dialog").evaluate((dialog) => {
       const body = dialog.querySelector(".dialog__body")!;
       const feedback = dialog.querySelector(".dialog__feedback");
@@ -384,9 +425,45 @@ for (const surface of ["add-empty", "move", "rename", "folder-create", "folder",
       await expect(page.getByRole("alert")).toContainText("Enter a folder name");
       expect(await bounds(page)).toEqual(baseline);
     }
-    await test.info().attach(`${surface}-desktop`, {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
   });
 }
+
+test("bulk fields preserve checkbox hit targets, editable values and compact geometry", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 480, height: 520 });
+  await openSurface(page, "bulk", 2);
+  const dialog = page.getByRole("dialog");
+  const series = dialog.getByRole("checkbox", { name: "Series", exact: true });
+  const input = dialog.getByRole("textbox", { name: "New series" });
+  await expect(input).toBeDisabled();
+  await expect(series).toHaveCSS("width", "15px");
+  await expect(series).toHaveCSS("height", "15px");
+  await expect(input).toHaveCSS("min-height", "34px");
+  await dialog.getByText("Series", { exact: true }).click();
+  await expect(series).toBeChecked();
+  await expect(input).toBeEnabled();
+  await input.fill("A long multilingual series 日本語 Ελληνικά ".repeat(8));
+  await series.focus();
+  await page.keyboard.press("Space");
+  await expect(series).not.toBeChecked();
+  await expect(input).toBeDisabled();
+  await page.keyboard.press("Space");
+  await expect(series).toBeChecked();
+  await expect(input).toHaveValue(/^A long multilingual series/);
+  const tags = dialog.getByRole("checkbox", { name: "Tags", exact: true });
+  await tags.check();
+  const textarea = dialog.getByRole("textbox", { name: "Tags to apply" });
+  await textarea.fill("One tag\nAnother tag");
+  await expect(textarea).toHaveValue("One tag\nAnother tag");
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect(dialog.getByRole("button", { name: "Review changes" })).toBeInViewport();
+  await expect(textarea).toBeInViewport();
+  await page.emulateMedia({ forcedColors: "active" });
+  await tags.focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(tags).toBeFocused();
+  await expect(tags).toHaveCSS("outline-style", "solid");
+  await expect(tags).toHaveCSS("outline-width", "2px");
+});

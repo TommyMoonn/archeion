@@ -1,3 +1,5 @@
+import { Badge } from "../../components/ui/badge";
+import { Checkbox } from "../../components/ui/checkbox";
 import { Filter, X } from "lucide-react";
 import { memo, useMemo } from "react";
 
@@ -171,7 +173,11 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
       <summary aria-label="Filter library">
         <Filter aria-hidden="true" size={16} />
         <span>Filters</span>
-        {activeCount > 0 ? <span className="library-filter__count">{activeCount}</span> : null}
+        {activeCount > 0 ? (
+          <Badge className="inline-grid min-h-filter-count min-w-filter-count place-items-center border-muted-soft bg-canvas-deep px-filter-count-inline py-0 leading-none text-muted tabular-nums">
+            <span className="-translate-x-filter-count-optical-offset">{activeCount}</span>
+          </Badge>
+        ) : null}
       </summary>
       <div className="library-filter__popover" role="dialog" aria-label="Library filters">
         <div className="library-filter__heading">
@@ -214,10 +220,11 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
           <legend>Reading status</legend>
           {(Object.keys(readingStatusLabels) as LibraryReadingStatus[]).map((status) => (
             <label key={status}>
-              <input
+              <Checkbox
+                className="m-checkbox-margin ml-checkbox-start"
                 checked={filters.readingStatuses.includes(status)}
-                type="checkbox"
-                onChange={() => onChange(toggleReadingStatus(filters, status))}
+
+                onCheckedChange={() => onChange(toggleReadingStatus(filters, status))}
               />
               <span>{readingStatusLabels[status]}</span>
             </label>
@@ -227,26 +234,33 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
         <fieldset className="library-filter__group">
           <legend>Other</legend>
           <label>
-            <input
+            <Checkbox
+              className="m-checkbox-margin ml-checkbox-start"
               checked={filters.favoritesOnly}
-              type="checkbox"
-              onChange={() => onChange({ ...filters, favoritesOnly: !filters.favoritesOnly })}
+
+              onCheckedChange={() =>
+                onChange({ ...filters, favoritesOnly: !filters.favoritesOnly })
+              }
             />
             <span>Favorites</span>
           </label>
           <label>
-            <input
+            <Checkbox
+              className="m-checkbox-margin ml-checkbox-start"
               checked={filters.missingMetadata}
-              type="checkbox"
-              onChange={() => onChange({ ...filters, missingMetadata: !filters.missingMetadata })}
+
+              onCheckedChange={() =>
+                onChange({ ...filters, missingMetadata: !filters.missingMetadata })
+              }
             />
             <span>Missing metadata</span>
           </label>
           <label>
-            <input
+            <Checkbox
+              className="m-checkbox-margin ml-checkbox-start"
               checked={filters.missingCover}
-              type="checkbox"
-              onChange={() => onChange({ ...filters, missingCover: !filters.missingCover })}
+
+              onCheckedChange={() => onChange({ ...filters, missingCover: !filters.missingCover })}
             />
             <span>Missing cover</span>
           </label>

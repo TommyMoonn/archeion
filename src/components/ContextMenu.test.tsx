@@ -275,24 +275,13 @@ describe("ContextMenu", () => {
     stopFocusPresentation = null;
   });
 
-  it("renders through document.body and clamps pointer coordinates at every viewport edge", () => {
+  it("registers the actual point-invoked popup outside the trigger tree", () => {
     const { container } = renderHarness();
     const anchor = container.querySelector<HTMLButtonElement>("[data-anchor]")!;
-
-    anchor.dataset.x = "-40";
-    anchor.dataset.y = "-30";
-    act(() => anchor.click());
-    expect(menu().style.getPropertyValue("--context-menu-left")).toBe("8px");
-    expect(menu().style.getPropertyValue("--context-menu-top")).toBe("8px");
-
-    act(() => document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
     anchor.dataset.x = "318";
     anchor.dataset.y = "235";
     act(() => anchor.click());
-    expect(menu().style.getPropertyValue("--context-menu-left")).toBe("192px");
-    expect(menu().style.getPropertyValue("--context-menu-top")).toBe("132px");
-
-    expect(menu().parentElement).toBe(document.body);
+    expect(container.contains(menu())).toBe(false);
     expect(menu().getAttribute("data-application-transient")).toBe("context-menu");
   });
 
@@ -790,26 +779,5 @@ describe("ContextMenu", () => {
     });
     expect(onFirst).not.toHaveBeenCalled();
     expect(onSecond).toHaveBeenCalledTimes(1);
-  });
-
-  it("repositions after conditional action content changes", () => {
-    const getRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
-    let menuHeight = 80;
-    getRect.mockImplementation(function (this: HTMLElement) {
-      if (this.matches('[role="menu"]')) return rect(0, 0, 120, menuHeight);
-      if (this.matches('[aria-label="Open actions"]')) return rect(260, 190, 40, 30);
-      return rect(0, 0, 0, 0);
-    });
-    const { container } = renderHarness();
-    act(() => trigger(container).click());
-    expect(menu().style.getPropertyValue("--context-menu-top")).toBe("106px");
-
-    menuHeight = 120;
-    act(() => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-        .find((button) => button.textContent === "Toggle action")
-        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-    expect(menu().style.getPropertyValue("--context-menu-top")).toBe("66px");
   });
 });

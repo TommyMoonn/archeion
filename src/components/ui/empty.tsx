@@ -2,8 +2,14 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/utils/cn";
 
-export function Empty({ className, ...props }: ComponentProps<"div">) {
-  return <div data-slot="empty" className={cn("flex min-w-0 flex-col", className)} {...props} />;
+export function Empty({
+  as: Element = "div",
+  className,
+  ...props
+}: ComponentProps<"div"> & { as?: "div" | "section" }) {
+  return (
+    <Element data-slot="empty" className={cn("flex min-w-0 flex-col", className)} {...props} />
+  );
 }
 
 export function EmptyDescription({ className, ...props }: ComponentProps<"p">) {

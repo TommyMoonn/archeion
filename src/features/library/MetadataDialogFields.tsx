@@ -1,3 +1,5 @@
+import { Textarea } from "../../components/ui/textarea";
+import { Input as FieldInput } from "../../components/ui/input";
 import type { ReadonlyBook, ReadonlyEpubSourceMetadata } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import {
@@ -110,7 +112,8 @@ function MetadataFieldControl({
     <label className={className}>
       <span>{label}</span>
       {isTextAreaField(field) ? (
-        <textarea
+        <Textarea
+          className="min-h-field-textarea-standard px-field-standard-inline py-field-standard-block text-meta leading-field-standard wrap-anywhere"
           {...DISABLE_INPUT_ASSISTANCE}
           id={id}
           name={FIELD_INPUT_NAMES[field]}
@@ -120,7 +123,9 @@ function MetadataFieldControl({
           placeholder={placeholder}
         />
       ) : (
-        <input
+        <FieldInput
+          standalone
+          className="min-h-field-standard truncate rounded-control border-standard border-solid border-line bg-canvas-deep px-field-standard-inline py-0 text-meta leading-inherit"
           {...DISABLE_INPUT_ASSISTANCE}
           id={id}
           name={FIELD_INPUT_NAMES[field]}
