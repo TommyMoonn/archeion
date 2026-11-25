@@ -54,7 +54,7 @@ test("Select commits keyboard navigation, skips disabled options and releases Ta
   await page.keyboard.press("Enter");
   await expect(page.getByRole("option", { name: "Any", exact: true })).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(page.getByRole("combobox", { name: "Reader choice" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Toggle disabled" })).toBeFocused();
   await expect(page.getByRole("listbox")).toHaveCount(0);
 });
 
@@ -80,7 +80,7 @@ for (const scaled of [false, true]) {
     page,
   }) => {
     await page.setViewportSize({ width: 420, height: 360 });
-    await page.goto(fixture);
+    await page.goto(`${fixture}&surface=reader`);
     if (scaled) await page.getByRole("button", { name: "Toggle scale" }).click();
     const trigger = page.getByRole("combobox", { name: "Reader choice" });
     await trigger.click();
@@ -115,8 +115,11 @@ for (const scaled of [false, true]) {
     await expect(last).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(trigger).toBeFocused();
+    await expect(trigger).toContainText("A substantially longer");
+    await expect(popup).toHaveCount(0);
     await trigger.click();
     await expect(last).toBeFocused();
+    await expect(last).toHaveAttribute("aria-selected", "true");
     await expect(last).toBeInViewport();
   });
 }
