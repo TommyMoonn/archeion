@@ -73,7 +73,9 @@ describe("collection content spacing ownership", () => {
   });
 
   it("routes the primary Library and Series views through the same content layout owner", () => {
-    expect(libraryWorkspaceSource).toContain('className="collection-content library-content"');
+    expect(libraryWorkspaceSource).toMatch(
+      /className="collection-content library-content(?: [^"]*)?"/,
+    );
     expect(seriesOverviewSource).toContain(
       'className="collection-content series-overview__content"',
     );

@@ -1,19 +1,11 @@
-import { Skeleton } from "./ui/skeleton";
+import { Spinner } from "./ui/spinner";
 
-export function CollectionLoading({
-  message,
-  cover = false,
-}: {
-  message: string;
-  cover?: boolean;
-}) {
+export function CollectionLoading({ message }: { message: string }) {
   return (
-    <div
-      className="collection-content__loading flex flex-col items-center gap-collection-loading text-muted text-body"
-      role="status"
-    >
-      {cover ? <Skeleton aria-hidden="true" className="library-loading__cover" /> : null}
-      <span>{message}</span>
-    </div>
+    <Spinner
+      aria-label={message}
+      className="collection-content__loading size-6 stroke-2 text-muted"
+      data-visible
+    />
   );
 }

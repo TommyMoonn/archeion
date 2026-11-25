@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../../components/LoadingStatus";
 import {
   useCallback,
   useEffect,
@@ -207,7 +208,7 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
   if (!presentedArchive) {
     return (
       <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
-        <p className="archive-loading text-muted text-body">Opening archive</p>
+        <LoadingStatus message="Opening archive" />
       </main>
     );
   }
@@ -228,9 +229,13 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
           <section
             ref={statusRef}
             className="archive-handoff__status"
-            role={failed ? "alert" : "status"}
+            role={failed ? "alert" : undefined}
           >
-            <p>{failed ? "The archive could not be opened." : "Opening archive"}</p>
+            {failed ? (
+              <p>The archive could not be opened.</p>
+            ) : (
+              <LoadingStatus message="Opening archive" />
+            )}
             {failed ? (
               <Button
                 variant="secondary"

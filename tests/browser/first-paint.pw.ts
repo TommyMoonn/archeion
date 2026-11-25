@@ -56,6 +56,55 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => window.uiStabilityState?.().ready)).toBe(true);
 }
 
+test("startup spinner and label retain their position through the appearance handoff", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await canonicalPrepaint(page, "dark");
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  await page.route("**/ui-stability-main.tsx*", async (route) => {
+    await held;
+    await route.continue();
+  });
+  try {
+    await page.goto(`${fixture}?count=0&holdColdStart`, { waitUntil: "commit" });
+    const prepaint = page.locator("#appearance-startup");
+    await expect(prepaint).toBeVisible();
+    const before = await prepaint.getByText("Opening Archeion", { exact: true }).boundingBox();
+    const beforeSpinner = await prepaint.locator("svg").boundingBox();
+    release();
+    await expect(prepaint).toBeHidden();
+    const startup = page
+      .locator("#root")
+      .getByRole("status")
+      .filter({ hasText: "Opening Archeion" });
+    await expect(startup).toBeVisible();
+    const label = startup.getByText("Opening Archeion", { exact: true });
+    const after = await label.boundingBox();
+    const spinner = startup.locator("svg");
+    await expect(spinner).toHaveCSS("animation-name", "none");
+    const afterSpinner = await spinner.boundingBox();
+    for (const [previous, current] of [
+      [before, after],
+      [beforeSpinner, afterSpinner],
+    ]) {
+      if (!previous || !current) throw new Error("Startup indicator geometry missing");
+      for (const key of ["x", "y", "width", "height"] as const) {
+        expect(Math.abs(previous[key] - current[key])).toBeLessThanOrEqual(1);
+      }
+    }
+    await page.evaluate(() => window.dispatchEvent(new Event("fixture:release-cold-start")));
+    await ready(page);
+    await expect(startup).toHaveCount(0);
+  } finally {
+    release();
+    await page
+      .evaluate(() => window.dispatchEvent(new Event("fixture:release-cold-start")))
+      .catch(() => undefined);
+  }
+});
+
 for (const theme of ["dark", "light", "system-light", "system-dark", "custom"] as const) {
   test(`${theme}: pre-JavaScript and true same-window reload retain the canonical canvas`, async ({
     page,

@@ -378,7 +378,6 @@ export function LibraryWorkspaceSurface({
                 {surfaceState === "loading" ? (
                   <CollectionLoading
                     message={isImporting ? "Adding EPUB files" : "Loading library"}
-                    cover
                   />
                 ) : surfaceState === "filter-empty" ? (
                   <EmptyState

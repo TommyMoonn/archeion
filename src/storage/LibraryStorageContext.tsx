@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../components/LoadingStatus";
 import { type ReactNode, useEffect, useState } from "react";
 
 import { MAIN_CONTENT_ID } from "../components/SkipLink";
@@ -49,11 +50,13 @@ export function LibraryStorageProvider({ children, storage }: LibraryStorageProv
         id={MAIN_CONTENT_ID}
         tabIndex={-1}
       >
-        <p className="archive-loading text-muted text-body">
-          {didStorageFail
-            ? "The active archive could not be loaded. Restart Archeion and open it again."
-            : "Opening archive"}
-        </p>
+        {didStorageFail ? (
+          <p className="text-muted text-body" role="alert">
+            The active archive could not be loaded. Restart Archeion and open it again.
+          </p>
+        ) : (
+          <LoadingStatus message="Opening archive" />
+        )}
       </main>
     );
   }

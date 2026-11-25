@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../components/LoadingStatus";
 import { StatusPage } from "../components/StatusPage";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
@@ -95,12 +96,12 @@ export function StandaloneReaderStartup({ request }: { request: ExternalReaderRe
               <Suspense
                 fallback={
                   <StatusPage
-                    className="reader-status-page"
+                    className="reader-status-page h-full min-h-0"
                     id={MAIN_CONTENT_ID}
-                    role="status"
+                    aria-busy="true"
                     tabIndex={-1}
                   >
-                    Opening EPUB…
+                    <LoadingStatus message="Opening EPUB…" />
                   </StatusPage>
                 }
               >
@@ -137,12 +138,12 @@ export function StandaloneReaderStartup({ request }: { request: ExternalReaderRe
           {request ? (
             resolution.status === "checking" ? (
               <StatusPage
-                className="reader-status-page"
+                className="reader-status-page h-full min-h-0"
                 id={MAIN_CONTENT_ID}
-                role="status"
+                aria-busy="true"
                 tabIndex={-1}
               >
-                Opening EPUB…
+                <LoadingStatus message="Opening EPUB…" />
               </StatusPage>
             ) : (
               <QuickActionsProvider>

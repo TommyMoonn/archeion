@@ -1,3 +1,4 @@
+import { CollectionLoading } from "../../components/CollectionLoading";
 import { Button } from "../../components/Button";
 import type { ComponentProps, ReactNode } from "react";
 import { SeriesDetailHeader } from "../series/SeriesDetailHeader";
@@ -8,16 +9,18 @@ import { LibraryIntegrityHeader } from "./LibraryIntegrityHeader";
 
 export function LibrarySecondaryViewFallback({
   header,
+  loadingLabel,
   onRetry,
 }: {
   header: ReactNode;
+  loadingLabel: string;
   onRetry?: () => void;
 }) {
   return (
     <>
       {header}
       <div
-        className="collection-content library-content"
+        className="collection-content library-content w-full"
         aria-busy={!onRetry || undefined}
         data-surface-state={onRetry ? "error" : "loading"}
       >
@@ -29,7 +32,7 @@ export function LibrarySecondaryViewFallback({
             </Button>
           </>
         ) : (
-          <p role="status">Opening view…</p>
+          <CollectionLoading message={loadingLabel} />
         )}
       </div>
     </>
@@ -50,6 +53,7 @@ export function SeriesDetailFallback({
   return (
     <section className="series-detail" aria-labelledby={entry ? "series-detail-title" : undefined}>
       <LibrarySecondaryViewFallback
+        loadingLabel="Loading series details"
         header={
           entry ? (
             <SeriesDetailHeader entry={entry} onBack={onBack} onRead={onRead} />
@@ -72,6 +76,7 @@ export function SeriesOverviewFallback({
   return (
     <section className="series-overview" aria-labelledby="series-overview-title">
       <LibrarySecondaryViewFallback
+        loadingLabel="Loading series"
         header={<SeriesOverviewHeader {...props} pending />}
         onRetry={onRetry}
       />
@@ -86,6 +91,9 @@ export function IntegrityViewFallback({
   return (
     <section className={`${props.kind}-view`} aria-labelledby={`${props.kind}-title`}>
       <LibrarySecondaryViewFallback
+        loadingLabel={
+          props.kind === "duplicates" ? "Checking for duplicate EPUBs" : "Checking EPUB files"
+        }
         header={<LibraryIntegrityHeader {...props} pending />}
         onRetry={onRetry}
       />

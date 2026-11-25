@@ -1,3 +1,4 @@
+import { LoadingStatus } from "../components/LoadingStatus";
 import { statusActionsClass } from "../components/statusStyles";
 import { StatusPage } from "../components/StatusPage";
 import {
@@ -114,6 +115,7 @@ export function App() {
   return (
     <>
       <AppearanceStatus />
+      {ready && launch.status === "checking" && <StartupLoading />}
       {ready && launch.status === "ready" && <AppWindow externalReaderRequest={launch.request} />}
       {ready && launch.status === "error" && <StandaloneReaderStartup request={null} />}
     </>
@@ -221,7 +223,7 @@ function StartupLoading() {
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
         >
-          <p className="archive-loading text-muted text-body">Opening Archeion</p>
+          <LoadingStatus message="Opening Archeion" className="font-startup text-text" />
         </main>
       </div>
     </div>

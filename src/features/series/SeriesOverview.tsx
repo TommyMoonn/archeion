@@ -1,3 +1,4 @@
+import { CollectionLoading } from "../../components/CollectionLoading";
 import { ChevronRight, Layers } from "lucide-react";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, type Ref } from "react";
 
@@ -158,10 +159,7 @@ export const SeriesOverview = memo(function SeriesOverview({
         data-surface-state={surfaceState}
       >
         {surfaceState === "loading" ? (
-          <div aria-label="Loading series" className="series-loading" role="status">
-            <span />
-            <span />
-          </div>
+          <CollectionLoading message="Loading series" />
         ) : entries.length === 0 ? (
           <EmptyState
             description="Add series metadata to EPUBs to group their volumes here."
