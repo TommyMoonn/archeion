@@ -1,3 +1,4 @@
+import { FieldError } from "../../components/ui/field";
 import { SurfacePresence } from "../../components/SurfacePresence";
 import { ArrowLeft, Save, ListChecks, CircleAlert } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -136,9 +137,7 @@ export function BulkMetadataDialog({
           className="dialog--bulk-metadata"
           feedback={
             error ? (
-              <p className="form-error" role="alert">
-                {error}
-              </p>
+              <FieldError role="alert">{error}</FieldError>
             ) : (
               <p role="status">{isWriting ? "Writing metadata to EPUBs…" : ""}</p>
             )

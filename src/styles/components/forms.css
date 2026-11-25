@@ -4,38 +4,6 @@
   outline: 0;
 }
 
-.form-field {
-  display: grid;
-  gap: 7px;
-}
-
-.form-field > span {
-  color: var(--muted);
-  font-size: var(--type-caption);
-  font-weight: var(--type-control-label-weight);
-  line-height: var(--type-caption-line-height);
-  letter-spacing: 0.04em;
-}
-
-.form-field input,
-.form-field select {
-  width: 100%;
-  min-height: var(--control-height-prominent);
-  padding: 0 11px;
-  border: var(--border-width) solid var(--line-strong);
-  border-radius: var(--radius-control);
-  outline: 0;
-  color: var(--text);
-  background: var(--canvas-deep);
-  font-size: var(--type-body);
-  font-weight: var(--type-body-weight);
-  line-height: var(--type-body-line-height);
-}
-
-.form-field input::placeholder {
-  color: var(--muted);
-}
-
 .form-field :where(input, select, textarea)[aria-invalid="true"],
 [role="group"][aria-invalid="true"] {
   border-color: var(--error-strong);
@@ -43,31 +11,8 @@
   outline-offset: 2px;
 }
 
-.form-field input:focus,
-.form-field select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
-}
-
 :root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,
 :root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
-}
-
-.form-error {
-  margin: 0;
-  color: var(--error-strong);
-  font-size: var(--type-body-supporting);
-  font-weight: var(--type-body-supporting-weight);
-  line-height: var(--type-body-supporting-line-height);
-  overflow-wrap: anywhere;
-}
-
-.form-required {
-  margin-inline-start: 4px;
-  color: var(--error-strong);
-  font-size: var(--type-caption);
-  font-weight: var(--type-control-label-weight);
-  letter-spacing: normal;
 }

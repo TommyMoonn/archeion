@@ -1,4 +1,17 @@
 @media (forced-colors: active) {
+  [data-slot="checkbox"] {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  [data-slot="checkbox"][aria-checked="true"],
+  [data-slot="checkbox"][aria-checked="mixed"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
   .app-tooltip {
     color: CanvasText;
     background: Canvas;

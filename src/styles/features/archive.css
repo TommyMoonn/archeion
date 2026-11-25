@@ -574,14 +574,6 @@ html[data-motion="on"]
   white-space: normal;
 }
 
-.archive-create-form .form-required {
-  margin-inline-start: 4px;
-  color: var(--error-strong);
-  font-size: var(--type-caption);
-  font-weight: var(--type-control-label-weight);
-  letter-spacing: normal;
-}
-
 .archive-create-form__row .input-shell {
   width: min(100%, 196px);
   min-height: 36px;

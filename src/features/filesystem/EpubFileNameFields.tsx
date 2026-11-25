@@ -1,3 +1,5 @@
+import { Field, FieldLabel } from "../../components/ui/field";
+import { Input as FieldInput } from "../../components/ui/input";
 import type { FormEvent, Ref } from "react";
 import { EPUB_EXTENSION } from "./epubFileName";
 export function EpubFileNameFields({
@@ -21,10 +23,11 @@ export function EpubFileNameFields({
 }) {
   return (
     <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
-      <label className="form-field">
-        <span>Filename</span>
-        <span className="epub-filename-field">
-          <input
+      <Field>
+        <FieldLabel>Filename</FieldLabel>
+        <span className="epub-filename-field text-caption font-medium tracking-field-label text-muted">
+          <FieldInput
+            className="min-h-control-prominent px-field-inline py-0"
             aria-describedby={`${suffixId}${validationError ? ` ${validationErrorId}` : ""}`}
             aria-invalid={validationError ? true : undefined}
             autoFocus
@@ -39,7 +42,7 @@ export function EpubFileNameFields({
             {EPUB_EXTENSION}
           </span>
         </span>
-      </label>
+      </Field>
     </form>
   );
 }

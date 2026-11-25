@@ -1,3 +1,6 @@
+import { Checkbox } from "../../components/ui/checkbox";
+import { Textarea } from "../../components/ui/textarea";
+import { Input as FieldInput } from "../../components/ui/input";
 import { Check } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import { SegmentedControl } from "../../components/SegmentedControl";
@@ -44,13 +47,21 @@ export function BulkMetadataFields({
         return (
           <section className="bulk-metadata-field" data-enabled={enabled[field]} key={field}>
             <label className="bulk-metadata-field__toggle">
-              <input checked={enabled[field]} onChange={() => toggleField(field)} type="checkbox" />
+              <Checkbox
+                aria-label={label}
+                aria-describedby={`${helpId}-common`}
+                className="size-checkbox-large"
+                checked={enabled[field]}
+                onCheckedChange={() => toggleField(field)}
+              />
               <span>{label}</span>
-              <small>
+              <small id={`${helpId}-common`}>
                 {common[field].mixed ? "Mixed values" : common[field].value || "Not set"}
               </small>
             </label>
-            <input
+            <FieldInput
+              standalone
+              className="min-h-field-standard rounded-control border-standard border-solid border-line bg-surface-raised px-field-compact-inline py-0 text-meta leading-inherit disabled:cursor-not-allowed"
               aria-describedby={enabled[field] ? helpId : undefined}
               aria-label={`New ${label.toLocaleLowerCase()}`}
               disabled={!enabled[field]}
@@ -74,13 +85,15 @@ export function BulkMetadataFields({
         data-enabled={enabled.subjects}
       >
         <label className="bulk-metadata-field__toggle">
-          <input
+          <Checkbox
+            aria-label="Tags"
+            aria-describedby="bulk-metadata-subjects-common"
+            className="size-checkbox-large"
             checked={enabled.subjects}
-            onChange={() => toggleField("subjects")}
-            type="checkbox"
+            onCheckedChange={() => toggleField("subjects")}
           />
           <span>Tags</span>
-          <small>
+          <small id="bulk-metadata-subjects-common">
             {common.subjects.mixed ? "Mixed values" : common.subjects.value.join(", ") || "No tags"}
           </small>
         </label>
@@ -101,7 +114,8 @@ export function BulkMetadataFields({
           }))}
           value={tagMode}
         />
-        <textarea
+        <Textarea
+          className="min-h-field-textarea-compact bg-surface-raised px-field-compact-inline py-field-compact-block text-meta leading-field-compact"
           aria-describedby="bulk-metadata-subjects-help"
           aria-label="Tags to apply"
           disabled={!enabled.subjects}

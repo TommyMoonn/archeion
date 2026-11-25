@@ -384,9 +384,45 @@ for (const surface of ["add-empty", "move", "rename", "folder-create", "folder",
       await expect(page.getByRole("alert")).toContainText("Enter a folder name");
       expect(await bounds(page)).toEqual(baseline);
     }
-    await test.info().attach(`${surface}-desktop`, {
-      body: await page.screenshot(),
-      contentType: "image/png",
-    });
   });
 }
+
+test("bulk fields preserve checkbox hit targets, editable values and compact geometry", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 480, height: 520 });
+  await openSurface(page, "bulk", 2);
+  const dialog = page.getByRole("dialog");
+  const series = dialog.getByRole("checkbox", { name: "Series", exact: true });
+  const input = dialog.getByRole("textbox", { name: "New series" });
+  await expect(input).toBeDisabled();
+  await expect(series).toHaveCSS("width", "15px");
+  await expect(series).toHaveCSS("height", "15px");
+  await expect(input).toHaveCSS("min-height", "34px");
+  await dialog.getByText("Series", { exact: true }).click();
+  await expect(series).toBeChecked();
+  await expect(input).toBeEnabled();
+  await input.fill("A long multilingual series 日本語 Ελληνικά ".repeat(8));
+  await series.focus();
+  await page.keyboard.press("Space");
+  await expect(series).not.toBeChecked();
+  await expect(input).toBeDisabled();
+  await page.keyboard.press("Space");
+  await expect(series).toBeChecked();
+  await expect(input).toHaveValue(/^A long multilingual series/);
+  const tags = dialog.getByRole("checkbox", { name: "Tags", exact: true });
+  await tags.check();
+  const textarea = dialog.getByRole("textbox", { name: "Tags to apply" });
+  await textarea.fill("One tag\nAnother tag");
+  await expect(textarea).toHaveValue("One tag\nAnother tag");
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await expect(dialog.getByRole("button", { name: "Review changes" })).toBeInViewport();
+  await expect(textarea).toBeInViewport();
+  await page.emulateMedia({ forcedColors: "active" });
+  await tags.focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(tags).toBeFocused();
+  await expect(tags).toHaveCSS("outline-style", "solid");
+  await expect(tags).toHaveCSS("outline-width", "2px");
+});

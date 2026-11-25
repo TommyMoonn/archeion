@@ -1,3 +1,4 @@
+import { Checkbox } from "../../components/ui/checkbox";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { Button } from "../../components/Button";
@@ -50,11 +51,11 @@ export function ThemePreviewControls({ session }: ThemePreviewControlsProps) {
         ) : null}
         {hasWarnings ? (
           <label className="theme-preview-controls__warning">
-            <input
+            <Checkbox
+              className="mt-control-inset"
               checked={snapshot.warningsAcknowledged}
               disabled={keeping}
-              onChange={(event) => session.acknowledgeWarnings(event.currentTarget.checked)}
-              type="checkbox"
+              onCheckedChange={(checked) => session.acknowledgeWarnings(checked)}
             />
             <span>
               I understand this theme has {snapshot.contrastWarnings.length} contrast warning

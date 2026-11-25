@@ -1,3 +1,4 @@
+import { FieldError } from "../../components/ui/field";
 import { Pencil } from "lucide-react";
 import { EpubFileNameFields } from "./EpubFileNameFields";
 import { useId, useRef, useState, type FormEvent } from "react";
@@ -72,15 +73,11 @@ export function RenameFileDialog({
         validationError || operationError ? (
           <>
             {validationError ? (
-              <p className="form-error" id={validationErrorId} role="alert">
+              <FieldError id={validationErrorId} role="alert">
                 {validationError}
-              </p>
+              </FieldError>
             ) : null}
-            {operationError ? (
-              <p className="form-error" role="alert">
-                {operationError}
-              </p>
-            ) : null}
+            {operationError ? <FieldError role="alert">{operationError}</FieldError> : null}
           </>
         ) : (
           <p role="status">{isSaving ? "Renaming file…" : ""}</p>

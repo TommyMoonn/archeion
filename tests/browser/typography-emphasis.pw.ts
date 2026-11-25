@@ -79,7 +79,7 @@ test("medium form and menu labels preserve dialog keyboard focus and selection e
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Rename archive" });
   await expect(dialog).toBeVisible();
-  await weight(dialog.locator(".form-field > span"), "500");
+  await weight(dialog.getByText("Archive name", { exact: true }), "500");
   await weight(dialog.getByRole("button", { name: "Copy archive path" }), "500");
   await weight(dialog.getByRole("button", { name: "Save name" }), "500");
   await expect(dialog.getByRole("textbox", { name: "Archive name" })).toBeFocused();

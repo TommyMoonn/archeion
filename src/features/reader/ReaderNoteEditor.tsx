@@ -1,3 +1,4 @@
+import { Textarea } from "../../components/ui/textarea";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, Trash2 } from "lucide-react";
 
@@ -117,7 +118,7 @@ export function ReaderNoteEditor({
     >
       <label className="reader-note-editor__field">
         <span className="sr-only">Note text</span>
-        <textarea
+        <Textarea
           autoFocus
           aria-describedby="reader-note-status"
           disabled={deleting}

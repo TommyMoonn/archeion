@@ -165,3 +165,22 @@ test("Library filter retains its outer panel through selection and nested Escape
   await page.keyboard.press("Escape");
   await expect(panel).not.toBeVisible();
 });
+
+test("Library filter checkboxes retain label and keyboard activation", async ({ page }) => {
+  await page.goto(fixture);
+  await page.getByLabel("Filter library").click();
+  const panel = page.getByRole("dialog", { name: "Library filters" });
+  const completed = panel.getByRole("checkbox", { name: "Completed", exact: true });
+  await expect(completed).toHaveCSS("width", "13px");
+  await expect(completed).toHaveCSS("height", "13px");
+  await panel.getByText("Completed", { exact: true }).click();
+  await expect(completed).toBeChecked();
+  const favorites = panel.getByRole("checkbox", { name: "Favorites", exact: true });
+  await favorites.focus();
+  await page.keyboard.press("Space");
+  await expect(favorites).toBeChecked();
+  await expect(panel).toBeVisible();
+  await panel.getByRole("button", { name: "Clear all" }).click();
+  await expect(completed).not.toBeChecked();
+  await expect(favorites).not.toBeChecked();
+});

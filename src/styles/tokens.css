@@ -112,6 +112,24 @@
   --spacing-button-compact: 11px;
   --spacing-button-standard: 14px;
   --spacing-button-prominent: 17px;
+  --spacing-checkbox: 13px;
+  --spacing-checkbox-large: 15px;
+  --spacing-checkbox-margin: 3px;
+  --spacing-checkbox-start: 4px;
+  --spacing-field-label: 7px;
+  --spacing-field-inline: 11px;
+  --spacing-field-standard: 34px;
+  --spacing-field-compact-inline: 9px;
+  --spacing-field-standard-inline: 10px;
+  --spacing-field-compact-block: 8px;
+  --spacing-field-standard-block: 9px;
+  --spacing-field-required: 4px;
+  --spacing-field-textarea-compact: 76px;
+  --spacing-field-textarea-standard: 82px;
+  --leading-field-compact: 1.45;
+  --leading-field-standard: 1.5;
+  --tracking-field-label: 0.04em;
+  --radius-checkbox: 3px;
   --spacing-input-gap: 9px;
   --spacing-input-inline: 13px;
   --spacing-search-field: min(260px, 28vw);
@@ -295,6 +313,7 @@
   --default-transition-timing-function: var(--ease-standard);
 
   --color-canvas: var(--canvas);
+  --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
   --color-surface: var(--surface);

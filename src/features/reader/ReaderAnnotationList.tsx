@@ -1,3 +1,4 @@
+import { Input as FieldInput } from "../../components/ui/input";
 import { Tooltip } from "../../components/Tooltip";
 import { Bookmark, Check, Ellipsis, Highlighter, NotebookPen, X } from "lucide-react";
 import {
@@ -201,7 +202,8 @@ export const ReaderAnnotationList = forwardRef<
                               Bookmark label
                             </label>
                             <div>
-                              <input
+                              <FieldInput
+                                standalone
                                 disabled={isBusy}
                                 id={`annotation-label-${annotation.id}`}
                                 maxLength={80}

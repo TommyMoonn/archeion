@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateCheckbox } from "../../test/activateCheckbox";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -186,7 +187,7 @@ describe("ThemePreviewControls", () => {
       expect(started.ok).toBe(true);
     });
 
-    const checkbox = container.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const checkbox = container.querySelector<HTMLElement>('[role="checkbox"]')!;
     const keep = [...container.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Use theme"),
     )!;
@@ -194,7 +195,7 @@ describe("ThemePreviewControls", () => {
     expect(keep.getAttribute("aria-disabled")).toBe("true");
 
     act(() => {
-      checkbox.click();
+      activateCheckbox(checkbox);
     });
     expect(keep.getAttribute("aria-disabled")).toBeNull();
 
@@ -205,7 +206,7 @@ describe("ThemePreviewControls", () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       "preview is still active",
     );
-    expect(checkbox.checked).toBe(true);
+    expect(checkbox.getAttribute("aria-checked")).toBe("true");
     expect(keep.getAttribute("aria-disabled")).toBeNull();
 
     await act(async () => {

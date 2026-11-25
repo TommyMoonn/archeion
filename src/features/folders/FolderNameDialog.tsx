@@ -1,3 +1,4 @@
+import { FieldError } from "../../components/ui/field";
 import { FolderPlus, Save } from "lucide-react";
 import { FolderNameFields } from "./FolderNameFields";
 import { useId, useRef, useState, type FormEvent } from "react";
@@ -60,15 +61,11 @@ export function FolderNameDialog({
         validationError || operationError ? (
           <>
             {validationError ? (
-              <p className="form-error" id={validationErrorId} role="alert">
+              <FieldError id={validationErrorId} role="alert">
                 {validationError}
-              </p>
+              </FieldError>
             ) : null}
-            {operationError ? (
-              <p className="form-error" role="alert">
-                {operationError}
-              </p>
-            ) : null}
+            {operationError ? <FieldError role="alert">{operationError}</FieldError> : null}
           </>
         ) : null
       }

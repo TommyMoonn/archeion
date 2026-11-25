@@ -1,3 +1,4 @@
+import { FieldError } from "../../components/ui/field";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Plus, CircleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -125,9 +126,7 @@ export function AddEpubDialog({
         description="Files with matching names will be replaced. Existing files are preserved until each replacement succeeds."
         feedback={
           error ? (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
+            <FieldError role="alert">{error}</FieldError>
           ) : (
             <p role="status">{isImporting ? "Replacing and adding EPUB files…" : ""}</p>
           )
@@ -167,10 +166,10 @@ export function AddEpubDialog({
       title="Add EPUB files"
       feedback={
         error ? (
-          <p className="form-error add-epub-dialog__error" role="alert">
+          <FieldError className="add-epub-dialog__error" role="alert">
             <CircleAlert aria-hidden="true" size={15} />
             {error}
-          </p>
+          </FieldError>
         ) : (
           <p role="status">{isImporting ? "Adding EPUB files…" : ""}</p>
         )
