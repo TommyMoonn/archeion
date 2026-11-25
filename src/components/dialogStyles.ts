@@ -13,7 +13,8 @@ export const dialogTitleClass = "m-0 font-app-display text-dialog-title text-tex
 export const dialogRegionClass =
   "min-h-0 min-w-0 overflow-y-auto wrap-anywhere overscroll-contain scrollbar-gutter-stable p-control-inset";
 
-export const dialogBodyClass = `dialog__body ${dialogRegionClass} mt-dialog-gap flex-auto dialog-viewport-narrow:mt-dialog-gap-narrow`;
+// Place the reserved scrollbar and focus-ring inset inside the panel padding, not the form width.
+export const dialogBodyClass = `dialog__body ${dialogRegionClass} -ms-control-inset -me-dialog-scroll-inset mt-dialog-gap flex-auto dialog-viewport-narrow:mt-dialog-gap-narrow`;
 
 export const dialogFooterClass =
   "dialog__footer flex min-w-0 flex-wrap justify-end gap-dialog-footer self-center only:col-span-full [&>.button--ghost:first-child]:me-auto dialog-panel-narrow:grid dialog-panel-narrow:grid-cols-1 dialog-panel-narrow:[&>.button]:w-full dialog-panel-narrow:[&>.button]:min-w-0 dialog-panel-narrow:[&>.button]:whitespace-normal dialog-panel-narrow:[&>.button--ghost:first-child]:me-0";

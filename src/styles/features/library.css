@@ -1664,7 +1664,6 @@ html[data-motion="on"] .book-details-loading__placeholder {
   min-width: 0;
   min-height: 0;
   max-width: 100%;
-  padding-inline-end: 3px;
 }
 
 .bulk-metadata-editor {
@@ -1851,7 +1850,6 @@ html[data-motion="on"] .book-details-loading__placeholder {
   min-width: 0;
   min-height: 0;
   max-width: 100%;
-  padding-inline-end: 2px;
 }
 
 .metadata-writeback *,
@@ -2087,7 +2085,6 @@ html[data-motion="on"] .book-details-loading__placeholder {
   display: grid;
   gap: 16px;
   min-height: 0;
-  padding-inline-end: 2px;
 }
 
 .cover-writeback *,
@@ -3149,19 +3146,6 @@ html[data-motion="on"] .library-feedback__token {
 .library-filter[open] > summary {
   border-color: var(--line-strong);
   background: var(--surface-raised);
-}
-
-.library-filter__count {
-  display: inline-grid;
-  min-width: 18px;
-  min-height: 18px;
-  place-items: center;
-  padding: 0 5px;
-  border-radius: var(--radius-pill);
-  color: var(--surface-main);
-  background: var(--accent);
-  font-size: var(--type-caption);
-  font-weight: var(--type-control-label-weight);
 }
 
 .library-filter__popover {

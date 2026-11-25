@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 async function bounds(page: Page) {
   return page.locator("dialog[open]").evaluate((dialog) => {
@@ -89,6 +89,42 @@ for (const surface of ["add", "metadata"]) {
   });
 }
 
+async function expectAlignedControl(page: Page, control: Locator) {
+  const dialog = page.getByRole("dialog");
+  await expect(control).toBeVisible();
+  await expect
+    .poll(async () => {
+      const [field, title, action] = await Promise.all([
+        control.boundingBox(),
+        dialog.locator(".dialog__copy").boundingBox(),
+        dialog.locator(".dialog__footer .button").last().boundingBox(),
+      ]);
+      if (!field || !title || !action) return Infinity;
+      return Math.max(
+        Math.abs(field.x - title.x),
+        Math.abs(field.x + field.width - action.x - action.width),
+      );
+    })
+    .toBeLessThanOrEqual(1);
+}
+
+async function expectAlignedForm(page: Page, surface: string) {
+  const dialog = page.getByRole("dialog");
+  const control =
+    surface === "rename"
+      ? dialog.locator(".epub-filename-field")
+      : surface === "metadata"
+        ? dialog.getByRole("textbox", { name: "Title", exact: true })
+        : surface === "bulk"
+          ? dialog.locator(".bulk-metadata-field--tags")
+          : surface === "cover"
+            ? dialog.locator(".cover-writeback__book")
+            : surface.startsWith("folder")
+              ? dialog.getByRole("textbox", { name: "Name", exact: true })
+              : dialog.getByRole("combobox").first();
+  await expectAlignedControl(page, control);
+}
+
 async function reachableShell(page: Page) {
   const geometry = await bounds(page);
   const viewport = page.viewportSize()!;
@@ -155,6 +191,7 @@ for (const viewport of [
     }) => {
       await page.setViewportSize(viewport);
       await openSurface(page, "metadata", scale);
+      await expectAlignedForm(page, "metadata");
       const baseline = await bounds(page);
       await reachableShell(page);
       await keyboardScroll(page, ".dialog__body");
@@ -195,6 +232,7 @@ for (const surface of ["add", "move", "rename", "folder", "bulk"]) {
     }) => {
       await page.setViewportSize({ width: 480, height: 520 });
       await openSurface(page, surface, scale);
+      await expectAlignedForm(page, surface);
       if (surface === "bulk") {
         await page.getByRole("checkbox", { name: /^Series/ }).check();
         await page.getByRole("textbox", { name: "New series", exact: true }).fill("New series");
@@ -227,6 +265,7 @@ for (const scale of [1, 2]) {
   }) => {
     await page.setViewportSize({ width: 480, height: 520 });
     await openSurface(page, "cover", scale);
+    await expectAlignedForm(page, "cover");
     const baseline = await bounds(page);
     await reachableShell(page);
     await page.getByRole("button", { name: "Choose image", exact: true }).click();
@@ -354,6 +393,7 @@ for (const surface of ["add-empty", "move", "rename", "folder-create", "folder",
   test(`${surface} keeps short content compact at desktop size`, async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 900 });
     await openSurface(page, surface);
+    await expectAlignedForm(page, surface);
     const spacing = await page.locator("dialog").evaluate((dialog) => {
       const body = dialog.querySelector(".dialog__body")!;
       const feedback = dialog.querySelector(".dialog__feedback");

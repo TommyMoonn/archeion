@@ -183,4 +183,57 @@ test("Library filter checkboxes retain label and keyboard activation", async ({ 
   await panel.getByRole("button", { name: "Clear all" }).click();
   await expect(completed).not.toBeChecked();
   await expect(favorites).not.toBeChecked();
+  await expect(page.getByLabel("Filter library").getByText("2", { exact: true })).toHaveCount(0);
 });
+
+for (const theme of ["", "&light", "&themeStress=distinct"]) {
+  test(`filter count uses an outlined neutral badge and updates ${theme || "dark"}`, async ({
+    page,
+  }) => {
+    await page.goto(`${fixture}${theme}`);
+    const trigger = page.getByLabel("Filter library");
+    await trigger.click();
+    const panel = page.getByRole("dialog", { name: "Library filters" });
+    await panel.getByRole("checkbox", { name: "Unread", exact: true }).check();
+    await panel.getByRole("checkbox", { name: "Completed", exact: true }).check();
+    const count = trigger.locator('[data-slot="badge"]');
+    await expect(count).toHaveText("2");
+    await expect(count).toBeVisible();
+    const colors = await count.evaluate((element) => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--muted)";
+      probe.style.borderTopColor = "var(--muted-soft)";
+      probe.style.backgroundColor = "var(--canvas-deep)";
+      element.append(probe);
+      const expected = getComputedStyle(probe);
+      const actual = getComputedStyle(element);
+      const bounds = element.getBoundingClientRect();
+      const textBounds = element.firstElementChild!.getBoundingClientRect();
+      const result = {
+        foreground: actual.color,
+        border: actual.borderTopColor,
+        borderWidth: actual.borderTopWidth,
+        background: actual.backgroundColor,
+        expectedForeground: expected.color,
+        expectedBorder: expected.borderTopColor,
+        expectedBackground: expected.backgroundColor,
+        width: bounds.width,
+        height: bounds.height,
+        horizontalOffset: (textBounds.left + textBounds.right - bounds.left - bounds.right) / 2,
+        verticalOffset: (textBounds.top + textBounds.bottom - bounds.top - bounds.bottom) / 2,
+      };
+      probe.remove();
+      return result;
+    });
+    expect(colors.foreground).toBe(colors.expectedForeground);
+    expect(colors.background).toBe(colors.expectedBackground);
+    expect(colors.border).toBe(colors.expectedBorder);
+    expect(colors.borderWidth).toBe("1px");
+    expect(colors.width).toBeCloseTo(18, 0);
+    expect(colors.height).toBeCloseTo(18, 0);
+    expect(Math.abs(colors.horizontalOffset)).toBeLessThanOrEqual(1);
+    expect(Math.abs(colors.verticalOffset)).toBeLessThanOrEqual(1);
+    await panel.getByRole("button", { name: "Clear all" }).click();
+    await expect(count).toHaveCount(0);
+  });
+}

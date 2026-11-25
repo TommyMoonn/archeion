@@ -143,6 +143,8 @@
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
+  --spacing-scrollbar: 10px;
+  --spacing-dialog-scroll-inset: calc(var(--spacing-scrollbar) + var(--spacing-control-inset));
   --spacing-dialog-gap: 20px;
   --spacing-dialog-gap-narrow: 12px;
   --spacing-dialog-copy: 10px;
@@ -193,6 +195,9 @@
   --container-settings-status: 360px;
   --container-shortcut-search: 360px;
   --spacing-badge-inline: 7px;
+  --spacing-filter-count: 18px;
+  --spacing-filter-count-inline: 4px;
+  --spacing-filter-count-optical-offset: 0.5px;
   --spacing-dictionary-search-min: 180px;
   --spacing-dictionary-search-basis: 280px;
   --container-dictionary-search: 360px;
