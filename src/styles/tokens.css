@@ -166,6 +166,32 @@
   --spacing-sidebar-narrow: 220px;
   --spacing-sidebar-collapsed: 56px;
   --spacing-collection-header-gap: 24px;
+  --spacing-folder-tree-indent: 11px;
+  --spacing-folder-tree-limit: 180px;
+  --spacing-folder-tree-row-min: 120px;
+  --spacing-folder-inset: 9px;
+  --spacing-folder-action-gap: 4px;
+  --spacing-folder-copy-gap: 3px;
+  --spacing-folder-grid-gap: 12px;
+  --spacing-folder-count-gap: 16px;
+  --spacing-folder-list-inset: 10px;
+  --spacing-folder-card-small-inset: 13px;
+  --spacing-folder-card-medium-inset: 17px;
+  --spacing-folder-sort-basis: 164px;
+  --spacing-folder-row-height: 58px;
+  --spacing-folder-row-actions: 88px;
+  --spacing-folder-card-actions: 82px;
+  --spacing-folder-card-small-height: 100px;
+  --spacing-folder-card-medium-height: 116px;
+  --spacing-folder-card-large-height: 136px;
+  --spacing-folder-card-small-column: 220px;
+  --spacing-folder-card-medium-column: 260px;
+  --spacing-folder-card-large-column: 320px;
+  --spacing-folder-card-large-inset: 21px;
+  --spacing-folder-icon-box: 30px;
+  --spacing-folder-list-glyph: 19px;
+  --spacing-folder-card-glyph: 22px;
+  --spacing-folder-menu-width: 140px;
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
@@ -585,6 +611,65 @@
 @custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
 
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
+
+@custom-variant folder-fine-pointer {
+  @media (hover: hover) and (pointer: fine) {
+    @slot;
+  }
+}
+
+@utility folder-sort-basis {
+  flex: 0 1 var(--spacing-folder-sort-basis);
+}
+
+@utility folder-tree-columns {
+  grid-template-columns: var(--spacing-icon-slot-standard) minmax(0, 1fr);
+}
+
+@utility folder-row-columns {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+@utility folder-card-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility folder-card-grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-small-column), 1fr));
+}
+
+@utility folder-card-grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-medium-column), 1fr));
+}
+
+@utility folder-card-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-large-column), 1fr));
+}
+
+@utility transition-folder-menu {
+  transition:
+    opacity var(--motion-duration-standard) var(--ease-standard),
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard);
+}
+
+@utility folder-tree-drop-ring {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 44%, transparent);
+}
+
+@utility folder-browser-drop-ring {
+  box-shadow:
+    inset 3px 0 var(--accent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+@utility border-folder-drop {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line));
+}
+
+@utility bg-folder-card {
+  background: color-mix(in srgb, var(--text-strong) 1.8%, transparent);
+}
 
 /* Runtime properties and temporary aliases for unmigrated desktop CSS. */
 :root {

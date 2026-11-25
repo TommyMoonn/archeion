@@ -195,7 +195,8 @@
 
   :where(
     .nav-item[aria-current="page"],
-    .folder-tree__select[data-active],
+    [data-library-folder-surface="tree"]
+      > [data-library-folder-primary-action][aria-current="page"],
     .settings-sidebar nav button[aria-current="page"],
     .archive-switcher__current[aria-current="true"],
     .theme-catalog-list__item[aria-current="true"],

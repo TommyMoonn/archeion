@@ -13,6 +13,7 @@ type FolderActionsMenuProps = {
   onRename?: (folder: ReadonlyFolder) => void;
   onReveal?: (folder: ReadonlyFolder) => void;
   dismissKey?: string;
+  surface?: "tree" | "browser";
   showRename?: boolean;
   showReveal?: boolean;
 };
@@ -25,6 +26,7 @@ export function FolderActionsMenu({
   onRename,
   onReveal,
   dismissKey,
+  surface = "browser",
   showRename = true,
   showReveal = false,
 }: FolderActionsMenuProps) {
@@ -40,9 +42,21 @@ export function FolderActionsMenu({
 
   return (
     <>
-      <span className="folder-menu" data-open={controller.isOpen || undefined}>
+      <span
+        className={
+          surface === "tree" ? "folder-menu absolute top-folder-action-gap end-0" : "folder-menu"
+        }
+        data-open={controller.isOpen || undefined}
+      >
         <ContextMenuTrigger
           controller={controller}
+          className={[
+            "transition-folder-menu hover:text-text hover:bg-surface-raised focus-visible:text-text focus-visible:bg-surface-raised aria-expanded:text-text aria-expanded:bg-surface-raised",
+            surface === "tree" &&
+              "folder-fine-pointer:opacity-0 folder-fine-pointer:group-hover/folder-row:opacity-100 folder-fine-pointer:group-focus-within/folder-row:opacity-100 folder-fine-pointer:group-data-[context-menu-open]/folder-row:opacity-100 folder-fine-pointer:aria-expanded:opacity-100",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           label={`Actions for ${folder.name}`}
           tooltip={`Actions for ${folder.name}`}
         >
@@ -54,7 +68,7 @@ export function FolderActionsMenu({
       <ContextMenuSurface
         actions={actions}
         ariaLabel={`Actions for ${folder.name}`}
-        className="folder-menu__popover"
+        className="folder-menu__popover w-folder-menu-width"
         controller={controller}
         dismissKey={dismissKey}
       />

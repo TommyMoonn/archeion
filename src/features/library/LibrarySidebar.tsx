@@ -266,7 +266,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               ) : null}
             </div>
           </div>
-          <div className="sidebar__folder-scroll flex-1 min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-gutter-stable pe-field-required -me-field-required">
+          <div className="sidebar__folder-scroll flex-1 min-h-0 overflow-auto overscroll-contain scrollbar-gutter-stable pe-field-required -me-field-required">
             {sortedFolderEntries.length > 0 ? (
               <FolderTree
                 folderOrder={folderOrder}

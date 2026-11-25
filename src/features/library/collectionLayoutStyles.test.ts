@@ -11,10 +11,6 @@ const libraryStyles = readFileSync(
   new URL("../../styles/features/library.css", import.meta.url),
   "utf8",
 );
-const folderStyles = readFileSync(
-  new URL("../../styles/features/folders.css", import.meta.url),
-  "utf8",
-);
 const seriesStyles = readFileSync(
   new URL("../../styles/features/series.css", import.meta.url),
   "utf8",
@@ -61,7 +57,6 @@ describe("collection content spacing ownership", () => {
     expect(seriesOverviewSource).toContain(
       'className="collection-content series-overview__content"',
     );
-    expect(folderStyles).toContain(".folder-browser__content");
   });
 
   it("starts Library grid and list results from the shared parent-owned offset", () => {
@@ -83,15 +78,8 @@ describe("collection content spacing ownership", () => {
     );
   });
 
-  it("uses the same offset for Folder cards and list results", () => {
-    expect(folderStyles).toMatch(/\.folder-browser__content\s*\{[^}]*width:\s*100%;/s);
-    expect(folderStyles).not.toMatch(/\.folder-browser__items[^{]*\{[^}]*padding-top:/s);
-  });
-
   it("scopes collection card sizes to their owning result surfaces", () => {
     expect(libraryStyles).not.toContain("html[data-card-size");
-    expect(folderStyles).toContain('.folder-browser__items--cards[data-folder-card-size="small"]');
-    expect(folderStyles).toContain('.folder-browser__items--cards[data-folder-card-size="large"]');
     expect(seriesStyles).toContain('.series-grid--grid[data-series-card-size="small"]');
     expect(seriesStyles).toContain('.series-grid--grid[data-series-card-size="large"]');
     expect(seriesStyles).toContain(".series-grid--list[data-series-card-size]");
