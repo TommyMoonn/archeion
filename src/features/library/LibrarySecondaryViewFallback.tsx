@@ -95,7 +95,10 @@ export function IntegrityViewFallback({
   ...props
 }: ComponentProps<typeof LibraryIntegrityHeader> & { onRetry?: () => void }) {
   return (
-    <section className={`${props.kind}-view`} aria-labelledby={`${props.kind}-title`}>
+    <section
+      className={`${props.kind}-view mx-auto w-full max-w-collection-workspace`}
+      aria-labelledby={`${props.kind}-title`}
+    >
       <LibrarySecondaryViewFallback
         loadingLabel={
           props.kind === "duplicates" ? "Checking for duplicate EPUBs" : "Checking EPUB files"

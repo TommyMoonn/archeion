@@ -81,29 +81,36 @@ function epubDiagnosticIssueMessage(issue: EpubDiagnosticIssue): string {
 
 export function EpubIssueDetails({ issues }: Readonly<{ issues: EpubDiagnostics["issues"] }>) {
   return (
-    <section aria-label="Diagnostic details" className="epub-issue-details">
-      <ol className="epub-issue-details__list">
+    <section
+      aria-label="Diagnostic details"
+      className="epub-issue-details py-integrity-gap px-integrity-header-inline"
+    >
+      <ol className="epub-issue-details__list grid gap-control-gap m-0 p-0 list-none">
         {issues.map((issue, index) => {
           const error = issue.severity === "error";
           const Icon = error ? CircleAlert : TriangleAlert;
           return (
             <li
-              className="epub-issue-detail"
+              className="epub-issue-detail grid grid-cols-[var(--spacing-integrity-row-gap)_minmax(0,1fr)] items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 py-integrity-alert-block px-integrity-row-block border-standard border-solid border-line rounded-control bg-integrity-detail group/issue"
               data-issue-code={issue.code}
               data-severity={issue.severity}
               key={`${issue.code}:${issue.resourcePath ?? ""}:${index}`}
             >
-              <span className="epub-issue-detail__severity">
+              <span
+                className={`epub-issue-detail__severity inline-flex items-center self-center justify-self-center text-warning leading-[0] group-data-[severity=error]/issue:text-error ${issue.resourcePath ? "row-span-2" : ""}`}
+              >
                 <Icon aria-hidden="true" size={17} />
                 <span className="sr-only">{error ? "Error" : "Warning"}</span>
               </span>
-              <p>{epubDiagnosticIssueMessage(issue)}</p>
+              <p className="m-0 text-text text-body-only wrap-anywhere">
+                {epubDiagnosticIssueMessage(issue)}
+              </p>
               {issue.resourcePath ? (
-                <dl className="epub-issue-detail__context">
-                  <div>
-                    <dt>EPUB resource</dt>
-                    <dd>
-                      <code>{issue.resourcePath}</code>
+                <dl className="epub-issue-detail__context col-start-2 min-w-0 m-0">
+                  <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-control-gap [@media(max-width:680px)]:grid-cols-1 [@media(max-width:680px)]:gap-control-inset">
+                    <dt className="text-muted text-caption-size">EPUB resource</dt>
+                    <dd className="min-w-0 m-0 wrap-anywhere text-muted text-caption-size">
+                      <code className="font-mono">{issue.resourcePath}</code>
                     </dd>
                   </div>
                 </dl>

@@ -48,7 +48,12 @@ function StyledActionButton({
           {icon}
         </span>
       ) : null}
-      <span className="menu-item__label min-w-0 wrap-anywhere whitespace-normal">{children}</span>
+      <span
+        data-slot="menu-item-label"
+        className="menu-item__label min-w-0 wrap-anywhere whitespace-normal"
+      >
+        {children}
+      </span>
     </>
   );
   const buttonClassName = cn(

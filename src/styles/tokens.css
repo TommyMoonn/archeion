@@ -226,6 +226,42 @@
   --spacing-series-volumes-short-top: 18px;
   --spacing-series-marker-inline: 6px;
   --tracking-normal: 0em;
+  /* Integrity reports and feedback retain pixel geometry independently of text scaling. */
+  --spacing-integrity-gap: 14px;
+  --spacing-integrity-row-gap: 18px;
+  --spacing-integrity-controls-block: 10px;
+  --spacing-integrity-group-gap: 16px;
+  --spacing-integrity-header-block: 15px;
+  --spacing-integrity-header-inline: 17px;
+  --spacing-integrity-row-block: 12px;
+  --spacing-integrity-row-inline: 14px;
+  --spacing-integrity-copy-gap: 3px;
+  --spacing-integrity-small-gap: 5px;
+  --spacing-integrity-alert-block: 11px;
+  --spacing-integrity-alert-inline: 13px;
+  --spacing-integrity-duplicate-cover: 46px;
+  --spacing-integrity-issue-cover: 50px;
+  --spacing-integrity-issue-cover-narrow: 56px;
+  --spacing-integrity-badge-height: 22px;
+  --spacing-integrity-identity-width: 280px;
+  --spacing-integrity-disclosure-height: 44px;
+  --spacing-integrity-meta-column: 140px;
+  --spacing-integrity-file-column: 74px;
+  --spacing-integrity-date-column: 100px;
+  --spacing-integrity-member-column: 210px;
+  --spacing-integrity-member-column-medium: 220px;
+  --spacing-integrity-metadata-column: 300px;
+  --spacing-integrity-group-identity-column: 180px;
+  --spacing-feedback-top: 44px;
+  --spacing-feedback-top-narrow: 64px;
+  --spacing-feedback-end: 22px;
+  --spacing-feedback-width: min(440px, calc(100vw - 44px));
+  --spacing-feedback-height: calc(100dvh - 60px);
+  --spacing-feedback-height-narrow: calc(100dvh - 80px);
+  --spacing-feedback-details-height: 132px;
+  --spacing-feedback-dismiss: 28px;
+  --spacing-book-menu-card-inset: 8px;
+  --spacing-book-menu-row-inset: 10px;
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
@@ -414,6 +450,16 @@
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
+  --color-integrity-card: color-mix(in srgb, var(--surface) 72%, transparent);
+  --color-integrity-header: color-mix(in srgb, var(--surface-raised) 64%, transparent);
+  --color-integrity-row-focus: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  --color-integrity-detail: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+  --color-integrity-badge-border: color-mix(in srgb, var(--accent) 28%, var(--line));
+  --color-integrity-badge: color-mix(in srgb, var(--accent-soft) 60%, transparent);
+  --color-integrity-badge-probable: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  --color-feedback-card: color-mix(in srgb, var(--surface) 94%, transparent);
+  --color-book-menu-border: color-mix(in srgb, var(--text) 11%, transparent);
+  --color-book-menu-surface: color-mix(in srgb, var(--canvas-deep) 88%, transparent);
   --color-series-card: color-mix(in srgb, var(--surface) 72%, transparent);
   --color-series-volume: color-mix(in srgb, var(--surface) 60%, transparent);
   --color-series-hint: color-mix(in srgb, var(--accent) 5%, transparent);
@@ -733,6 +779,12 @@
 }
 @utility border-b-line {
   border-bottom: var(--border-width) solid var(--line);
+}
+@utility text-body-only {
+  font-size: var(--text-body);
+}
+@utility text-meta-only {
+  font-size: var(--text-meta);
 }
 @utility text-caption-size {
   font-size: var(--text-caption);

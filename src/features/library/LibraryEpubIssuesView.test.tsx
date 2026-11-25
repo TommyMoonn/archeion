@@ -151,11 +151,15 @@ describe("LibraryEpubIssuesView", () => {
     expect(
       blockedRow.querySelector(".epub-issues-book__summary")?.getAttribute("data-reader-available"),
     ).toBe("false");
-    const summary = readableRow.querySelector<HTMLElement>("summary")!;
+    const summary = buttonWithText(readableRow, "View 1 diagnostic issue")!;
+    expect(summary.getAttribute("aria-expanded")).toBe("false");
     summary.focus();
     expect(document.activeElement).toBe(summary);
     await act(async () => summary.click());
-    expect(readableRow.querySelector("details")?.open).toBe(true);
+    expect(summary.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      buttonWithText(blockedRow, "View 1 diagnostic issue")?.getAttribute("aria-expanded"),
+    ).toBe("false");
     expect(readableRow.textContent).toContain("missing.xhtml");
     expect(readableRow.textContent).toContain("OPS/chapter.xhtml");
 

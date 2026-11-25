@@ -22,7 +22,16 @@ export function FeedbackFixture() {
   const [tokens, setTokens] = useState<LibraryFeedbackToken[]>([
     { id: "success", title: "Import complete", tone: "success" },
     { id: "warning", title: "Some books skipped", tone: "warning", detail: "Already in archive" },
-    { id: "error", title: "Import failed", tone: "error", detail: "Try again" },
+    {
+      id: "error",
+      title: "Import failed",
+      tone: "error",
+      detail: "Try again",
+      details: Array.from({ length: 12 }, (_, index) => ({
+        label: `File ${index + 1}`,
+        message: "Long diagnostic ".repeat(14),
+      })),
+    },
   ]);
   const view = new URLSearchParams(location.search).get("view");
   if (view === "not-found")

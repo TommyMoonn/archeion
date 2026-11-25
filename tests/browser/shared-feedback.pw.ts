@@ -106,3 +106,30 @@ test("route and recovery status pages preserve geometry, links and landmarks", a
   await expect(main.getByRole("button", { name: "Reload view" })).toBeVisible();
   await expect(main).toHaveCSS("min-height", "600px");
 });
+
+test("long feedback details retain the fixed stack and scroll independently", async ({ page }) => {
+  await page.setViewportSize({ width: 480, height: 520 });
+  await page.goto(`${fixture}?view=feedback`);
+  await page.evaluate(() => (document.documentElement.style.fontSize = "24px"));
+  const feedback = page.getByRole("region", { name: "Library feedback" });
+  const error = feedback.getByRole("alert");
+  const trigger = error.getByRole("button", { name: "12 details" });
+  const list = error.locator("ul");
+  await expect(feedback).toHaveCSS("position", "fixed");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(list).toBeHidden();
+  await trigger.press("Enter");
+  await expect(list).toBeVisible();
+  await expect(list).toHaveCSS("max-height", "132px");
+  const geometry = await list.evaluate((element) => ({
+    verticalOverflow: element.scrollHeight > element.clientHeight,
+    horizontalOverflow: element.scrollWidth > element.clientWidth + 1,
+  }));
+  expect(geometry).toEqual({ verticalOverflow: true, horizontalOverflow: false });
+  await trigger.press("Space");
+  await expect(list).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(error.getByRole("button", { name: "Dismiss feedback" })).toHaveCSS("width", "28px");
+  await error.getByRole("button", { name: "Dismiss feedback" }).click();
+  await expect(error).toHaveCount(0);
+});

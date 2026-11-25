@@ -59,6 +59,17 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     );
   });
 
+  it("keeps width and spacing token namespaces distinct for generated max-width utilities", () => {
+    const spacing = new Set(
+      Array.from(tokensSource.matchAll(/--spacing-([\w-]+):/g), (match) => match[1]),
+    );
+    const containers = Array.from(
+      tokensSource.matchAll(/--container-([\w-]+):/g),
+      (match) => match[1],
+    );
+    expect(containers.filter((name) => spacing.has(name))).toEqual([]);
+  });
+
   it("keeps menu trigger dimensions owned by shared controls", () => {
     expect(archiveSource).not.toMatch(/\.archive-row-menu summary\s*{[^}]*\b(?:width|height):/s);
   });

@@ -16,6 +16,7 @@ export function ActionMenuFixture() {
   const [selection, setSelection] = useState("");
   const params = new URLSearchParams(location.search);
   const bookMode = params.has("book");
+  const cardMode = params.has("card");
   const edge = params.has("edge");
   const [extraAction, setExtraAction] = useState(false);
   useEffect(() => {
@@ -48,7 +49,17 @@ export function ActionMenuFixture() {
           Outside
         </button>
         <output>{selection}</output>
-        <div style={{ position: "absolute", right: 0, bottom: 0, width: 40, height: 40 }}>
+        <div
+          data-testid="book-menu-parent"
+          className={cardMode ? "book-card" : undefined}
+          style={{
+            position: "absolute",
+            right: 0,
+            bottom: 0,
+            width: cardMode ? 120 : 40,
+            height: cardMode ? 160 : 40,
+          }}
+        >
           {bookMode ? (
             <BookContextMenu
               book={{
@@ -60,7 +71,7 @@ export function ActionMenuFixture() {
                 isFavorite: false,
               }}
               controller={controller}
-              placement="row"
+              placement={cardMode ? "card" : "row"}
               canManageFile
               onRead={noop}
               onDelete={noop}

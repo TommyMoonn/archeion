@@ -1,3 +1,9 @@
+import { Alert } from "../../components/ui/alert";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../components/ui/collapsible";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { Tooltip } from "../../components/Tooltip";
 import {
@@ -55,32 +61,49 @@ function EpubIssueBook({
     : "The diagnostics indicate that this EPUB cannot be opened in Reader.";
 
   return (
-    <article aria-labelledby={titleId} className="epub-issues-book" data-reader-book-id={book.id}>
-      <div className="epub-issues-book__header">
+    <article
+      aria-labelledby={titleId}
+      className="epub-issues-book min-w-0 overflow-hidden border-standard border-solid border-line rounded-card bg-integrity-card focus-within:border-line-strong"
+      data-reader-book-id={book.id}
+    >
+      <div className="epub-issues-book__header grid grid-cols-[var(--spacing-integrity-issue-cover)_minmax(0,1fr)_auto] items-center min-w-0 gap-integrity-gap py-integrity-header-block px-integrity-header-inline bg-integrity-header [@media(max-width:680px)]:grid-cols-[var(--spacing-integrity-issue-cover-narrow)_minmax(0,1fr)]">
         <Tooltip content={`Open details for ${title}`}>
           <button
             aria-label={`Open details for ${title}`}
-            className="epub-issues-book__cover-action"
+            className="epub-issues-book__cover-action block p-0 border-0 rounded-small text-inherit bg-transparent text-start cursor-pointer hover:text-accent-strong"
             onClick={() => onOpenDetails(book)}
             type="button"
           >
-            <BookCover book={book} className="book-cover--epub-issue" />
+            <BookCover
+              book={book}
+              className="book-cover--epub-issue w-integrity-issue-cover rounded-small [@media(max-width:680px)]:w-integrity-issue-cover-narrow"
+            />
           </button>
         </Tooltip>
-        <div className="epub-issues-book__identity">
-          <h2 id={titleId}>
+        <div className="epub-issues-book__identity grid min-w-0 gap-integrity-copy-gap">
+          <h2
+            className="min-w-0 m-0 truncate text-heading font-app-display text-text-strong"
+            id={titleId}
+          >
             <button
-              className="epub-issues-book__title-action"
+              className="epub-issues-book__title-action max-w-full truncate p-0 border-0 rounded-small text-inherit bg-transparent text-start cursor-pointer hover:text-accent-strong"
               onClick={() => onOpenDetails(book)}
               type="button"
             >
               {title}
             </button>
           </h2>
-          <p>{author || "Author unavailable"}</p>
-          <span title={book.relativePath}>{book.relativePath}</span>
+          <p className="min-w-0 m-0 truncate text-muted text-meta-only">
+            {author || "Author unavailable"}
+          </p>
+          <span
+            className="min-w-0 m-0 truncate text-muted font-mono text-caption-size"
+            title={book.relativePath}
+          >
+            {book.relativePath}
+          </span>
           <div
-            className="epub-issues-book__summary"
+            className="epub-issues-book__summary flex items-center flex-wrap gap-y-integrity-small-gap gap-x-integrity-row-block mt-folder-action-gap text-muted text-caption-size [&>span]:inline-flex [&>span]:items-center [&>span]:min-w-0 [&>span]:gap-integrity-small-gap [&>span]:m-0 [&>span]:whitespace-nowrap [&>span[data-severity=error]]:text-error [&>span[data-severity=warning]]:text-warning"
             data-reader-available={readerAvailable ? "true" : "false"}
           >
             {errorCount > 0 ? (
@@ -96,12 +119,15 @@ function EpubIssueBook({
               </span>
             ) : null}
             {!readerAvailable ? (
-              <strong className="epub-issues-book__reader-status">Reader unavailable</strong>
+              <strong className="epub-issues-book__reader-status inline-flex items-center min-w-0 gap-integrity-small-gap m-0 whitespace-nowrap ps-integrity-row-block border-0 border-s border-solid border-line-strong text-text-strong font-medium">
+                Reader unavailable
+              </strong>
             ) : null}
           </div>
         </div>
-        <div className="epub-issues-book__actions">
+        <div className="epub-issues-book__actions flex items-center justify-end flex-wrap gap-control-gap-compact [&>.button:last-child]:-me-button-compact [@media(max-width:680px)]:col-span-full [@media(max-width:680px)]:justify-start [@media(max-width:680px)]:[&>.button:last-child]:me-0">
           <Button
+            className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
             disabled={!readerAvailable}
             disabledReason={readerUnavailableReason}
             icon={<BookOpen />}
@@ -112,6 +138,7 @@ function EpubIssueBook({
             Read
           </Button>
           <Button
+            className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
             icon={<FolderOpen />}
             onClick={() => onReveal(book)}
             size="compact"
@@ -122,13 +149,19 @@ function EpubIssueBook({
         </div>
       </div>
 
-      <details className="epub-issues-book__disclosure">
-        <summary>
+      <Collapsible className="epub-issues-book__disclosure border-0 border-t border-solid border-line">
+        <CollapsibleTrigger className="group flex w-full items-center justify-between min-h-integrity-disclosure-height gap-integrity-row-block px-integrity-header-inline py-0 border-0 text-text bg-transparent text-start text-meta-only font-medium cursor-pointer hover:bg-surface-hover aria-expanded:bg-surface-hover">
           <span>{`View ${countLabel(issueCount, "diagnostic issue")}`}</span>
-          <ChevronDown aria-hidden="true" size={18} />
-        </summary>
-        <EpubIssueDetails issues={entry.diagnostics.issues} />
-      </details>
+          <ChevronDown
+            aria-hidden="true"
+            className="text-muted transition-transform duration-fast ease-standard group-aria-expanded:rotate-180"
+            size={18}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent keepMounted>
+          <EpubIssueDetails issues={entry.diagnostics.issues} />
+        </CollapsibleContent>
+      </Collapsible>
     </article>
   );
 }
@@ -149,7 +182,10 @@ export function LibraryEpubIssuesView({
   const resultLabel = countLabel(affectedBooks.length, "affected book");
 
   return (
-    <section aria-labelledby="epub-issues-title" className="epub-issues-view">
+    <section
+      aria-labelledby="epub-issues-title"
+      className="epub-issues-view mx-auto w-full max-w-collection-workspace"
+    >
       <LibraryIntegrityHeader
         kind="epub-issues"
         refreshing={refreshing}
@@ -165,7 +201,7 @@ export function LibraryEpubIssuesView({
 
       <div
         aria-busy={initialLoading || refreshing || undefined}
-        className="collection-content epub-issues-content"
+        className="collection-content epub-issues-content grid gap-integrity-gap"
         data-surface-state={
           initialLoading
             ? "loading"
@@ -177,10 +213,10 @@ export function LibraryEpubIssuesView({
         }
       >
         {state.status === "error" && snapshot ? (
-          <div className="epub-issues-error" role="alert">
+          <Alert className="epub-issues-error static grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-integrity-row-block gap-y-control-gap-compact px-integrity-alert-inline py-integrity-alert-block border-standard border-solid border-danger-border rounded-control text-error bg-danger-soft text-meta-only [@media(max-width:680px)]:grid-cols-1 [&>span]:text-muted">
             <strong>EPUB diagnostics could not be refreshed.</strong>
             <span>{state.error?.message ?? "Try refreshing the diagnostics again."}</span>
-          </div>
+          </Alert>
         ) : null}
 
         {initialLoading ? (
@@ -207,7 +243,7 @@ export function LibraryEpubIssuesView({
             title="No EPUB issues"
           />
         ) : (
-          <div className="epub-issues-books">
+          <div className="epub-issues-books grid gap-integrity-gap pb-page-bottom">
             {affectedBooks.map((resolved) => (
               <EpubIssueBook
                 key={resolved.book.id}

@@ -67,6 +67,7 @@ export function BookContextMenu({
     <>
       <span className={getBookMenuClassName(placement)} data-open={controller.isOpen || undefined}>
         <ContextMenuTrigger
+          className={`border-book-menu-border text-text bg-book-menu-surface transition-[opacity,background] duration-standard ease-standard ${placement === "card" ? "opacity-0 [.book-card:hover_&]:opacity-100 focus-visible:opacity-100" : "opacity-100"} aria-expanded:opacity-100 aria-expanded:bg-surface-raised hover:border-book-menu-border hover:text-text hover:bg-book-menu-surface`}
           controller={controller}
           disabled={Boolean(disabledReason)}
           disabledReason={disabledReason}
@@ -81,7 +82,7 @@ export function BookContextMenu({
       <ContextMenuSurface
         actions={actions}
         ariaLabel={`Actions for ${title}`}
-        className="book-menu__popover"
+        className="book-menu__popover [&_[data-slot=menu-item-label]]:whitespace-nowrap [&_[data-slot=menu-item-label]]:wrap-normal"
         controller={controller}
         dismissKey={dismissKey}
       />

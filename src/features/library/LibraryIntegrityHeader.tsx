@@ -21,8 +21,11 @@ export function LibraryIntegrityHeader({
         <p className="eyebrow">Archive integrity</p>
         <h1 id={`${kind}-title`}>{title}</h1>
       </div>
-      <div className={`${kind}-header__actions`}>
+      <div
+        className={`${kind}-header__actions self-center justify-self-end [@media(max-width:680px)]:col-span-full [@media(max-width:680px)]:justify-self-stretch [@media(max-width:680px)]:[&>.button]:w-full`}
+      >
         <Button
+          className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
           busy={refreshing}
           disabled={refreshing || pending}
           icon={<RefreshCw />}
@@ -33,7 +36,9 @@ export function LibraryIntegrityHeader({
           Refresh
         </Button>
       </div>
-      <div className={`library-controls ${kind}-controls`}>
+      <div
+        className={`library-controls ${kind}-controls gap-integrity-row-gap [@media(max-width:680px)]:items-start [@media(max-width:680px)]:flex-col [@media(max-width:680px)]:gap-integrity-small-gap [@media(max-width:680px)]:py-integrity-controls-block`}
+      >
         <span aria-live="polite" className="library-result-count">
           {resultLabel}
         </span>
