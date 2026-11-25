@@ -49,6 +49,13 @@ for (const shellColors of ["equal", "distinct"]) {
     await page.goto(`/tests/browser/fixtures/?view=library&shellColors=${shellColors}`);
     for (const collapsed of [false, true]) {
       if (collapsed) await page.getByRole("button", { name: "Collapse sidebar" }).click();
+      await expect(page.locator(".window-titlebar__navigation-plane")).toBeVisible();
+      await expect
+        .poll(async () => {
+          const { planeRight, sidebarRight } = await libraryShellGeometry(page);
+          return planeRight === sidebarRight;
+        })
+        .toBe(true);
       const geometry = await libraryShellGeometry(page);
       expect(geometry.planeRight).toBe(geometry.sidebarRight);
       expect(geometry.mainLeft).toBe(geometry.sidebarRight);

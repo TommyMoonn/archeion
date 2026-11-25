@@ -22,43 +22,42 @@ if (stressTheme !== null) {
   if (!validation.ok) throw new Error("Shell stress theme must pass schema-v1 validation.");
   applyResolvedAppTheme(document.documentElement, resolveTheme(validation.manifest).app);
 }
-if (new URLSearchParams(window.location.search).get("view") === "archive-shell") {
-  // Exercise the real titlebar with mock IPC, not native window operations.
-  Object.defineProperty(globalThis, "isTauri", { value: true, configurable: true });
-  mockWindows("archive-manager");
-  mockIPC((command) => {
-    if (command === "plugin:window|minimize" || command === "plugin:window|close") {
-      document.documentElement.dataset.lastWindowCommand = command;
-      return;
-    }
-    throw new Error(`Unexpected Archive Manager fixture command: ${command}`);
-  });
-}
+const view = new URLSearchParams(window.location.search).get("view");
 if (
-  ["about-updates", "library-updates"].includes(
-    new URLSearchParams(window.location.search).get("view") ?? "",
-  )
+  view === "library" ||
+  view === "library-updates" ||
+  view === "archive-shell" ||
+  view === "about-updates"
 ) {
-  if (new URLSearchParams(window.location.search).get("view") === "about-updates") {
-    Object.defineProperty(globalThis, "isTauri", { value: true, configurable: true });
-    mockWindows("about");
-  }
-  mockIPC((command, args) => {
-    if (command === "plugin:app|version") return APPLICATION_VERSION_FALLBACK;
-    if (command === "plugin:window|minimize" || command === "plugin:window|close") {
-      document.documentElement.dataset.lastWindowCommand = command;
-      return;
-    }
-    if (
-      command === "open_external_url" &&
-      typeof args === "object" &&
-      args !== null &&
-      "url" in args
-    ) {
-      document.documentElement.dataset.lastExternalUrl = String(args.url);
-      return;
-    }
-    throw new Error(`Unexpected update fixture command: ${command}`);
-  });
+  // Exercise the real titlebar without invoking native window operations.
+  Object.defineProperty(globalThis, "isTauri", { value: true, configurable: true });
+  mockWindows(
+    view === "archive-shell" ? "archive-manager" : view === "about-updates" ? "about" : "main",
+  );
+  mockIPC(
+    (command, args) => {
+      if (command === "plugin:window|is_maximized" || command === "plugin:window|is_fullscreen") {
+        return false;
+      }
+      if (command === "plugin:window|minimize" || command === "plugin:window|close") {
+        document.documentElement.dataset.lastWindowCommand = command;
+        return;
+      }
+      if (view === "about-updates" || view === "library-updates") {
+        if (command === "plugin:app|version") return APPLICATION_VERSION_FALLBACK;
+        if (
+          command === "open_external_url" &&
+          typeof args === "object" &&
+          args !== null &&
+          "url" in args
+        ) {
+          document.documentElement.dataset.lastExternalUrl = String(args.url);
+          return;
+        }
+      }
+      throw new Error(`Unexpected ${view} fixture command: ${command}`);
+    },
+    { shouldMockEvents: true },
+  );
 }
 createRoot(root).render(<BrowserFixture />);
