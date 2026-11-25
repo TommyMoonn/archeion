@@ -150,8 +150,7 @@ describe("BookDetailsDrawer", () => {
 
     const tooltip = document.querySelector<HTMLElement>(".app-tooltip");
     expect(tooltip?.textContent).toBe("Clear reading progress");
-    expect(tooltip?.parentElement).toBe(dialog);
-    expect(tooltip?.style.visibility).toBe("visible");
+    expect(tooltip?.closest("dialog")).toBe(dialog);
   });
 
   it("renders progress as a compact identity pill instead of a bulky progress block", () => {

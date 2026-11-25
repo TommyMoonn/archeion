@@ -238,6 +238,11 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --container-tooltip-viewport: min(
+    var(--container-tooltip),
+    var(--available-width, 100vw),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
   --spacing-settings-content-inset: clamp(30px, 6vw, 72px);
   --spacing-settings-status-width: min(
     var(--container-settings-status),
@@ -352,6 +357,22 @@
 
 /* Keep shared animation definitions available to legacy CSS as well as utilities. */
 @theme static inline {
+  --animate-tooltip-enter: app-tooltip-bounce-in var(--motion-duration-emphasized)
+    var(--motion-ease-standard);
+  @keyframes app-tooltip-bounce-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    72% {
+      opacity: 1;
+      transform: scale(1.025);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
   --animate-dialog-enter: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
   --animate-dialog-exit: dialog-exit var(--surface-exit-duration) var(--motion-ease-standard)
     forwards;

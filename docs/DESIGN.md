@@ -221,7 +221,7 @@ Settings uses a shared Tailwind section layout, with a container-sized row layou
 
 Archives and Storage reuse the shared rows and controls, including the annotation export action group and cache and backup status notes. Maintenance confirmations use the native dialog frame; annotation import presents a definition list of counts and a shared Collapsible for unmatched IDs. These sections need no section-specific CSS.
 
-Dictionary management uses shared Badge, Progress, Spinner, Input, segmented radio group, Button, Empty and Alert components. Catalog and installed cards use token-backed Tailwind layout, with container-based reflow for actions, search and progress. Download progress reflects the reported byte total or the catalog estimate; unknown totals remain indeterminate. Recovery actions retain the same download and installation owner. Removal confirmation retains the native dialog frame. The Settings-specific stylesheet is removed; shared legacy tooltip, menu and feedback styling remains until branch B.
+Dictionary management uses shared Badge, Progress, Spinner, Input, segmented radio group, Button, Empty and Alert components. Catalog and installed cards use token-backed Tailwind layout, with container-based reflow for actions, search and progress. Download progress reflects the reported byte total or the catalog estimate; unknown totals remain indeterminate. Recovery actions retain the same download and installation owner. Removal confirmation retains the native dialog frame. The Settings-specific stylesheet is removed; shared legacy menu and feedback styling remains until branch B.
 
 ### Corners
 
@@ -249,6 +249,8 @@ Application icons use named imports from `lucide-react`. Application surfaces do
 | Prominent | `20px` | `24px`      |
 
 `.icon-slot` reserves a stable layout box independently of the glyph size. Icons inherit `currentColor`, and the standard Lucide outline stroke is `2`. Existing role-specific exceptions remain, including stronger selection markers, the primary Add EPUB action, and lighter `1.5` icons where appropriate. Glyph size does not compensate for missing layout space.
+
+Shared tooltips use the shadcn Base UI Tooltip popup and collision positioning. The application retains one controlled timing owner (500 ms pointer, 250 ms keyboard), modality and truncation gating, persistent descriptions, and dismissal on navigation, Escape, scroll and resize. Tooltips portal into their owning native dialog or Reader scope and use the existing caption, surface, shadow and motion tokens.
 
 Every icon-only control has an accessible name. Controls with an unclear purpose also have a tooltip. Collapsed navigation keeps its accessible label when the visible text is hidden.
 

@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -17,13 +16,15 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
-  resolveTooltipPosition,
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider as UiTooltipProvider,
+  TooltipTrigger,
   type TooltipPlacement,
-  type TooltipPosition,
-} from "./tooltipPosition";
+} from "./ui/tooltip";
 import { createTooltipStore, TooltipContext } from "./tooltipStore";
 
-export type { TooltipPlacement } from "./tooltipPosition";
+export type { TooltipPlacement } from "./ui/tooltip";
 
 export const TOOLTIP_POINTER_OPEN_DELAY_MS = 500;
 export const TOOLTIP_FOCUS_OPEN_DELAY_MS = 250;
@@ -63,6 +64,14 @@ function pointerCanOpenTooltip(event: ReactPointerEvent<HTMLElement>): boolean {
 
 function keyboardFocusCanOpenTooltip(element: HTMLElement): boolean {
   return element.ownerDocument.documentElement.dataset.focusPresentation === "keyboard-navigation";
+}
+
+function tooltipPortalHost(trigger: HTMLElement): HTMLElement {
+  return (
+    trigger.closest<HTMLElement>("dialog[open]") ??
+    trigger.closest<HTMLElement>(".reader-page, .reader-status-page") ??
+    trigger.ownerDocument.body
+  );
 }
 
 function tooltipTargetIsTruncated(
@@ -106,7 +115,13 @@ export function TooltipProvider({ children, subscribeToRouteChanges }: TooltipPr
     [store, subscribeToRouteChanges],
   );
 
-  return <TooltipContext.Provider value={store}>{children}</TooltipContext.Provider>;
+  return (
+    <TooltipContext.Provider value={store}>
+      <UiTooltipProvider delay={TOOLTIP_POINTER_OPEN_DELAY_MS} timeout={0}>
+        {children}
+      </UiTooltipProvider>
+    </TooltipContext.Provider>
+  );
 }
 
 export function Tooltip({ children, content, onlyWhenTruncated, placement = "top" }: TooltipProps) {
@@ -114,9 +129,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
   const generatedId = useId();
   const tooltipId = `app-tooltip-${generatedId.replaceAll(":", "")}`;
   const triggerRef = useRef<HTMLElement | null>(null);
-  const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const [position, setPosition] = useState<TooltipPosition | null>(null);
-  const [portalTarget, setPortalTarget] = useState<Element | null>(null);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const child = Children.only(children) as ReactElement<TooltipTriggerProps>;
   const active = useSyncExternalStore(
     context?.subscribe ?? subscribeToNothing,
@@ -124,26 +137,6 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
     getFalseSnapshot,
   );
   const dismiss = context?.dismiss;
-
-  useLayoutEffect(() => {
-    if (!active || !triggerRef.current || !tooltipRef.current) {
-      setPosition(null);
-      return;
-    }
-
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const tooltipRect = tooltipRef.current.getBoundingClientRect();
-    setPosition(
-      resolveTooltipPosition({
-        preferredPlacement: placement,
-        tooltipHeight: tooltipRect.height,
-        tooltipWidth: tooltipRect.width,
-        triggerRect,
-        viewportHeight: window.innerHeight,
-        viewportWidth: window.innerWidth,
-      }),
-    );
-  }, [active, content, placement]);
 
   useEffect(
     () => () => {
@@ -172,7 +165,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
     onFocus: (event) => {
       childProps.onFocus?.(event);
       triggerRef.current = event.currentTarget;
-      setPortalTarget(event.currentTarget.closest("dialog[open]") ?? document.body);
+      setPortalTarget(tooltipPortalHost(event.currentTarget));
       if (
         keyboardFocusCanOpenTooltip(event.currentTarget) &&
         tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
@@ -191,7 +184,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
     onPointerEnter: (event) => {
       childProps.onPointerEnter?.(event);
       triggerRef.current = event.currentTarget;
-      setPortalTarget(event.currentTarget.closest("dialog[open]") ?? document.body);
+      setPortalTarget(tooltipPortalHost(event.currentTarget));
       if (
         pointerCanOpenTooltip(event) &&
         tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
@@ -206,34 +199,28 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
   });
 
   return (
-    <>
-      {trigger}
-      {typeof document !== "undefined"
-        ? createPortal(
-            active ? (
-              <div
-                className="app-tooltip"
-                data-placement={position?.placement ?? placement}
-                data-positioned={position ? "true" : undefined}
-                ref={tooltipRef}
-                role="tooltip"
-                id={tooltipId}
-                style={{
-                  left: position?.left ?? 0,
-                  top: position?.top ?? 0,
-                  visibility: position ? "visible" : "hidden",
-                }}
-              >
-                {content}
-              </div>
-            ) : (
-              <span className="sr-only" id={tooltipId} role="tooltip">
-                {content}
-              </span>
-            ),
+    <UiTooltip open={active}>
+      {/* The application owner controls both delays and modality. Register only the
+          anchor with Base UI rather than starting a competing hover/focus timer. */}
+      <TooltipTrigger disabled render={trigger} />
+      {typeof document !== "undefined" &&
+        (active ? (
+          <TooltipContent
+            anchor={triggerRef}
+            container={portalTarget}
+            id={tooltipId}
+            side={placement}
+          >
+            {content}
+          </TooltipContent>
+        ) : (
+          createPortal(
+            <span className="sr-only" id={tooltipId}>
+              {content}
+            </span>,
             portalTarget ?? document.body,
           )
-        : null}
-    </>
+        ))}
+    </UiTooltip>
   );
 }
