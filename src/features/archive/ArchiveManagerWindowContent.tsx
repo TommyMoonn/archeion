@@ -23,7 +23,6 @@ import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
 import { ArchiveCreateView } from "./ArchiveCreateView";
-import { ArchiveManagerTitlebarComposition } from "./ArchiveManagerTitlebarComposition";
 import { createArchiveContextActions } from "./archiveContextActions";
 import { OpenArchiveButton } from "./OpenArchiveButton";
 
@@ -339,7 +338,6 @@ export function ArchiveManagerWindowContent({
       tabIndex={-1}
       data-utility-ready={!isLoading || undefined}
     >
-      <ArchiveManagerTitlebarComposition />
       <section
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-title"

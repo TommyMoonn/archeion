@@ -1,8 +1,10 @@
-import { SurfacePresence } from "../../components/SurfacePresence";
+import { Save } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { SurfacePresence } from "../../components/SurfacePresence";
+import { Kbd } from "../../components/ui/kbd";
 import type { KeyboardBinding } from "../../types/keyboard";
 import {
   effectiveKeyboardBinding,
@@ -93,11 +95,17 @@ export function KeyboardShortcutDocumentationRow({
   label: string;
 }) {
   const control = (
-    <div aria-label={`${label} keys`} className="keyboard-shortcut-keycaps">
+    <div
+      aria-label={`${label} keys`}
+      className="flex min-w-0 max-w-full flex-wrap justify-end gap-control-gap-compact"
+    >
       {bindings.map((binding, index) => (
-        <kbd key={`${formatKeyboardBinding(binding)}-${index}`}>
+        <Kbd
+          className="settings-row-narrow:wrap-anywhere settings-row-narrow:whitespace-normal"
+          key={`${formatKeyboardBinding(binding)}-${index}`}
+        >
           {formatKeyboardBinding(binding)}
-        </kbd>
+        </Kbd>
       ))}
     </div>
   );
@@ -155,28 +163,36 @@ function KeyboardShortcutCaptureDialog({
 
   return (
     <Dialog
-      className="keyboard-shortcut-capture-dialog"
       closeOnBackdropClick={false}
-      description="Press one shortcut. Escape cancels without changing the current binding."
       footer={
         <>
           <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
-          <Button busy={saving} disabled={validation?.ok !== true} onClick={() => void save()}>
+          <Button
+            busy={saving}
+            disabled={validation?.ok !== true}
+            icon={<Save aria-hidden="true" />}
+            onClick={() => void save()}
+          >
             Save shortcut
           </Button>
         </>
       }
       onClose={onClose}
-      title={`Change ${command.label}`}
+      title="Edit keybind"
     >
       <div
         aria-describedby={validation ? validationMessageId : undefined}
+        aria-description="Press a shortcut while focused. Tab moves to the dialog actions. Escape cancels."
         aria-invalid={validation?.ok === false || undefined}
-        autoFocus
-        className="keyboard-shortcut-capture"
+        aria-label="Shortcut capture"
+        data-dialog-initial-focus
+        className="group grid min-w-0 min-h-shortcut-capture cursor-pointer place-content-center gap-dialog-copy rounded-control border-standard border-solid border-line bg-surface p-dialog-gap text-center wrap-anywhere transition-colors duration-fast ease-standard not-focus:hover:border-line-strong not-focus:hover:bg-surface-hover focus:border-focus focus:bg-accent-soft"
+        role="group"
         onKeyDown={(event) => {
+          // Tab and Shift+Tab are navigation, never assignable shortcuts.
+          if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) return;
           event.preventDefault();
           event.stopPropagation();
           if (event.key === "Escape") {
@@ -199,14 +215,32 @@ function KeyboardShortcutCaptureDialog({
         }}
         tabIndex={0}
       >
-        <strong>{candidate ? formatKeyboardBinding(candidate) : "Press a shortcut"}</strong>
+        <strong className="min-w-0 text-text font-mono text-title-small wrap-anywhere">
+          {candidate ? (
+            formatKeyboardBinding(candidate)
+          ) : (
+            <>
+              <span className="hidden group-focus:inline">Press a shortcut</span>
+              <span className="group-focus:hidden">Click to capture</span>
+            </>
+          )}
+        </strong>
         {validation?.ok === false ? (
-          <p data-tone="error" id={validationMessageId} role="alert">
+          <p
+            className="m-0 min-w-0 max-w-shortcut-feedback text-body-supporting text-danger wrap-anywhere"
+            data-tone="error"
+            id={validationMessageId}
+            role="alert"
+          >
             {validation.reason}
           </p>
         ) : null}
         {validation?.ok === true ? (
-          <p id={validationMessageId} role="status">
+          <p
+            className="m-0 min-w-0 max-w-shortcut-feedback text-body-supporting text-muted wrap-anywhere"
+            id={validationMessageId}
+            role="status"
+          >
             Shortcut available.
           </p>
         ) : null}

@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../../test/activateSelectOption";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -8,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAppPreferences } from "../../../types/appSettings";
 import type { SettingsController } from "../useSettingsController";
 import { appearanceSettingsItems } from "./appearanceSettingsItems";
+import { readerSettingsItems } from "./readerSettingsItems";
 
 const fontRenders: Array<{ root: Root; container: HTMLDivElement }> = [];
 afterEach(() => {
@@ -29,9 +31,12 @@ function renderFontRole(
   const root = createRoot(container);
   fontRenders.push({ root, container });
   act(() => root.render(item.render(context)));
-  const trigger = () => container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
-  const options = () =>
-    Array.from(container.querySelectorAll<HTMLButtonElement>('[role="option"]'));
+  const label = item.label;
+  const trigger = () =>
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+      button.getAttribute("aria-label")?.startsWith(`${label}:`),
+    )!;
+  const options = () => Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'));
   const open = () => act(() => trigger().click());
   const query = (value: string) =>
     act(() => {
@@ -94,8 +99,6 @@ describe("appearanceSettingsItems", () => {
     const rendered = renderFontRole(id);
     rendered.open();
     expect(rendered.options().map((option) => option.textContent)).toEqual(expected);
-    expect(rendered.container.querySelector("h3")).toBeNull();
-    expect(rendered.container.textContent).not.toMatch(/font source|category|preview|advanced/i);
     expect(rendered.context.updateAppPreferences).not.toHaveBeenCalled();
   });
 
@@ -155,7 +158,7 @@ describe("appearanceSettingsItems", () => {
       const unavailable = rendered
         .options()
         .find((option) => option.textContent === `${name} (Unavailable)`)!;
-      expect(unavailable.disabled).toBe(true);
+      expect(unavailable.getAttribute("aria-disabled")).toBe("true");
       expect(unavailable.getAttribute("aria-selected")).toBe("true");
       expect(context.updateAppPreferences).not.toHaveBeenCalled();
       expect(context.preferences.appearance.interfaceFont).toEqual({
@@ -168,21 +171,9 @@ describe("appearanceSettingsItems", () => {
       });
     },
   );
-  it("keeps appearance definitions in one focused registry spread", () => {
-    expect(appearanceSettingsItems.map((item) => item.id)).toEqual([
-      "reader.theme",
-      "appearance.app-themes",
-      "appearance.interface-font",
-      "appearance.display-font",
-      "appearance.animations",
-      "appearance.display-density",
-      "appearance.reset-appearance",
-    ]);
-  });
-
   it("presents one application and one reader theme selector without fallback language", () => {
     const context = controller();
-    const readerTheme = appearanceSettingsItems.find((item) => item.id === "reader.theme")!;
+    const readerTheme = readerSettingsItems.find((item) => item.id === "reader.theme")!;
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
 
     const markup = renderToStaticMarkup(
@@ -196,12 +187,14 @@ describe("appearanceSettingsItems", () => {
     expect(markup).toContain("App themes");
     expect(markup).toContain("Choose the theme used across Archeion.");
     expect(markup).toContain("Moon Ink");
-    expect(markup).not.toMatch(/fallback|override|inherit/i);
+    const content = document.createElement("div");
+    content.innerHTML = markup;
+    expect(content.textContent).not.toMatch(/fallback|override|inherit/i);
   });
 
-  it("uses the compact Manage action, app selector, and shared reader selector actions", () => {
+  it("opens Theme Manager and persists independent app and reader theme choices", () => {
     const context = controller();
-    const readerTheme = appearanceSettingsItems.find((item) => item.id === "reader.theme")!;
+    const readerTheme = readerSettingsItems.find((item) => item.id === "reader.theme")!;
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
     const container = document.createElement("div");
     document.body.append(container);
@@ -219,12 +212,6 @@ describe("appearanceSettingsItems", () => {
     const manage = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Manage themes"]',
     )!;
-    expect(manage.classList).toContain("settings-theme-control__manage");
-    expect(manage.classList).toContain("icon-button--standard");
-    expect(manage.textContent).toBe("");
-    expect(
-      container.querySelector<HTMLButtonElement>('button[aria-label="Open themes folder"]'),
-    ).toBeNull();
 
     const readerSelect = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Reader theme"]',
@@ -235,22 +222,22 @@ describe("appearanceSettingsItems", () => {
 
     act(() => manage.click());
     act(() => readerSelect.click());
-    const lightReader = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    const lightReader = [...container.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (button) => button.textContent === "Light",
     )!;
-    act(() => lightReader.click());
+    act(() => activateSelectOption(lightReader));
     act(() => appSelect.click());
-    const archeionLight = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+    const archeionLight = [...container.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (button) => button.textContent === "Archeion Light",
     )!;
-    act(() => archeionLight.click());
+    act(() => activateSelectOption(archeionLight));
 
     expect(context.openThemeManager).toHaveBeenCalledOnce();
     expect(context.refreshThemeCatalog).toHaveBeenCalledTimes(2);
-    expect(context.updateAppearance).toHaveBeenNthCalledWith(1, {
+    expect(context.updateAppearance).toHaveBeenCalledWith({
       readerTheme: { kind: "builtin", id: "light" },
     });
-    expect(context.updateAppearance).toHaveBeenNthCalledWith(2, {
+    expect(context.updateAppearance).toHaveBeenCalledWith({
       appTheme: { kind: "builtin", id: "light" },
     });
 

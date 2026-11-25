@@ -443,10 +443,6 @@ describe("theme token baseline", () => {
 
       const applicationSurfaceContracts = [
         [
-          "src/styles/layout/window-frame.css",
-          /\.window-titlebar\s*{[^}]*background:\s*var\(--surface-app-frame\);/,
-        ],
-        [
           "src/styles/layout/app-shell.css",
           /\.sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
         ],
@@ -465,14 +461,6 @@ describe("theme token baseline", () => {
         [
           "src/styles/features/library.css",
           /\.library-selection-bar\s*{[^}]*background:\s*var\(--surface\);/,
-        ],
-        [
-          "src/styles/features/settings.css",
-          /\.settings-window\s*{[^}]*background:\s*var\(--canvas\);/,
-        ],
-        [
-          "src/styles/components/dialogs.css",
-          /\.dialog\s*{[^}]*background:\s*var\(--surface-main\);/,
         ],
         [
           "src/styles/components/dialogs.css",

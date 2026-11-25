@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Dialog } from "../../../src/components/Dialog";
+import { ReaderExternalLinkDialog } from "../../../src/features/reader/ReaderExternalLinkDialog";
 import { SurfacePresence } from "../../../src/components/SurfacePresence";
 import { TooltipProvider } from "../../../src/components/Tooltip";
 import { BookDetailsDrawerFrame } from "../../../src/features/library/BookDetailsDrawerFrame";
@@ -89,6 +90,15 @@ export function Fixture() {
       >
         <button onClick={submit}>Delete</button>
       </BookDetailsDrawerFrame>
+    ) : kind === "reader-link" ? (
+      <ReaderExternalLinkDialog
+        key={identity}
+        host="example.com"
+        url="https://example.com/source"
+        opening={false}
+        onCancel={close}
+        onConfirm={submit}
+      />
     ) : kind === "palette" ? (
       <QuickActionsPalette
         key={identity}

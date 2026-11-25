@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { ExternalLink } from "lucide-react";
 
+import {
+  DialogFrame,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../../components/ui/dialog";
 import { Button } from "../../components/Button";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
@@ -24,18 +31,9 @@ export function ReaderExternalLinkDialog({
 }: ReaderExternalLinkDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const suppressModalFocusRestorationRef = useRef<() => void>(() => undefined);
-  const closeExternal = useCallback(
-    (restoreFocus = true) => {
-      suppressModalFocusRestorationRef.current();
-      onCancel(restoreFocus);
-    },
-    [onCancel],
-  );
-
   const dismissal = useReaderSideSurfaceDismiss(
     (restoreFocus = true) => {
-      if (!opening) closeExternal(restoreFocus);
+      if (!opening) onCancel(restoreFocus);
       return true;
     },
     true,
@@ -44,49 +42,39 @@ export function ReaderExternalLinkDialog({
   const modal = useModalDialogLifecycle({
     closeOnBackdropClick: !opening,
     dialogRef,
+    initialFocusRef: cancelRef,
     onClose: dismissal.requestDismissal,
   });
 
-  useLayoutEffect(() => {
-    suppressModalFocusRestorationRef.current = modal.suppressFocusRestoration;
-    return () => {
-      suppressModalFocusRestorationRef.current = () => undefined;
-    };
-  }, [modal.suppressFocusRestoration]);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => cancelRef.current?.focus());
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+  // The Reader restores the EPUB link inside its owning iframe after native close.
+  const { suppressFocusRestoration } = modal;
+  useLayoutEffect(suppressFocusRestoration, [suppressFocusRestoration]);
 
   return (
-    <dialog
+    <DialogFrame
       ref={dialogRef}
       aria-describedby="reader-external-link-description"
       aria-labelledby="reader-external-link-title"
-      className="dialog reader-external-link-dialog"
+      className="reader-external-link-dialog"
       data-reader-ignore-shortcuts
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!opening) dismissal.requestDismissal();
-      }}
+      onCancel={modal.onCancel}
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
     >
-      <div className="dialog__panel">
-        <div className="dialog__copy constrained-user-content">
-          <h2 id="reader-external-link-title">Open external link?</h2>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle id="reader-external-link-title">Open external link?</DialogTitle>
           <p id="reader-external-link-description">
             This EPUB wants to open <strong>{host}</strong> in your browser.
           </p>
-        </div>
+        </DialogHeader>
         <p className="reader-external-link-dialog__url">{url}</p>
         {error ? (
           <p className="reader-external-link-dialog__error" data-tone="error" role="alert">
             {error}
           </p>
         ) : null}
-        <div className="dialog__footer">
+        <DialogFooter>
           <Button
             disabled={opening}
             onClick={() => dismissal.requestDismissal()}
@@ -105,8 +93,8 @@ export function ReaderExternalLinkDialog({
           >
             Open in browser
           </Button>
-        </div>
-      </div>
-    </dialog>
+        </DialogFooter>
+      </DialogContent>
+    </DialogFrame>
   );
 }

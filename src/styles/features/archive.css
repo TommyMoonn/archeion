@@ -3,15 +3,6 @@
   --archive-manager-sidebar-width: 286px;
 }
 
-.archive-manager-titlebar-composition {
-  width: var(--archive-manager-sidebar-width);
-  height: 100%;
-}
-
-.window-titlebar:has(.archive-manager-titlebar-composition) {
-  border-bottom: 0;
-}
-
 .archive-setup {
   display: grid;
   height: 100%;
@@ -470,14 +461,6 @@ html[data-motion="on"]
 }
 
 @media (max-width: 760px) {
-  .window-titlebar:has(.archive-manager-titlebar-composition) {
-    background: var(--surface-app-frame);
-  }
-
-  .window-titlebar__composition:has(.archive-manager-titlebar-composition) {
-    display: none;
-  }
-
   .archive-manager-window__body {
     grid-template-columns: 1fr;
     overflow-y: auto;

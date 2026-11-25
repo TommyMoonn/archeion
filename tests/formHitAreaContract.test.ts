@@ -28,36 +28,16 @@ function cssBlock(source: string, header: string): string {
 
 describe("form semantics and control hit-area contract", () => {
   const forms = read("src/styles/components/forms.css");
-  const toggles = read("src/styles/components/toggles.css");
   const base = read("src/styles/base.css");
   const tokens = read("src/styles/tokens.css");
-  const buttons = read("src/styles/components/buttons.css");
   const filesystem = read("src/styles/features/filesystem.css");
   const windowFrame = read("src/styles/layout/window-frame.css");
   const forcedColors = read("src/styles/forced-colors.css");
   const archive = read("src/styles/features/archive.css");
-  const settings = read("src/styles/features/settings.css");
   const windowTitlebar = read("src/components/WindowTitlebar.tsx");
 
-  it("adds a bounded hard floor to toggles without changing visible geometry", () => {
-    const standardToggle = cssBlock(toggles, ".toggle-control");
-    const compactToggle = cssBlock(toggles, ".toggle-control--compact");
-    const expandedTarget = cssBlock(toggles, ".toggle-control::after");
-    const coarsePointer = cssBlock(toggles, "@media (pointer: coarse)");
-
-    expect(standardToggle).toContain("height: var(--toggle-height, 22px)");
-    expect(compactToggle).toContain("--toggle-height: 20px");
-    expect(expandedTarget).toContain("inset-block: -2px");
-    expect(expandedTarget).toContain("inset-inline: 0");
-    expect(coarsePointer).toContain("inset-block: -6px");
-    expect(coarsePointer).not.toContain("inset-inline");
-  });
-
   it("retains existing compact and native-window target geometry", () => {
-    expect(tokens).toContain("--control-height-compact: 32px");
-    expect(cssBlock(buttons, ".icon-button--compact")).toContain(
-      "--icon-button-size: var(--control-height-compact)",
-    );
+    expect(tokens).toContain("--spacing-control-compact: 32px");
     const titlebarControls = cssBlock(windowFrame, ".window-titlebar__controls button");
     expect(titlebarControls).toContain("width: 42px");
     expect(titlebarControls).toContain("height: var(--window-titlebar-height)");
@@ -66,9 +46,6 @@ describe("form semantics and control hit-area contract", () => {
   });
 
   it("uses non-color invalid geometry in ordinary and forced-colors modes", () => {
-    expect(cssBlock(forms, '.input-shell:has(input[aria-invalid="true"])')).toContain(
-      "outline: 2px dashed var(--error-strong)",
-    );
     expect(
       cssBlock(forms, '.form-field :where(input, select, textarea)[aria-invalid="true"],'),
     ).toContain("outline: 2px dashed var(--error-strong)");
@@ -84,9 +61,6 @@ describe("form semantics and control hit-area contract", () => {
   it("keeps long errors and constrained forms locally reflowable", () => {
     expect(cssBlock(forms, ".form-error")).toContain("overflow-wrap: anywhere");
     expect(cssBlock(archive, "@container archive-detail (max-width: 360px)")).toContain(
-      "grid-template-columns: minmax(0, 1fr)",
-    );
-    expect(cssBlock(settings, "@container settings-section (max-width: 560px)")).toContain(
       "grid-template-columns: minmax(0, 1fr)",
     );
   });

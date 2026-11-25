@@ -54,8 +54,6 @@
   height: var(--window-titlebar-height);
   padding-left: 0;
   color: var(--muted);
-  background: var(--surface-app-frame);
-  border-bottom: 1px solid var(--surface-border);
   user-select: none;
 }
 

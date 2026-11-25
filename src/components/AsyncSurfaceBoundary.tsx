@@ -1,5 +1,6 @@
 import { Component, useContext, useLayoutEffect, type ReactNode } from "react";
 
+import { dialogBodyClass } from "./dialogStyles";
 import { Button } from "./Button";
 import { DialogShellContext } from "./DialogShellContext";
 
@@ -10,7 +11,7 @@ function SurfaceLoadError({ onRetry }: { onRetry: () => void }) {
   }, [shell]);
   if (shell) return shell.renderError(onRetry);
   return (
-    <div className="async-surface-error dialog__body">
+    <div className={`async-surface-error ${dialogBodyClass}`}>
       <p role="alert">This content could not be opened.</p>
       <Button onClick={onRetry} variant="secondary">
         Try again

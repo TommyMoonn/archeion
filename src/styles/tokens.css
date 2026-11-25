@@ -1,88 +1,207 @@
-:root {
-  color-scheme: dark;
+/* Static desktop design values. Legacy selectors and runtime font fallbacks also consume these. */
+@theme static {
+  --*: initial;
+  --spacing: 0.25rem;
 
-  /*
-   * Visual foundation contract
-   *
-   * UI type uses bundled Inter first with defensive system fallbacks and 400, 500, 600, and 700.
-   * Text roles progress from caption through display without selector-specific tuning.
-   * Icon roles separate the visible glyph from its stable layout slot.
-   * Control, radius, border, and elevation scales are shared by recurring surfaces.
-   */
+  /* Typography */
   --font-ui-default: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-display-default: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --font-ui: var(--font-ui-default);
-  --font-display: var(--font-display-default);
   --font-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  --type-caption: 0.75rem;
-  --type-caption-line-height: 1.4;
-  --type-caption-weight: var(--font-weight-regular);
-  --type-meta: 0.8125rem;
-  --type-meta-line-height: 1.4;
-  --type-meta-weight: var(--font-weight-regular);
-  --type-body: 0.875rem;
-  --type-body-line-height: 1.5;
-  --type-body-weight: var(--font-weight-regular);
-  --type-body-large: 0.9375rem;
-  --type-body-large-line-height: 1.55;
-  --type-body-large-weight: var(--font-weight-regular);
-  --type-title-small: 1rem;
-  --type-title-small-line-height: 1.3;
-  --type-title-small-weight: var(--font-weight-semibold);
-  --type-title: 1.0625rem;
-  --type-title-line-height: 1.2;
-  --type-title-weight: var(--font-weight-regular);
-  --type-heading: 1.25rem;
-  --type-heading-line-height: 1.25;
-  --type-heading-weight: var(--font-weight-semibold);
-  --type-dialog-title: 1.5625rem;
-  --type-dialog-title-line-height: 1.15;
-  --type-dialog-title-weight: var(--font-weight-regular);
-  --type-dialog-title-letter-spacing: -0.02em;
-  --type-section-title: 1.75rem;
-  --type-section-title-line-height: 1.15;
-  --type-section-title-weight: var(--font-weight-regular);
-  --type-section-title-letter-spacing: -0.025em;
-  --type-page-title: 1.875rem;
-  --type-page-title-line-height: 1.1;
-  --type-page-title-weight: var(--font-weight-regular);
-  --type-page-title-letter-spacing: -0.03em;
-  --type-display-compact: clamp(1.875rem, 5vw, 2.375rem);
-  --type-display-medium: clamp(2.125rem, 5vw, 3rem);
-  --type-display-large: clamp(2.375rem, 5vw, 3.5rem);
-  --type-display-line-height: 1.05;
-  --type-display-weight: var(--font-weight-regular);
-  --type-display-letter-spacing: -0.03em;
+  --leading-display: 1.05;
+  --tracking-display: -0.03em;
 
-  --type-application-title: var(--type-title);
-  --type-application-title-line-height: var(--type-title-line-height);
-  --type-application-title-weight: var(--type-title-weight);
-  --type-application-title-letter-spacing: 0.01em;
-  --type-control-label: var(--type-body);
-  --type-control-label-line-height: 1.25;
-  --type-control-label-weight: var(--font-weight-medium);
-  --type-body-supporting: var(--type-meta);
-  --type-body-supporting-line-height: 1.5;
-  --type-body-supporting-weight: var(--font-weight-regular);
-  --type-code: var(--type-meta);
-  --type-code-line-height: 1.45;
-  --type-code-weight: var(--font-weight-regular);
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: var(--font-weight-regular);
 
-  --icon-glyph-compact: 14px;
-  --icon-glyph-standard: 16px;
-  --icon-glyph-prominent: 20px;
-  --icon-slot-compact: 16px;
-  --icon-slot-standard: 20px;
-  --icon-slot-prominent: 24px;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--font-weight: var(--font-weight-regular);
 
-  --control-height-compact: 32px;
-  --control-height-standard: 36px;
-  --control-height-prominent: 40px;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: var(--font-weight-regular);
+
+  --text-body-large: 0.9375rem;
+  --text-body-large--line-height: 1.55;
+  --text-body-large--font-weight: var(--font-weight-regular);
+
+  --text-title-small: 1rem;
+  --text-title-small--line-height: 1.3;
+  --text-title-small--font-weight: var(--font-weight-semibold);
+
+  --text-title: 1.0625rem;
+  --text-title--line-height: 1.2;
+  --text-title--font-weight: var(--font-weight-regular);
+
+  --text-heading: 1.25rem;
+  --text-heading--line-height: 1.25;
+  --text-heading--font-weight: var(--font-weight-semibold);
+
+  --text-dialog-title: 1.5625rem;
+  --text-dialog-title--line-height: 1.15;
+  --text-dialog-title--font-weight: var(--font-weight-regular);
+  --text-dialog-title--letter-spacing: -0.02em;
+
+  --text-section-title: 1.75rem;
+  --text-section-title--line-height: 1.15;
+  --text-section-title--font-weight: var(--font-weight-regular);
+  --text-section-title--letter-spacing: -0.025em;
+
+  --text-page-title: 1.875rem;
+  --text-page-title--line-height: 1.1;
+  --text-page-title--font-weight: var(--font-weight-regular);
+  --text-page-title--letter-spacing: -0.03em;
+
+  --text-display-compact: clamp(1.875rem, 5vw, 2.375rem);
+  --text-display-compact--line-height: var(--leading-display);
+  --text-display-compact--font-weight: var(--font-weight-regular);
+  --text-display-compact--letter-spacing: var(--tracking-display);
+
+  --text-display-medium: clamp(2.125rem, 5vw, 3rem);
+  --text-display-medium--line-height: var(--leading-display);
+  --text-display-medium--font-weight: var(--font-weight-regular);
+  --text-display-medium--letter-spacing: var(--tracking-display);
+
+  --text-display-large: clamp(2.375rem, 5vw, 3.5rem);
+  --text-display-large--line-height: var(--leading-display);
+  --text-display-large--font-weight: var(--font-weight-regular);
+  --text-display-large--letter-spacing: var(--tracking-display);
+
+  --text-application-title: var(--text-title);
+  --text-application-title--line-height: var(--text-title--line-height);
+  --text-application-title--font-weight: var(--text-title--font-weight);
+  --text-application-title--letter-spacing: 0.01em;
+
+  --text-control-label: var(--text-body);
+  --text-control-label--line-height: 1.25;
+  --text-control-label--font-weight: var(--font-weight-medium);
+
+  --text-body-supporting: var(--text-meta);
+  --text-body-supporting--line-height: 1.5;
+  --text-body-supporting--font-weight: var(--font-weight-regular);
+
+  --text-code: var(--text-meta);
+  --text-code--line-height: 1.45;
+  --text-code--font-weight: var(--font-weight-regular);
+
+  /* The Reader interface uses a deliberately smaller subset of the type scale. */
+  --text-reader-caption: 0.6875rem;
+  --text-reader-meta: 0.75rem;
+  --text-reader-body: 0.8125rem;
+  --text-reader-body-large: 0.875rem;
+  --text-reader-title-small: 0.9375rem;
+
+  /* Pixel geometry stays pixel-based; the standard spacing scale is rem-based. */
+  --spacing-icon-glyph-compact: 14px;
+  --spacing-icon-glyph-standard: 16px;
+  --spacing-icon-glyph-prominent: 20px;
+  --spacing-icon-slot-compact: 16px;
+  --spacing-icon-slot-standard: 20px;
+  --spacing-icon-slot-prominent: 24px;
+  --spacing-control-compact: 32px;
+  --spacing-control-standard: 36px;
+  --spacing-control-prominent: 40px;
+  --spacing-control-gap: 8px;
+  --spacing-control-gap-compact: 6px;
+  --spacing-button-compact: 11px;
+  --spacing-button-standard: 14px;
+  --spacing-button-prominent: 17px;
+  --spacing-input-gap: 9px;
+  --spacing-input-inline: 13px;
+  --spacing-search-field: min(260px, 28vw);
+  --spacing-busy-inset: 2px;
+  --leading-control-label: var(--text-control-label--line-height);
+  --spacing-menu-padding: 5px;
+  --spacing-sidebar-expanded: 248px;
+  --spacing-sidebar-narrow: 220px;
+  --spacing-sidebar-collapsed: 56px;
+  --spacing-collection-comfortable: 20px;
+  --spacing-collection-compact: 16px;
+  --spacing-dialog-panel: 24px;
+  --spacing-dialog-gap: 20px;
+  --spacing-dialog-gap-narrow: 12px;
+  --spacing-dialog-copy: 10px;
+  --spacing-dialog-footer: 9px;
+  --spacing-skeleton-label-width: min(8rem, 75%);
+  --spacing-skeleton-label-height: 0.65em;
+  --container-dialog-description: 65ch;
+  --spacing-dialog-inset: 32px;
+  --spacing-dialog-inset-narrow: 20px;
+  --spacing-menu-min: 168px;
+  --spacing-select-menu-min: 188px;
+  --spacing-font-picker-menu-min: 224px;
+  --spacing-font-picker-search: 28px;
+  --spacing-font-picker-max-height: 360px;
+  --spacing-font-picker-inset: 4px;
+  --spacing-select-trigger: min(164px, 100%);
+  --spacing-select-trigger-gap: 12px;
+  --spacing-control-inset: 2px;
+  --spacing-switch-compact: 34px;
+  --spacing-switch-standard: 38px;
+  --spacing-switch-height-compact: 20px;
+  --spacing-switch-height-standard: 22px;
+  --spacing-switch-thumb-compact: 14px;
+  --spacing-switch-thumb-standard: 16px;
+  --spacing-segment-inset: 3px;
+  --spacing-segment-icon-default: 38px;
+  --spacing-segment-glyph: 18px;
+  --spacing-settings-sidebar: 250px;
+  --spacing-settings-sidebar-narrow: 190px;
+  --spacing-settings-sidebar-inset: 18px;
+  --spacing-settings-search: 34px;
+  --spacing-settings-nav-gap: 3px;
+  --spacing-settings-small-gap: 4px;
+  --spacing-settings-content-short-top: 34px;
+  --spacing-settings-content-top: 42px;
+  --spacing-settings-content-bottom: 76px;
+  --spacing-settings-content-short-bottom: 56px;
+  --spacing-settings-content-narrow-inset: 28px;
+  --spacing-settings-row-standard: 64px;
+  --spacing-settings-row-action: 56px;
+  --spacing-settings-row-compact: 48px;
+  --spacing-settings-row-standard-inset: 11px;
+  --spacing-settings-row-action-inset: 9px;
+  --spacing-settings-row-compact-inset: 7px;
+  --spacing-settings-nav-icon: 18px;
+  --container-settings-section: 760px;
+  --container-settings-description: 54ch;
+  --container-settings-status: 360px;
+  --container-shortcut-search: 360px;
+  --spacing-badge-inline: 7px;
+  --spacing-dictionary-search-min: 180px;
+  --spacing-dictionary-search-basis: 280px;
+  --container-dictionary-search: 360px;
+  --container-dictionary-actions: 210px;
+  --container-dictionary-progress: 420px;
+  --container-dictionary-wide: 640px;
+  --container-dictionary-toolbar: 480px;
+  --container-dictionary-narrow: 420px;
+  --spacing-dictionary-progress-min: 120px;
+  --spacing-dictionary-fact-gap: 5px;
+  --leading-dictionary-title: 1.3;
+  --container-shortcut-feedback: 38ch;
+  --spacing-shortcut-capture: 112px;
+  --tracking-settings-eyebrow: 0.1em;
+  --tracking-settings-group: 0.08em;
+  --leading-settings-status: 1.35;
+  --leading-settings-empty: 1.55;
+  --spacing-slider-row: 240px;
+  --spacing-slider-gap: 12px;
+  --spacing-slider-hit: 26px;
+  --spacing-slider-track: 4px;
+  --spacing-slider-thumb: 16px;
+  --spacing-overlay-viewport-inset: 16px;
+  --container-dialog: 430px;
+  --container-popover: 420px;
+  --container-tooltip: 280px;
+
+  /* Shared borders and radii */
   --border-width: 1px;
   --radius-small: 4px;
   --radius-control: 6px;
@@ -91,17 +210,364 @@
   --radius-dialog: 8px;
   --radius-pill: 999px;
 
+  /* Fixed cover-overlay elevation; theme-derived shadows remain runtime-owned. */
+  --shadow-cover-progress: 0 2px 8px rgb(0 0 0 / 26%);
+
+  /* Shared viewport thresholds. Legacy inclusive max-width queries stay unchanged. */
+  --breakpoint-window-small: 480px;
+  --breakpoint-overlay-narrow: 520px;
+  --breakpoint-window-narrow: 560px;
+  --breakpoint-collection-narrow: 620px;
+  --breakpoint-panel-narrow: 680px;
+  --breakpoint-dialog-narrow: 720px;
+  --breakpoint-workspace-narrow: 760px;
+  --breakpoint-shell-narrow: 820px;
+  --breakpoint-collection-wide: 900px;
+
+  /* Motion values are enabled by the existing preference and system-motion gate. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-view: cubic-bezier(0.16, 1, 0.3, 1);
+  --spacing-motion-small: 6px;
+  --duration-enabled-fast: 120ms;
+  --duration-enabled-standard: 150ms;
+  --duration-enabled-slow: 160ms;
+  --duration-enabled-emphasized: 180ms;
+  --duration-enabled-view: 200ms;
+  --duration-enabled-loop: 900ms;
+}
+
+/* Inline references resolve in the consumer scope, including Reader and theme previews. */
+@theme inline {
+  --spacing-settings-content-inset: clamp(30px, 6vw, 72px);
+  --spacing-settings-status-width: min(
+    var(--container-settings-status),
+    calc(100% - 2 * var(--spacing-settings-sidebar-inset))
+  );
+  --spacing-dialog-frame: min(var(--dialog-width), calc(100% - var(--spacing-dialog-inset)));
+  --spacing-dialog-frame-narrow: min(
+    var(--dialog-width),
+    calc(100% - var(--spacing-dialog-inset-narrow))
+  );
+  --spacing-dialog-frame-height: calc(100dvh - var(--spacing-dialog-inset));
+  --spacing-dialog-frame-height-narrow: calc(100dvh - var(--spacing-dialog-inset-narrow));
+  --spacing-dialog-panel-height: calc(
+    100dvh - var(--spacing-dialog-inset) - 2 * var(--border-width)
+  );
+  --spacing-dialog-panel-height-narrow: calc(
+    100dvh - var(--spacing-dialog-inset-narrow) - 2 * var(--border-width)
+  );
+  --spacing-dialog-feedback: calc(
+    2 * var(--text-meta) * var(--text-meta--line-height) + 2 * var(--spacing-control-inset)
+  );
+  --spacing-dialog-feedback-summary: calc(
+    4 * var(--text-meta) * var(--text-meta--line-height) + 2 * var(--spacing-control-inset)
+  );
+  --spacing-dialog-feedback-narrow: calc(2 * var(--text-meta) * var(--text-meta--line-height));
+  --font-interface: var(--font-ui);
+  --font-app-display: var(--font-display);
+  --spacing-segment-icon: var(--segment-icon-size);
+  --radius-segment: max(
+    0px,
+    calc(var(--radius-control) - var(--spacing-segment-inset) - var(--border-width))
+  );
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-collection-content: var(--collection-content-offset);
+  --default-transition-duration: var(--motion-duration-standard);
+  --default-transition-timing-function: var(--ease-standard);
+
+  --color-canvas: var(--canvas);
+  --color-canvas-deep: var(--canvas-deep);
+  --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-app-frame: var(--surface-app-frame);
+  --color-surface-sidebar: var(--surface-sidebar);
+  --color-surface-main: var(--surface-main);
+  --color-surface-main-raised: var(--surface-main-raised);
+  --color-line: var(--line);
+  --color-font-picker-divider: color-mix(in srgb, var(--line) 60%, transparent);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-strong: var(--text-strong);
+  --color-muted: var(--muted);
+  --color-muted-soft: var(--muted-soft);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-focus: var(--focus);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  --color-line-subtle: var(--line-subtle);
+  --color-darkening: var(--darkening);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
+  --color-selected: var(--selected);
+  --color-active: var(--active);
+  --color-disabled: var(--disabled);
+  --color-disabled-text: var(--disabled-text);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-error-strong: var(--error-strong);
+  --color-error-soft: var(--error-soft);
+  --color-error-border: var(--error-border);
+  --color-info-soft: var(--info-soft);
+  --color-info-border: var(--info-border);
+  --color-danger: var(--danger);
+  --color-danger-strong: var(--danger-strong);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+  --color-surface-shell-hover: var(--surface-shell-hover);
+  --color-surface-shell-active: var(--surface-shell-active);
+  --color-reader-bg: var(--reader-bg);
+  --color-reader-surface: var(--reader-surface);
+  --color-reader-line: var(--reader-line);
+  --color-reader-text: var(--reader-text);
+  --color-reader-strong: var(--reader-strong);
+  --color-reader-muted: var(--reader-muted);
+  --color-reader-focus: var(--reader-focus);
+  --color-reader-danger: var(--reader-danger);
+  --color-reader-link: var(--reader-link);
+  --color-reader-code-background: var(--reader-code-background);
+  --color-reader-selection: var(--reader-selection);
+  --color-reader-line-subtle: var(--reader-line-subtle);
+  --color-reader-quotation: var(--reader-quotation);
+  --color-reader-link-visited: var(--reader-link-visited);
+  --color-backdrop: var(--backdrop);
+  --color-action-primary-active: color-mix(in srgb, var(--accent-strong) 88%, var(--canvas-deep));
+  --color-switch-hover: color-mix(in srgb, var(--accent-soft) 86%, var(--accent) 14%);
+  --color-switch-active: color-mix(in srgb, var(--accent-soft) 76%, var(--accent) 24%);
+  --color-action-neutral-active: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
+  --color-action-danger-active: color-mix(in srgb, var(--danger-strong) 88%, var(--canvas-deep));
+
+  --shadow-app-card: var(--shadow-card);
+  --shadow-app-tooltip: var(--shadow-tooltip);
+  --shadow-app-popover: var(--shadow-popover);
+  --shadow-app-dialog: var(--shadow-dialog);
+  --shadow-app-drawer: var(--shadow-drawer);
+}
+
+/* Keep shared animation definitions available to legacy CSS as well as utilities. */
+@theme static inline {
+  --animate-dialog-enter: dialog-presence-enter var(--surface-duration) var(--motion-ease-standard);
+  --animate-dialog-exit: dialog-exit var(--surface-exit-duration) var(--motion-ease-standard)
+    forwards;
+  @keyframes dialog-exit {
+    from {
+      opacity: var(--surface-from-opacity, 1);
+      transform: var(--surface-from-transform, scale(1));
+    }
+    to {
+      opacity: 0;
+      transform: var(--surface-from-transform, scale(1));
+    }
+  }
+  @keyframes dialog-presence-enter {
+    from {
+      opacity: var(--surface-from-opacity, 0.92);
+      transform: var(--surface-from-transform, scale(0.97));
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  --animate-view-enter: app-motion-view-content-in var(--motion-duration-view) var(--ease-view);
+  --animate-settings-enter: app-motion-settings-section-in var(--motion-duration-fast)
+    var(--ease-standard);
+  --animate-notice-enter: app-motion-notice-in var(--motion-duration-fast) var(--ease-standard);
+  --animate-disclosure-enter: app-motion-disclosure-in var(--motion-duration-standard)
+    var(--ease-standard);
+  --animate-button-busy: button-busy-turn 1s linear infinite;
+  @keyframes button-busy-turn {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  --animate-loading-sheen: loading-sheen 1.5s var(--ease-standard) infinite;
+  --animate-progress-indeterminate: progress-indeterminate 1.5s var(--ease-standard) infinite;
+  @keyframes progress-indeterminate {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
+}
+
+/* These utilities have no native Tailwind theme namespace. */
+@utility border-standard {
+  border-width: var(--border-width);
+}
+
+@utility duration-fast {
+  --tw-duration: var(--motion-duration-fast);
+  transition-duration: var(--motion-duration-fast);
+}
+
+@utility duration-standard {
+  --tw-duration: var(--motion-duration-standard);
+  transition-duration: var(--motion-duration-standard);
+}
+
+@utility duration-slow {
+  --tw-duration: var(--motion-duration-slow);
+  transition-duration: var(--motion-duration-slow);
+}
+
+@utility duration-emphasized {
+  --tw-duration: var(--motion-duration-emphasized);
+  transition-duration: var(--motion-duration-emphasized);
+}
+
+@utility duration-view {
+  --tw-duration: var(--motion-duration-view);
+  transition-duration: var(--motion-duration-view);
+}
+
+@utility duration-loop {
+  --tw-duration: var(--motion-duration-loop);
+  transition-duration: var(--motion-duration-loop);
+}
+
+/* The controls use distinct durations for press feedback and color transitions. */
+@utility transition-select {
+  transition:
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    border-color var(--motion-duration-standard) var(--ease-standard);
+}
+
+@utility select-positioner-size {
+  width: max-content;
+  min-width: min(
+    max(var(--anchor-width, 0px), var(--spacing-select-menu-min)),
+    var(--available-width, 100vw),
+    var(--container-popover)
+  );
+  max-width: min(
+    var(--container-popover),
+    var(--available-width, 100vw),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+}
+
+@utility leading-inherit {
+  line-height: inherit;
+}
+
+@utility max-h-select-available {
+  max-height: var(--available-height, 100vh);
+}
+
+@utility select-option-columns {
+  grid-template-columns: minmax(0, 1fr) var(--spacing-icon-slot-compact);
+}
+
+@utility transition-action {
+  transition:
+    scale var(--motion-duration-fast) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    border-color var(--motion-duration-standard) var(--ease-standard);
+}
+@utility transition-icon-action {
+  transition:
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    scale var(--motion-duration-fast) var(--ease-standard);
+}
+@utility transition-input-surface {
+  transition:
+    border-color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard);
+}
+@custom-variant control-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
+@custom-variant control-active (&:active:not(:disabled):not([aria-disabled="true"]));
+@custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
+
+@custom-variant app-motion (&:where(html[data-motion="on"] *));
+
+/* Runtime properties and temporary aliases for unmigrated desktop CSS. */
+:root {
+  color-scheme: dark;
+  --font-ui: var(--font-ui-default);
+  --font-display: var(--font-display-default);
+
+  --type-caption: var(--text-caption);
+  --type-caption-line-height: var(--text-caption--line-height);
+  --type-caption-weight: var(--text-caption--font-weight);
+  --type-meta: var(--text-meta);
+  --type-meta-line-height: var(--text-meta--line-height);
+  --type-body: var(--text-body);
+  --type-body-line-height: var(--text-body--line-height);
+  --type-body-weight: var(--text-body--font-weight);
+  --type-body-large: var(--text-body-large);
+  --type-body-large-line-height: var(--text-body-large--line-height);
+  --type-body-large-weight: var(--text-body-large--font-weight);
+  --type-title-small: var(--text-title-small);
+  --type-title-small-line-height: var(--text-title-small--line-height);
+  --type-title-small-weight: var(--text-title-small--font-weight);
+  --type-title: var(--text-title);
+  --type-title-line-height: var(--text-title--line-height);
+  --type-title-weight: var(--text-title--font-weight);
+  --type-heading: var(--text-heading);
+  --type-heading-line-height: var(--text-heading--line-height);
+  --type-heading-weight: var(--text-heading--font-weight);
+  --type-dialog-title: var(--text-dialog-title);
+  --type-dialog-title-line-height: var(--text-dialog-title--line-height);
+  --type-dialog-title-weight: var(--text-dialog-title--font-weight);
+  --type-dialog-title-letter-spacing: var(--text-dialog-title--letter-spacing);
+  --type-section-title: var(--text-section-title);
+  --type-section-title-line-height: var(--text-section-title--line-height);
+  --type-section-title-weight: var(--text-section-title--font-weight);
+  --type-section-title-letter-spacing: var(--text-section-title--letter-spacing);
+  --type-page-title: var(--text-page-title);
+  --type-page-title-line-height: var(--text-page-title--line-height);
+  --type-page-title-weight: var(--text-page-title--font-weight);
+  --type-page-title-letter-spacing: var(--text-page-title--letter-spacing);
+  --type-display-compact: var(--text-display-compact);
+  --type-display-medium: var(--text-display-medium);
+  --type-application-title: var(--text-application-title);
+  --type-application-title-line-height: var(--text-application-title--line-height);
+  --type-application-title-weight: var(--text-application-title--font-weight);
+  --type-application-title-letter-spacing: var(--text-application-title--letter-spacing);
+  --type-control-label: var(--text-control-label);
+  --type-control-label-line-height: var(--text-control-label--line-height);
+  --type-control-label-weight: var(--text-control-label--font-weight);
+  --type-body-supporting: var(--text-body-supporting);
+  --type-body-supporting-line-height: var(--text-body-supporting--line-height);
+  --type-body-supporting-weight: var(--text-body-supporting--font-weight);
+  --type-code: var(--text-code);
+  --type-code-line-height: var(--text-code--line-height);
+  --type-code-weight: var(--text-code--font-weight);
+  --type-display-line-height: var(--leading-display);
+  --type-display-weight: var(--font-weight-regular);
+  --type-display-letter-spacing: var(--tracking-display);
+
+  --icon-glyph-compact: var(--spacing-icon-glyph-compact);
+  --icon-glyph-standard: var(--spacing-icon-glyph-standard);
+  --icon-glyph-prominent: var(--spacing-icon-glyph-prominent);
+  --icon-slot-compact: var(--spacing-icon-slot-compact);
+  --icon-slot-standard: var(--spacing-icon-slot-standard);
+  --icon-slot-prominent: var(--spacing-icon-slot-prominent);
+  --control-height-compact: var(--spacing-control-compact);
+  --control-height-standard: var(--spacing-control-standard);
+  --control-height-prominent: var(--spacing-control-prominent);
+
   font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
   --surface-border: var(--line);
-  --surface-border-strong: var(--line-strong);
   --backdrop: color-mix(in srgb, var(--darkening) 38%, transparent);
 
-  --sidebar-width: 248px;
-  --sidebar-collapsed-width: 56px;
-  --collection-content-offset: 20px;
+  --sidebar-width: var(--spacing-sidebar-expanded);
+  --sidebar-collapsed-width: var(--spacing-sidebar-collapsed);
+  --collection-content-offset: var(--spacing-collection-comfortable);
 
   --motion-duration-fast: 0ms;
   --motion-duration-standard: 0ms;
@@ -109,22 +575,21 @@
   --motion-duration-emphasized: 0ms;
   --motion-duration-view: 0ms;
   --motion-duration-loop: 0ms;
-  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --motion-ease-view: cubic-bezier(0.16, 1, 0.3, 1);
-  --motion-distance-small: 6px;
+  --motion-ease-standard: var(--ease-standard);
+  --motion-distance-small: var(--spacing-motion-small);
 }
 
 html[data-density="compact"] {
-  --collection-content-offset: 16px;
+  --collection-content-offset: var(--spacing-collection-compact);
 }
 
 html[data-motion="on"] {
-  --motion-duration-fast: 120ms;
-  --motion-duration-standard: 150ms;
-  --motion-duration-slow: 160ms;
-  --motion-duration-emphasized: 180ms;
-  --motion-duration-view: 200ms;
-  --motion-duration-loop: 900ms;
+  --motion-duration-fast: var(--duration-enabled-fast);
+  --motion-duration-standard: var(--duration-enabled-standard);
+  --motion-duration-slow: var(--duration-enabled-slow);
+  --motion-duration-emphasized: var(--duration-enabled-emphasized);
+  --motion-duration-view: var(--duration-enabled-view);
+  --motion-duration-loop: var(--duration-enabled-loop);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -136,4 +601,123 @@ html[data-motion="on"] {
     --motion-duration-view: 0ms;
     --motion-duration-loop: 0ms;
   }
+}
+
+@utility font-picker-positioner-size {
+  width: min(
+    max(var(--anchor-width, 0px), var(--spacing-font-picker-menu-min)),
+    var(--container-popover),
+    var(--available-width, 100vw),
+    calc(100vw - var(--spacing-overlay-viewport-inset))
+  );
+}
+
+@utility max-h-font-picker-available {
+  max-height: min(var(--spacing-font-picker-max-height), var(--available-height, 100vh));
+}
+
+@utility font-picker-keyboard-outline {
+  [data-keyboard-navigation] &[data-highlighted] {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+}
+
+@utility transition-switch-thumb {
+  transition:
+    translate var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard);
+}
+
+@utility settings-slider-columns {
+  grid-template-columns: 4ch minmax(0, 1fr);
+}
+
+:root {
+  --segment-icon-size: var(--spacing-segment-icon-default);
+}
+html[data-density="compact"] {
+  --segment-icon-size: var(--spacing-control-standard);
+}
+
+@utility transition-segment {
+  transition:
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard),
+    border-color var(--motion-duration-standard) var(--ease-standard),
+    scale var(--motion-duration-fast) var(--ease-standard);
+}
+
+/* The dialog's inclusive viewport/container thresholds are part of its layout contract. */
+@custom-variant dialog-viewport-narrow {
+  @media (max-height: 520px), (max-width: 480px) {
+    @slot;
+  }
+}
+@custom-variant dialog-panel-narrow {
+  @container dialog-panel (max-width: 20rem) {
+    @slot;
+  }
+}
+@utility scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
+@utility grid-cols-dialog-bottom {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@utility skeleton-label {
+  background: linear-gradient(var(--surface-raised), var(--surface-raised)) left center /
+    var(--spacing-skeleton-label-width) var(--spacing-skeleton-label-height) no-repeat;
+}
+
+/* Settings geometry retains the inclusive legacy viewport and container thresholds. */
+@custom-variant settings-window-narrow {
+  @media (max-width: 820px) {
+    @slot;
+  }
+}
+@custom-variant settings-window-mobile {
+  @media (max-width: 620px) {
+    @slot;
+  }
+}
+@custom-variant settings-window-short {
+  @media (max-height: 640px) {
+    @slot;
+  }
+}
+@custom-variant settings-row-narrow {
+  @container settings-section (max-width: 560px) {
+    @slot;
+  }
+}
+@utility settings-window-columns {
+  grid-template-columns: var(--spacing-settings-sidebar) minmax(0, 1fr);
+}
+@utility settings-window-columns-narrow {
+  grid-template-columns: var(--spacing-settings-sidebar-narrow) minmax(0, 1fr);
+}
+@utility settings-window-mobile-rows {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+@utility settings-nav-columns {
+  grid-template-columns: var(--spacing-settings-nav-icon) minmax(0, 1fr);
+}
+@utility dictionary-fact-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@utility settings-row-columns {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@utility settings-select-basis {
+  flex: 0 0 var(--spacing-slider-row);
+}
+@utility settings-segment-min {
+  min-width: min(var(--spacing-select-menu-min), 100%);
+}
+@utility text-meta-size {
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
 }

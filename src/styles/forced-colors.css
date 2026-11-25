@@ -54,7 +54,6 @@
 
   :where(
     .dialog,
-    .dialog-loading-fallback__panel,
     .quick-actions,
     .menu-popover,
     .app-select__menu,
@@ -87,7 +86,6 @@
 
   :where(
     .dialog,
-    .dialog-loading-fallback__panel,
     .quick-actions,
     .menu-popover,
     .app-select__menu,
@@ -192,6 +190,7 @@
     .theme-catalog-list__item[aria-current="true"],
     .app-select__option[aria-selected="true"],
     .app-select__option[data-active],
+    .app-select__option[data-highlighted],
     .menu-item[aria-selected="true"],
     .segmented-control__option[aria-checked="true"],
     .toggle-control[aria-checked="true"],
@@ -202,8 +201,11 @@
     background: Highlight;
   }
 
-  .toggle-control[aria-checked="true"] span {
-    background: HighlightText;
+  /* Reader palette rules are unlayered and more specific than the shared selection rule. */
+  .reader-control .segmented-control__option[aria-checked="true"] {
+    border-color: Highlight;
+    background: Highlight;
+    color: HighlightText;
   }
 
   :where(.book-card[data-selected], .book-row[data-selected]) {

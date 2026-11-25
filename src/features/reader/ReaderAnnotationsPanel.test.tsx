@@ -4,6 +4,7 @@ import { act, useLayoutEffect, useRef, useState, type ComponentProps, type React
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import type { Annotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { ReaderAnnotationsPanel } from "./ReaderAnnotationsPanel";
@@ -497,18 +498,27 @@ describe("ReaderAnnotationsPanel", () => {
     expect(rendered.props.onClose).not.toHaveBeenCalled();
   });
 
-  it("still selects a sort option with capture-phase outside-pointer handling", () => {
-    const rendered = renderPanel();
+  it("still selects a sort option with capture-phase outside-pointer handling", async () => {
+    const rendered = renderPanel({
+      annotations: [bookmark, { ...highlight, updatedAt: "2026-07-13T00:00:00.000Z" }],
+    });
     const sortTrigger = button(rendered.container, "Sort annotations");
+    const chapterOrder = () =>
+      [...rendered.container.querySelectorAll("h3")].map((heading) => heading.textContent);
+    expect(chapterOrder()).toEqual(["Chapter One", "Chapter Two"]);
 
     pointerClick(sortTrigger);
-    pointerClick(textButton(rendered.container, "Recently updated"));
+    const recent = [...rendered.container.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (option) => option.textContent?.trim() === "Recently updated",
+    );
+    if (!recent) throw new Error("Recently updated sort option was not rendered.");
+    await act(async () => activateSelectOption(recent));
 
     expect(sortTrigger.textContent).toContain("Recently updated");
     expect(sortTrigger.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(sortTrigger);
-    expect(rendered.container.textContent).toContain(bookmark.label);
-    expect(rendered.container.textContent).toContain(highlight.selectedText);
+    expect(chapterOrder()).toEqual(["Chapter Two", "Chapter One"]);
+    expect(rendered.props.onClose).not.toHaveBeenCalled();
   });
 
   it("closes the action menu first and restores its trigger", () => {

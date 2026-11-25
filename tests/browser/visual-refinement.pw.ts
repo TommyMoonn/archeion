@@ -114,63 +114,62 @@ for (const theme of ["light", "dark", "custom"]) {
   }
 }
 
-test("Add EPUB entrance fades without shifting its contents", async ({ page }) => {
+test("Add EPUB uses the shared centered entrance without reflow", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/tests/browser/fixtures/ui-stability.html?count=0&motion=on");
   await expect(page.locator(".empty-state")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
-  await page.evaluate(() =>
-    document.documentElement.style.setProperty("--motion-duration-emphasized", "1200ms"),
-  );
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
+  });
 
   await page.getByRole("button", { name: "Add EPUB", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
-  await expect(dialog).toBeVisible();
   await expect(dialog.locator(".add-epub-dialog")).toBeVisible();
 
   const samples = await dialog.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) throw new Error("Dialog element is missing");
     const animation = element
       .getAnimations()
       .find(
-        (candidate) => (candidate as CSSAnimation).animationName === "dialog-presence-fade-enter",
+        (candidate) =>
+          candidate instanceof CSSAnimation && candidate.animationName === "dialog-presence-enter",
       );
-    if (!animation) throw new Error("Add EPUB fade entrance animation was not found.");
-    animation.pause();
-
-    const timing = animation.effect?.getTiming();
-    if (!timing) throw new Error("Add EPUB fade entrance has no timing effect.");
-    const duration = Number(timing.duration);
-    const targets = [
-      element,
-      element.querySelector(".dialog__panel"),
-      element.querySelector("h2"),
-      element.querySelector(".dialog__body"),
-      element.querySelector(".dialog__bottom"),
-    ];
+    if (!animation?.effect) throw new Error("Shared dialog entrance is missing");
+    const duration = Number(animation.effect.getTiming().duration);
+    const targets = [element, ...element.querySelectorAll<HTMLElement>("h2, input, button")];
     const capture = (time: number) => {
       animation.currentTime = time;
-      const bounds = targets.map((target) => {
-        if (!target) throw new Error("Add EPUB dialog layout target was not found.");
-        const { x, y, width, height } = target.getBoundingClientRect();
-        return { x, y, width, height };
-      });
-      return { bounds, opacity: Number(getComputedStyle(element).opacity) };
+      const bounds = element.getBoundingClientRect();
+      return {
+        layout: targets.map((target) => [
+          target.offsetLeft,
+          target.offsetTop,
+          target.offsetWidth,
+          target.offsetHeight,
+        ]),
+        center: [bounds.x + bounds.width / 2, bounds.y + bounds.height / 2],
+        width: bounds.width,
+        opacity: Number(getComputedStyle(element).opacity),
+      };
     };
-
-    return {
-      name: (animation as CSSAnimation).animationName,
-      duration,
-      start: capture(0),
-      middle: capture(duration / 2),
-      end: capture(duration),
-    };
+    const start = capture(0);
+    const middle = capture(duration / 2);
+    const end = capture(duration);
+    animation.finish();
+    return { start, middle, end };
   });
 
-  expect(samples.name).toBe("dialog-presence-fade-enter");
-  expect(samples.duration).toBe(1200);
-  expect(samples.start.bounds).toEqual(samples.middle.bounds);
-  expect(samples.middle.bounds).toEqual(samples.end.bounds);
+  expect(samples.start.layout).toEqual(samples.end.layout);
+  expect(samples.middle.layout).toEqual(samples.end.layout);
+  for (const pose of [samples.start, samples.middle]) {
+    expect(Math.abs(pose.center[0] - samples.end.center[0])).toBeLessThanOrEqual(1);
+    expect(Math.abs(pose.center[1] - samples.end.center[1])).toBeLessThanOrEqual(1);
+  }
+  expect(samples.start.width / samples.end.width).toBeCloseTo(0.97, 2);
+  expect(samples.middle.width).toBeGreaterThan(samples.start.width);
   expect(samples.start.opacity).toBeLessThan(samples.end.opacity);
   expect(samples.end.opacity).toBe(1);
 });

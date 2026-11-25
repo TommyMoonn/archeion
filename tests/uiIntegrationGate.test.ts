@@ -28,8 +28,6 @@ const cssSource = collectFiles(stylesRoot, ".css")
   .join("\n");
 const appShellSource = read("src/styles/layout/app-shell.css");
 const tokensSource = read("src/styles/tokens.css");
-const buttonsSource = read("src/styles/components/buttons.css");
-const formsSource = read("src/styles/components/forms.css");
 const menuSource = read("src/styles/components/menus.css");
 const archiveSource = read("src/styles/features/archive.css");
 const folderSource = read("src/styles/features/folders.css");
@@ -48,23 +46,17 @@ function cssBlock(selector: string, source: string): string | undefined {
 
 describe("Phase 0.4.0.6 UI integration gate", () => {
   it("preserves documented shared dimensions without banning fractional CSS elsewhere", () => {
-    const tokens = cssBlock(":root", tokensSource);
+    const tokens = cssBlock("@theme static", tokensSource);
     for (const [token, value] of [
-      ["--control-height-compact", "32px"],
-      ["--control-height-standard", "36px"],
-      ["--control-height-prominent", "40px"],
+      ["--spacing-control-compact", "32px"],
+      ["--spacing-control-standard", "36px"],
+      ["--spacing-control-prominent", "40px"],
       ["--border-width", "1px"],
-      ["--sidebar-width", "248px"],
-      ["--sidebar-collapsed-width", "56px"],
+      ["--spacing-sidebar-expanded", "248px"],
+      ["--spacing-sidebar-collapsed", "56px"],
     ]) {
       expect(tokens).toMatch(new RegExp(`${token}:\\s*${value};`));
     }
-    expect(cssBlock(".button", buttonsSource)).toContain(
-      "min-height: var(--button-height, var(--control-height-prominent))",
-    );
-    expect(cssBlock(".input-shell", formsSource)).toContain(
-      "min-height: var(--input-height, var(--control-height-prominent))",
-    );
     expect(cssBlock(".app-shell", appShellSource)).toContain(
       "grid-template-columns: var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr)",
     );

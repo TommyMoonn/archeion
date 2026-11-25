@@ -97,3 +97,117 @@ test("dictionary switch retains its name and checked state through keyboard acti
     "aria-checked",
   );
 });
+
+test("shared switch preserves visible geometry, expanded hit area and explained disabled behavior", async ({
+  page,
+}) => {
+  await page.goto("/tests/browser/fixtures/preference-controls.html");
+  const standard = page.getByRole("switch", { name: "Watch archive" });
+  const compact = page.getByRole("switch", { name: "Compact switch" });
+  for (const [control, width, height] of [
+    [standard, 38, 22],
+    [compact, 34, 20],
+  ] as const) {
+    await expect(control).toHaveCSS("width", `${width}px`);
+    await expect(control).toHaveCSS("height", `${height}px`);
+    const bounds = await control.boundingBox();
+    if (!bounds) throw new Error("Switch bounds missing");
+    await page.mouse.click(bounds.x + width / 2, bounds.y - 1);
+    await expect(control).toHaveAttribute("aria-checked", "true");
+    const thumb = control.locator('[data-slot="switch-thumb"]');
+    await expect
+      .poll(async () => {
+        const checkedThumb = await thumb.boundingBox();
+        return checkedThumb
+          ? Math.abs(checkedThumb.x + checkedThumb.width - (bounds.x + bounds.width - 3))
+          : Infinity;
+      })
+      .toBeLessThan(1);
+    await control.press("Space");
+    await expect(control).toHaveAttribute("aria-checked", "false");
+  }
+  const explained = page.getByRole("switch", { name: "Automatic scan" });
+  await expect(explained).toHaveAccessibleDescription("Archive is offline");
+  await compact.focus();
+  await page.keyboard.press("Tab");
+  await expect(explained).toBeFocused();
+  await expect(explained).toHaveAttribute("aria-disabled", "true");
+  await expect(explained).toHaveCSS("cursor", "not-allowed");
+  await explained.press("Space");
+  await expect(explained).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByLabel("Unexpected changes")).toHaveText("0");
+  await expect(page.getByRole("switch", { name: "Unavailable" })).toBeDisabled();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("radio", { name: "Grid" })).toBeFocused();
+});
+
+test("segmented radio group keeps one selection and skips disabled options with keyboard and pointer", async ({
+  page,
+}) => {
+  await page.goto("/tests/browser/fixtures/preference-controls.html");
+  const group = page.getByRole("radiogroup", { name: "Collection view" });
+  const grid = group.getByRole("radio", { name: "Grid" });
+  const list = group.getByRole("radio", { name: "List" });
+  await expect(group.getByRole("radio", { name: "Cards" })).toBeDisabled();
+  await grid.focus();
+  for (const [key, selected] of [
+    ["ArrowRight", list],
+    ["ArrowDown", grid],
+    ["ArrowLeft", list],
+    ["ArrowUp", grid],
+    ["End", list],
+    ["Home", grid],
+  ] as const) {
+    await page.keyboard.press(key);
+    await expect(selected).toBeFocused();
+    await expect(selected).toBeChecked();
+    await expect(group.getByRole("radio", { checked: true })).toHaveCount(1);
+  }
+  await list.click();
+  await expect(list).toBeChecked();
+  await list.press("Space");
+  await expect(list).toBeChecked();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("slider", { name: "Font size" })).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(list).toBeFocused();
+  await expect(list).toHaveCSS("outline-width", "2px");
+  await expect(list).toHaveAccessibleDescription("List");
+});
+
+test.describe("coarse pointer preference controls", () => {
+  test.use({ hasTouch: true, isMobile: true });
+  test("the compact switch can be activated just outside its visible track", async ({ page }) => {
+    await page.goto("/tests/browser/fixtures/preference-controls.html");
+    const compact = page.getByRole("switch", { name: "Compact switch" });
+    const bounds = await compact.boundingBox();
+    if (!bounds) throw new Error("Switch bounds missing");
+    await page.touchscreen.tap(bounds.x + bounds.width / 2, bounds.y - 4);
+    await expect(compact).toBeChecked();
+  });
+});
+
+test("forced colors distinguish selected preference controls without hiding the switch thumb", async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/tests/browser/fixtures/preference-controls.html");
+  const control = page.getByRole("switch", { name: "Watch archive" });
+  const thumb = control.locator('[data-slot="switch-thumb"]');
+  const trackColor = await control.evaluate((node) => getComputedStyle(node).backgroundColor);
+  const offThumb = await thumb.evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(offThumb).not.toBe(trackColor);
+  await control.click();
+  await expect(control).toBeChecked();
+  const onTrack = await control.evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(onTrack).not.toBe(trackColor);
+  expect(await thumb.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toBe(onTrack);
+  const group = page.getByRole("radiogroup", { name: "Collection view" });
+  const grid = group.getByRole("radio", { name: "Grid" });
+  const list = group.getByRole("radio", { name: "List" });
+  const selected = await grid.evaluate((node) => getComputedStyle(node).backgroundColor);
+  expect(selected).not.toBe(await list.evaluate((node) => getComputedStyle(node).backgroundColor));
+  await list.click();
+  await expect(list).toBeChecked();
+  await expect(list).toHaveCSS("background-color", selected);
+});

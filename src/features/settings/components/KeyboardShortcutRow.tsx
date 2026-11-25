@@ -1,7 +1,8 @@
 import { RotateCcw, X } from "lucide-react";
 
 import { IconButton } from "../../../components/IconButton";
-import { Tooltip } from "../../../components/Tooltip";
+import { Button } from "../../../components/Button";
+import { Kbd } from "../../../components/ui/kbd";
 import { CompactSettingsRow } from "./SettingsRows";
 
 type KeyboardShortcutRowProps = {
@@ -21,21 +22,23 @@ export function KeyboardShortcutRow({
 }: KeyboardShortcutRowProps) {
   return (
     <CompactSettingsRow label={label}>
-      <div className="keyboard-shortcut-row__controls">
-        <div className="keyboard-shortcut-binding-control">
-          <Tooltip content={`Change shortcut for ${label}`}>
-            <button
-              aria-label={`Change shortcut for ${label}`}
-              className="keyboard-shortcut-binding"
-              onClick={onChange}
-              type="button"
-            >
-              <kbd>{bindingLabel}</kbd>
-            </button>
-          </Tooltip>
+      <div className="flex min-w-0 max-w-full items-center justify-end gap-control-gap settings-row-narrow:w-full settings-row-narrow:flex-wrap settings-row-narrow:justify-start max-workspace-narrow:w-full">
+        <div className="inline-flex min-w-0 max-w-full flex-initial items-center justify-end gap-settings-small-gap settings-row-narrow:w-full settings-row-narrow:flex-wrap settings-row-narrow:justify-start">
+          <Button
+            aria-label={`Change shortcut for ${label}`}
+            className="min-w-0 max-w-full flex-initial bg-surface px-dialog-copy whitespace-normal control-hover:border-accent-border control-hover:bg-surface-raised control-hover:text-text focus-visible:border-accent-border focus-visible:bg-surface-raised"
+            onClick={onChange}
+            size="compact"
+            tooltip={`Change shortcut for ${label}`}
+            variant="secondary"
+          >
+            <Kbd variant="inline" className="wrap-anywhere whitespace-normal">
+              {bindingLabel}
+            </Kbd>
+          </Button>
           {onClear ? (
             <IconButton
-              className="keyboard-shortcut-clear"
+              className="shrink-0"
               label={`Clear shortcut for ${label}`}
               onClick={onClear}
               size="compact"
@@ -45,12 +48,7 @@ export function KeyboardShortcutRow({
           ) : null}
         </div>
         {onReset ? (
-          <IconButton
-            className="keyboard-shortcut-reset"
-            label={`Reset ${label} to default`}
-            onClick={onReset}
-            size="compact"
-          >
+          <IconButton label={`Reset ${label} to default`} onClick={onReset} size="compact">
             <RotateCcw aria-hidden="true" />
           </IconButton>
         ) : null}

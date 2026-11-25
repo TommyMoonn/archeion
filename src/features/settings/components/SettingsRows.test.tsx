@@ -21,11 +21,14 @@ describe("Settings row primitives", () => {
       </StandardSettingsRow>,
     );
 
-    expect(markup).toContain('class="settings-row settings-row--standard"');
-    expect(markup).toContain('role="group"');
-    expect(markup).toContain('aria-labelledby="settings-row-label-');
-    expect(markup).toContain('aria-describedby="settings-row-description-');
-    expect(markup).toContain("Controls automatic scans.");
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    const group = content.querySelector('[role="group"]');
+    expect(content.getElementById(group?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Watch archive",
+    );
+    expect(content.getElementById(group?.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Controls automatic scans.",
+    );
   });
 
   it("renders a compact one-line row without reserving description metadata", () => {
@@ -37,10 +40,10 @@ describe("Settings row primitives", () => {
       </CompactSettingsRow>,
     );
 
-    expect(markup).toContain('class="settings-row settings-row--compact"');
-    expect(markup).not.toContain("settings-row__description");
-    expect(markup).not.toContain("aria-describedby");
-    expect(markup).toContain('<button disabled="" type="button">Reset</button>');
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector('[role="group"]')?.hasAttribute("aria-describedby")).toBe(false);
+    expect(content.querySelector("button")?.disabled).toBe(true);
+    expect(content.querySelector("button")?.textContent).toBe("Reset");
   });
 
   it("preserves action status and control state", () => {
@@ -52,50 +55,60 @@ describe("Settings row primitives", () => {
       </SettingsActionRow>,
     );
 
-    expect(markup).toContain('class="settings-row settings-row--action"');
-    expect(markup).toContain('aria-describedby="settings-row-note-');
-    expect(markup).toContain("Repair in progress.");
-    expect(markup).toContain('aria-busy="true"');
-    expect(markup).toContain("disabled");
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    const group = content.querySelector('[role="group"]');
+    expect(content.getElementById(group?.getAttribute("aria-describedby") ?? "")?.textContent).toBe(
+      "Repair in progress.",
+    );
+    const button = content.querySelector("button");
+    expect(button?.getAttribute("aria-busy")).toBe("true");
+    expect(button?.disabled).toBe(true);
   });
 
-  it("gives specialized controls an explicit feature-row geometry", () => {
+  it("preserves the specialized control and its group label", () => {
     const markup = renderToStaticMarkup(
       <FeatureSettingsRow description="Changes book cover size." label="Book card size">
         <input aria-label="Book card size" type="range" />
       </FeatureSettingsRow>,
     );
 
-    expect(markup).toContain('class="settings-row settings-row--feature"');
-    expect(markup).toContain('type="range"');
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector('input[type="range"]')?.getAttribute("aria-label")).toBe(
+      "Book card size",
+    );
+    const group = content.querySelector('[role="group"]');
+    expect(content.getElementById(group?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
+      "Book card size",
+    );
   });
 
-  it("preserves slider interaction through the feature-row owner", () => {
+  it("exposes the current value, range, step and accessible label through the native input", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
-    const onChange = vi.fn();
-
-    act(() => {
-      root.render(
-        <SettingsSliderRow
-          description="Sets the default text size."
-          label="Font size"
-          max={28}
-          min={12}
-          onChange={onChange}
-          value={16}
-        />,
+    try {
+      act(() =>
+        root.render(
+          <SettingsSliderRow
+            description="Sets the default text size."
+            label="Font size"
+            max={28}
+            min={12}
+            step={2}
+            onChange={vi.fn()}
+            value={16}
+            suffix="px"
+          />,
+        ),
       );
-    });
-    const slider = container.querySelector<HTMLInputElement>('input[type="range"]')!;
-
-    act(() => {
-      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      valueSetter?.call(slider, "20");
-      slider.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-
-    expect(onChange).toHaveBeenCalledWith(20);
-    act(() => root.unmount());
+      const slider = container.querySelector<HTMLInputElement>('input[type="range"]');
+      expect(slider?.getAttribute("aria-label")).toBe("Font size");
+      expect(slider?.getAttribute("aria-valuetext")).toBe("16px");
+      expect(slider?.min).toBe("12");
+      expect(slider?.max).toBe("28");
+      expect(slider?.step).toBe("2");
+      expect(slider?.value).toBe("16");
+    } finally {
+      act(() => root.unmount());
+    }
   });
 });

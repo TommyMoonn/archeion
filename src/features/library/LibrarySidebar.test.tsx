@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -318,10 +319,10 @@ describe("LibrarySidebar", () => {
     expect(sort?.querySelector(".app-select__value")).toBeNull();
 
     act(() => sort?.click());
-    const mostBooks = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
-    ).find((option) => option.textContent?.includes("Most books"));
-    act(() => mostBooks?.click());
+    const mostBooks = Array.from(container.querySelectorAll<HTMLElement>('[role="option"]')).find(
+      (option) => option.textContent?.includes("Most books"),
+    );
+    act(() => mostBooks && activateSelectOption(mostBooks));
 
     expect(onFolderSortChange).toHaveBeenCalledWith("most-books");
   });

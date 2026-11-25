@@ -279,7 +279,7 @@
       "files": [
         ["settingsArchiveMaintenanceClient.ts", "readerAnnotationExport.ts"],
         ["settingsArchiveMaintenanceClient.ts", "readerAnnotationExportFile.ts"],
-        ["settingsItems.tsx", "ReaderFontPicker.tsx"],
+        ["settingsItems/readerSettingsItems.tsx", "ReaderFontPicker.tsx"],
         ["useSettingsController.ts", "readerAnnotationExport.ts"]
       ]
     },
@@ -296,7 +296,7 @@
       "files": [
         ["SettingsSurface.tsx", "themeManagerWindowLifecycle.ts"],
         ["SettingsSurface.tsx", "useThemeCatalogEntries.ts"],
-        ["settingsItems/appearanceSettingsItems.tsx", "ReaderThemeSelect.tsx"],
+        ["settingsItems/readerSettingsItems.tsx", "ReaderThemeSelect.tsx"],
         ["settingsItems/appearanceSettingsItems.tsx", "themeSelectionOptions.ts"]
       ]
     }

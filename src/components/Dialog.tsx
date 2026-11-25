@@ -2,6 +2,8 @@ import { SurfacePresenceContext } from "./modalPresenceContext";
 import { useCallback, useContext, useId, useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { DialogShellContext, type DialogShellOwner } from "./DialogShellContext";
+import { dialogRegionClass, dialogBodyClass } from "./dialogStyles";
+import { DialogFrame, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { useModalDialogLifecycle } from "./useModalDialogLifecycle";
 
 type DialogProps = {
@@ -38,7 +40,13 @@ function HostedDialog({ shell, ...props }: DialogProps & { shell: DialogShellOwn
   });
   useLayoutEffect(() => retainFocus(), [retainFocus]);
   return (
-    <DialogPanel {...props} titleId={shell.titleId} descriptionId={shell.descriptionId} hosted />
+    <DialogPanel
+      {...props}
+      layout={shell.workspace ? "workspace" : "content"}
+      titleId={shell.titleId}
+      descriptionId={shell.descriptionId}
+      hosted
+    />
   );
 }
 
@@ -78,14 +86,12 @@ function StandaloneDialog({
   });
 
   return (
-    <dialog
+    <DialogFrame
       ref={dialogRef}
-      className={["dialog", layout === "workspace" ? "dialog--workspace" : "", className]
-        .filter(Boolean)
-        .join(" ")}
+      className={className}
+      workspace={layout === "workspace"}
       aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
-      aria-modal="true"
       onCancel={modal.onCancel}
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
@@ -100,6 +106,7 @@ function StandaloneDialog({
               feedbackSize,
               feedbackPlacement,
               footer,
+              layout,
               title,
               titleId,
               descriptionId,
@@ -107,7 +114,7 @@ function StandaloneDialog({
           />
         </DialogShellContext>
       </SurfacePresenceContext>
-    </dialog>
+    </DialogFrame>
   );
 }
 
@@ -121,6 +128,7 @@ export function DialogPanel({
   title,
   titleId,
   descriptionId,
+  layout = "content",
   hosted = false,
   pending = false,
 }: Pick<
@@ -131,6 +139,7 @@ export function DialogPanel({
   | "feedbackSize"
   | "feedbackPlacement"
   | "footer"
+  | "layout"
   | "title"
 > & {
   titleId: string;
@@ -142,20 +151,23 @@ export function DialogPanel({
   const content = (
     <>
       {!hosted ? (
-        <div className="dialog__copy constrained-user-content">
-          <h2 id={titleId}>{title}</h2>
-        </div>
+        <DialogHeader>
+          <DialogTitle id={titleId}>{title}</DialogTitle>
+        </DialogHeader>
       ) : null}
       {description || children ? (
         <div
-          className="dialog__body"
+          className={dialogBodyClass}
           data-dialog-pending={pending || undefined}
           role="region"
           aria-label={`${title} content`}
           tabIndex={0}
         >
           {description ? (
-            <p className="dialog__description" id={descriptionId}>
+            <p
+              className="dialog__description m-0 mb-dialog-gap max-w-dialog-description text-body text-muted last:mb-0"
+              id={descriptionId}
+            >
               {description}
             </p>
           ) : null}
@@ -164,13 +176,13 @@ export function DialogPanel({
       ) : null}
       {feedback !== undefined || footer ? (
         <div
-          className="dialog__bottom"
+          className={`dialog__bottom mt-dialog-gap grid min-w-0 flex-none items-end gap-dialog-gap-narrow dialog-viewport-narrow:mt-dialog-gap-narrow dialog-panel-narrow:grid-cols-1 ${layout === "workspace" && feedbackPlacement !== "inline" ? "grid-cols-1" : "grid-cols-dialog-bottom"}`}
           data-dialog-pending={pending || undefined}
           data-feedback-placement={feedbackPlacement}
         >
           {feedback !== undefined ? (
             <div
-              className="dialog__feedback"
+              className={`dialog__feedback ${dialogRegionClass} grid flex-none content-start gap-control-gap [&>:first-child]:mt-0 [&>:last-child]:mb-0 ${layout === "workspace" ? (feedbackSize === "summary" ? "h-dialog-feedback-summary" : "h-dialog-feedback") : "h-control-prominent dialog-panel-narrow:h-dialog-feedback-narrow"}`}
               data-feedback-size={feedbackSize}
               role="region"
               aria-label={`${title} feedback`}
@@ -179,10 +191,10 @@ export function DialogPanel({
               {feedback}
             </div>
           ) : null}
-          {footer ? <div className="dialog__footer">{footer}</div> : null}
+          {footer ? <DialogFooter>{footer}</DialogFooter> : null}
         </div>
       ) : null}
     </>
   );
-  return hosted ? content : <div className="dialog__panel">{content}</div>;
+  return hosted ? content : <DialogContent>{content}</DialogContent>;
 }

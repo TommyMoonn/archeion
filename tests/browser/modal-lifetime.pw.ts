@@ -70,24 +70,56 @@ for (const surface of ["dialog", "drawer", "palette"]) {
       document.documentElement.style.setProperty("--motion-duration-view", "1500ms");
       window.modalLifetime.show();
     });
-    const samples = await page.locator("dialog").evaluate((element) => {
+    const samples = await page.locator("dialog").evaluate(async (element) => {
       const dialog = element as HTMLDialogElement;
-      const entry = dialog.getAnimations()[0];
-      entry.pause();
-      entry.currentTime = 400;
-      const entering = Number(getComputedStyle(dialog).opacity);
+      const animation = (phase: "enter" | "exit") => {
+        const match = dialog
+          .getAnimations()
+          .find(
+            (candidate) =>
+              candidate instanceof CSSAnimation && candidate.animationName.endsWith(`-${phase}`),
+          );
+        if (!match) throw new Error(`Missing ${phase} animation`);
+        return match;
+      };
+      const pose = () => {
+        const style = getComputedStyle(dialog);
+        const transform = new DOMMatrixReadOnly(
+          style.transform === "none" ? undefined : style.transform,
+        );
+        return {
+          opacity: Number(style.opacity),
+          scale: transform.a,
+          x: transform.e,
+          y: transform.f,
+        };
+      };
+      const sampleAt = async (phase: "enter" | "exit") => {
+        const current = animation(phase);
+        // Seek the running CSS animation without retaining a script-paused animation after its rule changes.
+        await current.ready;
+        current.currentTime = 400;
+        return pose();
+      };
+      const entering = await sampleAt("enter");
       window.modalLifetime.close();
-      const exitStart = Number(getComputedStyle(dialog).opacity);
-      const exit = dialog.getAnimations()[0];
-      exit.pause();
-      exit.currentTime = 400;
-      const closing = Number(getComputedStyle(dialog).opacity);
+      animation("exit").currentTime = 0;
+      const exitStart = pose();
+      const closing = await sampleAt("exit");
       window.modalLifetime.show();
-      const reopen = Number(getComputedStyle(dialog).opacity);
+      animation("enter").currentTime = 0;
+      const reopen = pose();
       return { entering, exitStart, closing, reopen };
     });
-    expect(Math.abs(samples.entering - samples.exitStart)).toBeLessThan(0.02);
-    expect(Math.abs(samples.closing - samples.reopen)).toBeLessThan(0.02);
+    for (const [before, after] of [
+      [samples.entering, samples.exitStart],
+      [samples.closing, samples.reopen],
+    ]) {
+      expect(Math.abs(before.opacity - after.opacity)).toBeLessThan(0.02);
+      expect(Math.abs(before.scale - after.scale)).toBeLessThan(0.02);
+      expect(Math.abs(before.x - after.x)).toBeLessThan(1);
+      expect(Math.abs(before.y - after.y)).toBeLessThan(1);
+    }
     await page.evaluate(() => {
       window.modalLifetime.close();
       document.documentElement.dataset.motion = "off";
@@ -141,4 +173,53 @@ test("palette baseline dismisses immediately; presence supplies a bounded exit w
   await page.keyboard.press("Enter");
   expect(await page.evaluate(() => window.modalLifetime.submits)).toBe(1);
   await expect(page.locator("dialog")).toHaveCount(0);
+});
+
+test("Reader external link confirmation retains the native modal through shared exit", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/tests/browser/fixtures/modal-lifetime.html?surface=reader-link");
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
+    document.documentElement.style.setProperty("--motion-duration-fast", "1500ms");
+  });
+  await page.getByRole("button", { name: "Open surface" }).click();
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  const dialog = page.locator("dialog");
+  const entered = await dialog.evaluate((element) => {
+    const entrance = element
+      .getAnimations()
+      .find(
+        (animation) =>
+          animation instanceof CSSAnimation && animation.animationName === "dialog-presence-enter",
+      );
+    if (!entrance) return false;
+    entrance.finish();
+    element.addEventListener(
+      "close",
+      () => {
+        document.documentElement.dataset.nativeDialogClosed = "true";
+      },
+      { once: true },
+    );
+    return true;
+  });
+  expect(entered).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveAttribute("data-surface-state", "closing");
+  expect(await dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await dialog.evaluate((element) => {
+    const exit = element
+      .getAnimations()
+      .find(
+        (animation) =>
+          animation instanceof CSSAnimation && animation.animationName === "dialog-exit",
+      );
+    if (!exit) throw new Error("Shared dialog exit is missing");
+    exit.finish();
+  });
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-native-dialog-closed", "true");
+  expect(await page.evaluate(() => window.modalLifetime.dismissals)).toBe(1);
 });

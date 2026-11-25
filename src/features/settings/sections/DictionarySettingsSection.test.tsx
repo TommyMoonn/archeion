@@ -300,25 +300,22 @@ describe("DictionarySettingsView", () => {
     const container = renderView(value);
 
     act(() => button(container, "Installed (3)").click());
-    const linkedSource = container.querySelector<HTMLElement>(
-      "[data-dictionary-id='catalog-linked'] .dictionary-settings-card__source",
-    )!;
-    const manualSource = container.querySelector<HTMLElement>(
-      "[data-dictionary-id='manual-plain'] .dictionary-settings-card__source",
-    )!;
-    const catalogPlainSource = container.querySelector<HTMLElement>(
-      "[data-dictionary-id='catalog-plain'] .dictionary-settings-card__source",
-    )!;
-
-    expect(linkedSource.querySelector<HTMLAnchorElement>("a")?.href).toBe("https://example.com/");
-    expect(manualSource.textContent).toContain("Example Lexicographers");
-    expect(manualSource.querySelector("a")).toBeNull();
-    expect(catalogPlainSource.textContent).toContain("Example Lexicographers");
-    expect(catalogPlainSource.querySelector("a")).toBeNull();
+    const linked = container.querySelector("[data-dictionary-id='catalog-linked']")!;
+    const manual = container.querySelector("[data-dictionary-id='manual-plain']")!;
+    const catalogPlain = container.querySelector("[data-dictionary-id='catalog-plain']")!;
+    function sourceLink(row: Element) {
+      return Array.from(row.querySelectorAll("a")).find(
+        (link) => link.textContent === "Example Lexicographers",
+      );
+    }
+    expect(sourceLink(linked)?.href).toBe("https://example.com/");
+    expect(manual.textContent).toContain("Example Lexicographers");
+    expect(sourceLink(manual)).toBeUndefined();
+    expect(catalogPlain.textContent).toContain("Example Lexicographers");
+    expect(sourceLink(catalogPlain)).toBeUndefined();
     expect(
-      container.querySelector<HTMLAnchorElement>(
-        "[data-dictionary-id='catalog-linked'] .dictionary-settings-card__facts a",
-      )?.href,
+      Array.from(linked.querySelectorAll("a")).find((link) => link.textContent === "CC BY 4.0")
+        ?.href,
     ).toBe("https://example.com/license");
   });
 
@@ -630,9 +627,63 @@ describe("DictionarySettingsView", () => {
     });
     const container = renderView(value);
 
-    expect(container.querySelector("progress")?.getAttribute("value")).toBe("512");
+    const progress = container.querySelector(
+      '[role="progressbar"][aria-label="Downloading English Core"]',
+    );
+    expect(progress?.getAttribute("aria-valuenow")).toBe("512");
+    expect(progress?.getAttribute("aria-valuemax")).toBe("2048");
     act(() => button(container, "Cancel").click());
     expect(value.cancelDownload).toHaveBeenCalledOnce();
+  });
+
+  it("announces unknown download totals without fabricating completion", () => {
+    const value = controller({
+      registry: { dictionaries: [], recovery: null, status: "ready" },
+      catalog: { ...catalog, entries: [{ ...catalog.entries[0], compressedSizeBytes: 0 }] },
+      catalogOperation: {
+        catalogId: "english-core",
+        phase: "downloading",
+        receivedBytes: 512,
+        totalBytes: 0,
+        error: null,
+        stagingToken: null,
+      },
+    });
+    const container = renderView(value);
+    const progress = container.querySelector('[role="progressbar"]');
+    expect(progress).not.toBeNull();
+    expect(progress?.hasAttribute("aria-valuenow")).toBe(false);
+    expect(progress?.getAttribute("aria-valuetext")).toContain("received");
+  });
+
+  it.each(["downloading", "failed"] as const)("keeps installed recovery %s actionable", (phase) => {
+    const value = controller({
+      registry: {
+        dictionaries: [installed({ indexState: "unavailable" })],
+        recovery: null,
+        status: "ready",
+      },
+      catalogOperation: {
+        catalogId: "english-core",
+        phase,
+        receivedBytes: 512,
+        totalBytes: 2048,
+        error: phase === "failed" ? "Install failed" : null,
+        stagingToken: phase === "failed" ? "retained" : null,
+      },
+    });
+    const container = renderView(value);
+    if (phase === "downloading") {
+      expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe(
+        "512",
+      );
+      act(() => button(container, "Cancel").click());
+      expect(value.cancelDownload).toHaveBeenCalledOnce();
+    } else {
+      expect(container.querySelector('[role="alert"]')?.textContent).toBe("Install failed");
+      act(() => button(container, "Retry installation").click());
+      expect(value.installCatalog).toHaveBeenCalledWith("english-core");
+    }
   });
 
   it("keeps unavailable dictionaries visible with source-appropriate recovery actions", () => {

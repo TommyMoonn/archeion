@@ -1,23 +1,18 @@
 import { FolderOpen } from "lucide-react";
 
 import { AppSelect } from "../../components/AppSelect";
-import { ReaderFontPicker } from "../reader/ReaderFontPicker";
 import { Button } from "../../components/Button";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
 import type { CollectionCardSize, FolderSort, LibrarySort, SeriesSort } from "../../types/library";
-import { readerReadingWidthOptions, type ReaderSettings } from "../../types/reader";
 import {
   archiveImportConflictOptions,
   archiveImportModeOptions,
 } from "../filesystem/archiveImport";
-import {
-  SettingsActionRow,
-  SettingsSliderRow,
-  StandardSettingsRow,
-} from "./components/SettingsRows";
+import { SettingsActionRow, StandardSettingsRow } from "./components/SettingsRows";
 import type { SettingsDeferredDataRequirement, SettingsItem } from "./settingsItemTypes";
 import { storageSettingsItems } from "./settingsItems/storageSettingsItems";
+import { readerSettingsItems } from "./settingsItems/readerSettingsItems";
 import { appearanceSettingsItems } from "./settingsItems/appearanceSettingsItems";
 import { keyboardSettingsItems } from "./settingsItems/keyboardSettingsItems";
 import {
@@ -25,23 +20,13 @@ import {
   defaultLibrarySortOptions,
   folderSortOptions,
   folderViewOptions,
-  progressPlacementOptions,
   seriesSortOptions,
   startupOptions,
   viewOptions,
 } from "./settingsOptions";
 import type { SettingsSection } from "./settingsSections";
-import type { SettingsController } from "./useSettingsController";
 
-export type {
-  SettingsDeferredDataRequirement,
-  SettingsItem,
-  SettingsItemGroupStyle,
-} from "./settingsItemTypes";
-
-function updateReader(context: SettingsController, changes: Partial<ReaderSettings>) {
-  context.updateReader(changes);
-}
+export type { SettingsDeferredDataRequirement, SettingsItem } from "./settingsItemTypes";
 
 export const settingsItems: readonly SettingsItem[] = [
   {
@@ -397,115 +382,8 @@ export const settingsItems: readonly SettingsItem[] = [
     searchTerms: ["reset"],
     sectionId: "library",
   },
-  {
-    description: "Sets the default reader typeface.",
-    deferredData: ["installedFonts"],
-    id: "reader.font-family",
-    label: "Font family",
-    render: (context) => (
-      <StandardSettingsRow description="Sets the default reader typeface." label="Font family">
-        <ReaderFontPicker
-          ariaLabel="Reader font family"
-          catalogLoading={context.installedFontsLoading}
-          installedFamilies={context.installedFontFamilies}
-          onChange={(fontFamily) => updateReader(context, { fontFamily })}
-          selection={context.reader.fontFamily}
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["font", "typeface", "serif", "sans", "literata", "atkinson", "hyperlegible"],
-    sectionId: "reader",
-  },
-  {
-    description: "Sets the default text size in the reader.",
-    id: "reader.font-size",
-    label: "Font size",
-    render: (context) => (
-      <SettingsSliderRow
-        description="Sets the default text size in the reader."
-        label="Font size"
-        max={28}
-        min={14}
-        onChange={(fontSize) => updateReader(context, { fontSize })}
-        suffix="px"
-        value={context.reader.fontSize}
-      />
-    ),
-    searchTerms: ["font", "text size"],
-    sectionId: "reader",
-  },
-  {
-    description: "Adjusts spacing between lines in the reader.",
-    id: "reader.line-height",
-    label: "Line height",
-    render: (context) => (
-      <SettingsSliderRow
-        description="Adjusts spacing between lines in the reader."
-        label="Line height"
-        max={2}
-        min={1.4}
-        onChange={(lineHeight) => updateReader(context, { lineHeight })}
-        step={0.1}
-        value={Number(context.reader.lineHeight.toFixed(1))}
-      />
-    ),
-    searchTerms: ["spacing", "lines"],
-    sectionId: "reader",
-  },
-  {
-    description: "Sets the maximum readable line length for reflowable books.",
-    id: "reader.page-width",
-    label: "Page width",
-    render: (context) => (
-      <StandardSettingsRow
-        description="Sets the maximum readable line length for reflowable books."
-        label="Page width"
-      >
-        <SegmentedControl
-          label="Default reader page width"
-          onChange={(readingWidth) => updateReader(context, { readingWidth })}
-          options={[...readerReadingWidthOptions]}
-          value={context.reader.readingWidth}
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["width", "measure", "line length"],
-    sectionId: "reader",
-  },
+  ...readerSettingsItems,
   ...appearanceSettingsItems,
-  {
-    description: "Chooses where reading progress appears.",
-    id: "reader.progress-placement",
-    label: "Progress placement",
-    render: (context) => (
-      <StandardSettingsRow
-        description="Chooses where reading progress appears."
-        label="Progress placement"
-      >
-        <SegmentedControl
-          label="Reader progress placement"
-          onChange={(progressPlacement) => updateReader(context, { progressPlacement })}
-          options={progressPlacementOptions}
-          value={context.reader.progressPlacement}
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["progress", "reading position", "top", "side"],
-    sectionId: "reader",
-  },
-  {
-    id: "reader.reset",
-    label: "Reset reader settings",
-    render: (context) => (
-      <SettingsActionRow label="Reset reader settings">
-        <Button onClick={() => void context.resetReader()} variant="secondary">
-          Reset Reader
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["reset"],
-    sectionId: "reader",
-  },
   {
     description: "The active archive root on disk.",
     id: "archives.current-archive-folder",

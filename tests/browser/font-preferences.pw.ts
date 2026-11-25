@@ -51,7 +51,7 @@ async function checkLargeList(page: Page, role: string, count: number) {
 
 test("Appearance roles search a large injected catalog, remain independent, and reset together", async ({
   page,
-}, testInfo) => {
+}) => {
   await page.goto("/tests/browser/fixtures/application-font-settings.html?large");
   await expect
     .poll(() => page.evaluate(() => window.applicationFontSettingsFixture.ready))
@@ -70,7 +70,6 @@ test("Appearance roles search a large injected catalog, remain independent, and 
         `"${family}", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif`,
       ]);
   }
-  await page.screenshot({ path: testInfo.outputPath("appearance-large-catalog.png") });
   await page.getByRole("button", { name: "Reset appearance", exact: true }).click();
   await expect(page.getByRole("button", { name: /^Interface font:/ })).toHaveText(
     "Inter (Default)",
@@ -81,7 +80,7 @@ test("Appearance roles search a large injected catalog, remain independent, and 
 
 test("Reader searches the same synthetic roles without mutating either application root font", async ({
   page,
-}, testInfo) => {
+}) => {
   await page.goto("/tests/browser/fixtures/reader-fonts.html?panel&large");
   await expect.poll(() => page.evaluate(() => window.readerFontFixture?.ready)).toBe(true);
   await page.evaluate(async () => {
@@ -111,7 +110,6 @@ test("Reader searches the same synthetic roles without mutating either applicati
     mountedDocuments: 1,
     sameFrame: true,
   });
-  await page.screenshot({ path: testInfo.outputPath("reader-large-catalog.png") });
   await page.reload();
   await expect.poll(() => page.evaluate(() => window.readerFontFixture?.ready)).toBe(true);
   await page.evaluate(() => window.readerFontFixture.completeCatalog());

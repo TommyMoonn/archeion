@@ -1266,6 +1266,43 @@ describe("useEpubContentActionController", () => {
     expect(chapter.activeElement).toBe(link);
   });
 
+  it("restores an external link origin only after the retained native modal closes", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const harness = renderController({ current: session() });
+    const { document: chapter, link } = linkedDocument("https://example.com/source");
+    act(() => {
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      });
+    });
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.className = "reader-external-link-dialog";
+    dialog.open = true;
+    const cancel = dialog.appendChild(document.createElement("button"));
+    cancel.focus();
+    const unregister = registerTransientSurface({
+      element: dialog,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    act(() => harness.latest().dismissExternal());
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    expect(document.activeElement).toBe(cancel);
+    expect(chapter.activeElement).not.toBe(link);
+    dialog.open = false;
+    unregister();
+    dialog.remove();
+    dialog.dispatchEvent(new Event("close"));
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    expect(chapter.activeElement).toBe(link);
+  });
+
   it("reuses the original EPUB anchor when one footnote replaces another", async () => {
     const firstRelease = vi.fn();
     const secondRelease = vi.fn();

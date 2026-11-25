@@ -1,7 +1,6 @@
 import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { UtilityWindowLoadStatus } from "../../components/UtilityWindowLoadStatus";
 import { useUtilityWindowLoadState } from "../../components/useUtilityWindowLoadState";
-import { ArchiveManagerTitlebarComposition } from "./ArchiveManagerTitlebarComposition";
 
 export function ArchiveManagerWindowLoading({ failed = false }: { failed?: boolean }) {
   const loadState = useUtilityWindowLoadState();
@@ -13,7 +12,6 @@ export function ArchiveManagerWindowLoading({ failed = false }: { failed?: boole
       id={ARCHIVE_MANAGER_MAIN_CONTENT_ID}
       tabIndex={-1}
     >
-      <ArchiveManagerTitlebarComposition />
       <div className="archive-manager-window">
         <div className="archive-manager-window__body">
           <aside

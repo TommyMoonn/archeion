@@ -222,14 +222,12 @@ describe("LibraryTitlebarComposition", () => {
     expect(actionLabels(container)).toEqual(["Expand sidebar"]);
     expect(container.querySelector('[aria-label="Open Quick Actions"]')).toBeNull();
     expect(container.querySelector('[aria-label="Reveal active archive folder"]')).toBeNull();
-    expect(
-      container.querySelectorAll(".library-titlebar-composition button[tabindex]"),
-    ).toHaveLength(0);
-    expect(
-      Array.from(document.querySelectorAll('[role="tooltip"]')).map(
-        (tooltip) => tooltip.textContent,
-      ),
-    ).toEqual(["Expand sidebar"]);
+    const focusableActions = Array.from(composition?.querySelectorAll("button") ?? []).filter(
+      (button) => !button.disabled && button.tabIndex >= 0,
+    );
+    expect(focusableActions.map((button) => button.getAttribute("aria-label"))).toEqual([
+      "Expand sidebar",
+    ]);
 
     act(() => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Expand sidebar"]')?.click();

@@ -121,9 +121,19 @@ describe("standalone Settings surface", () => {
     await act(async () => clickButton("Import annotations"));
     const dialog = container.querySelector("dialog");
     expect(dialog?.textContent).toContain("Review annotation import");
-    expect(dialog?.textContent).toContain("Already present3");
-    expect(dialog?.textContent).toContain("Conflicting IDs4");
-    expect(dialog?.querySelector("details")?.textContent).toContain("other-book-id");
+    const counts = Object.fromEntries(
+      Array.from(dialog?.querySelectorAll("dt") ?? [], (term) => [
+        term.textContent,
+        term.nextElementSibling?.textContent,
+      ]),
+    );
+    expect(counts).toEqual({
+      "Matched books": "1",
+      "Annotations to import": "2",
+      "Already present": "3",
+      "Conflicting IDs": "4",
+      "Unmatched books": "1",
+    });
     expect(commit).not.toHaveBeenCalled();
     await act(async () => clickButton("Cancel"));
     expect(commit).not.toHaveBeenCalled();

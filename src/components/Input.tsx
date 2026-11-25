@@ -1,6 +1,7 @@
 import { forwardRef, useId } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 import type { ControlSize } from "./Button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "./ui/input-group";
 
 type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
   icon?: ReactNode;
@@ -17,14 +18,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   const externallyLabelled = Boolean(props["aria-labelledby"]);
 
   return (
-    <label className={`input-shell input-shell--${size} ${className}`.trim()} htmlFor={inputId}>
+    <InputGroup
+      className={`input-shell input-shell--${size} ${size === "standard" ? "min-h-control-standard" : "min-h-control-prominent"} ${className}`.trim()}
+      htmlFor={inputId}
+    >
       {externallyLabelled ? null : <span className="sr-only">{label}</span>}
       {icon ? (
-        <span aria-hidden="true" className="input-shell__icon icon-slot">
+        <InputGroupAddon aria-hidden="true" className="input-shell__icon icon-slot">
           {icon}
-        </span>
+        </InputGroupAddon>
       ) : null}
-      <input id={inputId} ref={ref} {...props} />
-    </label>
+      <InputGroupInput id={inputId} ref={ref} {...props} />
+    </InputGroup>
   );
 });

@@ -95,6 +95,7 @@ test("Reader picker searches presets and installed families, updates the same pu
   await expect(publication).toHaveCSS("font-family", `Arial, ${fallback}`);
   await expect(page.locator("#reader-chrome")).toHaveCSS("font-family", chromeFamily);
   await trigger(page).click();
+  await expect(search(page)).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(trigger(page)).toBeFocused();
   await expect(page.getByRole("complementary", { name: "Reader settings" })).toBeVisible();
@@ -230,7 +231,7 @@ for (const scenario of [
     await page.keyboard.press("Enter");
     await search(page).fill("Long family");
     await page.keyboard.press("ArrowDown");
-    const row = page.locator('[role="option"][data-keyboard-active="true"]');
+    const row = page.locator('[data-keyboard-navigation] [role="option"][data-highlighted]');
     const box = (await page.locator(".font-picker__popover").boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(224);
     expect(box.x).toBeGreaterThanOrEqual(7);

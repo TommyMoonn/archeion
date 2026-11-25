@@ -52,6 +52,5 @@ __pycache__/
 # Local planning and project work files
 /.plans/
 /.project/
-/.dev/
 /.scratch/
 /.agent-work/

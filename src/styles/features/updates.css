@@ -161,7 +161,7 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   html[data-motion="on"] .update-toast {
-    animation: app-motion-notice-in var(--motion-duration-fast) var(--motion-ease-standard);
+    animation: var(--animate-notice-enter);
   }
 }
 @media (forced-colors: active) {

@@ -1,7 +1,13 @@
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment happy-dom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SettingsConfirmations, type SettingsConfirmationState } from "./SettingsConfirmations";
+import {
+  SettingsConfirmations,
+  type SettingsConfirmationKey,
+  type SettingsConfirmationState,
+} from "./SettingsConfirmations";
 
 const closedConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -12,95 +18,135 @@ const closedConfirmations: SettingsConfirmationState = {
   rescanArchive: false,
 };
 
-function renderConfirmations(
-  confirmations: Partial<SettingsConfirmationState>,
-  archiveScanActive = false,
-) {
-  return renderToStaticMarkup(
-    <SettingsConfirmations
-      archiveScanActive={archiveScanActive}
-      busyConfirmations={{
-        clearCoverCache: false,
-        clearEpubWritebackBackups: false,
-        clearScannerCache: false,
-        reextractMetadata: false,
-        repairMetadata: false,
-        rescanArchive: false,
-      }}
-      confirmations={{ ...closedConfirmations, ...confirmations }}
-      onClearCoverCache={vi.fn()}
-      onClearEpubWritebackBackups={vi.fn()}
-      onClearScannerCache={vi.fn()}
-      onClose={vi.fn()}
-      onReextractMetadata={vi.fn()}
-      onRepairMetadata={vi.fn()}
-      onRescanArchive={vi.fn()}
-    />,
-  );
-}
+const cases = [
+  [
+    "clearCoverCache",
+    "Clear cover cache?",
+    "Clear cover cache",
+    "Covers will be extracted again when needed.",
+  ],
+  [
+    "clearScannerCache",
+    "Clear scanner cache?",
+    "Clear scanner cache",
+    "EPUB files, favorites, and reading progress will not be deleted.",
+  ],
+  [
+    "clearEpubWritebackBackups",
+    "Clear EPUB writeback backups?",
+    "Clear backups",
+    "Your EPUB files and library metadata will not be changed.",
+  ],
+  [
+    "reextractMetadata",
+    "Re-extract source metadata?",
+    "Re-extract",
+    "EPUB files, favorites, and reading progress will not be deleted.",
+  ],
+  ["repairMetadata", "Repair archive metadata?", "Repair metadata", "EPUB files are not changed."],
+  ["rescanArchive", "Rescan archive?", "Rescan archive", "EPUB files are not changed."],
+] as const;
 
 describe("SettingsConfirmations", () => {
-  it("renders the cover cache confirmation", () => {
-    const markup = renderConfirmations({ clearCoverCache: true });
+  let container: HTMLDivElement;
+  let root: Root;
+  const onClose = vi.fn();
+  const handlers = {
+    clearCoverCache: vi.fn(),
+    clearEpubWritebackBackups: vi.fn(),
+    clearScannerCache: vi.fn(),
+    reextractMetadata: vi.fn(),
+    repairMetadata: vi.fn(),
+    rescanArchive: vi.fn(),
+  };
 
-    expect(markup).toContain("Clear cover cache?");
-    expect(markup).toContain("Covers will be extracted again when needed.");
-    expect(markup).toContain("Clear cover cache");
+  function render(confirmation: SettingsConfirmationKey, { busy = false, scanning = false } = {}) {
+    act(() =>
+      root.render(
+        <SettingsConfirmations
+          archiveScanActive={scanning}
+          busyConfirmations={{ ...closedConfirmations, [confirmation]: busy }}
+          confirmations={{ ...closedConfirmations, [confirmation]: true }}
+          onClearCoverCache={handlers.clearCoverCache}
+          onClearEpubWritebackBackups={handlers.clearEpubWritebackBackups}
+          onClearScannerCache={handlers.clearScannerCache}
+          onClose={onClose}
+          onReextractMetadata={handlers.reextractMetadata}
+          onRepairMetadata={handlers.repairMetadata}
+          onRescanArchive={handlers.rescanArchive}
+        />,
+      ),
+    );
+    const dialog = container.querySelector("dialog[open]");
+    if (!dialog) throw new Error("Confirmation did not open");
+    return dialog;
+  }
+
+  function action(dialog: Element, name: string) {
+    const button = [...dialog.querySelectorAll<HTMLButtonElement>("button")].find(
+      (element) => element.textContent === name,
+    );
+    if (!button) throw new Error(`Missing confirmation action: ${name}`);
+    return button;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    container = document.body.appendChild(document.createElement("div"));
+    root = createRoot(container);
   });
 
-  it("renders the scanner cache confirmation", () => {
-    const markup = renderConfirmations({ clearScannerCache: true });
-
-    expect(markup).toContain("Clear scanner cache?");
-    expect(markup).toContain("EPUB files, favorites, and reading progress will not be deleted.");
-    expect(markup).toContain("Clear scanner cache");
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
   });
 
-  it("renders the EPUB writeback backup confirmation", () => {
-    const markup = renderConfirmations({ clearEpubWritebackBackups: true });
+  it.each(cases)(
+    "routes %s only to its own action and blocks activation while busy",
+    (key, title, label, warning) => {
+      const dialog = render(key);
+      expect(dialog.querySelector("h2")?.textContent).toBe(title);
+      expect(dialog.textContent).toContain(warning);
+      act(() => action(dialog, "Cancel").click());
+      expect(onClose).toHaveBeenCalledExactlyOnceWith(key);
+      expect(Object.values(handlers).every((handler) => handler.mock.calls.length === 0)).toBe(
+        true,
+      );
 
-    expect(markup).toContain("Clear EPUB writeback backups?");
-    expect(markup).toContain("saved recovery copies");
-    expect(markup).toContain("Your EPUB files and library metadata will not be changed.");
-    expect(markup).toContain("Clear backups");
-  });
+      act(() => action(dialog, label).click());
+      expect(handlers[key]).toHaveBeenCalledOnce();
+      for (const [other, handler] of Object.entries(handlers)) {
+        if (other !== key) expect(handler).not.toHaveBeenCalled();
+      }
 
-  it("renders the metadata re-extraction confirmation", () => {
-    const markup = renderConfirmations({ reextractMetadata: true });
-
-    expect(markup).toContain("Re-extract source metadata?");
-    expect(markup).toContain("Re-extract");
-  });
-
-  it("renders the metadata repair confirmation", () => {
-    const markup = renderConfirmations({ repairMetadata: true });
-
-    expect(markup).toContain("Repair archive metadata?");
-    expect(markup).toContain("EPUB files are not changed.");
-    expect(markup).toContain("Repair metadata");
-  });
-
-  it("renders the archive rescan confirmation", () => {
-    const markup = renderConfirmations({ rescanArchive: true });
-
-    expect(markup).toContain("Rescan archive?");
-    expect(markup).toContain("EPUB files are not changed.");
-    expect(markup).toContain("Rescan archive");
-  });
-
-  it.each([
-    ["reextractMetadata", "Re-extract source metadata?"],
-    ["repairMetadata", "Repair archive metadata?"],
-    ["rescanArchive", "Rescan archive?"],
-  ] as const)(
-    "blocks the %s confirmation without presenting another busy owner during an external scan",
-    (confirmation, title) => {
-      const markup = renderConfirmations({ [confirmation]: true }, true);
-
-      expect(markup).toContain(title);
-      expect(markup).toContain('aria-disabled="true"');
-      expect(markup).toContain("Wait for the archive scan to finish");
-      expect(markup).not.toContain('aria-busy="true"');
+      const busyDialog = render(key, { busy: true });
+      const confirm = action(busyDialog, label);
+      const cancel = action(busyDialog, "Cancel");
+      expect(confirm.disabled).toBe(true);
+      expect(confirm.getAttribute("aria-busy")).toBe("true");
+      expect(cancel.disabled).toBe(true);
+      act(() => {
+        confirm.click();
+        cancel.click();
+      });
+      expect(handlers[key]).toHaveBeenCalledOnce();
+      expect(onClose).toHaveBeenCalledTimes(1);
     },
   );
+
+  it.each([
+    ["reextractMetadata", "Re-extract"],
+    ["repairMetadata", "Repair metadata"],
+    ["rescanArchive", "Rescan archive"],
+  ] as const)("blocks %s during an external scan without claiming busy state", (key, label) => {
+    const dialog = render(key, { scanning: true });
+    const confirm = action(dialog, label);
+    expect(confirm.getAttribute("aria-disabled")).toBe("true");
+    expect(confirm.hasAttribute("aria-busy")).toBe(false);
+    expect(dialog.textContent).toContain("Wait for the archive scan to finish");
+    act(() => confirm.click());
+    expect(handlers[key]).not.toHaveBeenCalled();
+    act(() => action(dialog, "Cancel").click());
+    expect(onClose).toHaveBeenCalledExactlyOnceWith(key);
+  });
 });

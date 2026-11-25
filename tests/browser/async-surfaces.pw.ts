@@ -124,8 +124,10 @@ for (const surface of ["add", "rename", "metadata", "cover", "details"]) {
   });
 }
 
-for (const surface of ["rename", "add", "metadata", "cover"] as const) {
-  test(`${surface}: readiness preserves the focused loading dismissal action`, async ({ page }) => {
+for (const surface of ["rename", "add", "move", "metadata", "cover"] as const) {
+  test(`${surface}: readiness preserves the focused loading dismissal action without replaying entry`, async ({
+    page,
+  }) => {
     let release!: () => void;
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -135,9 +137,28 @@ for (const surface of ["rename", "add", "metadata", "cover"] as const) {
       await route.continue();
     });
     try {
-      await page.goto(`${fixture}?surface=${surface}`);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.goto(`${fixture}?surface=${surface}&motion=on`);
+      await page.evaluate(() => {
+        document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
+      });
       await page.getByRole("button", { name: "Open action" }).click();
       await expect(page.locator(".dialog-skeleton")).toHaveCount(1);
+      const dialog = page.getByRole("dialog");
+      const entrance = await dialog.evaluate((element) => {
+        const animation = element
+          .getAnimations()
+          .find(
+            (candidate) =>
+              candidate instanceof CSSAnimation &&
+              candidate.animationName === "dialog-presence-enter",
+          );
+        if (!animation) return false;
+        animation.finish();
+        return true;
+      });
+      expect(entrance).toBe(true);
+      const frame = await dialog.elementHandle();
       const label = surface === "metadata" || surface === "cover" ? "Close" : "Cancel";
       const dismiss = page.getByRole("button", { name: label, exact: true });
       for (
@@ -152,6 +173,20 @@ for (const surface of ["rename", "add", "metadata", "cover"] as const) {
       release();
       await expect(page.locator(".dialog-skeleton")).toHaveCount(0);
       await expect(dismiss).toBeFocused();
+      expect(await dialog.evaluate((element, original) => element === original, frame)).toBe(true);
+      expect(
+        await dialog.evaluate((element) =>
+          element
+            .getAnimations()
+            .some(
+              (animation) =>
+                animation instanceof CSSAnimation &&
+                animation.animationName === "dialog-presence-enter" &&
+                animation.playState === "running",
+            ),
+        ),
+      ).toBe(false);
+      await frame?.dispose();
       expect(await page.locator(".dialog__body").evaluate((el) => el.scrollTop)).toBe(scroll);
       await page.keyboard.press("Enter");
       if (surface === "metadata" || surface === "cover") {
@@ -194,6 +229,15 @@ for (const [surface, chunk] of Object.entries(chunks).filter(
             .locator(".dialog-skeleton")
             .evaluate((element) => element.hasAttribute("inert")),
         ).toBe(true);
+        if (surface === "add") {
+          const label = page
+            .locator(".dialog-skeleton")
+            .getByText("Filename conflicts", { exact: true });
+          await expect(label).toBeVisible();
+          expect(
+            await label.evaluate((element) => getComputedStyle(element).backgroundImage),
+          ).toMatch(/linear-gradient/);
+        }
         const geometry = () =>
           page.locator("dialog").evaluate((dialog) => {
             const rect = (element: Element) => {

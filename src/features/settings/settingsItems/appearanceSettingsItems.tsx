@@ -7,7 +7,6 @@ import { IconButton } from "../../../components/IconButton";
 import { SegmentedControl } from "../../../components/SegmentedControl";
 import { Toggle } from "../../../components/Toggle";
 import type { InterfaceDensity } from "../../../types/appSettings";
-import { ReaderThemeSelect } from "../../themes/ReaderThemeSelect";
 import {
   applicationThemeOptions,
   applicationThemeValue,
@@ -30,33 +29,16 @@ const displayFontOptions = [
 export const appearanceSettingsItems = [
   {
     deferredData: ["themeCatalog"],
-    description: "Choose the colors used while reading.",
-    id: "reader.theme",
-    label: "Reader theme",
-    render: (context) => (
-      <StandardSettingsRow description="Choose the colors used while reading." label="Reader theme">
-        <ReaderThemeSelect
-          entries={context.themeCatalogEntries}
-          onChange={(readerTheme) => void context.updateAppearance({ readerTheme })}
-          onOpen={() => void context.refreshThemeCatalog()}
-          selection={context.preferences.readerTheme}
-        />
-      </StandardSettingsRow>
-    ),
-    searchTerms: ["theme", "light", "sepia", "dark", "epub reader", "custom reader theme"],
-    sectionId: "reader",
-  },
-  {
-    deferredData: ["themeCatalog"],
     description: "Choose the theme used across Archeion.",
     groupLabel: "App appearance",
     id: "appearance.app-themes",
     label: "App themes",
     render: (context) => (
       <FeatureSettingsRow description="Choose the theme used across Archeion." label="App themes">
-        <div className="settings-theme-control">
+        <div className="flex min-w-0 max-w-full items-center justify-end gap-control-gap settings-row-narrow:w-full">
           <AppSelect
             ariaLabel="App themes"
+            className="w-slider-row min-w-0 settings-row-narrow:w-auto settings-row-narrow:flex-1"
             onChange={(value) =>
               void context.updateAppearance({ appTheme: decodeApplicationTheme(value) })
             }
@@ -68,7 +50,7 @@ export const appearanceSettingsItems = [
             value={applicationThemeValue(context.preferences.appTheme)}
           />
           <IconButton
-            className="settings-theme-control__manage"
+            className="shrink-0"
             disabled={context.themeCatalogLoading}
             disabledReason="Themes are loading."
             label="Manage themes"
@@ -202,7 +184,6 @@ export const appearanceSettingsItems = [
   },
   {
     groupLabel: "Reset",
-    groupStyle: "actions",
     id: "appearance.reset-appearance",
     label: "Reset appearance settings",
     render: (context) => (

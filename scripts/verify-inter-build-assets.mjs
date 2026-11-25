@@ -67,7 +67,9 @@ const emittedInterAssets = sourceAssets.map((sourceAsset) => {
 const builtCss = outputFiles
   .filter((filePath) => path.extname(filePath) === ".css")
   .map((filePath) => fs.readFileSync(filePath, "utf8"))
-  .join("\n");
+  .join("\n")
+  // License banners can contain URLs without causing network requests.
+  .replace(/\/\*[\s\S]*?\*\//g, "");
 
 if (/https?:\/\//i.test(builtCss)) {
   fail("built CSS contains a remote URL");

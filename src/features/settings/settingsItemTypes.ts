@@ -3,8 +3,6 @@ import type { ReactNode } from "react";
 import type { SettingsSection } from "./settingsSections";
 import type { SettingsController } from "./useSettingsController";
 
-export type SettingsItemGroupStyle = "standard" | "actions";
-
 export type SettingsDeferredDataRequirement =
   "themeCatalog" | "installedFonts" | "coverCacheStatus" | "epubWritebackBackupStatus";
 
@@ -12,7 +10,6 @@ export type SettingsItem = {
   deferredData?: readonly SettingsDeferredDataRequirement[];
   description?: string;
   groupLabel?: string;
-  groupStyle?: SettingsItemGroupStyle;
   id: string;
   label: string;
   requiresArchive?: boolean;

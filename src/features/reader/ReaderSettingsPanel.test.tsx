@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // @vitest-environment-options {"settings":{"enableIframePageLoading":true}}
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -513,10 +514,10 @@ describe("ReaderSettingsPanel", () => {
     const select = rendered.container.querySelector<HTMLButtonElement>('[role="combobox"]')!;
 
     await act(async () => select.click());
-    const sepia = Array.from(rendered.container.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent === "Sepia",
-    )!;
-    await act(async () => sepia.click());
+    const sepia = Array.from(
+      rendered.container.querySelectorAll<HTMLElement>('[role="option"]'),
+    ).find((button) => button.textContent === "Sepia")!;
+    await act(async () => activateSelectOption(sepia));
 
     expect(rendered.onReaderThemeCommit).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
     expect(rendered.onClose).not.toHaveBeenCalled();

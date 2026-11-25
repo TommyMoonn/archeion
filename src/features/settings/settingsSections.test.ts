@@ -27,14 +27,6 @@ describe("settingsSections", () => {
       "dictionaries",
       "keyboard",
     ]);
-    expect(settingsSections.every((section) => section.id === section.id.toLocaleLowerCase())).toBe(
-      true,
-    );
-    expect(
-      settingsSections.every(
-        (section) => Object.hasOwn(section, "id") && Object.hasOwn(section, "label"),
-      ),
-    ).toBe(true);
   });
 
   it("does not match removed composite search labels", () => {

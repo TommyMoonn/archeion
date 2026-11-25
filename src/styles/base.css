@@ -44,11 +44,13 @@ body {
     var(--surface-main);
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 button,
@@ -89,10 +91,16 @@ a {
   outline-offset: 3px;
 }
 
-button:disabled,
-button[aria-disabled="true"] {
-  cursor: not-allowed;
-  opacity: 0.55;
+:root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible {
+  outline-offset: -2px;
+}
+
+@layer base {
+  button:disabled,
+  button[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
 }
 
 a {
@@ -242,4 +250,10 @@ a {
     animation-duration: 0s !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+/* The slider's native range input is visually hidden; show focus on its visible thumb. */
+:root[data-focus-presentation="keyboard-navigation"] [data-slot="slider-thumb"]:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }

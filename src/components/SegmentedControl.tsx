@@ -1,7 +1,9 @@
-import { type KeyboardEvent, type ReactNode, useRef } from "react";
+import { type KeyboardEvent, type ReactNode } from "react";
 import { focusPresentationRuntime } from "../app/inputModality";
 import type { ControlSize } from "./Button";
 import { Tooltip } from "./Tooltip";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { cn } from "@/utils/cn";
 
 export type SegmentedControlOption<TValue extends string> = {
   disabled?: boolean;
@@ -21,26 +23,6 @@ type SegmentedControlProps<TValue extends string> = {
   value: TValue;
 };
 
-function nextEnabledIndex<TValue extends string>(
-  options: Array<SegmentedControlOption<TValue>>,
-  startIndex: number,
-  direction: 1 | -1,
-) {
-  if (!options.length) {
-    return -1;
-  }
-
-  let nextIndex = startIndex;
-  for (let count = 0; count < options.length; count += 1) {
-    nextIndex = (nextIndex + direction + options.length) % options.length;
-    if (!options[nextIndex]?.disabled) {
-      return nextIndex;
-    }
-  }
-
-  return -1;
-}
-
 export function SegmentedControl<TValue extends string>({
   appearance = "default",
   ariaDescribedBy,
@@ -51,81 +33,70 @@ export function SegmentedControl<TValue extends string>({
   size = "compact",
   value,
 }: SegmentedControlProps<TValue>) {
-  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const selectedIndex = options.findIndex((option) => option.value === value);
   const iconOnly = appearance === "icon-only";
 
-  function focusAndChange(nextIndex: number) {
-    const option = options[nextIndex];
-    if (!option || option.disabled) {
-      return;
-    }
-
-    onChange(option.value);
-    focusPresentationRuntime.markKeyboardNavigation();
-    buttonRefs.current[nextIndex]?.focus();
-  }
-
+  // Base UI owns arrow navigation and selection; Home/End are an Archeion extension.
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const currentIndex = Math.max(selectedIndex, 0);
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      event.preventDefault();
-      const nextIndex = nextEnabledIndex(options, currentIndex, 1);
-      if (nextIndex >= 0) focusAndChange(nextIndex);
-      return;
-    }
-
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const nextIndex = nextEnabledIndex(options, currentIndex, -1);
-      if (nextIndex >= 0) focusAndChange(nextIndex);
-      return;
-    }
-
-    if (event.key === "Home" || event.key === "End") {
-      event.preventDefault();
-      const startIndex = event.key === "Home" ? options.length - 1 : 0;
-      const direction = event.key === "Home" ? 1 : -1;
-      const nextIndex = nextEnabledIndex(options, startIndex, direction);
-      if (nextIndex >= 0) focusAndChange(nextIndex);
-    }
+    if (event.key !== "Home" && event.key !== "End") return;
+    const enabled = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        'button[role="radio"]:not(:disabled)',
+      ),
+    );
+    const target = event.key === "Home" ? enabled[0] : enabled.at(-1);
+    if (!target) return;
+    event.preventDefault();
+    focusPresentationRuntime.markKeyboardNavigation();
+    target.focus();
+    target.click();
   }
 
   return (
-    <div
+    <RadioGroup<TValue>
       aria-describedby={ariaDescribedBy}
       aria-label={label}
-      className={`segmented-control segmented-control--${size} ${iconOnly ? "segmented-control--icon-only" : ""} ${className}`.trim()}
+      className={cn(
+        "segmented-control inline-grid grid-flow-col auto-cols-fr",
+        iconOnly
+          ? "segmented-control--icon-only gap-control-inset p-0 border-0 bg-transparent"
+          : "gap-segment-inset p-segment-inset border-standard border-solid border-line rounded-control bg-canvas-deep",
+        className,
+      )}
       onKeyDown={handleKeyDown}
-      role="radiogroup"
+      onKeyDownCapture={(event) => {
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+          focusPresentationRuntime.markKeyboardNavigation();
+        }
+      }}
+      onValueChange={(next) => onChange(next)}
+      value={value}
     >
-      {options.map((option, index) => {
-        const selected = option.value === value;
-
+      {options.map((option) => {
         const optionButton = (
-          <button
-            aria-checked={selected}
+          <RadioGroupItem
             aria-label={iconOnly ? option.label : undefined}
-            className="segmented-control__option"
             disabled={option.disabled}
+            iconOnly={iconOnly}
             key={option.value}
-            onClick={() => onChange(option.value)}
-            ref={(element) => {
-              buttonRefs.current[index] = element;
-            }}
-            role="radio"
-            tabIndex={selected ? 0 : -1}
-            type="button"
+            size={size}
+            value={option.value}
           >
             {option.icon ? (
-              <span aria-hidden="true" className="segmented-control__icon icon-slot">
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "segmented-control__icon",
+                  iconOnly
+                    ? "inline-grid shrink-0 place-items-center size-segment-glyph *:size-segment-glyph"
+                    : "icon-slot",
+                )}
+              >
                 {option.icon}
               </span>
             ) : null}
             {iconOnly ? null : <span>{option.label}</span>}
-          </button>
+          </RadioGroupItem>
         );
-
         return iconOnly ? (
           <Tooltip content={option.label} key={option.value}>
             {optionButton}
@@ -134,6 +105,6 @@ export function SegmentedControl<TValue extends string>({
           optionButton
         );
       })}
-    </div>
+    </RadioGroup>
   );
 }

@@ -25,6 +25,7 @@ import {
 import { observeReaderStageSize, type ReaderStageSize } from "./readerStageGeometry";
 import { readerContentThemeForPresentation, type ReaderContentTheme } from "./readerTheme";
 import { IconButton } from "../../components/IconButton";
+import { SurfacePresence } from "../../components/SurfacePresence";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
 import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
@@ -752,16 +753,18 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           viewportRect={footnote.viewportRect}
         />
       ) : null}
-      {externalLink ? (
-        <ReaderExternalLinkDialog
-          error={externalLink.error}
-          host={externalLink.host}
-          onCancel={dismissExternal}
-          onConfirm={confirmExternal}
-          opening={externalLink.opening}
-          url={externalLink.url}
-        />
-      ) : null}
+      <SurfacePresence key={`${sessionIdentity.bookId}:${sessionIdentity.revision}`}>
+        {externalLink ? (
+          <ReaderExternalLinkDialog
+            error={externalLink.error}
+            host={externalLink.host}
+            onCancel={dismissExternal}
+            onConfirm={confirmExternal}
+            opening={externalLink.opening}
+            url={externalLink.url}
+          />
+        ) : null}
+      </SurfacePresence>
       {illustration ? (
         <ReaderIllustrationViewer
           error={illustration.error}

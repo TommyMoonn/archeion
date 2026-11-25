@@ -9,6 +9,7 @@ export type DialogShellOptions = {
 
 export type DialogShellOwner = {
   descriptionId: string;
+  workspace: boolean;
   titleId: string;
   register: (options: DialogShellOptions) => void;
   retainFocus: () => void;

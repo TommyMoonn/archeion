@@ -23,6 +23,7 @@ async function shellPresentation(page: Page, archive: boolean) {
     };
     const colors = {
       frame: color("--surface-app-frame"),
+      canvasDeep: color("--canvas-deep"),
       sidebar: color("--surface-sidebar"),
       main: color("--surface-main"),
       divider: color("--line-subtle"),
@@ -33,6 +34,8 @@ async function shellPresentation(page: Page, archive: boolean) {
       frameBackground: getComputedStyle(document.querySelector(".window-app")!).backgroundColor,
       titlebarBackground: getComputedStyle(titlebar).backgroundColor,
       titlebarBottom: titlebar.getBoundingClientRect().bottom,
+      titlebarBorder: getComputedStyle(titlebar).borderBottomColor,
+      titlebarBorderWidth: getComputedStyle(titlebar).borderBottomWidth,
       planeBackground: plane ? getComputedStyle(plane).backgroundColor : null,
       planeRight: plane?.getBoundingClientRect().right,
       planeDivider: plane ? getComputedStyle(plane, "::after").backgroundColor : null,
@@ -60,9 +63,7 @@ async function shellPresentation(page: Page, archive: boolean) {
 
 for (const theme of ["equal", "distinct"] as const) {
   for (const view of ["library", "archive-shell"] as const) {
-    test(`${view} preserves resolved ${theme} schema-v1 shell roles`, async ({
-      page,
-    }, testInfo) => {
+    test(`${view} preserves resolved ${theme} schema-v1 shell roles`, async ({ page }) => {
       const archive = view === "archive-shell";
       const resolved = resolveTheme(shellStressThemes[theme]);
       await page.setViewportSize({ width: 1100, height: 700 });
@@ -90,18 +91,24 @@ for (const theme of ["equal", "distinct"] as const) {
       expect(split.frameBackground).toBe(split.colors.frame);
       expect(split.sidebarBackground).toBe(split.colors.sidebar);
       expect(split.mainBackground).toBe(split.colors.main);
-      expect(split.titlebarBackground).toBe(split.colors.main);
-      expect(split.planeBackground).toBe(split.colors.sidebar);
-      expect(split.planeRight).toBe(split.sidebarRight);
+      if (archive) {
+        expect(split.titlebarBackground).toBe(split.colors.canvasDeep);
+        expect(split.titlebarBorder).toBe(split.colors.divider);
+        expect(split.titlebarBorderWidth).toBe("1px");
+        expect(split.planeBackground).toBeNull();
+      } else {
+        expect(split.titlebarBackground).toBe(split.colors.main);
+        expect(split.planeBackground).toBe(split.colors.sidebar);
+        expect(split.planeRight).toBe(split.sidebarRight);
+        expect(split.planeDivider).toBe(split.colors.divider);
+      }
       expect(split.mainLeft).toBe(split.sidebarRight);
       expect(split.mainTop).toBe(split.titlebarBottom);
       expect(split.rightBorder).toBe("1px");
       expect(split.rightBorderColor).toBe(split.colors.divider);
-      expect(split.planeDivider).toBe(split.colors.divider);
       expect(split.mainBorders).toEqual(["0px", "0px", "0px", "0px"]);
       expect(split.mainRadius).toBe("0px");
       expect(split.overflow).toBe(false);
-      await page.screenshot({ path: testInfo.outputPath(`${theme}-${view}-split.png`) });
 
       if (!archive) {
         await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
@@ -128,7 +135,7 @@ for (const theme of ["equal", "distinct"] as const) {
         // Resize-driven composition updates must settle before reading styles.
         await expect(page.locator(".window-titlebar")).toHaveCSS(
           "background-color",
-          split.colors.frame,
+          archive ? split.colors.canvasDeep : split.colors.frame,
         );
         const stacked = await shellPresentation(page, archive);
         expect(stacked.sidebarBackground).toBe(stacked.colors.sidebar);
@@ -140,9 +147,6 @@ for (const theme of ["equal", "distinct"] as const) {
         expect(stacked.bottomBorderColor).toBe(stacked.colors.divider);
         expect(stacked.mainBorders).toEqual(["0px", "0px", "0px", "0px"]);
         expect(stacked.overflow).toBe(false);
-        await page.screenshot({
-          path: testInfo.outputPath(`${theme}-${view}-stacked-${width}.png`),
-        });
       }
     });
   }

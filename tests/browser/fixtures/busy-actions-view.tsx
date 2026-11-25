@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { Search } from "lucide-react";
 import { Button } from "../../../src/components/Button";
+import { IconButton } from "../../../src/components/IconButton";
+import { Input } from "../../../src/components/Input";
 
 export function BusyActionsFixture() {
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState("Ready");
   const [calls, setCalls] = useState(0);
+  const [submitted, setSubmitted] = useState("");
   return (
     <main style={{ padding: 24 }}>
       <button
@@ -53,6 +57,23 @@ export function BusyActionsFixture() {
           ),
         )}
       </div>
+      <form
+        aria-label="Shared control form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSubmitted(String(new FormData(event.currentTarget).get("query")));
+        }}
+      >
+        <Input label="Query" name="query" icon={<Search />} required size="standard" />
+        <Input label="Invalid query" aria-invalid="true" />
+        <IconButton label="Search options" size="compact" disabled disabledReason="Unavailable">
+          <Search />
+        </IconButton>
+        <Button type="submit" size="standard">
+          Submit query
+        </Button>
+        <output aria-label="Submitted query">{submitted}</output>
+      </form>
     </main>
   );
 }

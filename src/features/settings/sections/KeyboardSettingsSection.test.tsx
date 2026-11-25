@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../../types/appSettings";
 import { commandDefinitions } from "../../commands/commandBindings";
-import { keyboardSettingsItems } from "../settingsItems/keyboardSettingsItems";
 import type { SettingsController } from "../useSettingsController";
 import { KeyboardSettingsSection } from "./KeyboardSettingsSection";
 
@@ -54,8 +53,8 @@ function changeSearch(value: string) {
 
 function groupLabels() {
   return Array.from(
-    container.querySelectorAll<HTMLElement>(".settings-section__group > h3"),
-    (heading) => heading.textContent,
+    container.querySelectorAll<HTMLElement>("[data-settings-group][role=group]"),
+    (group) => group.getAttribute("aria-label"),
   );
 }
 
@@ -67,29 +66,29 @@ describe("KeyboardSettingsSection", () => {
     const search = container.querySelector<HTMLInputElement>('input[type="search"]');
     expect(search).not.toBeNull();
     expect(search?.closest("label")?.textContent).toContain("Search shortcuts");
-    expect(container.querySelectorAll("[data-setting-id]")).toHaveLength(
-      keyboardSettingsItems.length,
-    );
+    expect(
+      container.querySelector('[aria-label="Change shortcut for Open Settings"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('[aria-label="Context menu keys"]')).not.toBeNull();
 
     changeSearch("book navigation");
     expect(groupLabels()).toEqual(["Reader"]);
-    expect(container.querySelector('[data-setting-id="keyboard.reader.open-toc"]')).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Change shortcut for Toggle book navigation"]'),
+    ).not.toBeNull();
 
     changeSearch("context menu");
     expect(groupLabels()).toEqual(["Fixed Interaction Keys"]);
-    expect(
-      container.querySelector('[data-setting-id="keyboard.documentation.fixed-context-menu"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[aria-label="Context menu keys"]')).not.toBeNull();
 
     changeSearch("no matching shortcut");
-    expect(container.querySelectorAll("[data-setting-id]")).toHaveLength(0);
-    expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
+    expect(groupLabels()).toEqual([]);
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "No shortcuts match this search.",
     );
   });
 
-  it("clearing search restores every row without changing shortcut preferences", () => {
+  it("clearing search restores configurable and fixed rows without changing shortcut preferences", () => {
     const updateAppPreferences = vi.fn().mockResolvedValue(true);
     const context = controller({
       [commandDefinitions.settings.id]: {
@@ -103,9 +102,10 @@ describe("KeyboardSettingsSection", () => {
     const input = changeSearch("");
 
     expect(input.value).toBe("");
-    expect(container.querySelectorAll("[data-setting-id]")).toHaveLength(
-      keyboardSettingsItems.length,
-    );
+    expect(
+      container.querySelector('[aria-label="Change shortcut for Open Settings"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('[aria-label="Context menu keys"]')).not.toBeNull();
     expect(
       container.querySelector('[aria-label="Change shortcut for Open Settings"]')?.textContent,
     ).toContain("Ctrl+Shift+K");

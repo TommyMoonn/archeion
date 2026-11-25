@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Dialog } from "./Dialog";
+import { activateSelectOption } from "../test/activateSelectOption";
 import { AppSelect } from "./AppSelect";
 
 afterEach(() => {
@@ -76,7 +77,6 @@ describe("Dialog backdrop dismissal", () => {
     const input = container.querySelector("input")!;
     const body = container.querySelector(".dialog__body")!;
     const feedback = container.querySelector(".dialog__feedback")!;
-    expect(feedback.getAttribute("data-feedback-size")).toBe("summary");
     const footer = container.querySelector(".dialog__footer")!;
     input.focus();
     input.setSelectionRange(1, 3);
@@ -99,7 +99,7 @@ describe("Dialog backdrop dismissal", () => {
     act(() => root.unmount());
   });
 
-  it("keeps an open select menu inside a modal dialog under an outer transform", () => {
+  it("keeps an open select menu inside a modal dialog under an outer transform", async () => {
     const transformedAncestor = document.createElement("div");
     transformedAncestor.style.transform = "translateX(40px)";
     const container = document.createElement("div");
@@ -133,15 +133,14 @@ describe("Dialog backdrop dismissal", () => {
 
     act(() => trigger.click());
 
-    const menu = container.querySelector<HTMLElement>(".app-select__menu")!;
+    const menu = container.querySelector<HTMLElement>('[role="listbox"]')!;
     expect(dialog.contains(menu)).toBe(true);
-    expect(menu.style.visibility).toBe("visible");
     expect(body.scrollTop).toBe(32);
 
-    const second = Array.from(
-      menu.querySelectorAll<HTMLButtonElement>('button[role="option"]'),
-    ).find((option) => option.textContent?.includes("Second"))!;
-    act(() => second.click());
+    const second = Array.from(menu.querySelectorAll<HTMLElement>('[role="option"]')).find(
+      (option) => option.textContent?.includes("Second"),
+    )!;
+    await act(async () => activateSelectOption(second));
 
     expect(onChange).toHaveBeenCalledWith("second");
     expect(container.querySelector(".app-select__menu")).toBeNull();

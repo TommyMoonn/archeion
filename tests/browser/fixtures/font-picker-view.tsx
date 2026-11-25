@@ -1,3 +1,4 @@
+import { SettingsSection } from "../../../src/features/settings/components/SettingsSection";
 import { useEffect, useState } from "react";
 
 import { Dialog } from "../../../src/components/Dialog";
@@ -51,9 +52,9 @@ export function FontPickerFixture() {
   });
   const [selectionCount, setSelectionCount] = useState(0);
   const content = (
-    <section className="settings-section" style={{ inlineSize: "min(520px, 100%)" }}>
+    <SettingsSection style={{ inlineSize: "min(520px, 100%)" }}>
       <h1>Font picker fixture</h1>
-      <div className="settings-section__group">
+      <div className="grid">
         <StandardSettingsRow
           label="Family"
           description="Standalone picker; no preference persistence."
@@ -91,7 +92,7 @@ export function FontPickerFixture() {
       <button style={{ position: "fixed", insetBlockEnd: 24, insetInlineStart: 24 }} type="button">
         After picker
       </button>
-    </section>
+    </SettingsSection>
   );
   return (
     <main

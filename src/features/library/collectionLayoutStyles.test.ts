@@ -76,9 +76,10 @@ describe("collection content spacing ownership", () => {
   });
 
   it("publishes one normal and compact semantic collection offset", () => {
-    expect(tokens).toMatch(/--collection-content-offset:\s*20px;/u);
+    expect(tokens).toMatch(/--spacing-collection-comfortable:\s*20px;/u);
+    expect(tokens).toMatch(/--spacing-collection-compact:\s*16px;/u);
     expect(tokens).toMatch(
-      /html\[data-density="compact"\]\s*\{[^}]*--collection-content-offset:\s*16px;/s,
+      /html\[data-density="compact"\]\s*\{[^}]*--collection-content-offset:\s*var\(--spacing-collection-compact\);/s,
     );
   });
 
@@ -105,7 +106,7 @@ describe("collection content spacing ownership", () => {
       'html[data-motion="on"]\n  .library-content--books[data-surface-state="results"]:not([data-entrance-complete]),\nhtml[data-motion="on"] :not(.library-content--books) > .collection-content__items',
     );
 
-    expect(entrance).toContain("animation: app-motion-view-content-in");
+    expect(entrance).toContain("animation: var(--animate-view-enter)");
     expect(collectionContentStyles).not.toContain(
       'html[data-motion="on"] .library-content--books,',
     );

@@ -35,31 +35,6 @@
   display: none;
 }
 
-.settings-sidebar__body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-height: 0;
-}
-
-.settings-navigation-placeholder {
-  display: grid;
-  gap: 20px;
-}
-
-.settings-navigation-placeholder > span {
-  height: var(--control-height-standard);
-}
-
-.settings-navigation-placeholder > div {
-  display: grid;
-  gap: 3px;
-}
-
-.settings-navigation-placeholder > div > span {
-  height: 36px;
-}
-
 .theme-manager__toolbar-placeholder {
   display: flex;
   gap: 8px;

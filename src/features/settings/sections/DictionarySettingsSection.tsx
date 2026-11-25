@@ -1,3 +1,9 @@
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyDescription } from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
+import { Spinner } from "@/components/ui/spinner";
+import { SettingsSection } from "../components/SettingsSection";
 import { SurfacePresence } from "../../../components/SurfacePresence";
 import {
   ArrowDown,
@@ -21,9 +27,28 @@ import type { DictionaryCatalogEntry, InstalledDictionary } from "../../../types
 import { formatDictionaryLanguagePair, formatFileSize } from "../../../utils/formatters";
 import { focusElementIfUsable } from "../../../utils/focusRestoration";
 import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
-import { useDictionarySettings, type DictionarySettingsController } from "../useDictionarySettings";
+import {
+  useDictionarySettings,
+  type DictionaryCatalogOperation,
+  type DictionarySettingsController,
+} from "../useDictionarySettings";
 
 type DictionaryView = "all" | "installed" | "not-installed";
+
+const cardClass =
+  "grid settings-row-columns min-w-0 items-center gap-dialog-gap p-overlay-viewport-inset rounded-card border-standard border-solid border-line bg-surface @max-dictionary-wide/settings-section:grid-cols-1 @max-dictionary-wide/settings-section:items-stretch";
+
+const factsClass =
+  "m-0 flex flex-wrap gap-x-overlay-viewport-inset gap-y-dictionary-fact-gap text-caption [&>div]:grid [&>div]:dictionary-fact-columns [&>div]:min-w-0 [&>div]:max-w-full [&>div]:gap-dictionary-fact-gap [&_dt]:text-muted [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:text-text [&_dd]:wrap-anywhere";
+
+const sourceClass =
+  "m-0 grid dictionary-fact-columns gap-dictionary-fact-gap text-text text-body-supporting";
+
+const linkClass =
+  "min-w-0 wrap-anywhere decoration-line-strong underline-offset-2 hover:text-text-strong! focus-visible:text-text-strong! hover:decoration-current focus-visible:decoration-current";
+
+const noticeClass =
+  "flex min-w-0 items-center justify-between gap-overlay-viewport-inset rounded-control border-standard border-dashed border-line-strong bg-surface p-button-standard text-muted text-meta @max-dictionary-narrow/settings-section:flex-col @max-dictionary-narrow/settings-section:items-stretch @max-dictionary-narrow/settings-section:[&>button]:w-full [&>p]:m-0 [&>p]:min-w-0 [&>p]:wrap-anywhere";
 
 const EMPTY_DICTIONARIES: InstalledDictionary[] = [];
 
@@ -45,6 +70,47 @@ function catalogActionLabel(
   return operation.stagingToken ? "Retry installation" : "Retry download";
 }
 
+function DictionaryOperation({
+  operation,
+  entry,
+}: {
+  operation: DictionaryCatalogOperation;
+  entry: DictionaryCatalogEntry;
+}) {
+  const total = operation.totalBytes || entry.compressedSizeBytes;
+  const bytes = `${formatFileSize(operation.receivedBytes)}${total > 0 ? ` of ${formatFileSize(total)}` : " received"}`;
+  return (
+    <div
+      className="grid min-w-0 gap-control-gap-compact text-muted text-caption"
+      aria-live="polite"
+    >
+      {operation.phase === "downloading" ? (
+        <div className="flex min-w-0 max-w-dictionary-progress items-center gap-dialog-copy @max-dictionary-narrow/settings-section:flex-col @max-dictionary-narrow/settings-section:items-stretch">
+          <Progress
+            aria-label={`Downloading ${entry.name}`}
+            aria-valuetext={bytes}
+            className="flex-1 min-w-dictionary-progress-min @max-dictionary-narrow/settings-section:flex-none @max-dictionary-narrow/settings-section:min-w-0"
+            max={total > 0 ? total : 100}
+            value={total > 0 ? operation.receivedBytes : null}
+          />
+          <span className="shrink-0 tabular-nums wrap-anywhere">{bytes}</span>
+        </div>
+      ) : null}
+      {operation.phase === "installing" ? (
+        <span className="flex items-center gap-control-gap-compact">
+          <Spinner aria-hidden="true" data-visible="true" />
+          Installing verified package…
+        </span>
+      ) : null}
+      {operation.error ? (
+        <Alert className="text-danger text-meta" data-tone="error">
+          {operation.error}
+        </Alert>
+      ) : null}
+    </div>
+  );
+}
+
 function CatalogDictionaryRow({
   controller,
   entry,
@@ -60,22 +126,24 @@ function CatalogDictionaryRow({
   );
 
   return (
-    <article className="dictionary-settings-card" data-catalog-id={entry.id}>
-      <div className="dictionary-settings-card__main">
-        <div className="dictionary-settings-card__heading">
-          <h4>{entry.name}</h4>
+    <article className={cardClass} data-catalog-id={entry.id}>
+      <div className="grid min-w-0 gap-control-gap">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-input-gap">
+          <h4 className="m-0 min-w-0 text-text-strong text-body-large font-semibold leading-dictionary-title wrap-anywhere">
+            {entry.name}
+          </h4>
         </div>
-        <p className="dictionary-settings-card__source">
-          <span>Source</span>
+        <p className={sourceClass}>
+          <span className="text-muted">Source</span>
           {entry.sourceUrl ? (
-            <a href={entry.sourceUrl} rel="noreferrer" target="_blank">
+            <a className={linkClass} href={entry.sourceUrl} rel="noreferrer" target="_blank">
               {entry.sourceAttribution}
             </a>
           ) : (
-            <span>{entry.sourceAttribution}</span>
+            <span className="min-w-0 text-text wrap-anywhere">{entry.sourceAttribution}</span>
           )}
         </p>
-        <dl className="dictionary-settings-card__facts">
+        <dl className={factsClass}>
           <div>
             <dt>Language</dt>
             <dd>{formatDictionaryLanguagePair(entry.sourceLanguage, entry.targetLanguage)}</dd>
@@ -83,7 +151,7 @@ function CatalogDictionaryRow({
           <div>
             <dt>License</dt>
             <dd>
-              <a href={entry.licenseUrl} rel="noreferrer" target="_blank">
+              <a className={linkClass} href={entry.licenseUrl} rel="noreferrer" target="_blank">
                 {entry.licenseName}
               </a>
             </dd>
@@ -93,31 +161,9 @@ function CatalogDictionaryRow({
             <dd>{formatFileSize(entry.compressedSizeBytes)}</dd>
           </div>
         </dl>
-        {operation ? (
-          <div className="dictionary-settings-card__operation" aria-live="polite">
-            {operation.phase === "downloading" ? (
-              <>
-                <progress
-                  aria-label={`Downloading ${entry.name}`}
-                  max={operation.totalBytes || entry.compressedSizeBytes}
-                  value={operation.receivedBytes}
-                />
-                <span>
-                  {formatFileSize(operation.receivedBytes)} of{" "}
-                  {formatFileSize(operation.totalBytes || entry.compressedSizeBytes)}
-                </span>
-              </>
-            ) : null}
-            {operation.phase === "installing" ? <span>Installing verified package…</span> : null}
-            {operation.error ? (
-              <p className="dictionary-settings-card__error" role="alert">
-                {operation.error}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+        {operation ? <DictionaryOperation operation={operation} entry={entry} /> : null}
       </div>
-      <div className="dictionary-settings-card__actions">
+      <div className="flex shrink-0 items-center justify-end gap-control-gap @max-dictionary-wide/settings-section:flex-wrap @max-dictionary-wide/settings-section:justify-start">
         {operation?.phase === "downloading" ? (
           <Button
             onClick={() => void controller.cancelDownload()}
@@ -179,29 +225,31 @@ function InstalledDictionaryRow({
       : null;
 
   return (
-    <article className="dictionary-settings-card" data-dictionary-id={dictionary.id}>
-      <div className="dictionary-settings-card__main">
-        <div className="dictionary-settings-card__heading">
-          <h4>{dictionary.displayName}</h4>
-          <span className="dictionary-settings-card__status">
+    <article className={cardClass} data-dictionary-id={dictionary.id}>
+      <div className="grid min-w-0 gap-control-gap">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-input-gap">
+          <h4 className="m-0 min-w-0 text-text-strong text-body-large font-semibold leading-dictionary-title wrap-anywhere">
+            {dictionary.displayName}
+          </h4>
+          <Badge>
             {dictionary.indexState === "ready"
               ? "Ready"
               : unavailable
                 ? "Unavailable"
                 : "Index required"}
-          </span>
+          </Badge>
         </div>
-        <p className="dictionary-settings-card__source">
-          <span>Source</span>
+        <p className={sourceClass}>
+          <span className="text-muted">Source</span>
           {catalogEntry?.sourceUrl ? (
-            <a href={catalogEntry.sourceUrl} rel="noreferrer" target="_blank">
+            <a className={linkClass} href={catalogEntry.sourceUrl} rel="noreferrer" target="_blank">
               {dictionary.sourceAttribution}
             </a>
           ) : (
-            <span>{dictionary.sourceAttribution}</span>
+            <span className="min-w-0 text-text wrap-anywhere">{dictionary.sourceAttribution}</span>
           )}
         </p>
-        <dl className="dictionary-settings-card__facts">
+        <dl className={factsClass}>
           <div>
             <dt>Language</dt>
             <dd>
@@ -220,7 +268,12 @@ function InstalledDictionaryRow({
             <dt>License</dt>
             <dd>
               {dictionary.licenseUrl ? (
-                <a href={dictionary.licenseUrl} rel="noreferrer" target="_blank">
+                <a
+                  className={linkClass}
+                  href={dictionary.licenseUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
                   {dictionary.licenseName}
                 </a>
               ) : (
@@ -230,7 +283,7 @@ function InstalledDictionaryRow({
           </div>
         </dl>
         {unavailable ? (
-          <p className="dictionary-settings-card__error">
+          <p className="m-0 text-danger text-meta wrap-anywhere">
             {dictionary.sourceKind === "catalog"
               ? catalogAvailable
                 ? "Installed files are missing or invalid. Download this dictionary again to restore it."
@@ -238,13 +291,16 @@ function InstalledDictionaryRow({
               : "Installed files are missing or invalid. Import a replacement, then remove this unavailable copy."}
           </p>
         ) : null}
+        {recoveryOperation && catalogEntry ? (
+          <DictionaryOperation operation={recoveryOperation} entry={catalogEntry} />
+        ) : null}
         {rowError ? (
-          <p className="dictionary-settings-card__error" role="alert">
+          <p className="m-0 text-danger text-meta wrap-anywhere" role="alert" data-tone="error">
             {rowError}
           </p>
         ) : null}
       </div>
-      <div className="dictionary-settings-card__actions dictionary-settings-card__actions--installed">
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-control-gap max-w-dictionary-actions @max-dictionary-wide/settings-section:max-w-none @max-dictionary-wide/settings-section:justify-start">
         <Toggle
           checked={dictionary.enabled}
           disabled={busy || unavailable}
@@ -281,13 +337,18 @@ function InstalledDictionaryRow({
             Rebuild index
           </Button>
         ) : null}
-        {unavailable && dictionary.sourceKind === "catalog" && catalogAvailable ? (
+        {recoveryOperation?.phase === "downloading" ? (
           <Button
-            busy={Boolean(
-              recoveryOperation?.phase === "downloading" ||
-              recoveryOperation?.phase === "installing",
-            )}
-            disabled={busy}
+            onClick={() => void controller.cancelDownload()}
+            size="compact"
+            variant="secondary"
+          >
+            Cancel
+          </Button>
+        ) : unavailable && dictionary.sourceKind === "catalog" && catalogAvailable ? (
+          <Button
+            busy={recoveryOperation?.phase === "installing"}
+            disabled={busy || Boolean(controller.catalogOperation && !recoveryOperation)}
             icon={<Download aria-hidden="true" />}
             onClick={() => {
               if (dictionary.catalogId) void controller.installCatalog(dictionary.catalogId);
@@ -295,7 +356,11 @@ function InstalledDictionaryRow({
             size="compact"
             variant="secondary"
           >
-            Download again
+            {recoveryOperation?.phase === "failed" && catalogEntry
+              ? catalogActionLabel(catalogEntry, controller)
+              : recoveryOperation?.phase === "installing"
+                ? "Installing"
+                : "Download again"}
           </Button>
         ) : null}
         {unavailable && dictionary.sourceKind === "manual-import" ? (
@@ -389,7 +454,7 @@ export function DictionarySettingsView({
       .map((dictionaryId) => removeButtonRefs.current.get(dictionaryId))
       .find((element) => element?.isConnected);
     const installedViewSelector = sectionRef.current?.querySelector<HTMLElement>(
-      '.dictionary-settings__tabs [role="radio"][aria-checked="true"]',
+      '[role="radiogroup"][aria-label="Dictionary views"] [role="radio"][aria-checked="true"]',
     );
     focusElementIfUsable(neighboringRemoveButton ?? installedViewSelector);
   }, [dictionaries, removing]);
@@ -409,10 +474,10 @@ export function DictionarySettingsView({
   }
 
   return (
-    <section className="settings-section dictionary-settings" ref={sectionRef}>
+    <SettingsSection className="grid gap-dialog-gap" ref={sectionRef}>
       <SettingsSectionHeader
         actions={
-          <div className="dictionary-settings__header-actions">
+          <div className="flex shrink-0 items-center justify-end gap-control-gap @max-dictionary-wide/settings-section:justify-start @max-dictionary-wide/settings-section:flex-wrap @max-dictionary-narrow/settings-section:flex-col @max-dictionary-narrow/settings-section:items-stretch @max-dictionary-narrow/settings-section:[&>button]:w-full">
             {controller.refreshing ? (
               <Button
                 onClick={() => void controller.cancelCatalogRefresh()}
@@ -443,14 +508,14 @@ export function DictionarySettingsView({
             </Button>
           </div>
         }
-        className="dictionary-settings__header"
+        className="mb-0 flex items-start justify-between gap-dialog-gap @max-dictionary-wide/settings-section:flex-col @max-dictionary-wide/settings-section:items-stretch"
         title="Dictionaries"
       />
 
-      <div className="dictionary-settings__toolbar">
+      <div className="flex min-w-0 items-center justify-between gap-3 @max-dictionary-toolbar/settings-section:flex-col @max-dictionary-toolbar/settings-section:items-stretch">
         <Input
           autoComplete="off"
-          className="dictionary-settings__search"
+          className="w-full flex-1 basis-dictionary-search-basis min-w-dictionary-search-min max-w-dictionary-search @max-dictionary-toolbar/settings-section:flex-none @max-dictionary-toolbar/settings-section:min-w-0 @max-dictionary-toolbar/settings-section:max-w-none"
           icon={<Search aria-hidden="true" />}
           label="Search dictionaries"
           onChange={(event) => setDictionaryQuery(event.currentTarget.value)}
@@ -461,7 +526,7 @@ export function DictionarySettingsView({
         />
 
         <SegmentedControl<DictionaryView>
-          className="dictionary-settings__tabs"
+          className="shrink-0 @max-dictionary-toolbar/settings-section:w-full"
           label="Dictionary views"
           onChange={setView}
           options={[
@@ -477,7 +542,7 @@ export function DictionarySettingsView({
       </div>
 
       {controller.importError ? (
-        <p className="dictionary-settings__error" role="alert">
+        <p className="m-0 text-danger text-meta wrap-anywhere" role="alert" data-tone="error">
           {controller.importError}
         </p>
       ) : null}
@@ -490,11 +555,11 @@ export function DictionarySettingsView({
               ? "Installed dictionaries"
               : "Not installed dictionaries"
         }
-        className="dictionary-settings__list"
+        className="grid min-w-0 gap-dialog-copy"
         role="region"
       >
         {view !== "installed" && controller.catalogError ? (
-          <div className="dictionary-settings__notice" role="alert">
+          <Alert className={noticeClass} data-tone="error">
             <p>{controller.catalogError}</p>
             <Button
               onClick={() => void controller.refreshCatalog()}
@@ -503,34 +568,42 @@ export function DictionarySettingsView({
             >
               Try again
             </Button>
-          </div>
+          </Alert>
         ) : null}
         {view !== "installed" && controller.catalogState === "loading" ? (
-          <p>Loading available dictionaries…</p>
+          <p className="m-0 flex items-center gap-control-gap text-muted text-meta" role="status">
+            <Spinner aria-hidden="true" data-visible="true" />
+            Loading available dictionaries…
+          </p>
         ) : null}
         {view !== "installed" &&
         controller.catalogState === "ready" &&
         catalogEntries.length === 0 ? (
-          <div className="dictionary-settings__notice">
+          <Empty className={`${noticeClass} flex-row`}>
             <p>No catalog has been loaded yet.</p>
             <Button onClick={() => void controller.refreshCatalog()} size="compact">
               Refresh catalog
             </Button>
-          </div>
+          </Empty>
         ) : null}
         {view !== "installed" && controller.catalog?.cacheWarning ? (
-          <p className="dictionary-settings__warning">{controller.catalog.cacheWarning}</p>
+          <p className="m-0 text-muted text-meta wrap-anywhere">
+            {controller.catalog.cacheWarning}
+          </p>
         ) : null}
         {view !== "not-installed" && controller.registryState === "loading" ? (
-          <p>Loading installed dictionaries…</p>
+          <p className="m-0 flex items-center gap-control-gap text-muted text-meta" role="status">
+            <Spinner aria-hidden="true" data-visible="true" />
+            Loading installed dictionaries…
+          </p>
         ) : null}
         {view !== "not-installed" && controller.registryError ? (
-          <p className="dictionary-settings__error" role="alert">
+          <p className="m-0 text-danger text-meta wrap-anywhere" role="alert" data-tone="error">
             {controller.registryError}
           </p>
         ) : null}
         {view !== "not-installed" && controller.registry?.status === "recovery-required" ? (
-          <div className="dictionary-settings__notice" role="alert">
+          <Alert className={noticeClass} data-tone="error">
             <p>
               {controller.registry.recovery?.message ?? "Dictionary storage requires recovery."}
             </p>
@@ -543,22 +616,22 @@ export function DictionarySettingsView({
             >
               Try recovery
             </Button>
-          </div>
+          </Alert>
         ) : null}
         {view === "installed" &&
         controller.registryState === "ready" &&
         controller.registry?.status === "ready" &&
         dictionaries.length === 0 ? (
-          <p className="dictionary-settings__empty">No dictionaries are installed.</p>
+          <EmptyDescription role="status">No dictionaries are installed.</EmptyDescription>
         ) : null}
         {view === "not-installed" &&
         controller.catalogState === "ready" &&
         catalogEntries.length > 0 &&
         notInstalledCatalogEntries.length === 0 ? (
-          <p className="dictionary-settings__empty">All catalog dictionaries are installed.</p>
+          <EmptyDescription role="status">All catalog dictionaries are installed.</EmptyDescription>
         ) : null}
         {queryHasNoMatches ? (
-          <p className="dictionary-settings__empty">No dictionaries match this search.</p>
+          <EmptyDescription role="status">No dictionaries match this search.</EmptyDescription>
         ) : null}
         {filteredDictionaries.map(({ dictionary, index }) => (
           <InstalledDictionaryRow
@@ -612,7 +685,7 @@ export function DictionarySettingsView({
           />
         ) : null}
       </SurfacePresence>
-    </section>
+    </SettingsSection>
   );
 }
 

@@ -86,11 +86,6 @@ const auditedErrorSources = [
     /className="about-window__error" data-tone="error" role="alert"/,
   ],
   [
-    "keyboard shortcut capture",
-    "src/features/settings/KeyboardShortcutSettings.tsx",
-    /data-tone="error" id=\{validationMessageId\} role="alert"/,
-  ],
-  [
     "theme diagnostics",
     "src/features/themes/ThemeDetails.tsx",
     /className="theme-details__diagnostics" data-tone="error" role="alert"/,
@@ -156,7 +151,7 @@ describe("forced-colors and focus visibility contract", () => {
   it("loads the bounded forced-colors layer after component and feature styles", () => {
     const indexSource = read("src/styles/index.css").trim();
 
-    expect(indexSource.endsWith('@import "./forced-colors.css";')).toBe(true);
+    expect(indexSource.match(/@import\s+[^;]+;/g)?.at(-1)).toBe('@import "./forced-colors.css";');
     expect(forcedColorsSource.trimStart()).toMatch(/^@media \(forced-colors: active\)/);
     expect(forcedColorsSource).not.toContain("forced-color-adjust: none");
     expect(forcedColorsBlock).not.toMatch(
@@ -285,7 +280,6 @@ describe("forced-colors and focus visibility contract", () => {
   it("keeps wrapper-owned and reader focus visible without shadow-only treatment", () => {
     const normalizedReaderSource = normalizeSelectorWhitespace(readerSource);
     const focusContracts = [
-      cssBlock(".input-shell:has(input:focus-visible)", formsSource),
       cssBlock(
         ':root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible',
         formsSource,

@@ -7,6 +7,7 @@ import { Tooltip } from "./Tooltip";
 
 type WindowTitlebarProps = {
   canMaximize: boolean;
+  utility?: boolean;
 };
 
 let appActionsHost: Element | null = null;
@@ -209,7 +210,7 @@ function WindowTitlebarControls({
   );
 }
 
-export function WindowTitlebar({ canMaximize }: WindowTitlebarProps) {
+export function WindowTitlebar({ canMaximize, utility = false }: WindowTitlebarProps) {
   if (!isTauri()) {
     return null;
   }
@@ -217,7 +218,10 @@ export function WindowTitlebar({ canMaximize }: WindowTitlebarProps) {
   const appWindow = getCurrentWindow();
 
   return (
-    <header aria-label="Window titlebar" className="window-titlebar">
+    <header
+      aria-label="Window titlebar"
+      className={`window-titlebar border-0 border-b border-solid ${utility ? "bg-canvas-deep border-line-subtle" : "bg-surface-app-frame border-line"}`}
+    >
       <WindowTitlebarAppActionsHost />
       <div className="window-titlebar__drag-region" data-tauri-drag-region />
       <WindowTitlebarControls appWindow={appWindow} canMaximize={canMaximize} />

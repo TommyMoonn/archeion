@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { Button } from "./Button";
+import { DialogFrame, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { DialogPanel } from "./Dialog";
 import { DialogShellContext, type DialogShellOptions } from "./DialogShellContext";
 import { useModalDialogLifecycle } from "./useModalDialogLifecycle";
@@ -104,6 +105,7 @@ export function AsyncDialogShell({
     () => ({
       titleId,
       descriptionId,
+      workspace,
       register: (next: DialogShellOptions) => {
         options.current = next;
         setTitle(next.title);
@@ -122,6 +124,7 @@ export function AsyncDialogShell({
           titleId={titleId}
           descriptionId={descriptionId}
           hosted
+          layout={workspace ? "workspace" : "content"}
           pending
           feedback={reserveFeedback ? null : undefined}
           description={loadingDescription}
@@ -142,9 +145,9 @@ export function AsyncDialogShell({
             </>
           }
         >
-          <div className="dialog-load-working">
+          <div className="relative min-w-0">
             <DialogSkeleton loading={false}>{loadingContent}</DialogSkeleton>
-            <div className="dialog-load-error">
+            <div className="absolute inset-0 grid content-center justify-items-center gap-dialog-gap-narrow bg-surface-main p-dialog-gap-narrow">
               <p role="alert">This content could not be opened.</p>
               <Button variant="secondary" onClick={retry}>
                 Try again
@@ -158,6 +161,7 @@ export function AsyncDialogShell({
     [
       titleId,
       descriptionId,
+      workspace,
       title,
       feedbackSize,
       feedbackPlacement,
@@ -181,12 +185,12 @@ export function AsyncDialogShell({
   });
 
   return (
-    <dialog
+    <DialogFrame
       ref={dialogRef}
-      className={`dialog ${workspace ? "dialog--workspace" : ""} ${className}`}
+      className={className}
+      workspace={workspace}
       aria-labelledby={titleId}
       aria-describedby={hasDescription ? descriptionId : undefined}
-      aria-modal="true"
       aria-busy={isLoading || undefined}
       onCancel={modal.onCancel}
       onPointerDown={modal.onPointerDown}
@@ -199,12 +203,12 @@ export function AsyncDialogShell({
         }
       }}
     >
-      <div className="dialog__panel">
-        <div className="dialog__copy constrained-user-content">
-          <h2 ref={titleRef} tabIndex={-1} id={titleId}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle ref={titleRef} tabIndex={-1} id={titleId}>
             {visibleTitle}
-          </h2>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <SurfacePresenceContext value={null}>
           <DialogShellContext value={shell}>
             <Suspense
@@ -215,6 +219,7 @@ export function AsyncDialogShell({
                   titleId={titleId}
                   descriptionId={descriptionId}
                   hosted
+                  layout={workspace ? "workspace" : "content"}
                   feedback={reserveFeedback ? null : undefined}
                   description={loadingDescription}
                   feedbackSize={feedbackSize}
@@ -249,7 +254,7 @@ export function AsyncDialogShell({
             </Suspense>
           </DialogShellContext>
         </SurfacePresenceContext>
-      </div>
-    </dialog>
+      </DialogContent>
+    </DialogFrame>
   );
 }

@@ -9,11 +9,14 @@ import { ReaderNavigationPanel } from "../../../src/features/reader/ReaderNaviga
 import { ReaderSideSurfaceLayer } from "../../../src/features/reader/ReaderSideSurfaceLayer";
 import { ReaderToolbar } from "../../../src/features/reader/ReaderToolbar";
 import { DictionarySettingsView } from "../../../src/features/settings/sections/DictionarySettingsSection";
-import type { DictionarySettingsController } from "../../../src/features/settings/useDictionarySettings";
+import type {
+  DictionaryCatalogOperation,
+  DictionarySettingsController,
+} from "../../../src/features/settings/useDictionarySettings";
 import type { Book } from "../../../src/types/book";
 import type { LibraryStorage } from "../../../src/storage/LibraryStorage";
 import { LibraryStorageProvider } from "../../../src/storage/LibraryStorageContext";
-import type { InstalledDictionary } from "../../../src/types/dictionary";
+import type { DictionaryCatalogEntry, InstalledDictionary } from "../../../src/types/dictionary";
 import { createDefaultLibraryFilters } from "../../../src/types/library";
 
 function ignore() {}
@@ -260,6 +263,36 @@ export function ReaderToggleFixture() {
 
 export function DictionaryToggleFixture() {
   const [enabled, setEnabled] = useState(false);
+  const state = new URLSearchParams(window.location.search).get("dictionary-state");
+  const catalogEntry: DictionaryCatalogEntry = {
+    id: "french-core",
+    name: "French Core with extended metadata",
+    sourceLanguage: "fr",
+    targetLanguage: "en",
+    sourceAttribution:
+      "Fixture lexicographers with a long unbroken name ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    sourceUrl: "https://example.com/source",
+    licenseName: "Fixture license",
+    licenseUrl: "https://example.com/license",
+    packageVersion: "1",
+    compressedSizeBytes: 2048,
+    installedSizeEstimateBytes: 4096,
+    downloadUrl: "https://example.com/dictionary.zip",
+    packageFormat: "stardict-zip",
+    sha256: "a".repeat(64),
+  };
+  const [operation, setOperation] = useState<DictionaryCatalogOperation | null>(() =>
+    state === "failed"
+      ? {
+          catalogId: catalogEntry.id,
+          phase: "failed",
+          receivedBytes: 512,
+          totalBytes: 2048,
+          error: "Package verification failed",
+          stagingToken: null,
+        }
+      : null,
+  );
   const dictionary: InstalledDictionary = {
     id: "toggle-dictionary",
     displayName: "English Core",
@@ -280,15 +313,32 @@ export function DictionaryToggleFixture() {
   };
   const controller: DictionarySettingsController = {
     cancelCatalogRefresh: unsupportedOperation,
-    cancelDownload: unsupportedOperation,
-    catalog: { schemaVersion: 1, entries: [], source: "cache", cacheWarning: null },
-    catalogError: null,
-    catalogOperation: null,
-    catalogState: "ready",
+    cancelDownload: async () => {
+      setOperation(null);
+    },
+    catalog: {
+      schemaVersion: 1,
+      entries: state === "empty" ? [] : [catalogEntry],
+      source: "cache",
+      cacheWarning: null,
+    },
+    catalogError: state === "error" ? "Catalog refresh failed" : null,
+    catalogOperation: operation,
+    catalogState: state === "loading" ? "loading" : "ready",
     importDictionary: unsupportedOperation,
     importError: null,
     importing: false,
-    installCatalog: unsupportedOperation,
+    installCatalog: async (id) => {
+      if (id !== catalogEntry.id) throw new Error("Unknown fixture catalog entry.");
+      setOperation({
+        catalogId: id,
+        phase: "downloading",
+        receivedBytes: 512,
+        totalBytes: 2048,
+        error: null,
+        stagingToken: null,
+      });
+    },
     managementError: null,
     managementOperation: null,
     move: unsupportedOperation,
@@ -297,7 +347,11 @@ export function DictionaryToggleFixture() {
     recovering: false,
     refreshCatalog: unsupportedOperation,
     refreshing: false,
-    registry: { dictionaries: [dictionary], recovery: null, status: "ready" },
+    registry: {
+      dictionaries: state === "empty" ? [] : [dictionary],
+      recovery: null,
+      status: "ready",
+    },
     registryError: null,
     registryState: "ready",
     removeDictionary: unsupportedOperation,
@@ -308,8 +362,10 @@ export function DictionaryToggleFixture() {
     },
   };
   return (
-    <main style={{ padding: 24 }}>
-      <DictionarySettingsView controller={controller} />
-    </main>
+    <TooltipProvider>
+      <main style={{ padding: 24 }}>
+        <DictionarySettingsView controller={controller} />
+      </main>
+    </TooltipProvider>
   );
 }

@@ -43,7 +43,7 @@ export function ArchiveShellFixture() {
     <TooltipProvider>
       <div className="window-app window-app--archive-manager" style={style}>
         <SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />
-        <WindowTitlebar canMaximize={false} />
+        <WindowTitlebar canMaximize={false} utility />
         <div className="window-app__content">
           {view === "fallback" ? (
             <ArchiveManagerFallback message="Fixture initialization failure." />

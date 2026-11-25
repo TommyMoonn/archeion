@@ -1,3 +1,4 @@
+import { SettingsSection } from "../components/SettingsSection";
 import { SettingsSectionItems } from "../SettingsSectionItems";
 import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
 import type { SettingsController } from "../useSettingsController";
@@ -8,9 +9,9 @@ type ReaderSettingsSectionProps = {
 
 export function ReaderSettingsSection({ context }: ReaderSettingsSectionProps) {
   return (
-    <section className="settings-section">
+    <SettingsSection>
       <SettingsSectionHeader title="Reader" />
       <SettingsSectionItems context={context} sectionId="reader" />
-    </section>
+    </SettingsSection>
   );
 }

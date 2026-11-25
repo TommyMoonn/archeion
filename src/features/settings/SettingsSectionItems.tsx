@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 
 import { getSettingsItemsForSection } from "./settingsItems";
-import type { SettingsItem, SettingsItemGroupStyle } from "./settingsItemTypes";
+import type { SettingsItem } from "./settingsItemTypes";
 import type { SettingsSection } from "./settingsSections";
 import type { SettingsController } from "./useSettingsController";
 
@@ -18,9 +18,16 @@ export function SettingsItemContent({
 
   const descriptionId = `${item.id.replaceAll(".", "-")}-archive-unavailable`;
   return (
-    <fieldset aria-describedby={descriptionId} className="settings-item-unavailable" disabled>
+    <fieldset
+      aria-describedby={descriptionId}
+      className="settings-item-unavailable m-0 min-w-0 border-0 p-0"
+      disabled
+    >
       {item.render(context)}
-      <p className="settings-item-unavailable__note" id={descriptionId}>
+      <p
+        className="settings-item-unavailable__note mt-control-gap-compact mb-dialog-gap-narrow text-muted text-caption"
+        id={descriptionId}
+      >
         Open these settings from the main window while an archive is active.
       </p>
     </fieldset>
@@ -40,21 +47,21 @@ export function SettingsSectionItems({
   const nodes: ReactNode[] = [];
   let groupItems: SettingsItem[] = [];
   let activeGroup: string | undefined;
-  let activeGroupStyle: SettingsItemGroupStyle = "standard";
 
   function flushGroup() {
     if (!activeGroup || groupItems.length === 0) return;
 
     nodes.push(
       <div
-        className={
-          activeGroupStyle === "actions"
-            ? "settings-section__group settings-section__group--actions"
-            : "settings-section__group"
-        }
+        aria-label={activeGroup}
+        className="grid"
+        role="group"
         key={`${sectionId}-${activeGroup}`}
+        data-settings-group=""
       >
-        <h3>{activeGroup}</h3>
+        <h3 className="m-0 pb-control-gap text-muted text-caption font-semibold tracking-settings-group uppercase">
+          {activeGroup}
+        </h3>
         {groupItems.map((item) => (
           <div data-setting-id={item.id} key={item.id}>
             <SettingsItemContent context={context} item={item} />
@@ -65,7 +72,6 @@ export function SettingsSectionItems({
 
     groupItems = [];
     activeGroup = undefined;
-    activeGroupStyle = "standard";
   }
 
   for (const item of items) {
@@ -82,7 +88,6 @@ export function SettingsSectionItems({
     if (activeGroup !== item.groupLabel) {
       flushGroup();
       activeGroup = item.groupLabel;
-      activeGroupStyle = item.groupStyle ?? "standard";
     }
 
     groupItems.push(item);

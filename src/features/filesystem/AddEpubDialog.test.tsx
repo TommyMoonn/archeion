@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { activateSelectOption } from "../../test/activateSelectOption";
 import { AddEpubDialog } from "./AddEpubDialog";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
@@ -142,7 +143,6 @@ describe("AddEpubDialog replacement confirmation", () => {
     const cancel = buttonWithText(container, "Cancel");
 
     expect(container.querySelector("dialog[open]")).not.toBeNull();
-    expect(container.querySelector(".dialog-loading-fallback")).toBeNull();
     expect(adding.disabled).toBe(true);
     expect(cancel.disabled).toBe(true);
     act(() => cancel.click());
@@ -236,10 +236,10 @@ describe("AddEpubDialog replacement confirmation", () => {
 
     await act(async () => destination.click());
     const fiction = Array.from(
-      container.querySelectorAll<HTMLButtonElement>("#add-epub-destination-menu [role=option]"),
+      container.querySelectorAll<HTMLElement>('[role="listbox"] [role="option"]'),
     ).find((option) => option.textContent?.includes("Fiction"));
     if (!fiction) throw new Error("Fiction destination was not rendered.");
-    await act(async () => fiction.click());
+    await act(async () => activateSelectOption(fiction));
     await act(async () => buttonWithText(container, "Add EPUB").click());
 
     expect(onImport).toHaveBeenCalledWith({

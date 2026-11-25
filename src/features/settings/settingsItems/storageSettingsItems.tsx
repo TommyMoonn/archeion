@@ -70,7 +70,6 @@ export const storageSettingsItems = [
   {
     description: "Restores file monitoring and backup retention preferences only.",
     groupLabel: "Global policies",
-    groupStyle: "actions",
     id: "storage.reset",
     label: "Storage preferences",
     render: (context) => (
@@ -89,7 +88,6 @@ export const storageSettingsItems = [
   {
     description: "Checks the active archive without changing EPUB files.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.rescan-archive",
     label: "Archive scan",
     requiresArchive: true,
@@ -114,7 +112,6 @@ export const storageSettingsItems = [
   {
     description: "Review exact and probable duplicate EPUBs in the Library.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.find-duplicates",
     label: "Duplicate EPUBs",
     requiresArchive: true,
@@ -141,7 +138,6 @@ export const storageSettingsItems = [
   {
     description: "Inspect EPUB problems in the Library.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.check-epub-issues",
     label: "EPUB issues",
     requiresArchive: true,
@@ -165,7 +161,6 @@ export const storageSettingsItems = [
   {
     description: "Save bookmarks, highlights, and notes from the active archive.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.export-annotations",
     label: "Export annotations",
     requiresArchive: true,
@@ -174,7 +169,7 @@ export const storageSettingsItems = [
         description="Save bookmarks, highlights, and notes from the active archive."
         label="Export annotations"
       >
-        <div className="settings-annotation-export-actions">
+        <div className="flex min-w-0 flex-wrap gap-control-gap">
           <Button
             disabled={context.annotationExportBusy}
             disabledReason="An annotation export is in progress"
@@ -200,7 +195,6 @@ export const storageSettingsItems = [
   {
     description: "Review annotations from an Archeion JSON export before importing.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.import-annotations",
     label: "Import annotations",
     requiresArchive: true,
@@ -226,7 +220,6 @@ export const storageSettingsItems = [
   {
     description: "Forces EPUB files to be checked again later.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.scanner-cache",
     label: "Scanner cache",
     requiresArchive: true,
@@ -246,7 +239,6 @@ export const storageSettingsItems = [
   {
     description: "Rebuilds parsed EPUB title and author data.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.reextract-source-metadata",
     label: "Source metadata",
     requiresArchive: true,
@@ -272,7 +264,6 @@ export const storageSettingsItems = [
     deferredData: ["coverCacheStatus"],
     description: "Generated covers stored for the active archive.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.cover-cache-status",
     label: "Generated cover cache",
     requiresArchive: true,
@@ -298,7 +289,6 @@ export const storageSettingsItems = [
     deferredData: ["epubWritebackBackupStatus"],
     description: "Recovery copies from successful metadata edits.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.clear-epub-writeback-backups",
     label: "EPUB writeback backups",
     requiresArchive: true,
@@ -332,7 +322,6 @@ export const storageSettingsItems = [
   {
     description: "Rebuilds corrupted sidecar files without changing EPUB files.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.repair-metadata",
     label: "Archive metadata",
     requiresArchive: true,
@@ -357,7 +346,6 @@ export const storageSettingsItems = [
   {
     description: "The active archive's .archeion sidecar files.",
     groupLabel: "Archive maintenance",
-    groupStyle: "actions",
     id: "storage.metadata-folder",
     label: "Metadata folder",
     requiresArchive: true,

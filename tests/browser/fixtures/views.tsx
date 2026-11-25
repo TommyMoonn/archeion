@@ -4,7 +4,7 @@ import { focusPresentationRuntime } from "../../../src/app/inputModality";
 import { Dialog } from "../../../src/components/Dialog";
 import { PageShell } from "../../../src/components/PageShell";
 import { TooltipProvider } from "../../../src/components/Tooltip";
-import { WindowTitlebarAppActionsHost } from "../../../src/components/WindowTitlebar";
+import { WindowTitlebar } from "../../../src/components/WindowTitlebar";
 import { LibrarySidebar } from "../../../src/features/library/LibrarySidebar";
 import { LibraryTitlebarComposition } from "../../../src/features/library/LibraryTitlebarComposition";
 import { useLibrarySidebarState } from "../../../src/features/library/useLibrarySidebarState";
@@ -19,6 +19,7 @@ import { TypographyFixture } from "./typography-view";
 import { UpdateToast } from "../../../src/features/updates/UpdateToast";
 import { createUpdateToastFixture } from "./update-toast-backend";
 import { AboutUpdateFixture } from "./about-update-view";
+import { SelectFixture } from "./select-view";
 import { BusyActionsFixture } from "./busy-actions-view";
 
 const archive: KnownArchive = {
@@ -109,15 +110,7 @@ function LibraryFixture({ updates = false }: { updates?: boolean }) {
   return (
     <TooltipProvider>
       <div className="window-app window-app--main-shell" style={style as CSSProperties}>
-        <header aria-label="Window titlebar" className="window-titlebar">
-          <WindowTitlebarAppActionsHost />
-          <div className="window-titlebar__drag-region" data-tauri-drag-region />
-          <div className="window-titlebar__controls" role="group" aria-label="Window controls">
-            <button type="button" aria-label="Fixture window control">
-              ×
-            </button>
-          </div>
-        </header>
+        <WindowTitlebar canMaximize />
         <div className="window-app__content">
           {readerOpen ? (
             <main className="reader-page">
@@ -222,6 +215,7 @@ export function BrowserFixture() {
   useEffect(() => focusPresentationRuntime.start(document), []);
 
   const view = new URLSearchParams(window.location.search).get("view");
+  if (view === "select") return <SelectFixture />;
   if (view === "busy-actions") return <BusyActionsFixture />;
   if (view === "archive-shell") return <ArchiveShellFixture />;
   if (view === "theme-manager") return <ThemeManagerFixture />;

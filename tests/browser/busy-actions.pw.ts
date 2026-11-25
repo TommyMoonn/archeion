@@ -21,6 +21,18 @@ for (const mode of ["on", "off", "reduced"] as const) {
             return { x, y, width, height, label: element.textContent };
           }),
         );
+      for (const [size, height] of [
+        ["compact", "32px"],
+        ["standard", "36px"],
+        ["prominent", "40px"],
+      ] as const) {
+        const action = buttons
+          .filter({ hasText: "Move" })
+          .and(page.locator(`.button--${size}`))
+          .first();
+        await expect(action).toHaveCSS("min-height", height);
+        await expect(action).toHaveCSS("font-size", size === "compact" ? "13px" : "14px");
+      }
       const before = await snapshot();
       await buttons.first().focus();
       expect(
@@ -56,32 +68,38 @@ for (const mode of ["on", "off", "reduced"] as const) {
   }
 }
 
-test("brief work settles before an indicator is revealed", async ({ page }, testInfo) => {
+// The fake-timer Button unit test covers brief work without relying on browser scheduling.
+test("shared controls preserve their geometry, native labels and singular focus outline", async ({
+  page,
+}) => {
   await page.goto("/tests/browser/fixtures/index.html?view=busy-actions");
-  const samples = await page.evaluate(async () => {
-    const start = [...document.querySelectorAll("button")].find(
-      (element) => element.textContent === "Start work",
-    )!;
-    const finish = [...document.querySelectorAll("button")].find(
-      (element) => element.textContent === "Succeed",
-    )!;
-    const samples: { elapsed: number; visible: boolean }[] = [];
-    const began = performance.now();
-    start.click();
-    while (performance.now() - began < 120) {
-      await new Promise(requestAnimationFrame);
-      const indicator = document.querySelector(".button__busy");
-      samples.push({
-        elapsed: performance.now() - began,
-        visible: !!indicator && getComputedStyle(indicator).visibility === "visible",
-      });
-      if (performance.now() - began >= 80) finish.click();
-    }
-    return samples;
-  });
-  expect(samples.every((sample) => !sample.visible)).toBe(true);
-  await testInfo.attach("brief-work-samples", {
-    body: JSON.stringify(samples),
-    contentType: "application/json",
-  });
+  const form = page.getByRole("form", { name: "Shared control form" });
+  const query = form.getByRole("textbox", { name: "Query", exact: true });
+  const shell = query.locator("..");
+  const invalid = form.getByRole("textbox", { name: "Invalid query" }).locator("..");
+  const icon = form.getByRole("button", { name: "Search options" });
+
+  await expect(shell).toHaveCSS("min-height", "36px");
+  await expect(shell).toHaveCSS("border-top-width", "1px");
+  await expect(invalid).toHaveCSS("min-height", "40px");
+  await expect(invalid).toHaveCSS("outline-style", "dashed");
+  await expect(invalid).toHaveCSS("outline-width", "2px");
+  await expect(icon).toHaveCSS("width", "32px");
+  await expect(icon).toHaveCSS("height", "32px");
+  await expect(icon).toHaveAttribute("aria-disabled", "true");
+
+  await query.click();
+  await expect(shell).toHaveCSS("outline-style", "none");
+  await query.fill("EPUB");
+  await query.press("Enter");
+  await expect(form.getByLabel("Submitted query")).toHaveText("EPUB");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(query).toBeFocused();
+  await expect(shell).toHaveCSS("outline-style", "solid");
+  await expect(shell).toHaveCSS("outline-width", "2px");
+  await expect(query).toHaveCSS("outline-width", "0px");
+  await page.emulateMedia({ forcedColors: "active" });
+  await expect(shell).toHaveCSS("outline-width", "2px");
+  await expect(query).toHaveCSS("outline-width", "0px");
 });

@@ -168,7 +168,7 @@ function SettingsSurfaceContent({
           <SettingsSearchResults key={trimmedQuery} controller={controller} query={trimmedQuery} />
         ) : (
           <div
-            className="settings-section-transition"
+            className="settings-section-transition w-full motion-safe:app-motion:data-[transition=section-change]:animate-settings-enter"
             data-transition={animateSectionChange ? "section-change" : undefined}
             key={selectedSection}
             onAnimationEnd={(event) => {

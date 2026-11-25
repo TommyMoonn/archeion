@@ -76,9 +76,13 @@ export function UtilityWindowFrame({
   return (
     <div className={`window-app window-app--${mode}`}>
       <SkipLink targetId={windows[mode].mainId} />
-      <WindowTitlebar canMaximize={mode !== "about"} />
+      <WindowTitlebar canMaximize={mode !== "about"} utility />
       <div className="window-app__content">
-        <main className={`${mode}-window-shell`} id={mainId} tabIndex={-1}>
+        <main
+          className={`${mode}-window-shell${mode === "settings" ? " size-full min-w-0 min-h-0" : ""}`}
+          id={mainId}
+          tabIndex={-1}
+        >
           <Layout>
             <UtilityWindowContentBoundary
               fallback={

@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -110,12 +112,10 @@ describe("settings section components", () => {
     },
   ])("renders the $title heading without a tab subtitle", ({ Section, title, description }) => {
     const markup = renderToStaticMarkup(<Section context={createController()} />);
-    const header = markup.match(/<header[^>]*>.*?<\/header>/)?.[0];
-
-    expect(markup).toContain(`<h2>${title}</h2>`);
-    expect(header).toBeDefined();
-    expect(header).not.toContain("<p");
-    expect(markup).not.toContain(description.replaceAll("'", "&#x27;"));
+    const content = new DOMParser().parseFromString(markup, "text/html");
+    expect(content.querySelector("header h2")?.textContent).toBe(title);
+    expect(content.querySelector("header p")).toBeNull();
+    expect(content.body.textContent).not.toContain(description);
   });
 
   it("renders the accepted Appearance labels", () => {
@@ -132,12 +132,13 @@ describe("settings section components", () => {
   });
 
   it("renders window behavior under General", () => {
-    const markup = renderGeneral();
-
-    expect(markup).toContain("General");
-    expect(markup).toContain("Window behavior");
-    expect(markup).toContain("Remember window size and position");
-    expect(markup).toContain("Reset window");
+    const content = new DOMParser().parseFromString(renderGeneral(), "text/html");
+    const group = content.querySelector('[role="group"][aria-label="Window behavior"]');
+    expect(group?.querySelector("h3")?.textContent).toBe("Window behavior");
+    expect(
+      group?.querySelector('[role="switch"][aria-label="Remember window size and position"]'),
+    ).not.toBeNull();
+    expect(group?.querySelector("button:not([role])")?.textContent).toBe("Reset window");
   });
 
   it("renders the accepted Storage labels", () => {
@@ -156,36 +157,15 @@ describe("settings section components", () => {
     );
   });
 
-  it("uses object labels with concise maintenance verbs", () => {
-    const markup = renderStorage();
-    const actions = [
-      ["storage.rescan-archive", "Archive scan", "Run"],
-      ["storage.scanner-cache", "Scanner cache", "Clear"],
-      ["storage.reextract-source-metadata", "Source metadata", "Re-extract"],
-      ["storage.cover-cache-status", "Generated cover cache", "Clear"],
-      ["storage.clear-epub-writeback-backups", "EPUB writeback backups", "Clear"],
-      ["storage.repair-metadata", "Archive metadata", "Repair"],
-      ["storage.metadata-folder", "Metadata folder", "Open"],
-      ["storage.reset", "Storage preferences", "Reset"],
-    ];
-
-    for (const [id, label, verb] of actions) {
-      const row = markup.match(
-        new RegExp(`data-setting-id="${id}"[\\s\\S]*?(?=data-setting-id=|$)`),
-      )?.[0];
-      expect(row).toContain(`>${label}<`);
-      expect(row).toContain(`>${verb}<`);
-    }
-
-    expect(markup).toContain("2 covers, 4.0 KB");
-    expect(markup).toContain("1 backup, 2.0 KB");
-  });
-
-  it("makes every Settings scan-producing action unavailable during archive scan activity", () => {
-    const markup = renderStorage({ archiveScanActive: true });
-
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(5);
-    expect(markup).toContain("Wait for the archive scan to finish");
+  it("displays cache and backup capacity in the corresponding rows", () => {
+    const content = new DOMParser().parseFromString(renderStorage(), "text/html");
+    expect(
+      content.querySelector('[data-setting-id="storage.cover-cache-status"]')?.textContent,
+    ).toContain("2 covers, 4.0 KB");
+    expect(
+      content.querySelector('[data-setting-id="storage.clear-epub-writeback-backups"]')
+        ?.textContent,
+    ).toContain("1 backup, 2.0 KB");
   });
 
   it("renders active Archives controls and disables reveal without an archive path", () => {

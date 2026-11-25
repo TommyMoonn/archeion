@@ -7,6 +7,8 @@ import { TooltipProvider } from "../../../src/components/Tooltip";
 import { createInstalledFontCatalog } from "../../../src/storage/installedFontCatalog";
 import { appPreferencesStore } from "../../../src/stores/appPreferencesStore";
 import { AppearanceRuntime } from "../../../src/themes/AppearanceRuntime";
+import { resolveTheme } from "../../../src/themes/resolveTheme";
+import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
 import type { AppPreferences } from "../../../src/types/appSettings";
 import { largeFontCatalog } from "./font-catalog";
 import "../../../src/styles/index.css";
@@ -26,9 +28,20 @@ const parameters = new URLSearchParams(location.search);
 // Settings also enumerates custom themes. Keep unrelated native I/O deterministic,
 // while leaving browser preference persistence and the real theme runtime intact.
 mockIPC((command) => {
-  if (command === "list_theme_packages") return [];
+  if (command === "list_theme_packages") {
+    return parameters.has("theme-choice") ? [shellStressThemes.distinct.id] : [];
+  }
+  if (command === "read_theme_manifest" && parameters.has("theme-choice")) {
+    return JSON.stringify(shellStressThemes.distinct);
+  }
   if (command === "refresh_theme_catalog" || command === "load_theme_catalog_revision") {
     return { revision: 0 };
+  }
+  if (command === "load_cached_dictionary_catalog") {
+    return { schemaVersion: 1, entries: [], source: "cache", cacheWarning: null };
+  }
+  if (command === "list_installed_dictionaries") {
+    return { dictionaries: [], recovery: null, status: "ready" };
   }
   throw new Error(`Unexpected application font Settings fixture command: ${command}`);
 });
@@ -80,6 +93,7 @@ const runtime = new AppearanceRuntime({
   fontCatalog: catalog,
 });
 runtime.start();
+if (parameters.has("custom")) runtime.applyPreview(resolveTheme(shellStressThemes.distinct).app);
 focusPresentationRuntime.start(document);
 const root = document.getElementById("root");
 if (!root) throw new Error("Application font Settings fixture root is missing.");

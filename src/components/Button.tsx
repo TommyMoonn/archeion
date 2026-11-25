@@ -7,6 +7,8 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
+import { Button as UiButton } from "./ui/button";
+import { Spinner } from "./ui/spinner";
 import { Tooltip } from "./Tooltip";
 import { useOwnedTooltipAvailable } from "./tooltipStore";
 
@@ -60,7 +62,7 @@ export function Button({
   }
 
   const button = (
-    <button
+    <UiButton
       aria-busy={busy || undefined}
       aria-describedby={!usesOwnedDisabledDescription ? reasonId : undefined}
       aria-disabled={(!busy && hasExplainedDisabledState) || undefined}
@@ -70,16 +72,21 @@ export function Button({
       ref={ref}
       title={hasExplainedDisabledState || tooltip || title ? undefined : title}
       type={type}
+      variant={variant}
+      size={size}
       {...props}
     >
       {icon || busy !== undefined ? (
-        <span aria-hidden="true" className="button__icon icon-slot">
+        <span
+          aria-hidden="true"
+          className="button__icon icon-slot relative shrink-0 [&:has([data-visible=true])>svg:not([data-slot=spinner])]:invisible"
+        >
           {icon}
           {busy ? <BusyIndicator /> : null}
         </span>
       ) : null}
       <span className="button__label">{children}</span>
-    </button>
+    </UiButton>
   );
   const tooltipText = hasExplainedDisabledState ? (disabledReason ?? "") : (tooltip ?? title ?? "");
   const control = ownedTooltipAvailable ? (
@@ -112,5 +119,13 @@ function BusyIndicator() {
     const reveal = window.setTimeout(() => setVisible(true), 180);
     return () => window.clearTimeout(reveal);
   }, []);
-  return <span className="button__busy" data-visible={visible || undefined} />;
+  return (
+    <Spinner
+      aria-hidden="true"
+      aria-label={undefined}
+      role={undefined}
+      className="button__busy absolute inset-busy-inset invisible data-visible:visible"
+      data-visible={visible || undefined}
+    />
+  );
 }

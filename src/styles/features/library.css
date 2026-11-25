@@ -613,7 +613,7 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   border-radius: var(--radius-control);
   color: #f1f3f5;
   background: rgb(10 11 13 / 84%);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 26%);
+  box-shadow: var(--shadow-cover-progress);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
   line-height: 1;
@@ -937,7 +937,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 html[data-motion="on"] .book-details-loading__placeholder {
-  animation: loading-sheen 1.5s var(--motion-ease-standard) infinite;
+  animation: var(--animate-loading-sheen);
 }
 
 .book-details-loading__cover {
@@ -2479,7 +2479,7 @@ html[data-motion="on"] .book-details-loading__placeholder {
 }
 
 html[data-motion="on"] .library-feedback__token {
-  animation: app-motion-notice-in var(--motion-duration-fast) var(--motion-ease-standard);
+  animation: var(--animate-notice-enter);
 }
 
 @media (max-width: 720px) {
@@ -3122,7 +3122,7 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .epub-issues-book__actions .button:last-child {
-  margin-inline-end: calc(-1 * var(--button-padding-inline));
+  margin-inline-end: calc(-1 * var(--spacing-button-compact));
 }
 
 @media (max-width: 680px) {
