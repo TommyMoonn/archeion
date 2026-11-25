@@ -1,4 +1,4 @@
-import { Check, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import {
   memo,
   useId,
@@ -19,6 +19,7 @@ import { displayedBookProgress } from "../reading/readingProgress";
 import { BookContextMenu } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
+import { BookSelectionIndicator } from "./BookSelectionIndicator";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 import type { LibrarySelectionIntent } from "./librarySelection";
 
@@ -164,13 +165,7 @@ function BookCardComponent({
         </span>
       ) : null}
       {selectionMode || selected ? (
-        <span
-          aria-hidden="true"
-          className="book-selection-control book-selection-control--card top-[8px] left-[8px]"
-          data-selected={selected || undefined}
-        >
-          {selected ? <Check aria-hidden="true" size={15} strokeWidth={2.25} /> : null}
-        </span>
+        <BookSelectionIndicator selected={selected} placement="card" />
       ) : null}
       <IconButton
         aria-pressed={book.isFavorite}

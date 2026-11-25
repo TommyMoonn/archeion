@@ -149,22 +149,20 @@ test("right-edge point menu repositions as actions change", async ({ page }) => 
   await expect(resource).toBeFocused();
 });
 
-test("bulk action disclosure paints above overlapping book selection indicators", async ({
-  page,
-}) => {
+test("bulk action menu paints above overlapping book selection indicators", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 700 });
   await page.goto("/tests/browser/fixtures/?view=library-toggles");
   await page.getByRole("button", { name: "Select books", exact: true }).click();
-  const trigger = page.getByLabel("More bulk actions", { exact: true });
+  const trigger = page.getByRole("button", { name: "More bulk actions", exact: true });
   await trigger.click();
-  const menu = page.locator(".library-selection-actions-menu .menu-popover");
+  const menu = page.getByRole("menu", { name: "More bulk actions" });
   await expect(menu).toBeVisible();
   const indicator = page
     .getByRole("region", { name: "Grid fixture" })
     .locator(".book-selection-control");
   await expect(indicator).toBeVisible();
   const layers = await indicator.evaluate((element) => {
-    const popup = document.querySelector(".library-selection-actions-menu .menu-popover");
+    const popup = document.querySelector('.library-selection-actions-menu[role="menu"]');
     if (!(element instanceof HTMLElement) || !popup) throw new Error("Missing selection overlay");
     const a = element.getBoundingClientRect();
     const b = popup.getBoundingClientRect();

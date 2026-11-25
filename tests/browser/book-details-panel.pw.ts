@@ -350,6 +350,21 @@ test("list inspection supports keyboard activation, enlarged text, and forced co
   await second.focus();
   await page.keyboard.press("Space");
   await expect(second).toHaveAttribute("aria-pressed", "true");
+  const row = page.locator('.book-row[data-inspected="true"]');
+  await expect(row).toHaveCSS("outline-width", "2px");
+  await expect(row).toHaveCSS("outline-style", "solid");
+  await expect(row).toHaveCSS("outline-offset", "2px");
+  expect(
+    await row.evaluate((element) => {
+      const probe = document.createElement("span");
+      probe.style.outlineColor = "Highlight";
+      element.append(probe);
+      const matches =
+        getComputedStyle(element).outlineColor === getComputedStyle(probe).outlineColor;
+      probe.remove();
+      return matches;
+    }),
+  ).toBe(true);
   await expect(panel.locator("h2")).toHaveText(await second.locator("strong").innerText());
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await expect(panel.getByRole("button", { name: "Unpin book details" })).toBeInViewport();

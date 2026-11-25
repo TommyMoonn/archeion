@@ -8,10 +8,7 @@ const libraryStyles = readFileSync(
 );
 
 describe("book card selection styling", () => {
-  it("keeps the inspected list-row indicator and adapts the cover border for forced colors", () => {
-    expect(libraryStyles).toMatch(
-      /\.book-row\[data-inspected\]\s*\{[^}]*outline: 2px solid var\(--accent\);/u,
-    );
+  it("adapts the cover border for forced colors", () => {
     expect(libraryStyles).toMatch(
       /@media \(forced-colors: active\)\s*\{[^}]*\.book-card:is\(\[data-selected\], \[data-inspected\]\) \.book-cover\s*\{[^}]*border-color: Highlight;/su,
     );

@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -19,11 +16,13 @@ function renderSelectionBar({
   selectedCount = 2,
   visibleCount = 4,
   visibleSelectedCount = 2,
+  busy = false,
 }: {
   onAction?: Parameters<typeof LibrarySelectionBar>[0]["onAction"];
   selectedCount?: number;
   visibleCount?: number;
   visibleSelectedCount?: number;
+  busy?: boolean;
 } = {}) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -33,6 +32,7 @@ function renderSelectionBar({
     root.render(
       <TooltipProvider>
         <LibrarySelectionBar
+          busy={busy}
           onAction={onAction}
           onClear={vi.fn()}
           onDeselectVisible={vi.fn()}
@@ -85,7 +85,7 @@ describe("LibrarySelectionBar", () => {
     ).toBe(true);
     expect(
       primary
-        ?.querySelector('summary[aria-label="More bulk actions"]')
+        ?.querySelector('button[aria-label="More bulk actions"]')
         ?.classList.contains("library-selection-bar__icon-action"),
     ).toBe(true);
   });
@@ -100,7 +100,7 @@ describe("LibrarySelectionBar", () => {
     expect(group).not.toBeNull();
     expect(session.container.querySelector('[role="toolbar"]')).toBeNull();
 
-    const controls = Array.from(group!.querySelectorAll<HTMLElement>("button, summary"));
+    const controls = Array.from(group!.querySelectorAll<HTMLElement>("button"));
     expect(controls.length).toBeGreaterThan(1);
     for (const control of controls) {
       act(() => control.focus());
@@ -122,7 +122,7 @@ describe("LibrarySelectionBar", () => {
       'button[aria-label="Move selected books"]',
     );
     const more = session.container.querySelector<HTMLElement>(
-      'summary[aria-label="More bulk actions"]',
+      'button[aria-label="More bulk actions"]',
     );
 
     expect(statusIcon?.getAttribute("width")).toBe("20");
@@ -144,12 +144,15 @@ describe("LibrarySelectionBar", () => {
     const session = renderSelectionBar({ onAction });
     activeRoot = session.root;
 
-    const markdown = Array.from(
-      session.container.querySelectorAll<HTMLButtonElement>(".menu-item"),
-    ).find((button) => button.textContent === "Annotations (Markdown)");
-    const json = Array.from(
-      session.container.querySelectorAll<HTMLButtonElement>(".menu-item"),
-    ).find((button) => button.textContent === "Annotations (JSON)");
+    const trigger = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="More bulk actions"]',
+    )!;
+    act(() => trigger.click());
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    const markdown = items.find((button) => button.textContent === "Annotations (Markdown)");
+    const json = items.find((button) => button.textContent === "Annotations (JSON)");
+    expect(markdown).toBeDefined();
+    expect(json).toBeDefined();
 
     expect(markdown?.title).toBe("");
     expect(json?.title).toBe("");
@@ -160,41 +163,45 @@ describe("LibrarySelectionBar", () => {
     expect(onAction).toHaveBeenCalledWith("annotations-json");
   });
 
-  it("exposes overflow actions as a native disclosure with ordinary buttons", () => {
+  it("opens an accessible action menu and restores focus on Escape", () => {
     const session = renderSelectionBar();
     activeRoot = session.root;
-    const trigger = session.container.querySelector<HTMLElement>(
-      'summary[aria-label="More bulk actions"]',
+    const trigger = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="More bulk actions"]',
     )!;
-    const details = trigger.closest("details")!;
-
-    expect(trigger.getAttribute("aria-haspopup")).toBeNull();
-    expect(details.querySelector('[role="menu"]')).toBeNull();
-    expect(details.querySelector('[role="menuitem"]')).toBeNull();
-
+    expect(trigger.getAttribute("aria-haspopup")).toBe("menu");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
     act(() => trigger.click());
-    expect(details.open).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const menu = document.querySelector('[role="menu"]');
+    expect(menu).not.toBeNull();
     expect(
-      Array.from(details.querySelectorAll<HTMLButtonElement>("button")).map(
-        (action) => action.textContent,
-      ),
+      Array.from(menu!.querySelectorAll('[role="menuitem"]'), (item) => item.textContent),
     ).toContain("Edit metadata");
+    act(() =>
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+      ),
+    );
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 
-  it("uses the search-like surface treatment and ghost hover tokens", () => {
-    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
-
-    expect(styles).toMatch(
-      /\.library-selection-bar\s*\{[^}]*border:\s*var\(--border-width\) solid var\(--line\);[^}]*background:\s*var\(--surface\);/s,
-    );
-    expect(styles).toMatch(
-      /\.library-selection-bar \.library-selection-bar__icon-action\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;/s,
-    );
-    expect(styles).toMatch(
-      /\.library-selection-actions-menu\[open\] > summary,[^{]*\{[^}]*background:\s*var\(--surface-hover\);/s,
-    );
-    expect(styles).not.toMatch(
-      /\.library-selection-bar__icon-action\s*\{[^}]*border-color:\s*var\(--line-strong\);/s,
-    );
-  });
+  it.each([{ selectedCount: 0, visibleSelectedCount: 0 }, { busy: true }])(
+    "does not dispatch unavailable bulk actions (%j)",
+    (options) => {
+      const onAction = vi.fn();
+      const session = renderSelectionBar({ onAction, ...options });
+      activeRoot = session.root;
+      const trigger = session.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="More bulk actions"]',
+      )!;
+      act(() => trigger.click());
+      const items = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+      expect(items).toHaveLength(8);
+      expect(items.every((item) => item.disabled)).toBe(true);
+      act(() => items.forEach((item) => item.click()));
+      expect(onAction).not.toHaveBeenCalled();
+    },
+  );
 });

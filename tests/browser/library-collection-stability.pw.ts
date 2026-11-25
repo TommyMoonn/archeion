@@ -75,6 +75,80 @@ test("populated Library grid and list fill the same width as their toolbar", asy
   }
 });
 
+test("list columns retain their fixed spacing and use all available identity width", async ({
+  page,
+}) => {
+  await page.goto(`${fixture}?count=50&motion=off&longBookMetadata`);
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await page.evaluate(() => {
+    window.uiStabilityFixture.setView("list");
+    document.documentElement.style.fontSize = "24px";
+  });
+  const row = page.locator(".book-row").first();
+  const primary = row.locator(".book-row__select");
+  for (const width of [1280, 1100, 821, 820, 560]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect
+      .poll(() =>
+        primary.evaluate((button) => {
+          const style = getComputedStyle(button);
+          return {
+            columns: style.gridTemplateColumns.split(" ").length,
+            gap: style.columnGap,
+            start: style.paddingInlineStart,
+            end: style.paddingInlineEnd,
+          };
+        }),
+      )
+      .toEqual({
+        columns: width > 1100 ? 4 : width > 820 ? 3 : 2,
+        gap: "16px",
+        start: "10px",
+        end: "124px",
+      });
+    if (width > 1100) await expect(row.locator(".book-row__file")).toBeVisible();
+    else await expect(row.locator(".book-row__file")).toBeHidden();
+    if (width > 820) await expect(row.locator(".book-row__date")).toBeVisible();
+    else await expect(row.locator(".book-row__date")).toBeHidden();
+    await expect(row.locator(".book-cover")).toHaveCSS("width", "42px");
+  }
+});
+
+test("bulk action menu preserves selection and hands focus back from the metadata dialog", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${fixture}?count=2&motion=off`);
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await page.evaluate(() => window.uiStabilityFixture.setView("list"));
+  await page.getByRole("button", { name: "Select books", exact: true }).click();
+  await page.getByRole("button", { name: "Select all", exact: true }).click();
+  const bar = page.getByRole("group", { name: "Book selection actions" });
+  const trigger = bar.getByRole("button", { name: "More bulk actions" });
+  const menu = page.getByRole("menu", { name: "More bulk actions" });
+  await trigger.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(menu.getByRole("menuitem", { name: "Edit metadata" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Edit metadata for 2 books" });
+  await expect(dialog).toBeVisible();
+  await expect(menu).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+  await trigger.click();
+  await expect(menu).toBeVisible();
+  await page.getByRole("combobox", { name: "Sort library" }).click();
+  await expect(menu).toBeHidden();
+  await expect(bar).toContainText("2 selected");
+});
+
 for (const width of [1280, 900]) {
   test(`selection header morphs without moving the collection at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });

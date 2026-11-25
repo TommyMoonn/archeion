@@ -46,15 +46,6 @@ function cssBlock(source: string, selector: string): string {
 }
 
 describe("collection content spacing ownership", () => {
-  it("keeps the selection ribbon on the search-surface treatment", () => {
-    const selectionBar = cssBlock(libraryStyles, "\n.library-selection-bar");
-
-    expect(selectionBar).toContain("border: var(--border-width) solid var(--line);");
-    expect(selectionBar).toContain("background: var(--surface);");
-    expect(selectionBar).not.toContain("var(--accent-border)");
-    expect(selectionBar).not.toContain("box-shadow");
-  });
-
   it("publishes one normal and compact semantic collection offset", () => {
     expect(tokens).toMatch(/--spacing-collection-comfortable:\s*20px;/u);
     expect(tokens).toMatch(/--spacing-collection-compact:\s*16px;/u);
@@ -77,7 +68,6 @@ describe("collection content spacing ownership", () => {
     expect(collectionContentStyles).toMatch(
       /\.collection-content:not\(\.library-content--books\)\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
     );
-    expect(libraryStyles).toMatch(/\.book-list\s*\{[^}]*padding:\s*0 0 40px;/s);
     expect(libraryStyles).not.toMatch(/\.book-(?:grid|list)\s*\{[^}]*padding-top:/s);
   });
 

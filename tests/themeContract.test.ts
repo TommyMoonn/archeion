@@ -455,8 +455,8 @@ describe("theme token baseline", () => {
           /\.window-titlebar__navigation-plane\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
         ],
         [
-          "src/styles/features/library.css",
-          /\.library-selection-bar\s*{[^}]*background:\s*var\(--surface\);/,
+          "src/features/library/LibrarySelectionBar.tsx",
+          /className="library-selection-bar [^"]*\bbg-surface\b/,
         ],
         [
           "src/styles/components/dialogs.css",
