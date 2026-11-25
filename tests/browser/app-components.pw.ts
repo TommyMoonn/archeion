@@ -345,3 +345,24 @@ test("Dialog moves focus inside and returns it to its opener on Escape", async (
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();
 });
+
+test("Library workspace preserves responsive and compact page insets", async ({ page }) => {
+  await page.goto("/tests/browser/fixtures/?view=library&shellColors=distinct");
+  const main = page.locator(".page-shell");
+  for (const { width, height, comfortable, compact } of [
+    { width: 1280, height: 800, comfortable: "42px 32px 36px", compact: "30px 32px 28px" },
+    { width: 820, height: 640, comfortable: "28px 24px 26px", compact: "30px 24px 28px" },
+    { width: 560, height: 640, comfortable: "34px 18px 28px", compact: "30px 18px 28px" },
+  ]) {
+    await page.setViewportSize({ width, height });
+    for (const [density, padding] of [
+      ["comfortable", comfortable],
+      ["compact", compact],
+    ]) {
+      await page.evaluate((density) => {
+        document.documentElement.dataset.density = density;
+      }, density);
+      await expect(main).toHaveCSS("padding", padding);
+    }
+  }
+});

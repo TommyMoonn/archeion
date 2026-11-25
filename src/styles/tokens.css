@@ -98,6 +98,21 @@
   --text-reader-title-small: 0.9375rem;
 
   /* Pixel geometry stays pixel-based; the standard spacing scale is rem-based. */
+  --spacing-status-inset: 32px;
+  --spacing-status-heading-gap: 17px;
+  --spacing-status-link-gap: 25px;
+  --spacing-empty-art: 16px;
+  --spacing-empty-text: 12px;
+  --container-empty-state: 410px;
+  --container-empty-copy: 350px;
+  --container-status-copy: 460px;
+  --spacing-collection-loading: 18px;
+  --spacing-page-top: 42px;
+  --spacing-page-bottom: 36px;
+  --spacing-page-short-top: 28px;
+  --spacing-page-short-bottom: 26px;
+  --spacing-page-compact-top: 30px;
+  --spacing-page-compact-bottom: 28px;
   --spacing-icon-glyph-compact: 14px;
   --spacing-icon-glyph-standard: 16px;
   --spacing-icon-glyph-prominent: 20px;
@@ -143,8 +158,6 @@
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
-  --spacing-scrollbar: 10px;
-  --spacing-dialog-scroll-inset: calc(var(--spacing-scrollbar) + var(--spacing-control-inset));
   --spacing-dialog-gap: 20px;
   --spacing-dialog-gap-narrow: 12px;
   --spacing-dialog-copy: 10px;
@@ -195,9 +208,6 @@
   --container-settings-status: 360px;
   --container-shortcut-search: 360px;
   --spacing-badge-inline: 7px;
-  --spacing-filter-count: 18px;
-  --spacing-filter-count-inline: 4px;
-  --spacing-filter-count-optical-offset: 0.5px;
   --spacing-dictionary-search-min: 180px;
   --spacing-dictionary-search-basis: 280px;
   --container-dictionary-search: 360px;
@@ -317,6 +327,12 @@
   --default-transition-duration: var(--motion-duration-standard);
   --default-transition-timing-function: var(--ease-standard);
 
+  --container-appearance-notice: min(32rem, calc(100vw - 2rem));
+  --spacing-appearance-notice: calc(100dvh - 4rem);
+  --spacing-page-inline: clamp(20px, 2.5vw, 40px);
+  --color-status-success: color-mix(in srgb, var(--success-soft) 72%, var(--surface-raised));
+  --color-status-warning: color-mix(in srgb, var(--accent-soft) 72%, var(--surface-raised));
+  --color-status-error: color-mix(in srgb, var(--error-soft) 72%, var(--surface-raised));
   --color-canvas: var(--canvas);
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
@@ -784,3 +800,22 @@ html[data-density="compact"] {
 @utility menu-item-columns {
   grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
 }
+
+/* Shared shell and identity retain the original inclusive thresholds. */
+@custom-variant app-light (&:is(html[data-app-theme="light"] *));
+@custom-variant page-short {
+  @media (max-height: 640px) {
+    @slot;
+  }
+}
+@custom-variant page-narrow {
+  @media (max-width: 820px) {
+    @slot;
+  }
+}
+@custom-variant page-mobile {
+  @media (max-width: 560px) {
+    @slot;
+  }
+}
+@custom-variant page-compact (&:is(html[data-density="compact"] *));

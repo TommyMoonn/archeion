@@ -1,3 +1,5 @@
+import { StatusPage } from "./StatusPage";
+import { statusCodeClass } from "./statusStyles";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { Button } from "./Button";
@@ -31,7 +33,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     if (this.state.error) {
       const mainContentId = this.props.mainContentId ?? MAIN_CONTENT_ID;
       return (
-        <main
+        <StatusPage
           aria-atomic="true"
           aria-live="assertive"
           className="status-page"
@@ -39,13 +41,15 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
           id={mainContentId}
           tabIndex={-1}
         >
-          <p className="status-page__code">Error</p>
+          <p className={statusCodeClass} data-status-code>
+            Error
+          </p>
           <h1>Archeion could not load this view</h1>
           <p>Reload the view. If it still fails, restart Archeion.</p>
           <Button onClick={this.retry} variant="secondary">
             Reload view
           </Button>
-        </main>
+        </StatusPage>
       );
     }
 

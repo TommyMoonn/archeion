@@ -1,3 +1,5 @@
+import { statusActionsClass } from "../components/statusStyles";
+import { StatusPage } from "../components/StatusPage";
 import {
   lazy,
   Suspense,
@@ -219,7 +221,7 @@ function StartupLoading() {
           id={MAIN_CONTENT_ID}
           tabIndex={-1}
         >
-          <p className="archive-loading">Opening Archeion</p>
+          <p className="archive-loading text-muted text-body">Opening Archeion</p>
         </main>
       </div>
     </div>
@@ -436,12 +438,12 @@ function MainWindowApp() {
         <SkipLink targetId={MAIN_CONTENT_ID} />
         <WindowTitlebar canMaximize />
         <div className="window-app__content">
-          <main className="reader-status-page" id={MAIN_CONTENT_ID} tabIndex={-1}>
+          <StatusPage className="reader-status-page" id={MAIN_CONTENT_ID} tabIndex={-1}>
             <h1>{startupState.message}</h1>
             <p data-tone="error" role="alert">
               Retry the startup window or quit Archeion.
             </p>
-            <div className="reader-status-page__actions">
+            <div className={statusActionsClass}>
               <Button
                 onClick={() => {
                   void hideMainWindowForStartup().then((hidden) => {
@@ -463,7 +465,7 @@ function MainWindowApp() {
                 Quit
               </Button>
             </div>
-          </main>
+          </StatusPage>
         </div>
       </div>
     );

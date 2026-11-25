@@ -420,30 +420,8 @@
   inset-inline-start: calc(100% + 7px);
 }
 
-.page-shell {
-  position: relative;
-  min-width: 0;
-  height: auto;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  margin: 0;
-  padding: 42px clamp(20px, 2.5vw, 40px) 36px;
-  border: 0;
-  border-radius: 0;
-  background: var(--surface-main);
-  box-shadow: none;
-}
-
 html[data-density="compact"] .sidebar {
   padding-block: 10px;
-}
-
-html[data-density="compact"] .page-shell {
-  padding-top: 30px;
-  padding-bottom: 28px;
 }
 
 html[data-density="compact"] .nav-item {
@@ -451,11 +429,6 @@ html[data-density="compact"] .nav-item {
 }
 
 @media (max-height: 640px) {
-  .page-shell {
-    padding-top: 28px;
-    padding-bottom: 26px;
-  }
-
   .sidebar {
     padding-top: 12px;
     padding-bottom: 10px;
@@ -479,10 +452,6 @@ html[data-density="compact"] .nav-item {
   .nav-item {
     padding-block: 0;
     padding-inline: 9px 0;
-  }
-
-  .page-shell {
-    padding-inline: 24px;
   }
 }
 
@@ -549,12 +518,6 @@ html[data-density="compact"] .nav-item {
   .sidebar-footer {
     grid-column: 1 / -1;
     margin-top: 10px;
-  }
-
-  .page-shell {
-    height: auto;
-    margin: 0;
-    padding: 34px 18px 28px;
   }
 }
 

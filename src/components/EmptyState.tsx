@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Empty, EmptyDescription } from "./ui/empty";
 
 type EmptyStateProps = {
   action?: ReactNode;
@@ -9,17 +10,29 @@ type EmptyStateProps = {
 
 export function EmptyState({ action, description, icon, title }: EmptyStateProps) {
   return (
-    <section className={`empty-state${icon ? "" : " empty-state--text-only"}`}>
+    <Empty
+      as="section"
+      className={`empty-state box-border w-full max-w-empty-state items-center px-dialog-panel text-center ${icon ? "gap-empty-art py-status-inset" : "gap-empty-text py-dialog-panel"}`}
+    >
       {icon ? (
-        <span className="empty-state__icon" aria-hidden="true">
+        <span
+          className="empty-state__icon grid size-control-compact flex-none place-items-center text-muted [&>svg]:block [&>svg]:size-full"
+          aria-hidden="true"
+        >
           {icon}
         </span>
       ) : null}
-      <div className="empty-state__copy">
-        <h2>{title}</h2>
-        <p>{description}</p>
+      <div className="grid justify-items-center gap-dialog-copy min-w-0">
+        <h2
+          className={`m-0 text-text-strong ${icon ? "font-app-display text-section-title" : "font-interface text-title-small tracking-normal"}`}
+        >
+          {title}
+        </h2>
+        <EmptyDescription className="max-w-empty-copy text-body-large">
+          {description}
+        </EmptyDescription>
       </div>
       {action}
-    </section>
+    </Empty>
   );
 }

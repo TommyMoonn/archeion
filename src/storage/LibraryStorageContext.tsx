@@ -49,7 +49,7 @@ export function LibraryStorageProvider({ children, storage }: LibraryStorageProv
         id={MAIN_CONTENT_ID}
         tabIndex={-1}
       >
-        <p className="archive-loading">
+        <p className="archive-loading text-muted text-body">
           {didStorageFail
             ? "The active archive could not be loaded. Restart Archeion and open it again."
             : "Opening archive"}

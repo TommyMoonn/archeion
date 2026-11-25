@@ -1,3 +1,4 @@
+import { StatusPage } from "../components/StatusPage";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 
@@ -93,14 +94,14 @@ export function StandaloneReaderStartup({ request }: { request: ExternalReaderRe
             request && resolution.status !== "checking" ? (
               <Suspense
                 fallback={
-                  <main
+                  <StatusPage
                     className="reader-status-page"
                     id={MAIN_CONTENT_ID}
                     role="status"
                     tabIndex={-1}
                   >
                     Opening EPUB…
-                  </main>
+                  </StatusPage>
                 }
               >
                 {resolution.status === "managed" ? (
@@ -135,19 +136,24 @@ export function StandaloneReaderStartup({ request }: { request: ExternalReaderRe
         <div className="window-app__content">
           {request ? (
             resolution.status === "checking" ? (
-              <main className="reader-status-page" id={MAIN_CONTENT_ID} role="status" tabIndex={-1}>
+              <StatusPage
+                className="reader-status-page"
+                id={MAIN_CONTENT_ID}
+                role="status"
+                tabIndex={-1}
+              >
                 Opening EPUB…
-              </main>
+              </StatusPage>
             ) : (
               <QuickActionsProvider>
                 <RouterProvider router={router} />
               </QuickActionsProvider>
             )
           ) : (
-            <main className="reader-status-page" id={MAIN_CONTENT_ID} tabIndex={-1}>
+            <StatusPage className="reader-status-page" id={MAIN_CONTENT_ID} tabIndex={-1}>
               <h1>Unable to read the launch request</h1>
               <p role="alert">Close Archeion and try opening the EPUB again.</p>
-            </main>
+            </StatusPage>
           )}
         </div>
       </div>

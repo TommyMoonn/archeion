@@ -221,7 +221,7 @@ Settings uses a shared Tailwind section layout, with a container-sized row layou
 
 Archives and Storage reuse the shared rows and controls, including the annotation export action group and cache and backup status notes. Maintenance confirmations use the native dialog frame; annotation import presents a definition list of counts and a shared Collapsible for unmatched IDs. These sections need no section-specific CSS.
 
-Dictionary management uses shared Badge, Progress, Spinner, Input, segmented radio group, Button, Empty and Alert components. Catalog and installed cards use token-backed Tailwind layout, with container-based reflow for actions, search and progress. Download progress reflects the reported byte total or the catalog estimate; unknown totals remain indeterminate. Recovery actions retain the same download and installation owner. Removal confirmation retains the native dialog frame. The Settings-specific stylesheet is removed; shared legacy menu and feedback styling remains until branch B.
+Dictionary management uses shared Badge, Progress, Spinner, Input, segmented radio group, Button, Empty and Alert components. Catalog and installed cards use token-backed Tailwind layout, with container-based reflow for actions, search and progress. Download progress reflects the reported byte total or the catalog estimate; unknown totals remain indeterminate. Recovery actions retain the same download and installation owner. Removal confirmation retains the native dialog frame. The Settings-specific stylesheet is removed; shared status tones use the same token-backed utility classes as Library feedback.
 
 ### Corners
 
@@ -283,7 +283,7 @@ Components use the matching elevation token. Flat workspace areas do not need an
 
 ### Empty states
 
-`EmptyState` controls presentation. Each destination decides whether it has no content or no search or filter matches, then provides the heading, guidance, and action.
+`EmptyState` controls presentation using the shared Empty primitive and semantic typography. Each destination decides whether it has no content or no search or filter matches, then provides the heading, guidance, and action. `CollectionLoading` owns the matching collection loading presentation and uses Skeleton for the optional cover placeholder.
 
 - An empty destination can show one contextual monochrome glyph at `32px` in the muted foreground. The glyph appears only when it helps identify the destination.
 - Search and filter results with no matches contain text only. Keep a clear or recovery action when it helps.
@@ -292,10 +292,12 @@ Components use the matching elevation token. Flat workspace areas do not need an
 
 ### Loading, feedback, and surfaces
 
+`StatusPage` provides the common full-page and contained Reader status layout; the existing route and error-boundary owners supply content and live-region semantics. Library feedback titles and Settings notices share success, warning and error tone classes; Library cards retain their neutral surface without changing their dismissal or announcement owners. Reader-specific palette overrides and utility-window readiness layouts remain with their feature owners. BrandLogo retains its two approved assets and selects one using the application base theme without changing the identity geometry. PageShell owns the shared scroll area and responsive insets; Library selection, drop targets and pinned panels retain their feature layout overrides.
+
 - Each route and utility window keeps its themed shell visible while content loads. Progress and errors appear in the content area. They do not replace the whole window with a generic status page.
 - Status and feedback areas reserve enough space to avoid moving the title, form, or footer. Loading, ready, and error states keep the same layout where possible.
 - Loading placeholders do not look interactive. Skeleton fields are not exposed as controls, and focus does not move into unavailable content.
-- Shared dialog components use the native shadcn-style primitives in `components/ui/dialog.tsx`, with a shared Tailwind frame, token-based sizing, and native backdrop ownership. Retain the browser top layer rather than replacing it with a portal-only dialog. Hosted and standalone dialogs share the same panel, scroll regions, feedback reservation and action layout. Full-width body content aligns with the heading and footer; the stable scrollbar gutter occupies the panel padding rather than narrowing form fields. Loading forms use the shared Skeleton with inert, content-shaped placeholders. Focus containment, Escape behavior, dismissal, and focus restoration remain native lifecycle responsibilities.
+- Shared dialog components use the native shadcn-style primitives in `components/ui/dialog.tsx`, with a shared Tailwind frame, token-based sizing, and native backdrop ownership. Retain the browser top layer rather than replacing it with a portal-only dialog. Hosted and standalone dialogs share the same panel, scroll regions, feedback reservation and action layout. Loading forms use the shared Skeleton with inert, content-shaped placeholders. Focus containment, Escape behavior, dismissal, and focus restoration remain native lifecycle responsibilities.
 - Dialogs, details drawers, and Quick Actions share one restrained dim backdrop without blur. Nested surfaces do not add another backdrop.
 - The Library details drawer is an opaque overlay that enters from the right. It does not move or resize the Library content. Both the drawer and pinned panel use `--surface-main`, with a single `--line-subtle` divider at the collection edge and no surface shadow.
 - Book details use the slide-over by default. The header's pin action optionally docks the same details beside the collection in windows at least `75rem` wide; narrower windows use the slide-over. Both modes share a width that defaults to `336px` and can be resized from `280px` to `480px`. The resize edge supports pointer dragging, arrow keys, larger steps with Shift, and Home/End for the limits. Pin state and width are saved through application preferences and restored across navigation, archive switches, and restarts. A restored pinned panel starts with no inspected book. The pinned header has Favorite and Unpin actions; the slide-over also retains Close.

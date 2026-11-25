@@ -1,3 +1,4 @@
+import { CollectionLoading } from "../../components/CollectionLoading";
 import { BookOpenText, FolderOpen, Heart, Plus } from "lucide-react";
 import {
   Suspense,
@@ -375,10 +376,10 @@ export function LibraryWorkspaceSurface({
             {surfaceState !== "results" ? (
               <div className="collection-content__state">
                 {surfaceState === "loading" ? (
-                  <div className="collection-content__loading library-loading" role="status">
-                    <span className="library-loading__cover" />
-                    <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>
-                  </div>
+                  <CollectionLoading
+                    message={isImporting ? "Adding EPUB files" : "Loading library"}
+                    cover
+                  />
                 ) : surfaceState === "filter-empty" ? (
                   <EmptyState
                     action={

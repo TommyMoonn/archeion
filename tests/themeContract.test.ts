@@ -447,10 +447,6 @@ describe("theme token baseline", () => {
           /\.sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
         ],
         [
-          "src/styles/layout/app-shell.css",
-          /\.page-shell\s*{[^}]*background:\s*var\(--surface-main\);/,
-        ],
-        [
           "src/styles/layout/window-frame.css",
           /\.window-titlebar:has\(\[data-window-titlebar-presentation="split"\]\)\s*{[^}]*background:\s*var\(--surface-main\);/,
         ],

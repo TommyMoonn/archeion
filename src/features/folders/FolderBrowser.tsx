@@ -1,3 +1,4 @@
+import { CollectionLoading } from "../../components/CollectionLoading";
 import { Folder as FolderIcon, FolderPlus, Grid2x2, List, Search, Pencil, X } from "lucide-react";
 import {
   memo,
@@ -288,9 +289,7 @@ export const FolderBrowser = memo(function FolderBrowser({
         key={surfaceKey}
       >
         {surfaceState === "loading" ? (
-          <div className="collection-content__loading library-loading" role="status">
-            Loading folders
-          </div>
+          <CollectionLoading message={"Loading folders"} />
         ) : visibleEntries.length === 0 ? (
           <EmptyState
             action={

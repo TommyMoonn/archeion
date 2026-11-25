@@ -1,3 +1,4 @@
+import { ReaderOpeningStatus } from "./ReaderOpeningStatus";
 import { Tooltip } from "../../components/Tooltip";
 import {
   forwardRef,
@@ -736,13 +737,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           </button>
         </Tooltip>
       ) : null}
-      {isLoading && !externalOpeningStatus ? (
-        <div className="reader-loading" role="status">
-          <span className="reader-loading__line" />
-          <span className="reader-loading__line reader-loading__line--short" />
-          <span>Opening book</span>
-        </div>
-      ) : null}
+      {isLoading && !externalOpeningStatus ? <ReaderOpeningStatus /> : null}
       {footnote ? (
         <ReaderFootnotePopover
           anchorRect={footnote.anchorRect}

@@ -23,6 +23,7 @@ import { SelectFixture } from "./select-view";
 import { BusyActionsFixture } from "./busy-actions-view";
 import { ActionMenuFixture } from "./action-menu-view";
 import { TooltipFixture } from "./tooltip-view";
+import { FeedbackFixture } from "./feedback-view";
 
 const archive: KnownArchive = {
   id: "browser-fixture",
@@ -217,6 +218,13 @@ export function BrowserFixture() {
   useEffect(() => focusPresentationRuntime.start(document), []);
 
   const view = new URLSearchParams(window.location.search).get("view");
+  if (
+    view === "feedback" ||
+    view === "empty-state" ||
+    view === "not-found" ||
+    view === "error-boundary"
+  )
+    return <FeedbackFixture />;
   if (view === "action-menu") return <ActionMenuFixture />;
   if (view === "tooltip") return <TooltipFixture />;
   if (view === "select") return <SelectFixture />;

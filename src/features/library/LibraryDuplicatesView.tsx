@@ -1,3 +1,4 @@
+import { CollectionLoading } from "../../components/CollectionLoading";
 import { BookOpen, Copy, Ellipsis, FolderOpen, MoveRight, Trash2 } from "lucide-react";
 import { memo, useId } from "react";
 
@@ -238,9 +239,7 @@ export function LibraryDuplicatesView({
           </div>
         ) : null}
         {initialLoading ? (
-          <div className="collection-content__loading library-loading" role="status">
-            <span>Checking for duplicate EPUBs</span>
-          </div>
+          <CollectionLoading message={"Checking for duplicate EPUBs"} />
         ) : failedWithoutSnapshot ? (
           <div role="alert">
             <EmptyState

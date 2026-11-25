@@ -428,15 +428,6 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
-.library-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  color: var(--muted);
-  font-size: var(--type-body);
-}
-
 .library-loading__cover {
   width: 78px;
   aspect-ratio: 2 / 3;
@@ -1664,6 +1655,7 @@ html[data-motion="on"] .book-details-loading__placeholder {
   min-width: 0;
   min-height: 0;
   max-width: 100%;
+  padding-inline-end: 3px;
 }
 
 .bulk-metadata-editor {
@@ -1850,6 +1842,7 @@ html[data-motion="on"] .book-details-loading__placeholder {
   min-width: 0;
   min-height: 0;
   max-width: 100%;
+  padding-inline-end: 2px;
 }
 
 .metadata-writeback *,
@@ -2085,6 +2078,7 @@ html[data-motion="on"] .book-details-loading__placeholder {
   display: grid;
   gap: 16px;
   min-height: 0;
+  padding-inline-end: 2px;
 }
 
 .cover-writeback *,
@@ -2362,22 +2356,9 @@ html[data-motion="on"] .book-details-loading__placeholder {
 
 .library-feedback__copy p {
   margin: 0;
-  color: var(--text-strong);
   font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
   line-height: 1.35;
-}
-
-.library-feedback__token[data-tone="success"] .library-feedback__copy p {
-  color: var(--success);
-}
-
-.library-feedback__token[data-tone="warning"] .library-feedback__copy p {
-  color: var(--accent-strong);
-}
-
-.library-feedback__token[data-tone="error"] .library-feedback__copy p {
-  color: var(--error);
 }
 
 .library-feedback__copy > span {
@@ -3146,6 +3127,19 @@ html[data-motion="on"] .library-feedback__token {
 .library-filter[open] > summary {
   border-color: var(--line-strong);
   background: var(--surface-raised);
+}
+
+.library-filter__count {
+  display: inline-grid;
+  min-width: 18px;
+  min-height: 18px;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  color: var(--surface-main);
+  background: var(--accent);
+  font-size: var(--type-caption);
+  font-weight: var(--type-control-label-weight);
 }
 
 .library-filter__popover {
