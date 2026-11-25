@@ -89,11 +89,12 @@ export function Button({
     </UiButton>
   );
   const tooltipText = hasExplainedDisabledState ? (disabledReason ?? "") : (tooltip ?? title ?? "");
-  const control = ownedTooltipAvailable ? (
-    <Tooltip content={tooltipText}>{button}</Tooltip>
-  ) : (
-    button
-  );
+  const control =
+    ownedTooltipAvailable && (disabledReason || tooltip || title) ? (
+      <Tooltip content={tooltipText}>{button}</Tooltip>
+    ) : (
+      button
+    );
 
   return (
     <>

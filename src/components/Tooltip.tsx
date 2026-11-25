@@ -149,61 +149,64 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
     if (!content) dismiss?.(tooltipId);
   }, [content, dismiss, tooltipId]);
 
-  if (!context || !content) return child;
+  if (!context) return child;
 
-  const childProps = child.props;
-  // Native modal dialogs are rendered in the browser top layer. The trigger handlers
-  // select its owning dialog so the tooltip is portaled into that same top-layer surface.
-  // cloneElement preserves the child's opaque ref; Tooltip never reads it during render.
-  // eslint-disable-next-line react-hooks/refs
-  const trigger = cloneElement(child, {
-    "aria-describedby": mergeDescriptionIds(childProps["aria-describedby"], tooltipId),
-    onBlur: (event) => {
-      childProps.onBlur?.(event);
-      context.dismiss(tooltipId);
-    },
-    onFocus: (event) => {
-      childProps.onFocus?.(event);
-      triggerRef.current = event.currentTarget;
-      setPortalTarget(tooltipPortalHost(event.currentTarget));
-      if (
-        keyboardFocusCanOpenTooltip(event.currentTarget) &&
-        tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
-      ) {
-        context.schedule(tooltipId, TOOLTIP_FOCUS_OPEN_DELAY_MS);
-      }
-    },
-    onKeyDown: (event) => {
-      childProps.onKeyDown?.(event);
-      if (event.key === "Escape") context.dismiss(tooltipId);
-    },
-    onPointerDown: (event) => {
-      childProps.onPointerDown?.(event);
-      context.dismiss(tooltipId);
-    },
-    onPointerEnter: (event) => {
-      childProps.onPointerEnter?.(event);
-      triggerRef.current = event.currentTarget;
-      setPortalTarget(tooltipPortalHost(event.currentTarget));
-      if (
-        pointerCanOpenTooltip(event) &&
-        tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
-      ) {
-        context.schedule(tooltipId, TOOLTIP_POINTER_OPEN_DELAY_MS);
-      }
-    },
-    onPointerLeave: (event) => {
-      childProps.onPointerLeave?.(event);
-      context.dismiss(tooltipId);
-    },
-  });
+  let trigger = child;
+  if (content) {
+    const childProps = child.props;
+    // The trigger handlers choose the portal host so a tooltip stays in its native dialog's top layer.
+    // cloneElement preserves the child's opaque ref without reading it during render.
+    // eslint-disable-next-line react-hooks/refs
+    trigger = cloneElement(child, {
+      "aria-describedby": mergeDescriptionIds(childProps["aria-describedby"], tooltipId),
+      onBlur: (event) => {
+        childProps.onBlur?.(event);
+        context.dismiss(tooltipId);
+      },
+      onFocus: (event) => {
+        childProps.onFocus?.(event);
+        triggerRef.current = event.currentTarget;
+        setPortalTarget(tooltipPortalHost(event.currentTarget));
+        if (
+          keyboardFocusCanOpenTooltip(event.currentTarget) &&
+          tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
+        ) {
+          context.schedule(tooltipId, TOOLTIP_FOCUS_OPEN_DELAY_MS);
+        }
+      },
+      onKeyDown: (event) => {
+        childProps.onKeyDown?.(event);
+        if (event.key === "Escape") context.dismiss(tooltipId);
+      },
+      onPointerDown: (event) => {
+        childProps.onPointerDown?.(event);
+        context.dismiss(tooltipId);
+      },
+      onPointerEnter: (event) => {
+        childProps.onPointerEnter?.(event);
+        triggerRef.current = event.currentTarget;
+        setPortalTarget(tooltipPortalHost(event.currentTarget));
+        if (
+          pointerCanOpenTooltip(event) &&
+          tooltipTargetIsTruncated(event.currentTarget, onlyWhenTruncated)
+        ) {
+          context.schedule(tooltipId, TOOLTIP_POINTER_OPEN_DELAY_MS);
+        }
+      },
+      onPointerLeave: (event) => {
+        childProps.onPointerLeave?.(event);
+        context.dismiss(tooltipId);
+      },
+    });
+  }
 
   return (
-    <UiTooltip open={active}>
+    <UiTooltip open={Boolean(content) && active}>
       {/* The application owner controls both delays and modality. Register only the
-          anchor with Base UI rather than starting a competing hover/focus timer. */}
+          anchor with Base UI, keeping it mounted when the description changes. */}
       <TooltipTrigger disabled render={trigger} />
-      {typeof document !== "undefined" &&
+      {content &&
+        typeof document !== "undefined" &&
         (active ? (
           <TooltipContent
             anchor={triggerRef}

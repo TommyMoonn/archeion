@@ -139,7 +139,10 @@ test("Add EPUB expands as one surface and settles before the fade completes", as
       );
     if (!animation?.effect) throw new Error("Shared dialog entrance is missing");
     const duration = Number(animation.effect.getTiming().duration);
-    const targets = [element, ...element.querySelectorAll<HTMLElement>("h2, input, button")];
+    const targets = [
+      element,
+      ...element.querySelectorAll<HTMLElement>('h2, input:not([aria-hidden="true"]), button'),
+    ];
     const pose = () => {
       const bounds = element.getBoundingClientRect();
       return {
@@ -173,7 +176,8 @@ test("Add EPUB expands as one surface and settles before the fade completes", as
     expect(Math.abs(pose.center[0] - samples.end.center[0])).toBeLessThanOrEqual(1);
     expect(Math.abs(pose.center[1] - samples.end.center[1])).toBeLessThanOrEqual(1);
   }
-  expect(samples.start.opacity).toBeLessThan(samples.end.opacity);
+  expect(samples.start.opacity).toBeLessThan(samples.middle.opacity);
+  expect(samples.middle.opacity).toBeLessThan(samples.end.opacity);
   expect(samples.end.opacity).toBe(1);
 });
 

@@ -270,6 +270,36 @@ describe("Tooltip", () => {
     expect(visibleTooltip()).toBeNull();
   });
 
+  it("keeps the focused trigger mounted as its description is added and removed", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const render = (content: string) => {
+      act(() => {
+        root?.render(
+          <TooltipProvider>
+            <Tooltip content={content}>
+              <button type="button">Import</button>
+            </Tooltip>
+          </TooltipProvider>,
+        );
+      });
+    };
+
+    render("");
+    const trigger = container.querySelector("button")!;
+    act(() => trigger.focus());
+    render("Import in progress");
+    expect(document.activeElement).toBe(trigger);
+    const descriptionId = trigger.getAttribute("aria-describedby");
+    expect(document.getElementById(descriptionId ?? "")?.textContent).toBe("Import in progress");
+
+    render("");
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.hasAttribute("aria-describedby")).toBe(false);
+    expect(document.getElementById(descriptionId ?? "")).toBeNull();
+  });
+
   it("opens truncated-text help only when the measured target is clipped", () => {
     container = document.createElement("div");
     document.body.append(container);
