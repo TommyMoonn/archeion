@@ -81,7 +81,10 @@ export function LibraryToolbar({
   view,
 }: LibraryToolbarProps) {
   return (
-    <header className="library-header" data-selection-mode={selectionMode ? "true" : undefined}>
+    <header
+      className={selectionMode ? "library-header relative z-5" : "library-header"}
+      data-selection-mode={selectionMode ? "true" : undefined}
+    >
       <div className="library-header__primary-row">
         <div aria-hidden={selectionMode || undefined} className="library-header__title">
           <p className="eyebrow">Your collection</p>
