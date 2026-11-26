@@ -166,6 +166,73 @@
   --spacing-sidebar-narrow: 220px;
   --spacing-sidebar-collapsed: 56px;
   --spacing-collection-header-gap: 24px;
+  --spacing-collection-title-top: 2px;
+  --spacing-collection-actions: min(680px, 58vw);
+  --spacing-collection-search-clear: 30px;
+  --spacing-collection-controls: 48px;
+  --spacing-collection-count: 56px;
+  --spacing-collection-initial-top: 26px;
+  --spacing-collection-empty-inset: clamp(24px, 6vh, 72px);
+  --spacing-collection-utility-icon: 18px;
+  --spacing-collection-header-title-min: 180px;
+  --spacing-collection-search-min: 240px;
+  --spacing-collection-sort-min: 178px;
+  --spacing-filter-panel-width: min(340px, calc(100vw - 32px));
+  --spacing-filter-group-gap: 16px;
+  --spacing-filter-choice-gap: 12px;
+  --spacing-filter-check-height: 26px;
+  --spacing-filter-token-height: 28px;
+  --spacing-filter-token-remove: 23px;
+  --spacing-filter-label-gap: 5px;
+  --spacing-filter-token-gap: 3px;
+  --spacing-book-card-copy-height: 78px;
+  --spacing-book-card-copy-top: 13px;
+  --spacing-book-card-title-height: 2.8em;
+  --spacing-book-copy-gap: 5px;
+  --spacing-book-card-intrinsic-size: 360px;
+  --spacing-book-cover-spine-block: 9%;
+  --spacing-book-cover-spine-inline: 11%;
+  --spacing-book-cover-placeholder-glyph: 30px;
+  --spacing-book-grid-small: 120px;
+  --spacing-book-grid-medium: 150px;
+  --spacing-book-grid-large: 190px;
+  --spacing-book-grid-row-gap: 28px;
+  --spacing-book-grid-compact-inline-gap: 18px;
+  --spacing-book-grid-compact-row-gap: 22px;
+  --spacing-book-grid-narrow-row-gap: 24px;
+  --spacing-book-grid-bottom: 32px;
+  --spacing-book-grid-compact-bottom: 28px;
+  --spacing-book-row-cover: 42px;
+  --spacing-book-row-title-min: 180px;
+  --spacing-book-row-file-min: 150px;
+  --spacing-book-row-date: 120px;
+  --spacing-book-row-date-narrow: 110px;
+  --spacing-book-row-height: 74px;
+  --spacing-book-row-actions: 124px;
+  --spacing-book-row-rename-end: 78px;
+  --spacing-book-row-favorite-end: 45px;
+  --spacing-book-row-bottom: 40px;
+  --spacing-book-selection-control: 30px;
+  --spacing-book-selection-glyph: 15px;
+  --spacing-resume-bottom: 22px;
+  --spacing-resume-heading-gap: 16px;
+  --spacing-resume-heading-height: 20px;
+  --spacing-resume-card-min: 220px;
+  --spacing-resume-card-max: 260px;
+  --spacing-selection-bar-gap: 18px;
+  --spacing-selection-bar-height: 52px;
+  --spacing-selection-status-height: 30px;
+  --spacing-selection-menu-min: min(205px, calc(100vw - var(--spacing-overlay-viewport-inset)));
+  --spacing-icon-glyph-medium: 17px;
+  --spacing-feedback-glyph: 19px;
+  --spacing-cover-progress-height: 22px;
+  --aspect-book-cover: 2 / 3;
+  --leading-collection-copy: var(--text-caption--line-height);
+  --radius-collection-utility-child: calc(var(--radius-control) - 1px - var(--border-width));
+  --blur-cover-progress: 6px;
+  --color-cover-progress-border: rgb(255 255 255 / 20%);
+  --color-cover-progress-surface: rgb(10 11 13 / 84%);
+  --color-cover-progress-text: #f1f3f5;
   --spacing-folder-tree-indent: 11px;
   --spacing-folder-tree-limit: 180px;
   --spacing-folder-tree-row-min: 120px;
@@ -230,27 +297,14 @@
   --spacing-integrity-gap: 14px;
   --spacing-integrity-row-gap: 18px;
   --spacing-integrity-controls-block: 10px;
-  --spacing-integrity-group-gap: 16px;
-  --spacing-integrity-header-block: 15px;
-  --spacing-integrity-header-inline: 17px;
   --spacing-integrity-row-block: 12px;
   --spacing-integrity-row-inline: 14px;
   --spacing-integrity-copy-gap: 3px;
   --spacing-integrity-small-gap: 5px;
   --spacing-integrity-alert-block: 11px;
   --spacing-integrity-alert-inline: 13px;
-  --spacing-integrity-duplicate-cover: 46px;
-  --spacing-integrity-issue-cover: 50px;
-  --spacing-integrity-issue-cover-narrow: 56px;
   --spacing-integrity-badge-height: 22px;
   --spacing-integrity-identity-width: 280px;
-  --spacing-integrity-disclosure-height: 44px;
-  --spacing-integrity-meta-column: 140px;
-  --spacing-integrity-file-column: 74px;
-  --spacing-integrity-date-column: 100px;
-  --spacing-integrity-member-column: 210px;
-  --spacing-integrity-member-column-medium: 220px;
-  --spacing-integrity-metadata-column: 300px;
   --spacing-integrity-group-identity-column: 180px;
   --spacing-feedback-top: 44px;
   --spacing-feedback-top-narrow: 64px;
@@ -384,6 +438,7 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --spacing-filter-panel-height: min(620px, calc(100dvh - 180px), var(--available-height, 100dvh));
   --shadow-sidebar-drop: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
   --spacing-menu-viewport-min: min(
     var(--spacing-menu-min),
@@ -450,13 +505,9 @@
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
-  --color-integrity-card: color-mix(in srgb, var(--surface) 72%, transparent);
-  --color-integrity-header: color-mix(in srgb, var(--surface-raised) 64%, transparent);
-  --color-integrity-row-focus: color-mix(in srgb, var(--surface-raised) 70%, transparent);
-  --color-integrity-detail: color-mix(in srgb, var(--surface-raised) 55%, transparent);
-  --color-integrity-badge-border: color-mix(in srgb, var(--accent) 28%, var(--line));
-  --color-integrity-badge: color-mix(in srgb, var(--accent-soft) 60%, transparent);
-  --color-integrity-badge-probable: color-mix(in srgb, var(--surface-hover) 72%, transparent);
+  --color-resume-card: color-mix(in srgb, var(--surface) 46%, transparent);
+  --shadow-book-row-selected: inset 3px 0 var(--accent);
+  --shadow-library-drop: inset 0 0 0 2px color-mix(in srgb, var(--accent) 52%, transparent);
   --color-feedback-card: color-mix(in srgb, var(--surface) 94%, transparent);
   --color-book-menu-border: color-mix(in srgb, var(--text) 11%, transparent);
   --color-book-menu-surface: color-mix(in srgb, var(--canvas-deep) 88%, transparent);
@@ -691,6 +742,7 @@
     border-color var(--motion-duration-standard) var(--ease-standard),
     background var(--motion-duration-standard) var(--ease-standard);
 }
+@custom-variant control-enabled (&:not(:disabled):not([aria-disabled="true"]));
 @custom-variant control-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
 @custom-variant control-active (&:active:not(:disabled):not([aria-disabled="true"]));
 @custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
@@ -1133,4 +1185,123 @@ html[data-density="compact"] {
   @media (max-width: 1100px) {
     @slot;
   }
+}
+
+/* Collection tracks, compositing and pixel-specific roles. */
+@utility collection-header-columns {
+  grid-template-columns: minmax(var(--spacing-collection-header-title-min), 1fr) auto;
+}
+@utility collection-single-column {
+  grid-template-columns: 1fr;
+}
+@utility collection-actions-full {
+  grid-template-columns: minmax(var(--spacing-collection-search-min), 1fr) auto 1px auto;
+}
+@utility collection-actions-full-narrow {
+  grid-template-columns: minmax(0, 1fr) auto 1px auto;
+}
+@utility collection-actions-primary {
+  grid-template-columns: minmax(var(--spacing-collection-search-min), 1fr) 1px auto;
+}
+@utility collection-actions-primary-narrow {
+  grid-template-columns: minmax(0, 1fr) 1px auto;
+}
+@utility collection-actions-search {
+  grid-template-columns: minmax(var(--spacing-collection-search-min), 1fr);
+}
+@utility collection-utility-icon {
+  --icon-slot-size: var(--spacing-collection-utility-icon) !important;
+  --icon-glyph-size: var(--spacing-collection-utility-icon) !important;
+}
+@utility sidebar-sort-icon {
+  --icon-slot-size: var(--spacing-icon-glyph-medium) !important;
+  --icon-glyph-size: var(--spacing-icon-glyph-medium) !important;
+}
+@utility book-cover-placeholder-background {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--text-strong) 4%, transparent), transparent 14%),
+    var(--surface);
+}
+@utility transition-book-cover {
+  transition-property: border-color, transform;
+}
+@utility transition-book-row {
+  transition-property: background;
+}
+@utility transition-book-menu {
+  transition-property: opacity, background;
+}
+@utility book-card-deferred-layout {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--spacing-book-card-intrinsic-size);
+}
+@utility book-row-deferred-layout {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--spacing-book-row-height);
+}
+@utility book-grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-book-grid-small), 1fr));
+}
+@utility book-grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-book-grid-medium), 1fr));
+}
+@utility book-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-book-grid-large), 1fr));
+}
+@utility resume-grid {
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--spacing-resume-card-min), var(--spacing-resume-card-max))
+  );
+}
+@utility resume-card-columns {
+  grid-template-columns: var(--spacing-book-row-cover) minmax(0, 1fr) auto;
+}
+@utility book-row-columns {
+  grid-template-columns:
+    var(--spacing-book-row-cover) minmax(var(--spacing-book-row-title-min), 1.2fr)
+    minmax(var(--spacing-book-row-file-min), 1fr) var(--spacing-book-row-date);
+}
+@utility book-row-columns-stacked {
+  grid-template-columns: var(--spacing-book-row-cover) minmax(0, 1fr) var(
+      --spacing-book-row-date-narrow
+    );
+}
+@utility book-row-columns-narrow {
+  grid-template-columns: var(--spacing-book-row-cover) minmax(0, 1fr);
+}
+@utility integrity-group-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(var(--spacing-integrity-group-identity-column), auto);
+}
+@utility integrity-alert-columns {
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+}
+@utility integrity-diagnostic-columns {
+  grid-template-columns: var(--spacing-integrity-row-gap) minmax(0, 1fr);
+}
+@utility integrity-resource-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@utility integrity-row-actions-inset {
+  padding-inline-end: calc(var(--spacing-control-compact) + 2 * var(--spacing-button-standard));
+}
+@utility integrity-identity-width {
+  width: min(100%, var(--spacing-integrity-identity-width));
+}
+@utility feedback-token-columns {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+@utility grid-cols-inherit {
+  grid-template-columns: inherit;
+}
+@utility gap-inherit {
+  gap: inherit;
+}
+
+@utility book-cover-lift {
+  transform: translateY(-1px);
+}
+
+@utility import-drop-label {
+  content: "Add to " attr(data-import-drop-label);
 }

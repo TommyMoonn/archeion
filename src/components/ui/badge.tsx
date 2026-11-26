@@ -13,7 +13,7 @@ export function Badge({
       className={cn(
         "inline-flex shrink-0 items-center border-standard border-solid text-caption",
         variant === "cover-overlay"
-          ? "justify-center rounded-control border-[rgb(255_255_255_/_20%)] bg-[rgb(10_11_13_/_84%)] px-badge-inline py-0 text-[#f1f3f5] font-semibold leading-none tabular-nums shadow-cover-progress backdrop-blur-[6px]"
+          ? "justify-center rounded-control border-cover-progress-border bg-cover-progress-surface px-badge-inline py-0 text-cover-progress-text font-semibold leading-none tabular-nums shadow-cover-progress backdrop-blur-cover-progress"
           : "rounded-pill border-line-strong px-badge-inline py-control-inset text-muted font-medium whitespace-nowrap",
         className,
       )}

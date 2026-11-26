@@ -1,3 +1,4 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { Alert } from "../../components/ui/alert";
 import { Badge } from "../../components/ui/badge";
 import { CollectionLoading } from "../../components/CollectionLoading";
@@ -101,16 +102,16 @@ function DuplicateGroup({
       className="duplicate-group min-w-0 overflow-hidden border-standard border-solid border-line rounded-control bg-surface-main group/duplicate"
       data-duplicate-kind={group.kind}
     >
-      <header className="duplicate-group__header grid grid-cols-[minmax(0,1fr)_minmax(var(--spacing-integrity-group-identity-column),auto)] items-center gap-control-gap py-control-gap px-button-standard border-0 border-b border-solid border-line bg-surface [@media(max-width:680px)]:grid-cols-1">
+      <header className="duplicate-group__header grid integrity-group-columns items-center gap-control-gap py-control-gap px-button-standard border-0 border-b border-solid border-line bg-surface [@media(max-width:680px)]:grid-cols-1">
         <div className="flex min-w-0 flex-wrap items-center gap-control-gap">
           <h2 className="m-0 text-body font-semibold text-text-strong" id={titleId}>
             {members.length} {members.length === 1 ? "copy" : "copies"}
           </h2>
-          <Badge className="duplicate-group__classification min-h-integrity-badge-height px-control-gap py-0 whitespace-normal rounded-small! border-line-strong text-accent-strong bg-transparent text-caption-size leading-[inherit] font-medium group-data-[duplicate-kind=probable]/duplicate:text-text">
+          <Badge className="duplicate-group__classification min-h-integrity-badge-height px-control-gap py-0 whitespace-normal rounded-small! border-line-strong text-accent-strong bg-transparent text-caption-size leading-inherit font-medium group-data-[duplicate-kind=probable]/duplicate:text-text">
             {exact ? "Exact duplicate" : "Probable duplicate"}
           </Badge>
         </div>
-        <dl className="duplicate-group__identity m-0 min-w-0 w-[min(100%,var(--spacing-integrity-identity-width))] justify-self-end [@media(max-width:680px)]:w-full [@media(max-width:680px)]:justify-self-stretch [&>div]:m-0 [&>div]:min-w-0">
+        <dl className="duplicate-group__identity m-0 min-w-0 integrity-identity-width justify-self-end [@media(max-width:680px)]:w-full [@media(max-width:680px)]:justify-self-stretch [&>div]:m-0 [&>div]:min-w-0">
           <div>
             <dt className="mb-folder-action-gap text-muted text-caption-size text-end [@media(max-width:680px)]:text-start">
               {exact ? "Digest" : "EPUB identifier"}
@@ -170,7 +171,7 @@ export function LibraryDuplicatesView({
 
       <div
         aria-busy={initialLoading || refreshing || undefined}
-        className="collection-content duplicates-content grid gap-integrity-gap"
+        className={`${collectionContent} duplicates-content grid gap-integrity-gap`}
         data-surface-state={
           initialLoading
             ? "loading"
@@ -182,7 +183,7 @@ export function LibraryDuplicatesView({
         }
       >
         {state.status === "error" && snapshot ? (
-          <Alert className="duplicates-error static grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-integrity-row-block gap-y-control-gap-compact px-integrity-alert-inline py-integrity-alert-block border-standard border-solid border-danger-border rounded-control text-error bg-danger-soft text-meta-only [@media(max-width:680px)]:grid-cols-1 [&>span]:text-muted">
+          <Alert className="duplicates-error static grid integrity-alert-columns gap-x-integrity-row-block gap-y-control-gap-compact px-integrity-alert-inline py-integrity-alert-block border-standard border-solid border-danger-border rounded-control text-error bg-danger-soft text-meta-only [@media(max-width:680px)]:grid-cols-1 [&>span]:text-muted">
             <strong>Duplicate analysis could not be refreshed.</strong>
             <span>{state.error?.message ?? "Try refreshing the analysis again."}</span>
           </Alert>

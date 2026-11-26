@@ -45,34 +45,6 @@
 .sidebar {
   container: library-sidebar / inline-size;
 }
-.sidebar:has(.sidebar__resize-handle:hover),
-.sidebar:has(.sidebar__resize-handle[data-resizing="true"]) {
-  border-inline-end-color: var(--line);
-}
-.sidebar:has(.sidebar__resize-handle:focus-visible) {
-  border-inline-end-color: var(--focus);
-}
-.sidebar :where(button, a, summary):focus-visible {
-  outline-offset: -2px;
-}
-
-.sidebar__folder-sort .app-select__trigger-icon {
-  --icon-slot-size: 17px;
-  --icon-glyph-size: 17px;
-}
-
-.sidebar__folder-sort .app-select__trigger {
-  border-color: transparent;
-  background: transparent;
-}
-
-.sidebar__folder-sort .app-select__trigger:hover,
-.sidebar__folder-sort .app-select__trigger[aria-expanded="true"] {
-  border-color: transparent;
-  color: var(--text-strong);
-  background: var(--surface-raised);
-}
-
 .sidebar[data-collapsed="true"] .sidebar__nav .nav-item > span {
   display: none;
 }

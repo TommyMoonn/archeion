@@ -1,3 +1,4 @@
+import { collectionHeader } from "../../components/collectionPresentation";
 import { Grid2x2, List, Search, X } from "lucide-react";
 import type { ReactNode, Ref } from "react";
 import { AppSelect } from "../../components/AppSelect";
@@ -49,13 +50,17 @@ export function SeriesOverviewHeader({
   pending?: boolean;
 }) {
   return (
-    <header className="library-header series-header">
+    <header className={`${collectionHeader.root} series-header`}>
       <div className="library-header__title">
-        <p className="eyebrow">Your collection</p>
-        <h1 id="series-overview-title">Series</h1>
+        <p className={collectionHeader.eyebrow}>Your collection</p>
+        <h1 className={collectionHeader.title} id="series-overview-title">
+          Series
+        </h1>
       </div>
-      <div className="library-header__actions library-header__actions--search-only series-header__actions justify-self-end">
-        <div aria-label="Series search" className="library-search" role="search">
+      <div
+        className={`${collectionHeader.actions} ${collectionHeader.actionsSearch} series-header__actions justify-self-end`}
+      >
+        <div aria-label="Series search" className={collectionHeader.search} role="search">
           <Input
             disabled={pending}
             aria-keyshortcuts={searchAriaKeyShortcuts}
@@ -75,7 +80,7 @@ export function SeriesOverviewHeader({
           />
           {query ? (
             <IconButton
-              className="library-search__clear [&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
+              className={collectionHeader.clear}
               disabled={pending}
               label="Clear series search"
               onClick={onClearSearch}
@@ -86,11 +91,11 @@ export function SeriesOverviewHeader({
         </div>
       </div>
 
-      <div className="library-controls series-overview__controls">
-        <span className="library-result-count" aria-live="polite">
+      <div className={`${collectionHeader.controls} series-overview__controls`}>
+        <span className={collectionHeader.count} aria-live="polite">
           {resultLabel}
         </span>
-        <div className="library-controls__display">
+        <div className={collectionHeader.display}>
           <AppSelect
             disabled={pending}
             ariaLabel="Sort series"

@@ -374,7 +374,7 @@ export function LibraryWorkspaceSurface({
               <ContinueReading books={continuePreview} onContinue={bookCollectionProps.onRead} />
             ) : null}
             {surfaceState !== "results" ? (
-              <div className="collection-content__state grid place-items-center min-h-inherit">
+              <div className="collection-content__state grid place-items-center min-h-inherit [&>.empty-state]:m-0 [&>.collection-content\_\_loading]:m-0">
                 {surfaceState === "loading" ? (
                   <CollectionLoading
                     message={isImporting ? "Adding EPUB files" : "Loading library"}
@@ -382,7 +382,11 @@ export function LibraryWorkspaceSurface({
                 ) : surfaceState === "filter-empty" ? (
                   <EmptyState
                     action={
-                      <Button variant="secondary" onClick={onClearFilters}>
+                      <Button
+                        className="control-enabled:cursor-pointer"
+                        variant="secondary"
+                        onClick={onClearFilters}
+                      >
                         Clear filters
                       </Button>
                     }
@@ -406,7 +410,11 @@ export function LibraryWorkspaceSurface({
                 ) : (
                   <EmptyState
                     action={
-                      <Button variant="secondary" onClick={onClearLibrarySearch}>
+                      <Button
+                        className="control-enabled:cursor-pointer"
+                        variant="secondary"
+                        onClick={onClearLibrarySearch}
+                      >
                         Clear search
                       </Button>
                     }

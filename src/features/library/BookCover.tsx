@@ -102,9 +102,9 @@ function CoverResource({
     <div
       ref={coverRef}
       className={cn(
-        "book-cover relative w-full aspect-[2/3] overflow-hidden rounded-menu border-standard border-solid border-line bg-surface shadow-app-card transition-[border-color,transform] duration-standard ease-standard",
+        "book-cover relative w-full aspect-book-cover overflow-hidden rounded-menu border-standard border-solid border-line bg-surface shadow-app-card transition-book-cover duration-standard ease-standard",
         state !== "available" &&
-          "book-cover--placeholder grid place-items-center text-muted-soft [background:linear-gradient(90deg,color-mix(in_srgb,var(--text-strong)_4%,transparent),transparent_14%),var(--surface)] after:absolute after:top-[9%] after:bottom-[9%] after:left-[11%] after:w-px after:bg-line after:content-['']",
+          "book-cover--placeholder grid place-items-center text-muted-soft book-cover-placeholder-background after:absolute after:top-book-cover-spine-block after:bottom-book-cover-spine-block after:left-book-cover-spine-inline after:w-px after:bg-line",
         className,
       )}
       data-cover-state={state}
@@ -122,7 +122,9 @@ function CoverResource({
           }}
         />
       ) : null}
-      {state === "unavailable" ? <BookOpenText size={30} strokeWidth={1.5} /> : null}
+      {state === "unavailable" ? (
+        <BookOpenText className="size-book-cover-placeholder-glyph" strokeWidth={1.5} />
+      ) : null}
       {children}
     </div>
   );

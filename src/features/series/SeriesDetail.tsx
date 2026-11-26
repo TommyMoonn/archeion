@@ -1,3 +1,4 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { ArrowLeft, ChevronRight, CircleCheck, Layers, CircleAlert } from "lucide-react";
 import { useId } from "react";
 
@@ -22,7 +23,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
   if (!entry) {
     return (
       <section
-        className="collection-content series-detail series-detail--missing mx-auto w-full max-w-collection-workspace gap-series-detail-gap"
+        className={`${collectionContent} series-detail series-detail--missing mx-auto w-full max-w-collection-workspace gap-series-detail-gap`}
         data-surface-state="empty"
       >
         <EmptyState
@@ -140,13 +141,13 @@ function SeriesVolumeRow({
           <span className="series-volume__progress flex items-center gap-series-copy-gap text-muted text-caption-size tabular-nums">
             <span>{bookProgressLabel(book)}</span>
             {status === "completed" ? (
-              <CircleCheck aria-hidden="true" className="text-success" size={14} />
+              <CircleCheck aria-hidden="true" className="text-success size-icon-glyph-compact" />
             ) : null}
           </span>
         </span>
         <span className="series-volume__action inline-flex min-w-series-volume-action items-center justify-end gap-series-grid-gap text-text text-caption-size font-medium series-narrow:min-w-0">
           <span className="series-narrow:hidden">{bookActionLabel(book)}</span>
-          <ChevronRight aria-hidden="true" className="text-muted-soft" size={16} />
+          <ChevronRight aria-hidden="true" className="text-muted-soft size-icon-glyph-standard" />
         </span>
       </button>
       {book.isFileMissing ? (
@@ -182,7 +183,7 @@ function SeriesHintGroup({ hints, label }: { hints: string[]; label: string }) {
 
   return (
     <section className="series-hint-group grid series-hint-columns gap-series-hint-gap rounded-control border-standard border-solid border-series-hint-border bg-series-hint px-button-standard py-series-card-inset-medium text-muted">
-      <CircleAlert aria-hidden="true" className="mt-px text-accent" size={17} />
+      <CircleAlert aria-hidden="true" className="mt-px text-accent size-icon-glyph-medium" />
       <div>
         <h2 className="m-0 text-text text-caption-size font-semibold">{label}</h2>
         <ul className="m-0 mt-series-copy-gap grid list-none gap-series-volume-copy-gap p-0 text-caption">

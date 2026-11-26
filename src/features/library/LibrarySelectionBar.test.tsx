@@ -108,7 +108,7 @@ describe("LibrarySelectionBar", () => {
     }
   });
 
-  it("uses a larger strong selection icon and exposes tooltips for icon actions", () => {
+  it("exposes a decorative selection icon and tooltips for icon actions", () => {
     const session = renderSelectionBar();
     activeRoot = session.root;
 
@@ -125,8 +125,7 @@ describe("LibrarySelectionBar", () => {
       'button[aria-label="More bulk actions"]',
     );
 
-    expect(statusIcon?.getAttribute("width")).toBe("20");
-    expect(statusIcon?.getAttribute("height")).toBe("20");
+    expect(statusIcon?.getAttribute("aria-hidden")).toBe("true");
     for (const [control, label] of [
       [favorite, "Add selected books to favorites"],
       [move, "Move selected books"],

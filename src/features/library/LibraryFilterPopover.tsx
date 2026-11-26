@@ -145,7 +145,7 @@ function MetadataFilterSelect({
   );
 
   return (
-    <div className="grid min-w-0 w-full gap-[5px] text-muted text-[length:var(--type-caption)] font-[number:var(--type-control-label-weight)] tracking-[0.04em] uppercase">
+    <div className="grid min-w-0 w-full gap-filter-label-gap text-muted text-caption-size font-medium tracking-field-label uppercase">
       <span>{metadataFilterLabels[filterKey]}</span>
       <AppSelect
         ariaLabel={`Add ${metadataFilterLabels[filterKey].toLowerCase()} filter`}
@@ -210,9 +210,9 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
           ref={triggerRef}
           aria-label="Filter library"
           render={<UiButton variant="secondary" size="standard" />}
-          className="gap-[7px] px-[10px] border-line bg-surface text-[length:var(--type-meta)] font-normal leading-inherit control-hover:bg-surface-raised control-hover:text-text motion-safe:app-motion:control-active:scale-100 aria-expanded:border-line-strong aria-expanded:bg-surface-raised cursor-pointer"
+          className="gap-field-label px-field-standard-inline border-line bg-surface text-meta-only font-normal leading-inherit control-hover:bg-surface-raised control-hover:text-text motion-safe:app-motion:control-active:scale-100 aria-expanded:border-line-strong aria-expanded:bg-surface-raised cursor-pointer"
         >
-          <Filter aria-hidden="true" size={16} />
+          <Filter aria-hidden="true" className="size-icon-glyph-standard" />
           <span>Filters</span>
           {activeCount > 0 ? (
             <Badge className="inline-grid min-h-filter-count min-w-filter-count place-items-center border-muted-soft bg-canvas-deep px-filter-count-inline py-0 leading-none text-muted tabular-nums">
@@ -225,14 +225,14 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
             container={rootRef}
             initialFocus={false}
             finalFocus={false}
-            className="w-[min(340px,calc(100vw-32px))] max-h-[min(620px,calc(100dvh-180px),var(--available-height))] gap-[16px] overflow-y-auto p-[14px]"
+            className="w-filter-panel-width max-h-filter-panel-height gap-filter-group-gap overflow-y-auto p-button-standard"
             aria-label="Library filters"
           >
-            <div className="flex items-center justify-between gap-[12px]">
-              <strong className="text-text-strong text-[length:var(--type-body)]">Filters</strong>
+            <div className="flex items-center justify-between gap-filter-choice-gap">
+              <strong className="text-text-strong text-body-only">Filters</strong>
               {activeCount > 0 ? (
                 <Button
-                  className="min-h-[28px] px-[8px] text-[length:var(--type-caption)]"
+                  className="min-h-filter-token-height px-control-gap text-caption-size control-enabled:cursor-pointer"
                   onClick={onClear}
                   variant="ghost"
                 >
@@ -241,7 +241,7 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
               ) : null}
             </div>
 
-            <div className="grid grid-cols-2 gap-[10px] collection-header-narrow:grid-cols-1">
+            <div className="grid grid-cols-2 gap-field-standard-inline collection-header-narrow:grid-cols-1">
               <MetadataFilterSelect
                 filters={filters}
                 filterKey="series"
@@ -268,13 +268,13 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
               />
             </div>
 
-            <fieldset className="grid grid-cols-2 gap-x-[12px] gap-y-[8px] p-0 border-0 collection-header-narrow:grid-cols-1">
-              <legend className="col-span-full w-full mb-[3px] px-[2px] text-muted text-[length:var(--type-caption)] font-semibold tracking-[0.04em] uppercase">
+            <fieldset className="grid grid-cols-2 gap-x-filter-choice-gap gap-y-control-gap p-0 border-0 collection-header-narrow:grid-cols-1">
+              <legend className="col-span-full w-full mb-filter-token-gap px-control-inset text-muted text-caption-size font-semibold tracking-field-label uppercase">
                 Reading status
               </legend>
               {(Object.keys(readingStatusLabels) as LibraryReadingStatus[]).map((status) => (
                 <label
-                  className="flex items-center gap-[7px] min-h-[26px] text-text text-[length:var(--type-caption)] cursor-pointer"
+                  className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer"
                   key={status}
                 >
                   <Checkbox
@@ -288,11 +288,11 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
               ))}
             </fieldset>
 
-            <fieldset className="grid grid-cols-2 gap-x-[12px] gap-y-[8px] p-0 border-0 collection-header-narrow:grid-cols-1">
-              <legend className="col-span-full w-full mb-[3px] px-[2px] text-muted text-[length:var(--type-caption)] font-semibold tracking-[0.04em] uppercase">
+            <fieldset className="grid grid-cols-2 gap-x-filter-choice-gap gap-y-control-gap p-0 border-0 collection-header-narrow:grid-cols-1">
+              <legend className="col-span-full w-full mb-filter-token-gap px-control-inset text-muted text-caption-size font-semibold tracking-field-label uppercase">
                 Other
               </legend>
-              <label className="flex items-center gap-[7px] min-h-[26px] text-text text-[length:var(--type-caption)] cursor-pointer">
+              <label className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer">
                 <Checkbox
                   className="m-checkbox-margin ml-checkbox-start"
                   checked={filters.favoritesOnly}
@@ -303,7 +303,7 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
                 />
                 <span>Favorites</span>
               </label>
-              <label className="flex items-center gap-[7px] min-h-[26px] text-text text-[length:var(--type-caption)] cursor-pointer">
+              <label className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer">
                 <Checkbox
                   className="m-checkbox-margin ml-checkbox-start"
                   checked={filters.missingMetadata}
@@ -314,7 +314,7 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
                 />
                 <span>Missing metadata</span>
               </label>
-              <label className="flex items-center gap-[7px] min-h-[26px] text-text text-[length:var(--type-caption)] cursor-pointer">
+              <label className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer">
                 <Checkbox
                   className="m-checkbox-margin ml-checkbox-start"
                   checked={filters.missingCover}
@@ -347,15 +347,15 @@ export function LibraryFilterTokens({
   }
 
   return (
-    <div className="flex flex-wrap gap-[7px]" aria-label="Active filters" role="group">
+    <div className="flex flex-wrap gap-field-label" aria-label="Active filters" role="group">
       {tokens.map((token) => (
         <span
-          className="inline-flex items-center gap-[3px] min-h-[28px] pl-[9px] pr-[3px] py-0 border-standard border-solid border-line rounded-pill text-text bg-surface text-[length:var(--type-caption)]"
+          className="inline-flex items-center gap-filter-token-gap min-h-filter-token-height pl-field-compact-inline pr-filter-token-gap py-0 border-standard border-solid border-line rounded-pill text-text bg-surface text-caption-size"
           key={token.id}
         >
           <span>{token.label}</span>
           <IconButton
-            className="size-[23px]"
+            className="size-filter-token-remove control-enabled:cursor-pointer"
             label={`Remove ${token.label} filter`}
             onClick={() => onChange(token.remove(filters))}
           >

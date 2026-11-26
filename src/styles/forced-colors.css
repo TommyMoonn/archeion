@@ -326,3 +326,13 @@
     forced-color-adjust: auto;
   }
 }
+
+@media (forced-colors: active) {
+  .book-card:is([data-selected], [data-inspected]) .book-cover {
+    border-color: Highlight;
+  }
+
+  .book-row[data-inspected] {
+    outline-color: Highlight;
+  }
+}

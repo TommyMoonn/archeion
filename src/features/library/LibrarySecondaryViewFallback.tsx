@@ -1,3 +1,4 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { Button } from "../../components/Button";
 import type { ComponentProps, ReactNode } from "react";
@@ -20,14 +21,18 @@ export function LibrarySecondaryViewFallback({
     <>
       {header}
       <div
-        className="collection-content library-content w-full"
+        className={`${collectionContent} library-content w-full`}
         aria-busy={!onRetry || undefined}
         data-surface-state={onRetry ? "error" : "loading"}
       >
         {onRetry ? (
           <>
             <p role="alert">This view could not be opened.</p>
-            <Button onClick={onRetry} variant="secondary">
+            <Button
+              className="control-enabled:cursor-pointer"
+              onClick={onRetry}
+              variant="secondary"
+            >
               Try again
             </Button>
           </>
@@ -61,7 +66,7 @@ export function SeriesDetailFallback({
           entry ? (
             <SeriesDetailHeader entry={entry} onBack={onBack} onRead={onRead} />
           ) : (
-            <Button onClick={onBack} variant="secondary">
+            <Button className="control-enabled:cursor-pointer" onClick={onBack} variant="secondary">
               Back to Series
             </Button>
           )

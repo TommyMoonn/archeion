@@ -153,7 +153,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   return (
     <aside
       aria-label="Library sidebar"
-      className="sidebar group/sidebar relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden py-sidebar-inset px-sidebar-collapsed-inset border-0 border-e border-solid border-line-subtle bg-surface-sidebar transition-colors duration-fast page-compact:py-field-standard-inline page-short:pt-sidebar-inset page-short:pb-field-standard-inline page-compact:page-short:pt-field-standard-inline data-collapsed:overflow-visible page-mobile:static page-mobile:grid page-mobile:sidebar-mobile-columns page-mobile:auto-rows-max page-mobile:items-center page-mobile:w-full page-mobile:h-auto page-mobile:max-h-sidebar-mobile page-mobile:overflow-y-auto page-mobile:py-field-inline page-mobile:px-collection-compact page-mobile:border-e-0 page-mobile:border-b"
+      className="sidebar group/sidebar relative flex h-full min-h-0 min-w-0 flex-col overflow-hidden py-sidebar-inset px-sidebar-collapsed-inset border-0 border-e border-solid border-line-subtle has-[.sidebar\_\_resize-handle:hover]:border-e-line has-[.sidebar\_\_resize-handle[data-resizing=true]]:border-e-line has-[.sidebar\_\_resize-handle:focus-visible]:border-e-focus! [&_:is(button,a,summary):focus-visible]:-outline-offset-2! bg-surface-sidebar transition-colors duration-fast page-compact:py-field-standard-inline page-short:pt-sidebar-inset page-short:pb-field-standard-inline page-compact:page-short:pt-field-standard-inline data-collapsed:overflow-visible page-mobile:static page-mobile:grid page-mobile:sidebar-mobile-columns page-mobile:auto-rows-max page-mobile:items-center page-mobile:w-full page-mobile:h-auto page-mobile:max-h-sidebar-mobile page-mobile:overflow-y-auto page-mobile:py-field-inline page-mobile:px-collection-compact page-mobile:border-e-0 page-mobile:border-b"
       data-collapsed={isCollapsed || undefined}
     >
       <nav
@@ -248,7 +248,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               <AppSelect
                 appearance="icon-only"
                 ariaLabel="Sort sidebar folders"
-                className="sidebar__folder-sort"
+                className="sidebar__folder-sort [&_.app-select\_\_trigger-icon]:sidebar-sort-icon [&_.app-select\_\_trigger]:border-transparent [&_.app-select\_\_trigger]:bg-transparent [&_.app-select\_\_trigger:hover]:border-transparent [&_.app-select\_\_trigger:hover]:text-text-strong [&_.app-select\_\_trigger:hover]:bg-surface-raised [&_.app-select\_\_trigger[aria-expanded=true]]:border-transparent [&_.app-select\_\_trigger[aria-expanded=true]]:text-text-strong [&_.app-select\_\_trigger[aria-expanded=true]]:bg-surface-raised"
                 onChange={onFolderSortChange}
                 options={folderSortOptions}
                 size="compact"
@@ -258,7 +258,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               {canManageFolders ? (
                 <IconButton
                   label="Create folder"
-                  className="size-control-compact"
+                  className="size-control-compact control-enabled:cursor-pointer"
                   onClick={onCreateFolder}
                 >
                   <Plus aria-hidden="true" />
@@ -300,6 +300,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         />
         <IconButton
           label="About Archeion"
+          className="control-enabled:cursor-pointer"
           onClick={onOpenAbout}
           tooltip="About Archeion"
           tooltipPlacement="top"
@@ -309,6 +310,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         <IconButton
           aria-keyshortcuts={settingsAriaKeyShortcuts}
           label="Settings"
+          className="control-enabled:cursor-pointer"
           onClick={onOpenSettings}
           tooltip="Settings"
           tooltipPlacement="top"

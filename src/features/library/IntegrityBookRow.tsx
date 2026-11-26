@@ -50,7 +50,7 @@ export function IntegrityBookRow({
     >
       <button
         aria-label={`Open details for ${title}`}
-        className="integrity-book-row__details flex items-center w-full min-w-0 gap-integrity-row-block py-control-gap ps-button-standard pe-[calc(var(--spacing-control-compact)+2*var(--spacing-button-standard))] border-0 bg-transparent text-start text-inherit cursor-pointer focus-visible:outline-offset-[-3px]!"
+        className="integrity-book-row__details flex items-center w-full min-w-0 gap-integrity-row-block py-control-gap ps-button-standard integrity-row-actions-inset border-0 bg-transparent text-start text-inherit cursor-pointer focus-visible:-outline-offset-3!"
         onClick={() => onOpenDetails(book)}
         onKeyDown={(event) => openContextMenuFromKeyboard(menu, event)}
         ref={detailsRef}

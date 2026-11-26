@@ -1,3 +1,4 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { ChevronRight, Layers } from "lucide-react";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, type Ref } from "react";
@@ -73,7 +74,7 @@ const SeriesOverviewCard = memo(function SeriesOverviewCard({
             {seriesProgressLabel(entry)}
           </span>
         </span>
-        <ChevronRight aria-hidden="true" className="text-muted-soft" size={17} />
+        <ChevronRight aria-hidden="true" className="text-muted-soft size-icon-glyph-medium" />
       </button>
     </article>
   );
@@ -169,7 +170,7 @@ export const SeriesOverview = memo(function SeriesOverview({
 
       <div
         aria-busy={surfaceState === "loading" || undefined}
-        className="collection-content series-overview__content"
+        className={`${collectionContent} series-overview__content`}
         data-surface-state={surfaceState}
       >
         {surfaceState === "loading" ? (
@@ -184,7 +185,7 @@ export const SeriesOverview = memo(function SeriesOverview({
           <EmptyState
             action={
               <Button
-                className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
+                className="control-enabled:cursor-pointer"
                 onClick={onClearSearch}
                 size="standard"
                 variant="secondary"

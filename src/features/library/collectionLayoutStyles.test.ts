@@ -7,19 +7,6 @@ const collectionContentStyles = readFileSync(
   new URL("../../styles/layout/collection-content.css", import.meta.url),
   "utf8",
 );
-const libraryStyles = readFileSync(
-  new URL("../../styles/features/library.css", import.meta.url),
-  "utf8",
-);
-const libraryWorkspaceSource = readFileSync(
-  new URL("./LibrarySecondaryViewFallback.tsx", import.meta.url),
-  "utf8",
-);
-const seriesOverviewSource = readFileSync(
-  new URL("../series/SeriesOverview.tsx", import.meta.url),
-  "utf8",
-);
-
 function cssBlock(source: string, selector: string): string {
   const selectorIndex = source.indexOf(selector);
   if (selectorIndex < 0) throw new Error(`Missing CSS selector: ${selector}`);
@@ -46,22 +33,6 @@ describe("collection content spacing ownership", () => {
     );
   });
 
-  it("routes the primary Library and Series views through the same content layout owner", () => {
-    expect(libraryWorkspaceSource).toMatch(
-      /className="collection-content library-content(?: [^"]*)?"/,
-    );
-    expect(seriesOverviewSource).toContain(
-      'className="collection-content series-overview__content"',
-    );
-  });
-
-  it("starts Library grid and list results from the shared parent-owned offset", () => {
-    expect(collectionContentStyles).toMatch(
-      /\.collection-content:not\(\.library-content--books\)\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
-    );
-    expect(libraryStyles).not.toMatch(/\.book-(?:grid|list)\s*\{[^}]*padding-top:/s);
-  });
-
   it("animates collection results without animating Library empty states", () => {
     const entrance = cssBlock(
       collectionContentStyles,
@@ -72,18 +43,5 @@ describe("collection content spacing ownership", () => {
     expect(collectionContentStyles).not.toContain(
       'html[data-motion="on"] .library-content--books,',
     );
-  });
-
-  it("keeps book state alignment inside a stable collection boundary", () => {
-    expect(collectionContentStyles).toMatch(
-      /\.collection-content:not\(\.library-content--books\)\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
-    );
-    expect(collectionContentStyles).toMatch(
-      /\.collection-content:not\(\.library-content--books\):is\([\s\S]*?\)\s*\{[^}]*align-content:\s*center;/s,
-    );
-    expect(collectionContentStyles).toMatch(
-      /\.collection-content > \.empty-state,\s*\.collection-content > \.collection-content__loading\s*\{[^}]*justify-self:\s*center;[^}]*margin:\s*0;/s,
-    );
-    expect(collectionContentStyles).not.toContain("margin-top: clamp(48px, 10vh, 110px)");
   });
 });

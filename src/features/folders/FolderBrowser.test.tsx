@@ -136,7 +136,7 @@ describe("FolderBrowser", () => {
     expect(markup).toContain("input-shell--standard");
     expect(markup).toContain('spellCheck="false"');
     expect(markup).toContain('aria-labelledby="folder-browser-title"');
-    expect(markup).toContain('<h1 id="folder-browser-title">Folders</h1>');
+    expect(markup).toMatch(/<h1\b[^>]*\bid="folder-browser-title"[^>]*>Folders<\/h1>/u);
     expect(markup).toContain('aria-label="Folder search"');
     expect(markup).toContain('role="search"');
   });

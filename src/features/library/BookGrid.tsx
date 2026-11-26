@@ -72,7 +72,7 @@ export const BookGrid = memo(function BookGrid({
   return (
     <section
       ref={collectionRef}
-      className="book-grid collection-content__items grid w-full self-start grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-[20px] gap-y-[28px] pb-[32px] data-[book-card-size=small]:grid-cols-[repeat(auto-fill,minmax(120px,1fr))] data-[book-card-size=large]:grid-cols-[repeat(auto-fill,minmax(190px,1fr))] page-mobile:data-[book-card-size=medium]:grid-cols-[repeat(2,minmax(0,1fr))] page-mobile:gap-x-[14px] page-mobile:gap-y-[24px] page-compact:gap-x-[18px] page-compact:gap-y-[22px] page-compact:pb-[28px]"
+      className="book-grid collection-content__items grid w-full self-start book-grid-medium gap-x-collection-comfortable gap-y-book-grid-row-gap pb-book-grid-bottom data-[book-card-size=small]:book-grid-small data-[book-card-size=large]:book-grid-large page-mobile:data-[book-card-size=medium]:grid-cols-2 page-mobile:gap-x-button-standard page-mobile:gap-y-book-grid-narrow-row-gap page-compact:gap-x-book-grid-compact-inline-gap page-compact:gap-y-book-grid-compact-row-gap page-compact:pb-book-grid-compact-bottom"
       data-book-card-size={cardSize}
       aria-label="Books"
       aria-busy={preparingReturn || undefined}
@@ -84,7 +84,7 @@ export const BookGrid = memo(function BookGrid({
       data-window-total={books.length}
     >
       <div
-        className="book-grid__window col-span-full grid min-w-0 [grid-template-columns:inherit] [gap:inherit]"
+        className="book-grid__window col-span-full grid min-w-0 grid-cols-inherit gap-inherit"
         style={{ paddingBlockStart: range.topSpacer, paddingBlockEnd: range.bottomSpacer }}
       >
         {retainedBooks.map((book, retainedIndex) => (

@@ -39,6 +39,18 @@ test("populated Library grid and list fill the same width as their toolbar", asy
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto(`${fixture}?count=50&motion=off`, { waitUntil: "domcontentloaded" });
   await expect(page.locator(".book-grid")).toHaveAttribute("data-window-total", "50");
+  await expect(page.locator(".library-result-count")).toHaveCSS(
+    "font-variant-numeric",
+    "tabular-nums",
+  );
+
+  for (const label of ["Create folder", "About Archeion", "Settings"]) {
+    await expect(page.getByRole("button", { name: label, exact: true })).toHaveCSS(
+      "cursor",
+      "pointer",
+    );
+  }
+  await expect(page.locator(".book-favorite").first()).toHaveCSS("cursor", "pointer");
 
   for (const view of ["grid", "list"] as const) {
     await page.evaluate((nextView) => window.uiStabilityFixture.setView(nextView), view);
@@ -124,6 +136,9 @@ test("bulk action menu preserves selection and hands focus back from the metadat
   await page.getByRole("button", { name: "Select books", exact: true }).click();
   await page.getByRole("button", { name: "Select all", exact: true }).click();
   const bar = page.getByRole("group", { name: "Book selection actions" });
+  const statusIcon = bar.locator(".library-selection-bar__status-icon");
+  await expect(statusIcon).toHaveCSS("width", "20px");
+  await expect(statusIcon).toHaveCSS("height", "20px");
   const trigger = bar.getByRole("button", { name: "More bulk actions" });
   const menu = page.getByRole("menu", { name: "More bulk actions" });
   await trigger.focus();

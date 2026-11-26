@@ -1,3 +1,5 @@
+import { cn } from "../../utils/cn";
+import { collectionHeader, collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { Folder as FolderIcon, FolderPlus, Grid2x2, List, Search, Pencil, X } from "lucide-react";
 import {
@@ -162,7 +164,7 @@ const FolderBrowserItem = memo(function FolderBrowserItem({
           className={`folder-browser__item-actions absolute z-2 flex items-center gap-folder-action-gap ${cards ? "top-folder-inset end-folder-inset" : "top-1/2 end-control-gap -translate-y-1/2"}`}
         >
           <IconButton
-            className="folder-browser__rename"
+            className="folder-browser__rename control-enabled:cursor-pointer"
             label={`Rename ${folder.name}`}
             onClick={() => onRename(folder)}
           >
@@ -241,16 +243,20 @@ export const FolderBrowser = memo(function FolderBrowser({
       aria-labelledby="folder-browser-title"
       className="folder-browser mx-auto w-full min-w-0 max-w-collection-workspace"
     >
-      <header className="library-header folder-browser__header w-full min-w-0 max-w-none">
+      <header className={cn(collectionHeader.root, "folder-browser__header w-full min-w-0")}>
         <div className="library-header__title folder-browser__title">
-          <p className="eyebrow">Library folders</p>
-          <h1 id="folder-browser-title">Folders</h1>
+          <p className={collectionHeader.eyebrow}>Library folders</p>
+          <h1 className={collectionHeader.title} id="folder-browser-title">
+            Folders
+          </h1>
         </div>
 
-        <div className="library-header__actions library-header__actions--primary-only folder-browser__actions min-w-0 max-w-full">
+        <div
+          className={`${collectionHeader.actions} ${collectionHeader.actionsPrimary} folder-browser__actions min-w-0 max-w-full`}
+        >
           <div
             aria-label="Folder search"
-            className="library-search folder-browser__search"
+            className={`${collectionHeader.search} folder-browser__search`}
             role="search"
           >
             <Input
@@ -271,7 +277,7 @@ export const FolderBrowser = memo(function FolderBrowser({
             />
             {query ? (
               <IconButton
-                className="library-search__clear"
+                className={collectionHeader.clear}
                 label="Clear folder search"
                 onClick={() => setQuery("")}
               >
@@ -281,9 +287,9 @@ export const FolderBrowser = memo(function FolderBrowser({
           </div>
           {canManageFolders && onCreate ? (
             <>
-              <span aria-hidden="true" className="library-header__action-divider" />
+              <span aria-hidden="true" className={collectionHeader.divider} />
               <Button
-                className="folder-browser__add-button rounded-control"
+                className="folder-browser__add-button rounded-control control-enabled:cursor-pointer"
                 icon={<FolderPlus aria-hidden="true" />}
                 onClick={onCreate}
                 size="standard"
@@ -294,15 +300,19 @@ export const FolderBrowser = memo(function FolderBrowser({
           ) : null}
         </div>
 
-        <div className="library-controls folder-browser__controls box-border w-full min-w-0 max-w-none">
+        <div
+          className={`${collectionHeader.controls} folder-browser__controls box-border w-full min-w-0 max-w-none`}
+        >
           <span
             aria-label={`${visibleEntries.length} ${visibleEntries.length === 1 ? "folder" : "folders"} shown`}
             aria-live="polite"
-            className="library-result-count"
+            className={collectionHeader.count}
           >
             {visibleEntries.length} {visibleEntries.length === 1 ? "folder" : "folders"}
           </span>
-          <div className="library-controls__display flex-initial flex-nowrap min-w-0 max-w-full justify-end [&>.segmented-control]:flex-none">
+          <div
+            className={`${collectionHeader.display} flex-initial flex-nowrap min-w-0 max-w-full justify-end [&>.segmented-control]:flex-none`}
+          >
             <AppSelect
               ariaLabel="Sort folders"
               className="folder-sort-select folder-sort-basis min-w-select-trigger max-w-full"
@@ -323,7 +333,7 @@ export const FolderBrowser = memo(function FolderBrowser({
 
       <div
         aria-busy={surfaceState === "loading" || undefined}
-        className="collection-content folder-browser__content w-full min-w-0"
+        className={`${collectionContent} folder-browser__content w-full min-w-0`}
         data-surface-state={surfaceState}
         key={surfaceKey}
       >
@@ -333,7 +343,11 @@ export const FolderBrowser = memo(function FolderBrowser({
           <EmptyState
             action={
               query ? (
-                <Button variant="secondary" onClick={() => setQuery("")}>
+                <Button
+                  className="control-enabled:cursor-pointer"
+                  variant="secondary"
+                  onClick={() => setQuery("")}
+                >
                   Clear search
                 </Button>
               ) : undefined

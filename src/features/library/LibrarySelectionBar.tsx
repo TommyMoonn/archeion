@@ -108,22 +108,21 @@ export function LibrarySelectionBar({
 
   return (
     <div
-      className="library-selection-bar flex items-center justify-between gap-[18px] w-full max-w-collection-workspace min-h-[52px] py-[8px] ps-[14px] pe-[10px] m-0 border-standard border-solid border-line rounded-menu bg-surface page-mobile:items-stretch page-mobile:flex-col page-mobile:gap-[4px] page-mobile:p-[10px]"
+      className="library-selection-bar flex items-center justify-between gap-selection-bar-gap w-full max-w-collection-workspace min-h-selection-bar-height py-control-gap ps-button-standard pe-field-standard-inline m-0 border-standard border-solid border-line rounded-menu bg-surface page-mobile:items-stretch page-mobile:flex-col page-mobile:gap-folder-action-gap page-mobile:p-field-standard-inline"
       role="group"
       aria-label="Book selection actions"
     >
-      <div className="library-selection-bar__primary flex items-center min-w-0 gap-[14px] page-mobile:justify-between page-mobile:w-full">
+      <div className="library-selection-bar__primary flex items-center min-w-0 gap-button-standard page-mobile:justify-between page-mobile:w-full">
         <div
-          className="library-selection-bar__status flex items-center min-w-0 gap-[8px] page-mobile:min-h-[30px] page-mobile:px-[6px]"
+          className="library-selection-bar__status flex items-center min-w-0 gap-control-gap page-mobile:min-h-selection-status-height page-mobile:px-control-gap-compact"
           aria-live="polite"
         >
           <SquareCheckBig
             aria-hidden="true"
-            className="library-selection-bar__status-icon flex-none text-text-strong"
-            size={20}
+            className="library-selection-bar__status-icon flex-none text-text-strong size-icon-glyph-prominent"
             strokeWidth={2.25}
           />
-          <strong className="text-text-strong [font-size:var(--type-body)] whitespace-nowrap">
+          <strong className="text-text-strong text-body-only whitespace-nowrap">
             {selectedCount} selected
           </strong>
           <span className="sr-only">
@@ -132,9 +131,9 @@ export function LibrarySelectionBar({
               : `${visibleSelectedCount} selected in this view.`}
           </span>
         </div>
-        <div className="library-selection-bar__bulk-actions flex items-center gap-[2px]">
+        <div className="library-selection-bar__bulk-actions flex items-center gap-control-inset">
           <IconButton
-            className="library-selection-bar__icon-action focus-visible:text-text-strong focus-visible:bg-surface-hover"
+            className="library-selection-bar__icon-action control-enabled:cursor-pointer focus-visible:text-text-strong focus-visible:bg-surface-hover"
             disabled={selectedCount === 0 || busy}
             disabledReason={busy ? "Wait for the current action to finish" : "Select a book first"}
             label="Add selected books to favorites"
@@ -151,7 +150,7 @@ export function LibrarySelectionBar({
             <Heart aria-hidden="true" />
           </IconButton>
           <IconButton
-            className="library-selection-bar__icon-action focus-visible:text-text-strong focus-visible:bg-surface-hover"
+            className="library-selection-bar__icon-action control-enabled:cursor-pointer focus-visible:text-text-strong focus-visible:bg-surface-hover"
             disabled={selectedCount === 0 || busy}
             disabledReason={busy ? "Wait for the current action to finish" : "Select a book first"}
             label="Move selected books"
@@ -202,7 +201,7 @@ export function LibrarySelectionBar({
                 container={portalContainer ?? undefined}
                 align="end"
                 sideOffset={7}
-                className="library-selection-actions-menu min-w-[min(205px,calc(100vw-var(--spacing-overlay-viewport-inset)))]"
+                className="library-selection-actions-menu min-w-selection-menu-min"
               >
                 <PrimitiveMenuItem
                   point={false}
@@ -275,9 +274,9 @@ export function LibrarySelectionBar({
           </DropdownMenu>
         </div>
       </div>
-      <div className="library-selection-bar__actions flex items-center flex-none flex-wrap justify-end gap-[6px] page-mobile:self-end">
+      <div className="library-selection-bar__actions flex items-center flex-none flex-wrap justify-end gap-control-gap-compact page-mobile:self-end">
         <Button
-          className="[&:not(:disabled)]:cursor-pointer"
+          className="control-enabled:cursor-pointer"
           disabled={visibleCount === 0 || busy}
           onClick={allVisibleSelected ? onDeselectVisible : onSelectVisible}
           size="compact"
@@ -286,7 +285,7 @@ export function LibrarySelectionBar({
           {allVisibleSelected ? "Deselect all" : "Select all"}
         </Button>
         <Button
-          className="[&:not(:disabled)]:cursor-pointer"
+          className="control-enabled:cursor-pointer"
           disabled={selectedCount === 0 || busy}
           onClick={onClear}
           size="compact"
@@ -295,7 +294,7 @@ export function LibrarySelectionBar({
           Clear
         </Button>
         <Button
-          className="[&:not(:disabled)]:cursor-pointer"
+          className="control-enabled:cursor-pointer"
           disabled={busy}
           onClick={onExit}
           ref={exitButtonRef}

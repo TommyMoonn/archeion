@@ -88,15 +88,15 @@ export function EpubIssueDetails({ issues }: Readonly<{ issues: EpubDiagnostics[
           const Icon = error ? CircleAlert : TriangleAlert;
           return (
             <li
-              className="epub-issue-detail grid grid-cols-[var(--spacing-integrity-row-gap)_minmax(0,1fr)] items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 p-integrity-row-block border-standard border-solid border-line rounded-control bg-surface-main group/issue"
+              className="epub-issue-detail grid integrity-diagnostic-columns items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 p-integrity-row-block border-standard border-solid border-line rounded-control bg-surface-main group/issue"
               data-issue-code={issue.code}
               data-severity={issue.severity}
               key={`${issue.code}:${issue.resourcePath ?? ""}:${index}`}
             >
               <span
-                className={`epub-issue-detail__severity inline-flex items-center self-center justify-self-center text-warning leading-[0] group-data-[severity=error]/issue:text-error ${issue.resourcePath ? "row-span-2" : ""}`}
+                className={`epub-issue-detail__severity inline-flex items-center self-center justify-self-center text-warning leading-0 group-data-[severity=error]/issue:text-error ${issue.resourcePath ? "row-span-2" : ""}`}
               >
-                <Icon aria-hidden="true" size={17} />
+                <Icon aria-hidden="true" className="size-icon-glyph-medium" />
                 <span className="sr-only">{error ? "Error" : "Warning"}</span>
               </span>
               <p className="m-0 text-text text-body-only wrap-anywhere">
@@ -104,7 +104,7 @@ export function EpubIssueDetails({ issues }: Readonly<{ issues: EpubDiagnostics[
               </p>
               {issue.resourcePath ? (
                 <dl className="epub-issue-detail__context col-start-2 min-w-0 m-0">
-                  <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-control-gap [@media(max-width:680px)]:grid-cols-1 [@media(max-width:680px)]:gap-control-inset">
+                  <div className="grid integrity-resource-columns gap-control-gap [@media(max-width:680px)]:grid-cols-1 [@media(max-width:680px)]:gap-control-inset">
                     <dt className="text-muted text-caption-size">EPUB resource</dt>
                     <dd className="min-w-0 m-0 wrap-anywhere text-muted text-caption-size">
                       <code className="font-mono">{issue.resourcePath}</code>

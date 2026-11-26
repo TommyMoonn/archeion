@@ -1,3 +1,4 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { Alert } from "../../components/ui/alert";
 import {
   Collapsible,
@@ -68,13 +69,13 @@ function EpubIssueBook({
           >
             {errorCount > 0 ? (
               <span data-severity="error">
-                <CircleAlert aria-hidden="true" size={14} />
+                <CircleAlert aria-hidden="true" className="size-icon-glyph-compact" />
                 {countLabel(errorCount, "error")}
               </span>
             ) : null}
             {warningCount > 0 ? (
               <span data-severity="warning">
-                <TriangleAlert aria-hidden="true" size={14} />
+                <TriangleAlert aria-hidden="true" className="size-icon-glyph-compact" />
                 {countLabel(warningCount, "warning")}
               </span>
             ) : null}
@@ -95,12 +96,11 @@ function EpubIssueBook({
       </IntegrityBookRow>
 
       <Collapsible className="epub-issues-book__disclosure border-0 border-t border-solid border-line">
-        <CollapsibleTrigger className="group flex w-full items-center justify-between min-h-control-standard gap-control-gap px-button-standard py-control-gap border-0 text-muted bg-transparent text-start text-meta font-medium cursor-pointer hover:bg-surface-shell-hover hover:text-text-strong aria-expanded:text-text-strong focus-visible:outline-offset-[-3px]!">
+        <CollapsibleTrigger className="group flex w-full items-center justify-between min-h-control-standard gap-control-gap px-button-standard py-control-gap border-0 text-muted bg-transparent text-start text-meta font-medium cursor-pointer hover:bg-surface-shell-hover hover:text-text-strong aria-expanded:text-text-strong focus-visible:-outline-offset-3!">
           <span>{`View ${countLabel(issueCount, "diagnostic issue")}`}</span>
           <ChevronDown
             aria-hidden="true"
-            className="shrink-0 text-muted motion-safe:transition-transform duration-fast ease-standard group-aria-expanded:rotate-180"
-            size={16}
+            className="size-icon-glyph-standard shrink-0 text-muted motion-safe:transition-transform duration-fast ease-standard group-aria-expanded:rotate-180"
           />
         </CollapsibleTrigger>
         <CollapsibleContent keepMounted>
@@ -146,7 +146,7 @@ export function LibraryEpubIssuesView({
 
       <div
         aria-busy={initialLoading || refreshing || undefined}
-        className="collection-content epub-issues-content grid gap-integrity-gap"
+        className={`${collectionContent} epub-issues-content grid gap-integrity-gap`}
         data-surface-state={
           initialLoading
             ? "loading"
@@ -158,7 +158,7 @@ export function LibraryEpubIssuesView({
         }
       >
         {state.status === "error" && snapshot ? (
-          <Alert className="epub-issues-error static grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-integrity-row-block gap-y-control-gap-compact px-integrity-alert-inline py-integrity-alert-block border-standard border-solid border-danger-border rounded-control text-error bg-danger-soft text-meta-only [@media(max-width:680px)]:grid-cols-1 [&>span]:text-muted">
+          <Alert className="epub-issues-error static grid integrity-alert-columns gap-x-integrity-row-block gap-y-control-gap-compact px-integrity-alert-inline py-integrity-alert-block border-standard border-solid border-danger-border rounded-control text-error bg-danger-soft text-meta-only [@media(max-width:680px)]:grid-cols-1 [&>span]:text-muted">
             <strong>EPUB diagnostics could not be refreshed.</strong>
             <span>{state.error?.message ?? "Try refreshing the diagnostics again."}</span>
           </Alert>

@@ -20,19 +20,19 @@ export const ContinueReading = memo(function ContinueReading({
 
   return (
     <section
-      className="continue-reading mx-auto w-full max-w-collection-workspace border-0 border-b border-solid border-line pb-[22px]"
+      className="continue-reading mx-auto w-full max-w-collection-workspace border-0 border-b border-solid border-line pb-resume-bottom"
       aria-labelledby="continue-title"
     >
-      <div className="continue-reading__heading mb-[16px] flex min-h-[20px] items-baseline gap-[9px]">
+      <div className="continue-reading__heading mb-resume-heading-gap flex min-h-resume-heading-height items-baseline gap-input-gap">
         <h2
           id="continue-title"
-          className="m-0 text-text-strong text-body font-semibold leading-[1.4]"
+          className="m-0 text-text-strong text-body font-semibold leading-collection-copy"
         >
           Continue reading
         </h2>
         <span className="text-muted text-caption leading-inherit">{books.length}</span>
       </div>
-      <div className="continue-reading__track grid grid-cols-[repeat(auto-fill,minmax(220px,260px))] justify-start gap-[9px] page-mobile:grid-cols-[1fr]">
+      <div className="continue-reading__track grid resume-grid justify-start gap-input-gap page-mobile:collection-single-column">
         {books.map((book) => (
           <ContinueReadingBook book={book} key={book.id} onContinue={onContinue} />
         ))}
@@ -56,7 +56,7 @@ export function ContinueReadingBook({
       <button
         aria-describedby={missing ? missingDescriptionId : undefined}
         aria-disabled={missing || undefined}
-        className="continue-book grid min-w-0 cursor-pointer grid-cols-[42px_minmax(0,1fr)_auto] items-center gap-[10px] rounded-control border-standard border-solid border-line bg-[color-mix(in_srgb,var(--surface)_46%,transparent)] p-[8px] text-start text-text [&:hover]:border-line-strong [&:hover]:bg-surface-raised"
+        className="continue-book grid min-w-0 cursor-pointer resume-card-columns items-center gap-field-standard-inline rounded-control border-standard border-solid border-line bg-resume-card p-control-gap text-start text-text [&:hover]:border-line-strong [&:hover]:bg-surface-raised"
         data-reader-book-id={book.id}
         onClick={(event) => {
           if (missing) {
@@ -68,8 +68,8 @@ export function ContinueReadingBook({
         }}
         type="button"
       >
-        <BookCover book={book} className="book-cover--continue w-[42px]" />
-        <span className="continue-book__copy grid min-w-0 gap-[3px]">
+        <BookCover book={book} className="book-cover--continue w-book-row-cover" />
+        <span className="continue-book__copy grid min-w-0 gap-integrity-copy-gap">
           <strong
             className="truncate text-text-strong text-caption font-bold leading-inherit"
             title={bookTitle(book)}
@@ -90,7 +90,7 @@ export function ContinueReadingBook({
             </span>
           ) : null}
         </span>
-        <ArrowRight aria-hidden="true" className="text-muted-soft" size={17} />
+        <ArrowRight aria-hidden="true" className="text-muted-soft size-icon-glyph-medium" />
       </button>
       {missing ? (
         <span className="sr-only" id={missingDescriptionId}>

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const libraryStyles = readFileSync(
-  new URL("../../styles/features/library.css", import.meta.url),
+  new URL("../../styles/layout/collection-content.css", import.meta.url),
   "utf8",
 );
 

@@ -121,7 +121,7 @@ function BookRowComponent({
 
   return (
     <article
-      className="book-row group/row relative min-w-0 border-0 border-b border-solid border-line first:border-t data-[selected=true]:bg-accent-soft data-[selected=true]:[box-shadow:inset_3px_0_var(--accent)] data-[inspected=true]:outline-2 data-[inspected=true]:outline-solid data-[inspected=true]:outline-accent data-[inspected=true]:outline-offset-2 [&:has(.book-menu[data-open])]:z-[3]"
+      className="book-row group/row relative min-w-0 border-0 border-b border-solid border-line first:border-t data-[selected=true]:bg-accent-soft data-[selected=true]:shadow-book-row-selected data-[inspected=true]:outline-2 data-[inspected=true]:outline-solid data-[inspected=true]:outline-accent data-[inspected=true]:outline-offset-2 [&:has(.book-menu[data-open])]:z-3"
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
@@ -133,19 +133,19 @@ function BookRowComponent({
         aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : undefined}
         aria-pressed={selectionMode ? selected : inspected}
-        className="book-row__select grid grid-cols-[42px_minmax(180px,1.2fr)_minmax(150px,1fr)_120px] collection-viewport-stacked:grid-cols-[42px_minmax(0,1fr)_110px] collection-viewport-stacked:page-narrow:grid-cols-[42px_minmax(0,1fr)] items-center gap-[16px] w-full min-h-[74px] py-[9px] ps-[10px] pe-[124px] border-none text-inherit bg-transparent text-start cursor-pointer transition-[background] duration-standard ease-standard hover:bg-surface-shell-hover [content-visibility:auto] [contain-intrinsic-size:auto_74px]"
+        className="book-row__select grid book-row-columns collection-viewport-stacked:book-row-columns-stacked collection-viewport-stacked:page-narrow:book-row-columns-narrow items-center gap-collection-compact w-full min-h-book-row-height py-field-standard-block ps-field-standard-inline pe-book-row-actions border-none text-inherit bg-transparent text-start cursor-pointer transition-book-row duration-standard ease-standard hover:bg-surface-shell-hover book-row-deferred-layout"
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
         ref={primaryActionRef}
         type="button"
       >
-        <BookCover book={book} className="book-cover--row w-[42px] rounded-small" />
+        <BookCover book={book} className="book-cover--row w-book-row-cover rounded-small" />
         <span className="book-row__identity min-w-0">
           <strong className="block truncate text-text text-body font-semibold leading-inherit">
             {title}
           </strong>
           {author ? (
-            <span className="mt-[5px] block truncate text-muted text-meta font-normal leading-inherit">
+            <span className="mt-book-copy-gap block truncate text-muted text-meta font-normal leading-inherit">
               {author}
             </span>
           ) : null}
@@ -167,7 +167,7 @@ function BookRowComponent({
       ) : null}
       {canManageFile && !book.isFileMissing && onRenameFile ? (
         <IconButton
-          className="book-row__rename absolute top-1/2 end-[78px] [transform:translateY(-50%)] text-muted group-data-[selection-mode=true]/row:invisible group-data-[selection-mode=true]/row:pointer-events-none"
+          className="book-row__rename control-enabled:cursor-pointer absolute top-1/2 end-book-row-rename-end -translate-y-1/2 text-muted group-data-[selection-mode=true]/row:invisible group-data-[selection-mode=true]/row:pointer-events-none"
           label={`Rename file for ${bookTitle(book)}`}
           onClick={() => onRenameFile(book)}
         >
@@ -176,7 +176,7 @@ function BookRowComponent({
       ) : null}
       <IconButton
         aria-pressed={book.isFavorite}
-        className="book-row__favorite absolute top-1/2 end-[45px] [transform:translateY(-50%)] text-muted data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/row:invisible group-data-[selection-mode=true]/row:pointer-events-none"
+        className="book-row__favorite control-enabled:cursor-pointer absolute top-1/2 end-book-row-favorite-end -translate-y-1/2 text-muted data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/row:invisible group-data-[selection-mode=true]/row:pointer-events-none"
         data-active={book.isFavorite || undefined}
         label={`Favorite ${title}`}
         onClick={() => onToggleFavorite(book)}
@@ -252,7 +252,7 @@ export const BookList = memo(function BookList({
   return (
     <section
       ref={collectionRef}
-      className="book-list collection-content__items grid self-start w-full pb-[40px]"
+      className="book-list collection-content__items grid self-start w-full pb-book-row-bottom"
       aria-label="Books"
       aria-busy={preparingReturn || undefined}
       inert={preparingReturn || undefined}

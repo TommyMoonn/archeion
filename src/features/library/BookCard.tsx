@@ -114,7 +114,7 @@ function BookCardComponent({
 
   return (
     <article
-      className="book-card group/card relative min-w-0 [&:has(.book-menu[data-open])]:z-[3]"
+      className="book-card group/card relative min-w-0 [&:has(.book-menu[data-open])]:z-3"
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
@@ -127,11 +127,11 @@ function BookCardComponent({
         aria-label={selectionMode ? `Select ${title}` : `View details for ${title}`}
         aria-pressed={selectionMode ? selected : inspected}
         className={[
-          "book-card__select block w-full cursor-pointer border-none bg-transparent p-0 text-start text-inherit [content-visibility:auto] [contain-intrinsic-size:auto_360px]",
+          "book-card__select block w-full cursor-pointer border-none bg-transparent p-0 text-start text-inherit book-card-deferred-layout",
           selected || inspected
-            ? "[&_.book-cover]:border-[2px] [&_.book-cover]:border-accent"
+            ? "[&_.book-cover]:border-2 [&_.book-cover]:border-accent"
             : "[&:hover_.book-cover]:border-line-strong",
-          selectionMode ? "" : "[&:hover_.book-cover]:[transform:translateY(-1px)]",
+          selectionMode ? "" : "[&:hover_.book-cover]:book-cover-lift",
         ].join(" ")}
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
@@ -142,18 +142,18 @@ function BookCardComponent({
           {progressPercent === null ? null : (
             <Badge
               variant="cover-overlay"
-              className="book-card__progress-badge pointer-events-none absolute end-[8px] bottom-[8px] z-[1] min-h-[22px]"
+              className="book-card__progress-badge pointer-events-none absolute end-book-menu-card-inset bottom-book-menu-card-inset z-1 min-h-cover-progress-height"
             >
               {progressPercent}%
             </Badge>
           )}
         </BookCover>
-        <span className="book-card__copy block h-[78px] overflow-hidden px-[2px] pt-[13px]">
-          <strong className="m-0 line-clamp-2 text-ellipsis h-[2.8em] text-text text-body font-semibold leading-[1.4]">
+        <span className="book-card__copy block h-book-card-copy-height overflow-hidden px-control-inset pt-book-card-copy-top">
+          <strong className="m-0 line-clamp-2 text-ellipsis h-book-card-title-height text-text text-body font-semibold leading-collection-copy">
             {title}
           </strong>
           {author ? (
-            <span className="mt-[5px] block truncate text-muted text-meta leading-inherit">
+            <span className="mt-book-copy-gap block truncate text-muted text-meta leading-inherit">
               {author}
             </span>
           ) : null}
@@ -169,7 +169,7 @@ function BookCardComponent({
       ) : null}
       <IconButton
         aria-pressed={book.isFavorite}
-        className="book-favorite absolute top-[8px] left-[8px] z-[2] border-[color-mix(in_srgb,var(--text)_11%,transparent)] bg-[color-mix(in_srgb,var(--canvas-deep)_88%,transparent)] text-text opacity-0 group-hover/card:opacity-100 hover:opacity-100 focus-visible:opacity-100 data-[active=true]:opacity-100 data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/card:pointer-events-none group-data-[selection-mode=true]/card:invisible [@media(hover:none)]:opacity-100"
+        className="book-favorite control-enabled:cursor-pointer absolute top-book-menu-card-inset left-book-menu-card-inset z-2 border-book-menu-border bg-book-menu-surface text-text opacity-0 group-hover/card:opacity-100 hover:opacity-100 focus-visible:opacity-100 data-[active=true]:opacity-100 data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/card:pointer-events-none group-data-[selection-mode=true]/card:invisible [@media(hover:none)]:opacity-100"
         data-active={book.isFavorite || undefined}
         label={`Favorite ${title}`}
         onClick={() => onToggleFavorite(book)}

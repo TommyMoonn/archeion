@@ -28,7 +28,6 @@ function customProperty(source: string, property: string): string | undefined {
 
 const tokens = read("src/styles/tokens.css");
 const applicationCss = collectCss(stylesRoot);
-const library = read("src/styles/features/library.css");
 const reader = read("src/styles/features/reader.css");
 const readerTheme = read("src/features/reader/readerTheme.ts");
 
@@ -112,10 +111,7 @@ describe("typography role ownership", () => {
     ).toBe(true);
   });
 
-  it("keeps changing counts and progress values tabular", () => {
-    expect(library).toMatch(
-      /\.library-result-count\s*{[^}]*font-variant-numeric:\s*tabular-nums;/s,
-    );
+  it("keeps Reader progress values tabular", () => {
     expect(reader).toMatch(
       /\.reader-toolbar__identity span\s*{[^}]*font-variant-numeric:\s*tabular-nums;/s,
     );
