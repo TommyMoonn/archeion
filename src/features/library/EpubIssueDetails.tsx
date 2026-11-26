@@ -81,17 +81,14 @@ function epubDiagnosticIssueMessage(issue: EpubDiagnosticIssue): string {
 
 export function EpubIssueDetails({ issues }: Readonly<{ issues: EpubDiagnostics["issues"] }>) {
   return (
-    <section
-      aria-label="Diagnostic details"
-      className="epub-issue-details pb-control-gap px-button-standard"
-    >
+    <section aria-label="Diagnostic details" className="epub-issue-details p-button-standard">
       <ol className="epub-issue-details__list grid gap-control-gap-compact m-0 p-0 list-none">
         {issues.map((issue, index) => {
           const error = issue.severity === "error";
           const Icon = error ? CircleAlert : TriangleAlert;
           return (
             <li
-              className="epub-issue-detail grid grid-cols-[var(--spacing-integrity-row-gap)_minmax(0,1fr)] items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 py-control-gap px-control-gap border-standard border-solid border-line rounded-control bg-surface group/issue"
+              className="epub-issue-detail grid grid-cols-[var(--spacing-integrity-row-gap)_minmax(0,1fr)] items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 p-integrity-row-block border-standard border-solid border-line rounded-control bg-surface-main group/issue"
               data-issue-code={issue.code}
               data-severity={issue.severity}
               key={`${issue.code}:${issue.resourcePath ?? ""}:${index}`}

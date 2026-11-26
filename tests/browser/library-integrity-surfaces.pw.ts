@@ -83,6 +83,34 @@ for (const theme of ["", "&light", "&themeStress=distinct"]) {
     expect(await detail.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(
       true,
     );
+    const [panelBounds, detailBounds, severityBounds] = await Promise.all([
+      details.boundingBox(),
+      detail.boundingBox(),
+      detail.locator(".epub-issue-detail__severity").boundingBox(),
+    ]);
+    const insets = [
+      detailBounds!.x - panelBounds!.x,
+      detailBounds!.y - panelBounds!.y,
+      panelBounds!.x + panelBounds!.width - detailBounds!.x - detailBounds!.width,
+      panelBounds!.y + panelBounds!.height - detailBounds!.y - detailBounds!.height,
+    ];
+    expect(Math.min(...insets)).toBeGreaterThan(0);
+    expect(Math.max(...insets) - Math.min(...insets)).toBeLessThanOrEqual(1);
+    const innerInsets = await detail.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft].map(
+        parseFloat,
+      );
+    });
+    expect(Math.min(...innerInsets)).toBeGreaterThan(0);
+    expect(Math.max(...innerInsets) - Math.min(...innerInsets)).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(
+        severityBounds!.y +
+          severityBounds!.height / 2 -
+          (detailBounds!.y + detailBounds!.height / 2),
+      ),
+    ).toBeLessThanOrEqual(1);
     await expect(
       page.locator("article").nth(1).getByRole("button", { name: "View 1 diagnostic issue" }),
     ).toHaveAttribute("aria-expanded", "false");
