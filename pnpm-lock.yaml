@@ -33,8 +33,8 @@ importers:
         specifier: ^0.3.93
         version: 0.3.93
       lucide-react:
-        specifier: ^1.73.0
-        version: 1.73.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.77.0
+        version: 1.77.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -42,11 +42,11 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
       react-router-dom:
-        specifier: ^7.18.5
-        version: 7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: ^7.18.6
+        version: 7.18.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       tailwind-merge:
-        specifier: 3.7.0
-        version: 3.7.0
+        specifier: 3.7.1
+        version: 3.7.1
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -145,8 +145,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       lucide-react:
-        specifier: ^1.73.0
-        version: 1.73.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^1.77.0
+        version: 1.77.0(@types/react@19.3.0)(react@19.3.1)
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -154,8 +154,8 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
       tailwind-merge:
-        specifier: ^3.7.0
-        version: 3.7.0
+        specifier: ^3.7.1
+        version: 3.7.1
     devDependencies:
       '@docusaurus/module-type-aliases':
         specifier: 3.10.2
@@ -878,6 +878,10 @@ packages:
 
   '@babel/runtime@7.29.14':
     resolution: {integrity: sha512-Y5tqevQaUAZhhj82BpYMNC1ssvLQTVAfwKdm8iy8qwmhvC2/CpcAu8OC+QEtjM7pMk7knx83u1Qj8gzkicyelw==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.29.15':
+    resolution: {integrity: sha512-304gsbbGVmQc+cNGHzwHBlqepYdWLKj3VXCQBGt/EGcV7PUPfKI7kAUNW1FZEOCwlQiLvQjg1JEaAlRQ616h+Q==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.29.7':
@@ -4280,8 +4284,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.73.0:
-    resolution: {integrity: sha512-fVOzGviL9mTfHenG1PbCfIceavyGlnpYNSYr+aGZHLRymAJ7DTP6KHuqt0uBkCKAoenr1UVkwSbDIYt2xIesEQ==}
+  lucide-react@1.77.0:
+    resolution: {integrity: sha512-VS6sOi8ZUH1qm6swBL/tpI4xAhB6pFTdHvw3pfCJD+DaTJwpyynVzfOS6mdyMZ+OCdY/GMSQbqinOMOPbNSrQA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -5392,8 +5396,8 @@ packages:
     peerDependencies:
       react: ^19.3.1
 
-  react-fast-compare@3.2.3:
-    resolution: {integrity: sha512-WY9YHI1jjYC5a2lNRfHbeaNVQqiY+mMKWBSw1mPU0FgevlxI6V7izhNYz7Vp5ieFxetuRb6RmihPQxXEzg7oWQ==}
+  react-fast-compare@3.2.4:
+    resolution: {integrity: sha512-YbkgZfjvuokdt6zR8Oki8Bt4QXAZim/9HKSUr5J23GVyX2o8sYD/JlKSFrJvEFIPjotWvkGY7DgUS+udyr8cEw==}
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -5422,8 +5426,8 @@ packages:
     peerDependencies:
       react: '>=15'
 
-  react-router-dom@7.18.5:
-    resolution: {integrity: sha512-9HcfDMU6JJ/fp6gJZYGwNE6RknVGS4kBjH1HkNw959mCJi70TVwdipQWv2FEol9uGpi+SZTFtVpJPtEQfayeOw==}
+  react-router-dom@7.18.6:
+    resolution: {integrity: sha512-a8JzFsKEY3EY9QL7t4T1b1OhuY0ngEfwMzXQNgBO/2cuIW9028JbVq3uk2rKnjLredzcIoDKLzUkguIq6fnkFA==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: '>=18'
@@ -5434,8 +5438,8 @@ packages:
     peerDependencies:
       react: '>=15'
 
-  react-router@7.18.5:
-    resolution: {integrity: sha512-dTgvcXDOrLPrlLHrcZAqWveiK1hMSqN+rGAJzegP8HtmNkfRxOoshGWBNX3ZJ0cZjOHkRdlUJtaIhZMLLyGyPw==}
+  react-router@7.18.6:
+    resolution: {integrity: sha512-SP8KqKfRLlJzqzPseC+r6yYFsqPEavtQCC4BKV810tBGijjESLtwVPam+gPOO+wYeXrYN/TNy2CAykQVcNg4iQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: '>=18'
@@ -5886,8 +5890,8 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
-  tailwind-merge@3.7.0:
-    resolution: {integrity: sha512-XPPUyAc+cvspz3lHTcR/QgPfW2A0lv/xQNIjX3HGhLR+Nq2lHaLq5MtTesHn8GUr3W3DguT2KT5x3NVgRtYwmA==}
+  tailwind-merge@3.7.1:
+    resolution: {integrity: sha512-v7y4BV4FUlO8exj/4M5UXKeoowDiuugVUg3tkMNIyOUCOHy5xp8+5aWQeXCtZ2491sUV1YPsVeM9EveZ6/xuZQ==}
 
   tailwindcss@4.3.5:
     resolution: {integrity: sha512-FcQk9BuffmEHJP2G0XmB2SplU1aLTI7j07Kunk+U74Ny+XiWOtzXz9aujFZ/avntw1e2cOv/3PkgzflQ7gX2vQ==}
@@ -7342,6 +7346,8 @@ snapshots:
       - supports-color
 
   '@babel/runtime@7.29.14': {}
+
+  '@babel/runtime@7.29.15': {}
 
   '@babel/template@7.29.7':
     dependencies:
@@ -9246,12 +9252,12 @@ snapshots:
 
   '@slorber/react-helmet-async@1.3.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@babel/runtime': 7.29.14
+      '@babel/runtime': 7.29.15
       invariant: 2.2.4
       prop-types: 15.8.1
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      react-fast-compare: 3.2.3
+      react-fast-compare: 3.2.4
       shallowequal: 1.1.0
 
   '@slorber/remark-comment@1.0.0':
@@ -11302,7 +11308,7 @@ snapshots:
 
   history@4.10.1:
     dependencies:
-      '@babel/runtime': 7.29.14
+      '@babel/runtime': 7.29.15
       loose-envify: 1.4.0
       resolve-pathname: 3.0.0
       tiny-invariant: 1.3.3
@@ -11766,7 +11772,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.73.0(@types/react@19.3.0)(react@19.3.1):
+  lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:
@@ -13162,7 +13168,7 @@ snapshots:
       react: 19.3.1
       scheduler: 0.28.0
 
-  react-fast-compare@3.2.3: {}
+  react-fast-compare@3.2.4: {}
 
   react-is@16.13.1: {}
 
@@ -13193,11 +13199,11 @@ snapshots:
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
 
-  react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  react-router-dom@7.18.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
-      react-router: 7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react-router: 7.18.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
   react-router@5.3.4(react@19.3.1):
     dependencies:
@@ -13212,7 +13218,7 @@ snapshots:
       tiny-invariant: 1.3.3
       tiny-warning: 1.0.3
 
-  react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  react-router@7.18.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
       cookie: 1.1.1
       react: 19.3.1
@@ -13788,7 +13794,7 @@ snapshots:
       picocolors: 1.1.1
       sax: 1.6.1
 
-  tailwind-merge@3.7.0: {}
+  tailwind-merge@3.7.1: {}
 
   tailwindcss@4.3.5: {}
 
