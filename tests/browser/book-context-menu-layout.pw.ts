@@ -149,22 +149,20 @@ test("right-edge point menu repositions as actions change", async ({ page }) => 
   await expect(resource).toBeFocused();
 });
 
-test("bulk action disclosure paints above overlapping book selection indicators", async ({
-  page,
-}) => {
+test("bulk action menu paints above overlapping book selection indicators", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 700 });
   await page.goto("/tests/browser/fixtures/?view=library-toggles");
   await page.getByRole("button", { name: "Select books", exact: true }).click();
-  const trigger = page.getByLabel("More bulk actions", { exact: true });
+  const trigger = page.getByRole("button", { name: "More bulk actions", exact: true });
   await trigger.click();
-  const menu = page.locator(".library-selection-actions-menu .menu-popover");
+  const menu = page.getByRole("menu", { name: "More bulk actions" });
   await expect(menu).toBeVisible();
   const indicator = page
     .getByRole("region", { name: "Grid fixture" })
     .locator(".book-selection-control");
   await expect(indicator).toBeVisible();
   const layers = await indicator.evaluate((element) => {
-    const popup = document.querySelector(".library-selection-actions-menu .menu-popover");
+    const popup = document.querySelector('.library-selection-actions-menu[role="menu"]');
     if (!(element instanceof HTMLElement) || !popup) throw new Error("Missing selection overlay");
     const a = element.getBoundingClientRect();
     const b = popup.getBoundingClientRect();
@@ -192,4 +190,46 @@ test("bulk action disclosure paints above overlapping book selection indicators"
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
   await expect(trigger).toBeFocused();
+});
+
+test("card and row actions retain physical and logical anchor positions", async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 480 });
+  for (const card of [true, false]) {
+    await page.goto(`/tests/browser/fixtures/?view=action-menu&book${card ? "&card" : ""}`);
+    const parent = page.getByTestId("book-menu-parent");
+    const trigger = parent.getByRole("button", { name: "Actions for Book" });
+    await expect(trigger).toHaveCSS("width", "32px");
+    if (card) {
+      await page.mouse.move(0, 0);
+      await expect(trigger).toHaveCSS("opacity", "0");
+      await parent.hover();
+      await expect(trigger).toHaveCSS("opacity", "1");
+    } else {
+      await expect(trigger).toHaveCSS("opacity", "1");
+    }
+    for (const direction of ["ltr", "rtl"]) {
+      await parent.evaluate(
+        (element, direction) => element.setAttribute("dir", direction),
+        direction,
+      );
+      const outer = await bounds(parent);
+      const inner = await bounds(trigger);
+      if (card || direction === "ltr") {
+        expect(
+          Math.abs(outer.x + outer.width - inner.x - inner.width - (card ? 8 : 10)),
+        ).toBeLessThanOrEqual(1);
+      } else {
+        expect(Math.abs(inner.x - outer.x - 10)).toBeLessThanOrEqual(1);
+      }
+      if (card) expect(Math.abs(inner.y - outer.y - 8)).toBeLessThanOrEqual(1);
+      else
+        expect(
+          Math.abs(inner.y + inner.height / 2 - outer.y - outer.height / 2),
+        ).toBeLessThanOrEqual(1);
+    }
+    await trigger.press("ArrowDown");
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+  }
 });

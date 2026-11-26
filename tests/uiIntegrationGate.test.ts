@@ -28,13 +28,10 @@ const cssSource = collectFiles(stylesRoot, ".css")
   .join("\n");
 const appShellSource = read("src/styles/layout/app-shell.css");
 const tokensSource = read("src/styles/tokens.css");
-const menuSource = read("src/styles/components/menus.css");
 const archiveSource = read("src/styles/features/archive.css");
-const folderSource = read("src/styles/features/folders.css");
 const readerSource = read("src/styles/features/reader.css");
 const readerPageSource = read("src/features/reader/ReaderPage.tsx");
 const readerNoteSource = read("src/features/reader/ReaderNoteEditor.tsx");
-const sidebarSource = read("src/features/library/LibrarySidebar.tsx");
 const tauriConfig = JSON.parse(read("src-tauri/tauri.conf.json")) as {
   app: { windows: Array<{ minHeight?: number; minWidth?: number }> };
 };
@@ -62,20 +59,19 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     );
   });
 
-  it("uses the shared menu contract for the archive switcher and recurring action menus", () => {
-    expect(sidebarSource).toContain('className="menu-trigger menu-trigger--disclosure"');
-    expect(sidebarSource).toContain('className="archive-switcher__menu menu-popover"');
-    expect(sidebarSource).toContain("<ActionListButton");
-    expect(sidebarSource).not.toContain('<button className="archive-switcher__archive"');
-    expect(sidebarSource).not.toContain('<button className="archive-switcher__manage"');
+  it("keeps width and spacing token namespaces distinct for generated max-width utilities", () => {
+    const spacing = new Set(
+      Array.from(tokensSource.matchAll(/--spacing-([\w-]+):/g), (match) => match[1]),
+    );
+    const containers = Array.from(
+      tokensSource.matchAll(/--container-([\w-]+):/g),
+      (match) => match[1],
+    );
+    expect(containers.filter((name) => spacing.has(name))).toEqual([]);
+  });
 
-    const disclosureTrigger = cssBlock(".menu-trigger--disclosure", menuSource);
-
-    expect(disclosureTrigger).toContain("font-size: var(--type-meta)");
-    expect(disclosureTrigger).toContain("font-weight: var(--type-control-label-weight)");
-    expect(appShellSource).not.toContain(".archive-switcher__menu button");
+  it("keeps menu trigger dimensions owned by shared controls", () => {
     expect(archiveSource).not.toMatch(/\.archive-row-menu summary\s*{[^}]*\b(?:width|height):/s);
-    expect(folderSource).not.toMatch(/\.folder-menu summary\s*{[^}]*\b(?:width|height):/s);
   });
 
   it("keeps explicit focus-visible treatment on global controls and reader page-turn zones", () => {

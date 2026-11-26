@@ -139,9 +139,13 @@ test("Add EPUB expands as one surface and settles before the fade completes", as
       );
     if (!animation?.effect) throw new Error("Shared dialog entrance is missing");
     const duration = Number(animation.effect.getTiming().duration);
+    // Base UI's visually hidden form inputs are fixed-position elements, not
+    // part of the rendered surface. Their containing block changes with transform.
     const targets = [
       element,
-      ...element.querySelectorAll<HTMLElement>('h2, input:not([aria-hidden="true"]), button'),
+      ...element.querySelectorAll<HTMLElement>(
+        'h2, button, input:not([aria-hidden="true"]):not([type="hidden"]), .app-select__label, .add-epub-dialog__field > span',
+      ),
     ];
     const pose = () => {
       const bounds = element.getBoundingClientRect();
@@ -184,9 +188,9 @@ test("Add EPUB expands as one surface and settles before the fade completes", as
 test("filter no-results is text-only and clears back to the collection", async ({ page }) => {
   await page.goto("/tests/browser/fixtures/ui-stability.html?count=2&motion=off");
   await expect(page.locator(".book-card").first()).toBeVisible();
-  await page.locator("summary[aria-label='Filter library']").click();
+  await page.getByRole("button", { name: "Filter library" }).click();
   await page.getByRole("checkbox", { name: "Completed", exact: true }).check();
-  await page.locator("summary[aria-label='Filter library']").click();
+  await page.getByRole("button", { name: "Filter library" }).click();
   await expect(page.getByRole("heading", { name: "No matching books" })).toBeVisible();
   await expect(page.locator(".empty-state svg")).toHaveCount(0);
   await page.locator(".empty-state").getByRole("button", { name: "Clear filters" }).click();

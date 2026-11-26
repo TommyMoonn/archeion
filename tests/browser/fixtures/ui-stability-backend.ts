@@ -98,7 +98,18 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
       preferences.library.detailsWidth = savedDetails.detailsWidth;
   }
   preferences.library.collections.books.viewMode = params.get("view") === "list" ? "list" : "grid";
-  if (params.get("cardSize") === "small") preferences.library.collections.books.cardSize = "small";
+  const cardSize = params.get("cardSize");
+  if (cardSize === "small" || cardSize === "large")
+    preferences.library.collections.books.cardSize = cardSize;
+  const seriesCardSize = params.get("seriesCardSize");
+  if (seriesCardSize === "small" || seriesCardSize === "large")
+    preferences.library.collections.series.cardSize = seriesCardSize;
+  const folderCardSize = params.get("folderCardSize");
+  if (folderCardSize === "small" || folderCardSize === "large")
+    preferences.library.collections.folders.cardSize = folderCardSize;
+  const folderView = params.get("folderView");
+  if (folderView === "list" || folderView === "cards")
+    preferences.library.collections.folders.viewMode = folderView;
   preferences.automaticallyCheckForUpdates = false;
   preferences.rememberWindowState = false;
   preferences.restoreLastReader = false;
@@ -176,8 +187,35 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   const registry = () => ({ version: 1, archives, lastOpenedArchiveId: active });
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
   function scan(): ArchiveScan {
+    const folderPaths = params.has("folders")
+      ? [
+          "Fiction",
+          "Fiction/Mystery",
+          "Fiction/Mystery/Classic",
+          "Nonfiction",
+          "Reference and archival editions with a very long name",
+          ...Array.from(
+            { length: 16 },
+            (_, index) => `Shelf ${String(index + 1).padStart(2, "0")}`,
+          ),
+        ]
+      : [];
+    if (params.has("deepFolders")) {
+      let path = "Fiction/Mystery/Classic";
+      for (let depth = 1; depth <= 12; depth++) {
+        path += `/Level ${depth}`;
+        folderPaths.push(path);
+      }
+    }
     return {
-      folders: [],
+      folders: folderPaths.map((relativePath, index) => ({
+        id: `fixture-folder-${index}`,
+        name: relativePath.split("/").at(-1) ?? relativePath,
+        relativePath,
+        parentPath: relativePath.includes("/")
+          ? relativePath.slice(0, relativePath.lastIndexOf("/"))
+          : null,
+      })),
       books: Array.from({ length: count }, (_, i) => ({
         discoveryId: `${active}-${i}`,
         relativePath: `Book-${String(i).padStart(4, "0")}.epub`,
@@ -185,6 +223,15 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
         folderPath: "",
         size: epub.byteLength + i,
         modifiedAt: 1,
+        ...(params.has("series")
+          ? {
+              sourceMetadata: {
+                series: i < 4 ? "Star Saga" : `Series ${Math.floor(i / 4)}`,
+                volume: String(i % 4 === 3 ? 5 : (i % 4) + 1),
+                creator: "Fixture author",
+              },
+            }
+          : {}),
         ...(params.has("longBookMetadata") && i === 0
           ? {
               sourceMetadata: {

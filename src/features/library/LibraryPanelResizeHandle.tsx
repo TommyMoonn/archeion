@@ -127,7 +127,7 @@ export function LibraryPanelResizeHandle({
         aria-valuemin={minWidth}
         aria-valuenow={width}
         aria-valuetext={`${width} pixels`}
-        className={className}
+        className={`absolute z-8 inset-y-0 w-control-gap touch-none select-none cursor-col-resize outline-none ${className}`}
         data-resizing={resizing || undefined}
         role="separator"
         tabIndex={0}

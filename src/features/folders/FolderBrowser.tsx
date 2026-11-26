@@ -1,3 +1,5 @@
+import { cn } from "../../utils/cn";
+import { collectionHeader, collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { Folder as FolderIcon, FolderPlus, Grid2x2, List, Search, Pencil, X } from "lucide-react";
 import {
@@ -57,6 +59,7 @@ type FolderBrowserProps = {
 
 type FolderBrowserItemProps = {
   activeImportDropTargetId?: string | null;
+  cardSize: CollectionCardSize;
   canRevealFolders: boolean;
   entry: FolderBrowserEntry;
   onDelete?: (folder: ReadonlyFolder) => void;
@@ -70,6 +73,7 @@ type FolderBrowserItemProps = {
 
 const FolderBrowserItem = memo(function FolderBrowserItem({
   activeImportDropTargetId,
+  cardSize,
   canRevealFolders,
   entry: { bookCount, displayPath, folder },
   onDelete,
@@ -81,6 +85,7 @@ const FolderBrowserItem = memo(function FolderBrowserItem({
   view,
 }: FolderBrowserItemProps) {
   const contextMenu = useContextMenuController();
+  const cards = view === "cards";
   const primaryActionRef = useRef<HTMLButtonElement>(null);
 
   function handleContextMenu(event: ReactMouseEvent<HTMLElement>) {
@@ -95,7 +100,12 @@ const FolderBrowserItem = memo(function FolderBrowserItem({
 
   return (
     <article
-      className="folder-browser__item"
+      className={[
+        "folder-browser__item group/folder relative min-w-0 text-muted data-[context-menu-open]:z-3",
+        !cards && "border-0 border-b border-solid border-line",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       {...folderMutationOwnerAttributes(folder, "browser")}
       data-import-drop-active={
         activeImportDropTargetId === `folder-browser:${folder.id}` || undefined
@@ -107,26 +117,54 @@ const FolderBrowserItem = memo(function FolderBrowserItem({
       onContextMenu={handleContextMenu}
     >
       <button
-        className="folder-browser__open"
+        className={[
+          "folder-browser__open grid items-center gap-folder-grid-gap w-full text-inherit text-start cursor-pointer transition-select hover:text-text hover:bg-surface focus-visible:text-text focus-visible:bg-surface group-data-[import-drop-active=true]/folder:text-text-strong group-data-[import-drop-active=true]/folder:bg-accent-soft group-data-[import-drop-active=true]/folder:border-folder-drop group-data-[import-drop-active=true]/folder:folder-browser-drop-ring group-data-[context-menu-open]/folder:border-line-strong group-data-[context-menu-open]/folder:bg-surface",
+          cards
+            ? "folder-card-columns content-start pe-folder-card-actions border-standard border-solid border-line rounded-card bg-folder-card hover:border-line-strong focus-visible:border-line-strong"
+            : "folder-row-columns border-none bg-transparent min-h-folder-row-height py-0 ps-folder-list-inset pe-folder-row-actions",
+          cards &&
+            (cardSize === "small"
+              ? "min-h-folder-card-small-height py-folder-card-small-inset ps-folder-card-small-inset"
+              : cardSize === "large"
+                ? "min-h-folder-card-large-height py-folder-card-large-inset ps-folder-card-large-inset"
+                : "min-h-folder-card-medium-height py-folder-card-medium-inset ps-folder-card-medium-inset"),
+        ]
+          .filter(Boolean)
+          .join(" ")}
         data-library-folder-primary-action
         onClick={() => onOpen(folder)}
         onKeyDown={handlePrimaryKeyDown}
         ref={primaryActionRef}
         type="button"
       >
-        <span className="folder-browser__icon" aria-hidden="true">
-          <FolderIcon size={view === "cards" ? 22 : 19} />
+        <span
+          className="folder-browser__icon grid size-folder-icon-box place-items-center rounded-control text-accent bg-accent-soft"
+          aria-hidden="true"
+        >
+          <FolderIcon className={cards ? "size-folder-card-glyph" : "size-folder-list-glyph"} />
         </span>
-        <span className="folder-browser__copy">
-          <strong>{folder.name}</strong>
-          {displayPath ? <small>{displayPath}</small> : null}
+        <span className="folder-browser__copy grid min-w-0 gap-folder-copy-gap">
+          <strong className="truncate text-text-strong text-body leading-inherit font-semibold">
+            {folder.name}
+          </strong>
+          {displayPath ? (
+            <small className="truncate text-muted text-caption leading-inherit">
+              {displayPath}
+            </small>
+          ) : null}
         </span>
-        <span className="folder-browser__count">{formatFolderBookCount(bookCount)}</span>
+        <span
+          className={`folder-browser__count text-muted text-meta leading-inherit tabular-nums whitespace-nowrap ${cards ? "col-span-full self-end justify-self-start mt-folder-count-gap" : ""}`}
+        >
+          {formatFolderBookCount(bookCount)}
+        </span>
       </button>
       {showFolderActions && onDelete && onMove && onRename ? (
-        <span className="folder-browser__item-actions">
+        <span
+          className={`folder-browser__item-actions absolute z-2 flex items-center gap-folder-action-gap ${cards ? "top-folder-inset end-folder-inset" : "top-1/2 end-control-gap -translate-y-1/2"}`}
+        >
           <IconButton
-            className="folder-browser__rename"
+            className="folder-browser__rename control-enabled:cursor-pointer"
             label={`Rename ${folder.name}`}
             onClick={() => onRename(folder)}
           >
@@ -201,17 +239,24 @@ export const FolderBrowser = memo(function FolderBrowser({
   const surfaceKey = `${view}:${sort}:${cardSize}:${surfaceState}`;
 
   return (
-    <section aria-labelledby="folder-browser-title" className="folder-browser">
-      <header className="library-header folder-browser__header">
+    <section
+      aria-labelledby="folder-browser-title"
+      className="folder-browser mx-auto w-full min-w-0 max-w-collection-workspace"
+    >
+      <header className={cn(collectionHeader.root, "folder-browser__header w-full min-w-0")}>
         <div className="library-header__title folder-browser__title">
-          <p className="eyebrow">Library folders</p>
-          <h1 id="folder-browser-title">Folders</h1>
+          <p className={collectionHeader.eyebrow}>Library folders</p>
+          <h1 className={collectionHeader.title} id="folder-browser-title">
+            Folders
+          </h1>
         </div>
 
-        <div className="library-header__actions library-header__actions--primary-only folder-browser__actions">
+        <div
+          className={`${collectionHeader.actions} ${collectionHeader.actionsPrimary} folder-browser__actions min-w-0 max-w-full`}
+        >
           <div
             aria-label="Folder search"
-            className="library-search folder-browser__search"
+            className={`${collectionHeader.search} folder-browser__search`}
             role="search"
           >
             <Input
@@ -232,7 +277,7 @@ export const FolderBrowser = memo(function FolderBrowser({
             />
             {query ? (
               <IconButton
-                className="library-search__clear"
+                className={collectionHeader.clear}
                 label="Clear folder search"
                 onClick={() => setQuery("")}
               >
@@ -242,9 +287,9 @@ export const FolderBrowser = memo(function FolderBrowser({
           </div>
           {canManageFolders && onCreate ? (
             <>
-              <span aria-hidden="true" className="library-header__action-divider" />
+              <span aria-hidden="true" className={collectionHeader.divider} />
               <Button
-                className="folder-browser__add-button"
+                className="folder-browser__add-button rounded-control control-enabled:cursor-pointer"
                 icon={<FolderPlus aria-hidden="true" />}
                 onClick={onCreate}
                 size="standard"
@@ -255,18 +300,22 @@ export const FolderBrowser = memo(function FolderBrowser({
           ) : null}
         </div>
 
-        <div className="library-controls folder-browser__controls">
+        <div
+          className={`${collectionHeader.controls} folder-browser__controls box-border w-full min-w-0 max-w-none`}
+        >
           <span
             aria-label={`${visibleEntries.length} ${visibleEntries.length === 1 ? "folder" : "folders"} shown`}
             aria-live="polite"
-            className="library-result-count"
+            className={collectionHeader.count}
           >
             {visibleEntries.length} {visibleEntries.length === 1 ? "folder" : "folders"}
           </span>
-          <div className="library-controls__display">
+          <div
+            className={`${collectionHeader.display} flex-initial flex-nowrap min-w-0 max-w-full justify-end [&>.segmented-control]:flex-none`}
+          >
             <AppSelect
               ariaLabel="Sort folders"
-              className="folder-sort-select"
+              className="folder-sort-select folder-sort-basis min-w-select-trigger max-w-full"
               onChange={onSortChange}
               options={folderSortOptions}
               value={sort}
@@ -284,7 +333,7 @@ export const FolderBrowser = memo(function FolderBrowser({
 
       <div
         aria-busy={surfaceState === "loading" || undefined}
-        className="collection-content folder-browser__content"
+        className={`${collectionContent} folder-browser__content w-full min-w-0`}
         data-surface-state={surfaceState}
         key={surfaceKey}
       >
@@ -294,7 +343,11 @@ export const FolderBrowser = memo(function FolderBrowser({
           <EmptyState
             action={
               query ? (
-                <Button variant="secondary" onClick={() => setQuery("")}>
+                <Button
+                  className="control-enabled:cursor-pointer"
+                  variant="secondary"
+                  onClick={() => setQuery("")}
+                >
                   Clear search
                 </Button>
               ) : undefined
@@ -309,13 +362,25 @@ export const FolderBrowser = memo(function FolderBrowser({
           />
         ) : (
           <div
-            className={`folder-browser__items folder-browser__items--${view} collection-content__items`}
+            className={[
+              `folder-browser__items folder-browser__items--${view} collection-content__items grid`,
+              view === "list" ? "grid-cols-1" : "gap-folder-grid-gap",
+              view === "cards" &&
+                (cardSize === "small"
+                  ? "folder-card-grid-small"
+                  : cardSize === "large"
+                    ? "folder-card-grid-large"
+                    : "folder-card-grid-medium page-narrow:grid-cols-2 page-mobile:grid-cols-1"),
+            ]
+              .filter(Boolean)
+              .join(" ")}
             data-folder-card-size={cardSize}
           >
             {visibleEntries.map((entry) => (
               <FolderBrowserItem
                 activeImportDropTargetId={activeImportDropTargetId}
                 canRevealFolders={canRevealFolders}
+                cardSize={cardSize}
                 entry={entry}
                 key={entry.folder.id}
                 onDelete={onDelete}

@@ -153,9 +153,169 @@
   --leading-control-label: var(--text-control-label--line-height);
   --spacing-menu-padding: 5px;
   --spacing-menu-item-block: 7px;
+  --spacing-sidebar-inset: 12px;
+  --spacing-sidebar-collapsed-inset: 6px;
+  --spacing-sidebar-section: 14px;
+  --tracking-sidebar-label: 0.06em;
+  --spacing-sidebar-mobile: min(42dvh, 240px);
+  --spacing-collection-workspace-height: clamp(420px, 63vh, 720px);
+  --spacing-collection-workspace-height-short: 320px;
+  --spacing-collection-workspace-height-narrow: 55vh;
+  --container-collection-workspace: 1440px;
   --spacing-sidebar-expanded: 248px;
   --spacing-sidebar-narrow: 220px;
   --spacing-sidebar-collapsed: 56px;
+  --spacing-collection-header-gap: 24px;
+  --spacing-collection-title-top: 2px;
+  --spacing-collection-actions: min(680px, 58vw);
+  --spacing-collection-search-clear: 30px;
+  --spacing-collection-controls: 48px;
+  --spacing-collection-count: 56px;
+  --spacing-collection-initial-top: 26px;
+  --spacing-collection-empty-inset: clamp(24px, 6vh, 72px);
+  --spacing-collection-utility-icon: 18px;
+  --spacing-collection-header-title-min: 180px;
+  --spacing-collection-search-min: 240px;
+  --spacing-collection-sort-min: 178px;
+  --spacing-filter-panel-width: min(340px, calc(100vw - 32px));
+  --spacing-filter-group-gap: 16px;
+  --spacing-filter-choice-gap: 12px;
+  --spacing-filter-check-height: 26px;
+  --spacing-filter-token-height: 28px;
+  --spacing-filter-token-remove: 23px;
+  --spacing-filter-label-gap: 5px;
+  --spacing-filter-token-gap: 3px;
+  --spacing-book-card-copy-height: 78px;
+  --spacing-book-card-copy-top: 13px;
+  --spacing-book-card-title-height: 2.8em;
+  --spacing-book-copy-gap: 5px;
+  --spacing-book-card-intrinsic-size: 360px;
+  --spacing-book-cover-spine-block: 9%;
+  --spacing-book-cover-spine-inline: 11%;
+  --spacing-book-cover-placeholder-glyph: 30px;
+  --spacing-book-grid-small: 120px;
+  --spacing-book-grid-medium: 150px;
+  --spacing-book-grid-large: 190px;
+  --spacing-book-grid-row-gap: 28px;
+  --spacing-book-grid-compact-inline-gap: 18px;
+  --spacing-book-grid-compact-row-gap: 22px;
+  --spacing-book-grid-narrow-row-gap: 24px;
+  --spacing-book-grid-bottom: 32px;
+  --spacing-book-grid-compact-bottom: 28px;
+  --spacing-book-row-cover: 42px;
+  --spacing-book-row-title-min: 180px;
+  --spacing-book-row-file-min: 150px;
+  --spacing-book-row-date: 120px;
+  --spacing-book-row-date-narrow: 110px;
+  --spacing-book-row-height: 74px;
+  --spacing-book-row-actions: 124px;
+  --spacing-book-row-rename-end: 78px;
+  --spacing-book-row-favorite-end: 45px;
+  --spacing-book-row-bottom: 40px;
+  --spacing-book-selection-control: 30px;
+  --spacing-book-selection-glyph: 15px;
+  --spacing-resume-bottom: 22px;
+  --spacing-resume-heading-gap: 16px;
+  --spacing-resume-heading-height: 20px;
+  --spacing-resume-card-min: 220px;
+  --spacing-resume-card-max: 260px;
+  --spacing-selection-bar-gap: 18px;
+  --spacing-selection-bar-height: 52px;
+  --spacing-selection-status-height: 30px;
+  --spacing-selection-menu-min: min(205px, calc(100vw - var(--spacing-overlay-viewport-inset)));
+  --spacing-icon-glyph-medium: 17px;
+  --spacing-feedback-glyph: 19px;
+  --spacing-cover-progress-height: 22px;
+  --aspect-book-cover: 2 / 3;
+  --leading-collection-copy: var(--text-caption--line-height);
+  --radius-collection-utility-child: calc(var(--radius-control) - 1px - var(--border-width));
+  --blur-cover-progress: 6px;
+  --color-cover-progress-border: rgb(255 255 255 / 20%);
+  --color-cover-progress-surface: rgb(10 11 13 / 84%);
+  --color-cover-progress-text: #f1f3f5;
+  --spacing-folder-tree-indent: 11px;
+  --spacing-folder-tree-limit: 180px;
+  --spacing-folder-tree-row-min: 120px;
+  --spacing-folder-inset: 9px;
+  --spacing-folder-action-gap: 4px;
+  --spacing-folder-copy-gap: 3px;
+  --spacing-folder-grid-gap: 12px;
+  --spacing-folder-count-gap: 16px;
+  --spacing-folder-list-inset: 10px;
+  --spacing-folder-card-small-inset: 13px;
+  --spacing-folder-card-medium-inset: 17px;
+  --spacing-folder-sort-basis: 164px;
+  --spacing-folder-row-height: 58px;
+  --spacing-folder-row-actions: 88px;
+  --spacing-folder-card-actions: 82px;
+  --spacing-folder-card-small-height: 100px;
+  --spacing-folder-card-medium-height: 116px;
+  --spacing-folder-card-large-height: 136px;
+  --spacing-folder-card-small-column: 220px;
+  --spacing-folder-card-medium-column: 260px;
+  --spacing-folder-card-large-column: 320px;
+  --spacing-folder-card-large-inset: 21px;
+  --spacing-folder-icon-box: 30px;
+  --spacing-folder-list-glyph: 19px;
+  --spacing-folder-card-glyph: 22px;
+  --spacing-folder-menu-width: 140px;
+  /* Series uses fixed pixel tracks and insets at every interface text size. */
+  --spacing-series-grid-gap: 12px;
+  --spacing-series-grid-bottom: 32px;
+  --spacing-series-column-small: 260px;
+  --spacing-series-column-medium: 320px;
+  --spacing-series-column-large: 400px;
+  --spacing-series-cover-small: 58px;
+  --spacing-series-cover-medium: 72px;
+  --spacing-series-cover-large: 88px;
+  --spacing-series-card-gap-medium: 16px;
+  --spacing-series-card-gap-large: 19px;
+  --spacing-series-card-inset-small: 10px;
+  --spacing-series-card-inset-medium: 13px;
+  --spacing-series-card-inset-large: 16px;
+  --spacing-series-copy-gap: 5px;
+  --spacing-series-detail-gap: 20px;
+  --spacing-series-back-height: 34px;
+  --spacing-series-back-gap: 7px;
+  --spacing-series-back-inset: 9px;
+  --spacing-series-header-gap: 30px;
+  --spacing-series-title-top: 3px;
+  --container-series-title: 780px;
+  --spacing-series-summary-top: 11px;
+  --spacing-series-hint-gap: 10px;
+  --spacing-series-volume-cover: 54px;
+  --spacing-series-volume-cover-narrow: 46px;
+  --spacing-series-volume-gap: 15px;
+  --spacing-series-volume-gap-narrow: 11px;
+  --spacing-series-volume-inset-block: 11px;
+  --spacing-series-volume-copy-gap: 3px;
+  --spacing-series-volume-action: 94px;
+  --spacing-series-volumes-short-top: 18px;
+  --spacing-series-marker-inline: 6px;
+  --tracking-normal: 0em;
+  /* Integrity reports and feedback retain pixel geometry independently of text scaling. */
+  --spacing-integrity-gap: 14px;
+  --spacing-integrity-row-gap: 18px;
+  --spacing-integrity-controls-block: 10px;
+  --spacing-integrity-row-block: 12px;
+  --spacing-integrity-row-inline: 14px;
+  --spacing-integrity-copy-gap: 3px;
+  --spacing-integrity-small-gap: 5px;
+  --spacing-integrity-alert-block: 11px;
+  --spacing-integrity-alert-inline: 13px;
+  --spacing-integrity-badge-height: 22px;
+  --spacing-integrity-identity-width: 280px;
+  --spacing-integrity-group-identity-column: 180px;
+  --spacing-feedback-top: 44px;
+  --spacing-feedback-top-narrow: 64px;
+  --spacing-feedback-end: 22px;
+  --spacing-feedback-width: min(440px, calc(100vw - 44px));
+  --spacing-feedback-height: calc(100dvh - 60px);
+  --spacing-feedback-height-narrow: calc(100dvh - 80px);
+  --spacing-feedback-details-height: 132px;
+  --spacing-feedback-dismiss: 28px;
+  --spacing-book-menu-card-inset: 8px;
+  --spacing-book-menu-row-inset: 10px;
   --spacing-collection-comfortable: 20px;
   --spacing-collection-compact: 16px;
   --spacing-dialog-panel: 24px;
@@ -278,6 +438,8 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --spacing-filter-panel-height: min(620px, calc(100dvh - 180px), var(--available-height, 100dvh));
+  --shadow-sidebar-drop: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
   --spacing-menu-viewport-min: min(
     var(--spacing-menu-min),
     calc(100vw - var(--spacing-overlay-viewport-inset))
@@ -334,7 +496,7 @@
   --default-transition-timing-function: var(--ease-standard);
 
   --container-appearance-notice: min(32rem, calc(100vw - 2rem));
-  --spacing-appearance-notice: calc(100dvh - 4rem);
+  --spacing-appearance-notice-height: calc(100dvh - 4rem);
   --spacing-page-inline: clamp(20px, 2.5vw, 40px);
   --color-status-success: color-mix(in srgb, var(--success-soft) 72%, var(--surface-raised));
   --color-status-warning: color-mix(in srgb, var(--accent-soft) 72%, var(--surface-raised));
@@ -343,6 +505,17 @@
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
+  --color-resume-card: color-mix(in srgb, var(--surface) 46%, transparent);
+  --shadow-book-row-selected: inset 3px 0 var(--accent);
+  --shadow-library-drop: inset 0 0 0 2px color-mix(in srgb, var(--accent) 52%, transparent);
+  --color-feedback-card: color-mix(in srgb, var(--surface) 94%, transparent);
+  --color-book-menu-border: color-mix(in srgb, var(--text) 11%, transparent);
+  --color-book-menu-surface: color-mix(in srgb, var(--canvas-deep) 88%, transparent);
+  --color-series-card: color-mix(in srgb, var(--surface) 72%, transparent);
+  --color-series-volume: color-mix(in srgb, var(--surface) 60%, transparent);
+  --color-series-hint: color-mix(in srgb, var(--accent) 5%, transparent);
+  --color-series-hint-border: color-mix(in srgb, var(--accent) 24%, var(--line));
+  --color-series-marker-border: color-mix(in srgb, var(--accent) 30%, var(--line));
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
@@ -569,11 +742,140 @@
     border-color var(--motion-duration-standard) var(--ease-standard),
     background var(--motion-duration-standard) var(--ease-standard);
 }
+@custom-variant control-enabled (&:not(:disabled):not([aria-disabled="true"]));
 @custom-variant control-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
 @custom-variant control-active (&:active:not(:disabled):not([aria-disabled="true"]));
 @custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
 
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
+
+@custom-variant folder-fine-pointer {
+  @media (hover: hover) and (pointer: fine) {
+    @slot;
+  }
+}
+
+@utility folder-sort-basis {
+  flex: 0 1 var(--spacing-folder-sort-basis);
+}
+
+@utility folder-tree-columns {
+  grid-template-columns: var(--spacing-icon-slot-standard) minmax(0, 1fr);
+}
+
+@utility folder-row-columns {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+@utility folder-card-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility folder-card-grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-small-column), 1fr));
+}
+
+@utility folder-card-grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-medium-column), 1fr));
+}
+
+@utility folder-card-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-folder-card-large-column), 1fr));
+}
+
+/* Local card geometry is inherited by memoized children, not passed as render props. */
+@utility series-size-small {
+  --series-cover-width: var(--spacing-series-cover-small);
+  --series-card-gap: var(--spacing-series-grid-gap);
+  --series-card-inset: var(--spacing-series-card-inset-small);
+}
+@utility series-size-medium {
+  --series-cover-width: var(--spacing-series-cover-medium);
+  --series-card-gap: var(--spacing-series-card-gap-medium);
+  --series-card-inset: var(--spacing-series-card-inset-medium);
+}
+@utility series-size-large {
+  --series-cover-width: var(--spacing-series-cover-large);
+  --series-card-gap: var(--spacing-series-card-gap-large);
+  --series-card-inset: var(--spacing-series-card-inset-large);
+}
+@utility series-grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-series-column-small), 1fr));
+}
+@utility series-grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-series-column-medium), 1fr));
+}
+@utility series-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-series-column-large), 1fr));
+}
+@utility series-card-columns {
+  grid-template-columns: var(--series-cover-width) minmax(0, 1fr) auto;
+}
+@utility series-hint-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@utility series-volume-columns {
+  grid-template-columns: var(--spacing-series-volume-cover) minmax(0, 1fr) auto;
+}
+@utility series-volume-columns-narrow {
+  grid-template-columns: var(--spacing-series-volume-cover-narrow) minmax(0, 1fr) auto;
+}
+@utility series-card-inset {
+  padding: var(--series-card-inset);
+}
+@utility series-card-gap {
+  gap: var(--series-card-gap);
+}
+@utility series-cover-width {
+  width: var(--series-cover-width);
+}
+@utility border-b-line {
+  border-bottom: var(--border-width) solid var(--line);
+}
+@utility text-body-only {
+  font-size: var(--text-body);
+}
+@utility text-meta-only {
+  font-size: var(--text-meta);
+}
+@utility text-caption-size {
+  font-size: var(--text-caption);
+}
+@custom-variant series-stacked {
+  @media (max-width: 900px) {
+    @slot;
+  }
+}
+@custom-variant series-narrow {
+  @media (max-width: 620px) {
+    @slot;
+  }
+}
+
+@utility transition-folder-menu {
+  transition:
+    opacity var(--motion-duration-standard) var(--ease-standard),
+    color var(--motion-duration-standard) var(--ease-standard),
+    background var(--motion-duration-standard) var(--ease-standard);
+}
+
+@utility folder-tree-drop-ring {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 44%, transparent);
+}
+
+@utility folder-browser-drop-ring {
+  box-shadow:
+    inset 3px 0 var(--accent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+@utility border-folder-drop {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line));
+}
+
+@utility bg-folder-card {
+  background: color-mix(in srgb, var(--text-strong) 1.8%, transparent);
+}
 
 /* Runtime properties and temporary aliases for unmigrated desktop CSS. */
 :root {
@@ -828,3 +1130,178 @@ html[data-density="compact"] {
   }
 }
 @custom-variant page-compact (&:is(html[data-density="compact"] *));
+
+/* The navigation highlight follows the interpolated shell track, not the collapse flag. */
+@utility sidebar-nav-width {
+  width: calc(
+    var(--library-sidebar-current-width) - 2 * var(--spacing-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+}
+@utility sidebar-nav-padding {
+  padding-inline: calc(
+    (
+        var(--sidebar-collapsed-width) - 2 * var(--spacing-sidebar-collapsed-inset) -
+          var(--border-width) - var(--icon-slot-standard)
+      ) /
+      2
+  );
+}
+@utility sidebar-nav-columns {
+  grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
+}
+@utility sidebar-nav-collapsed-columns {
+  grid-template-columns: calc(
+    var(--sidebar-collapsed-width) - 2 * var(--spacing-sidebar-collapsed-inset) -
+      var(--border-width)
+  );
+}
+@utility sidebar-footer-columns {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+@utility sidebar-mobile-columns {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@utility min-h-inherit {
+  min-block-size: inherit;
+}
+
+@utility sidebar-nav-mobile-flex {
+  flex: 1 0 auto;
+}
+
+/* Library toolbar and filters retain the original inclusive layout thresholds. */
+@custom-variant collection-header-stacked {
+  @container collection-header (max-width: 900px) {
+    @slot;
+  }
+}
+@custom-variant collection-header-narrow {
+  @container collection-header (max-width: 560px) {
+    @slot;
+  }
+}
+@custom-variant collection-viewport-stacked {
+  @media (max-width: 1100px) {
+    @slot;
+  }
+}
+
+/* Collection tracks, compositing and pixel-specific roles. */
+@utility collection-header-columns {
+  grid-template-columns: minmax(var(--spacing-collection-header-title-min), 1fr) auto;
+}
+@utility collection-single-column {
+  grid-template-columns: 1fr;
+}
+@utility collection-actions-full {
+  grid-template-columns: minmax(var(--spacing-collection-search-min), 1fr) auto 1px auto;
+}
+@utility collection-actions-full-narrow {
+  grid-template-columns: minmax(0, 1fr) auto 1px auto;
+}
+@utility collection-actions-primary {
+  grid-template-columns: minmax(var(--spacing-collection-search-min), 1fr) 1px auto;
+}
+@utility collection-actions-primary-narrow {
+  grid-template-columns: minmax(0, 1fr) 1px auto;
+}
+@utility collection-actions-search {
+  grid-template-columns: minmax(var(--spacing-collection-search-min), 1fr);
+}
+@utility collection-utility-icon {
+  --icon-slot-size: var(--spacing-collection-utility-icon) !important;
+  --icon-glyph-size: var(--spacing-collection-utility-icon) !important;
+}
+@utility sidebar-sort-icon {
+  --icon-slot-size: var(--spacing-icon-glyph-medium) !important;
+  --icon-glyph-size: var(--spacing-icon-glyph-medium) !important;
+}
+@utility book-cover-placeholder-background {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--text-strong) 4%, transparent), transparent 14%),
+    var(--surface);
+}
+@utility transition-book-cover {
+  transition-property: border-color, transform;
+}
+@utility transition-book-row {
+  transition-property: background;
+}
+@utility transition-book-menu {
+  transition-property: opacity, background;
+}
+@utility book-card-deferred-layout {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--spacing-book-card-intrinsic-size);
+}
+@utility book-row-deferred-layout {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--spacing-book-row-height);
+}
+@utility book-grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-book-grid-small), 1fr));
+}
+@utility book-grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-book-grid-medium), 1fr));
+}
+@utility book-grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-book-grid-large), 1fr));
+}
+@utility resume-grid {
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--spacing-resume-card-min), var(--spacing-resume-card-max))
+  );
+}
+@utility resume-card-columns {
+  grid-template-columns: var(--spacing-book-row-cover) minmax(0, 1fr) auto;
+}
+@utility book-row-columns {
+  grid-template-columns:
+    var(--spacing-book-row-cover) minmax(var(--spacing-book-row-title-min), 1.2fr)
+    minmax(var(--spacing-book-row-file-min), 1fr) var(--spacing-book-row-date);
+}
+@utility book-row-columns-stacked {
+  grid-template-columns: var(--spacing-book-row-cover) minmax(0, 1fr) var(
+      --spacing-book-row-date-narrow
+    );
+}
+@utility book-row-columns-narrow {
+  grid-template-columns: var(--spacing-book-row-cover) minmax(0, 1fr);
+}
+@utility integrity-group-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(var(--spacing-integrity-group-identity-column), auto);
+}
+@utility integrity-alert-columns {
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+}
+@utility integrity-diagnostic-columns {
+  grid-template-columns: var(--spacing-integrity-row-gap) minmax(0, 1fr);
+}
+@utility integrity-resource-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+@utility integrity-row-actions-inset {
+  padding-inline-end: calc(var(--spacing-control-compact) + 2 * var(--spacing-button-standard));
+}
+@utility integrity-identity-width {
+  width: min(100%, var(--spacing-integrity-identity-width));
+}
+@utility feedback-token-columns {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+@utility grid-cols-inherit {
+  grid-template-columns: inherit;
+}
+@utility gap-inherit {
+  gap: inherit;
+}
+
+@utility book-cover-lift {
+  transform: translateY(-1px);
+}
+
+@utility import-drop-label {
+  content: "Add to " attr(data-import-drop-label);
+}

@@ -211,6 +211,9 @@ describe("LibraryPage navigation and archive loading", () => {
       if (search) setInputValue(search, "Dune");
     });
 
+    await act(async () =>
+      (await waitForButtonWithLabel(session.container, "Filter library")).click(),
+    );
     const seriesSelect = session.container.querySelector<HTMLButtonElement>(
       'button[role="combobox"][aria-label="Add series filter"]',
     );

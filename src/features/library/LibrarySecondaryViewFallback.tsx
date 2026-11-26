@@ -1,5 +1,7 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { Button } from "../../components/Button";
+import { EmptyState } from "../../components/EmptyState";
 import type { ComponentProps, ReactNode } from "react";
 import { SeriesDetailHeader } from "../series/SeriesDetailHeader";
 import type { SeriesEntry } from "../../types/series";
@@ -20,17 +22,25 @@ export function LibrarySecondaryViewFallback({
     <>
       {header}
       <div
-        className="collection-content library-content w-full"
+        className={`${collectionContent} library-content w-full`}
         aria-busy={!onRetry || undefined}
         data-surface-state={onRetry ? "error" : "loading"}
       >
         {onRetry ? (
-          <>
-            <p role="alert">This view could not be opened.</p>
-            <Button onClick={onRetry} variant="secondary">
-              Try again
-            </Button>
-          </>
+          <EmptyState
+            role="alert"
+            title="This view could not be opened."
+            description="Try opening this view again."
+            action={
+              <Button
+                className="control-enabled:cursor-pointer"
+                onClick={onRetry}
+                variant="secondary"
+              >
+                Try again
+              </Button>
+            }
+          />
         ) : (
           <CollectionLoading message={loadingLabel} />
         )}
@@ -51,14 +61,17 @@ export function SeriesDetailFallback({
   onRetry?: () => void;
 }) {
   return (
-    <section className="series-detail" aria-labelledby={entry ? "series-detail-title" : undefined}>
+    <section
+      className="series-detail mx-auto grid w-full max-w-collection-workspace gap-series-detail-gap"
+      aria-labelledby={entry ? "series-detail-title" : undefined}
+    >
       <LibrarySecondaryViewFallback
         loadingLabel="Loading series details"
         header={
           entry ? (
             <SeriesDetailHeader entry={entry} onBack={onBack} onRead={onRead} />
           ) : (
-            <Button onClick={onBack} variant="secondary">
+            <Button className="control-enabled:cursor-pointer" onClick={onBack} variant="secondary">
               Back to Series
             </Button>
           )
@@ -74,7 +87,10 @@ export function SeriesOverviewFallback({
   ...props
 }: ComponentProps<typeof SeriesOverviewHeader> & { onRetry?: () => void }) {
   return (
-    <section className="series-overview" aria-labelledby="series-overview-title">
+    <section
+      className="series-overview mx-auto w-full max-w-collection-workspace"
+      aria-labelledby="series-overview-title"
+    >
       <LibrarySecondaryViewFallback
         loadingLabel="Loading series"
         header={<SeriesOverviewHeader {...props} pending />}
@@ -89,7 +105,10 @@ export function IntegrityViewFallback({
   ...props
 }: ComponentProps<typeof LibraryIntegrityHeader> & { onRetry?: () => void }) {
   return (
-    <section className={`${props.kind}-view`} aria-labelledby={`${props.kind}-title`}>
+    <section
+      className={`${props.kind}-view mx-auto w-full max-w-collection-workspace`}
+      aria-labelledby={`${props.kind}-title`}
+    >
       <LibrarySecondaryViewFallback
         loadingLabel={
           props.kind === "duplicates" ? "Checking for duplicate EPUBs" : "Checking EPUB files"

@@ -70,7 +70,7 @@ function FolderNode({
   return (
     <li>
       <div
-        className="folder-tree__row"
+        className="folder-tree__row group/folder-row relative min-w-folder-tree-row-min"
         {...folderMutationOwnerAttributes(folder, "tree")}
         data-context-menu-open={contextMenu.isOpen || undefined}
         data-has-actions={showActions ? "true" : undefined}
@@ -85,7 +85,7 @@ function FolderNode({
         <Tooltip content={folder.name} onlyWhenTruncated="span" placement="right">
           <button
             aria-current={isSelected ? "page" : undefined}
-            className="folder-tree__select"
+            className="folder-tree__select grid folder-tree-columns items-center gap-control-gap min-h-control-standard w-full border-none rounded-control bg-transparent py-0 ps-folder-inset pe-folder-inset text-muted text-body leading-inherit text-start cursor-pointer transition-select hover:text-text hover:bg-surface data-active:text-text data-active:bg-surface data-active:[&>svg]:text-accent group-data-[has-actions=true]/folder-row:pe-control-compact group-data-[import-drop-active=true]/folder-row:text-text-strong group-data-[import-drop-active=true]/folder-row:bg-accent-soft group-data-[import-drop-active=true]/folder-row:folder-tree-drop-ring group-data-[import-drop-active=true]/folder-row:[&>svg]:text-accent"
             data-active={isSelected || undefined}
             data-library-folder-primary-action
             onClick={() => onSelect(folder)}
@@ -93,14 +93,19 @@ function FolderNode({
             ref={primaryActionRef}
             type="button"
           >
-            <FolderIcon aria-hidden="true" size={17} fill={isSelected ? "currentColor" : "none"} />
-            <span>{folder.name}</span>
+            <FolderIcon
+              aria-hidden="true"
+              className="block size-icon-glyph-standard justify-self-center"
+              fill={isSelected ? "currentColor" : "none"}
+            />
+            <span className="truncate">{folder.name}</span>
           </button>
         </Tooltip>
         {showActions ? (
           <FolderActionsMenu
             controller={contextMenu}
             dismissKey={menuDismissKey}
+            surface="tree"
             folder={folder}
             onDelete={onDelete}
             onMove={onMove}
@@ -111,7 +116,7 @@ function FolderNode({
         ) : null}
       </div>
       {folder.children.length > 0 ? (
-        <ul className="folder-tree__children">
+        <ul className="folder-tree__children m-0 list-none p-0 ps-folder-tree-indent app-motion:animate-disclosure-enter">
           {folder.children.map((child) => (
             <FolderNode
               folder={child}
@@ -153,13 +158,15 @@ export function FolderTree({
     const target = event.target;
     if (
       !(target instanceof HTMLButtonElement) ||
-      !target.classList.contains("folder-tree__select")
+      !target.hasAttribute("data-library-folder-primary-action")
     ) {
       return;
     }
 
     const items = Array.from(
-      treeRef.current?.querySelectorAll<HTMLButtonElement>(".folder-tree__select") ?? [],
+      treeRef.current?.querySelectorAll<HTMLButtonElement>(
+        "[data-library-folder-primary-action]",
+      ) ?? [],
     );
     const index = items.indexOf(target);
     let next: HTMLButtonElement | undefined;
@@ -177,15 +184,16 @@ export function FolderTree({
         target
           .closest("li")
           ?.querySelector<HTMLButtonElement>(
-            ":scope > .folder-tree__children > li > .folder-tree__row > .folder-tree__select",
+            ':scope > ul > li > [data-library-folder-surface="tree"] > [data-library-folder-primary-action]',
           ) ?? undefined;
     } else if (event.key === "ArrowLeft") {
       next =
         target
-          .closest("ul.folder-tree__children")
+          .closest("ul")
           ?.closest("li")
-          ?.querySelector<HTMLButtonElement>(":scope > .folder-tree__row > .folder-tree__select") ??
-        undefined;
+          ?.querySelector<HTMLButtonElement>(
+            ':scope > [data-library-folder-surface="tree"] > [data-library-folder-primary-action]',
+          ) ?? undefined;
     } else {
       return;
     }
@@ -200,7 +208,7 @@ export function FolderTree({
   return (
     <ul
       aria-label="Library folders"
-      className="folder-tree"
+      className="folder-tree m-0 mt-folder-inset grid grid-cols-1 list-none gap-control-inset p-0 page-mobile:max-h-folder-tree-limit page-mobile:overflow-y-auto"
       onKeyDown={handleKeyDown}
       ref={treeRef}
     >

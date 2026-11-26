@@ -22,14 +22,23 @@ export function SelectTrigger({
   children,
   iconOnly = false,
   size = "standard",
+  variant = "default",
   ...props
-}: ComponentProps<"button"> & { iconOnly?: boolean; size?: "compact" | "standard" }) {
+}: ComponentProps<"button"> & {
+  iconOnly?: boolean;
+  size?: "compact" | "standard";
+  variant?: "default" | "filter";
+}) {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
         "app-select__trigger flex w-full items-center justify-between gap-select-trigger-gap border-standard border-solid border-line rounded-control bg-surface px-button-compact py-0 text-meta font-medium leading-inherit text-text text-start cursor-pointer transition-select control-hover:border-line-strong control-hover:bg-surface-hover aria-expanded:border-line-strong aria-expanded:bg-surface-raised aria-expanded:text-text-strong disabled:cursor-not-allowed disabled:opacity-55 control-active:border-line-strong control-active:bg-action-neutral-active control-active:text-text-strong",
-        size === "compact" ? "min-h-control-compact" : "min-h-control-standard",
+        variant === "filter"
+          ? "min-h-field-standard px-field-compact-inline text-[length:var(--type-caption)] tracking-normal normal-case"
+          : size === "compact"
+            ? "min-h-control-compact"
+            : "min-h-control-standard",
         iconOnly &&
           cn("justify-center p-0", size === "compact" ? "w-control-compact" : "w-control-standard"),
         className,

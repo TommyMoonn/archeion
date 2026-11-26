@@ -1,13 +1,17 @@
 import { Badge } from "../../components/ui/badge";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Filter, X } from "lucide-react";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { AppSelect, type AppSelectOption } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import type { LibraryFilterState, LibraryReadingStatus } from "../../types/library";
-import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
+import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover";
+import { Button as UiButton } from "../../components/ui/button";
+import { focusElementIfUsable } from "../../utils/focusRestoration";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { countActiveLibraryFilters, type LibraryFilterOptions } from "./libraryFilters";
 
 type MetadataFilterKey = "series" | "subjects" | "languages" | "publishers";
@@ -141,7 +145,7 @@ function MetadataFilterSelect({
   );
 
   return (
-    <div className="library-filter-field">
+    <div className="grid min-w-0 w-full gap-filter-label-gap text-muted text-caption-size font-medium tracking-field-label uppercase">
       <span>{metadataFilterLabels[filterKey]}</span>
       <AppSelect
         ariaLabel={`Add ${metadataFilterLabels[filterKey].toLowerCase()} filter`}
@@ -153,6 +157,7 @@ function MetadataFilterSelect({
         }}
         options={selectOptions}
         size="compact"
+        variant="filter"
         value=""
       />
     </div>
@@ -165,108 +170,166 @@ export const LibraryFilterPopover = memo(function LibraryFilterPopover({
   onClear,
   options,
 }: LibraryFilterPopoverProps) {
-  const { detailsRef } = useDismissibleDetails();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useTransientSurfaceOwnership({
+    active: open,
+    elementRef: rootRef,
+    triggerRef,
+    originRef: triggerRef,
+    kind: "popover",
+    closeOnModalOpen: true,
+    dismissOnOutsidePointer: true,
+    onDismiss: (reason) => {
+      if (reason === "escape") {
+        flushSync(() => setOpen(false));
+        focusElementIfUsable(triggerRef.current);
+      } else {
+        setOpen(false);
+      }
+    },
+  });
   const activeCount = countActiveLibraryFilters(filters);
 
   return (
-    <details className="library-filter" ref={detailsRef}>
-      <summary aria-label="Filter library">
-        <Filter aria-hidden="true" size={16} />
-        <span>Filters</span>
-        {activeCount > 0 ? (
-          <Badge className="inline-grid min-h-filter-count min-w-filter-count place-items-center border-muted-soft bg-canvas-deep px-filter-count-inline py-0 leading-none text-muted tabular-nums">
-            <span className="-translate-x-filter-count-optical-offset">{activeCount}</span>
-          </Badge>
-        ) : null}
-      </summary>
-      <div className="library-filter__popover" role="dialog" aria-label="Library filters">
-        <div className="library-filter__heading">
-          <strong>Filters</strong>
+    <div className="relative" ref={rootRef}>
+      <Popover
+        open={open}
+        onOpenChange={(next, details) => {
+          // The shared transient stack owns dismissal, including nested Selects.
+          if (!next && ["outside-press", "escape-key", "focus-out"].includes(details.reason)) {
+            details.cancel();
+            return;
+          }
+          setOpen(next);
+        }}
+      >
+        <PopoverTrigger
+          ref={triggerRef}
+          aria-label="Filter library"
+          render={<UiButton variant="secondary" size="standard" />}
+          className="gap-field-label px-field-standard-inline border-line bg-surface text-meta-only font-normal leading-inherit control-hover:bg-surface-raised control-hover:text-text motion-safe:app-motion:control-active:scale-100 aria-expanded:border-line-strong aria-expanded:bg-surface-raised cursor-pointer"
+        >
+          <Filter aria-hidden="true" className="size-icon-glyph-standard" />
+          <span>Filters</span>
           {activeCount > 0 ? (
-            <Button onClick={onClear} variant="ghost">
-              Clear all
-            </Button>
+            <Badge className="inline-grid min-h-filter-count min-w-filter-count place-items-center border-muted-soft bg-canvas-deep px-filter-count-inline py-0 leading-none text-muted tabular-nums">
+              <span className="-translate-x-filter-count-optical-offset">{activeCount}</span>
+            </Badge>
           ) : null}
-        </div>
+        </PopoverTrigger>
+        {open ? (
+          <PopoverContent
+            container={rootRef}
+            initialFocus={false}
+            finalFocus={false}
+            className="w-filter-panel-width max-h-filter-panel-height gap-filter-group-gap overflow-y-auto p-button-standard"
+            aria-label="Library filters"
+          >
+            <div className="flex items-center justify-between gap-filter-choice-gap">
+              <strong className="text-text-strong text-body-only">Filters</strong>
+              {activeCount > 0 ? (
+                <Button
+                  className="min-h-filter-token-height px-control-gap text-caption-size control-enabled:cursor-pointer"
+                  onClick={onClear}
+                  variant="ghost"
+                >
+                  Clear all
+                </Button>
+              ) : null}
+            </div>
 
-        <div className="library-filter__metadata">
-          <MetadataFilterSelect
-            filters={filters}
-            filterKey="series"
-            onChange={onChange}
-            options={options.series}
-          />
-          <MetadataFilterSelect
-            filters={filters}
-            filterKey="subjects"
-            onChange={onChange}
-            options={options.subjects}
-          />
-          <MetadataFilterSelect
-            filters={filters}
-            filterKey="languages"
-            onChange={onChange}
-            options={options.languages}
-          />
-          <MetadataFilterSelect
-            filters={filters}
-            filterKey="publishers"
-            onChange={onChange}
-            options={options.publishers}
-          />
-        </div>
-
-        <fieldset className="library-filter__group">
-          <legend>Reading status</legend>
-          {(Object.keys(readingStatusLabels) as LibraryReadingStatus[]).map((status) => (
-            <label key={status}>
-              <Checkbox
-                className="m-checkbox-margin ml-checkbox-start"
-                checked={filters.readingStatuses.includes(status)}
-
-                onCheckedChange={() => onChange(toggleReadingStatus(filters, status))}
+            <div className="grid grid-cols-2 gap-field-standard-inline collection-header-narrow:grid-cols-1">
+              <MetadataFilterSelect
+                filters={filters}
+                filterKey="series"
+                onChange={onChange}
+                options={options.series}
               />
-              <span>{readingStatusLabels[status]}</span>
-            </label>
-          ))}
-        </fieldset>
+              <MetadataFilterSelect
+                filters={filters}
+                filterKey="subjects"
+                onChange={onChange}
+                options={options.subjects}
+              />
+              <MetadataFilterSelect
+                filters={filters}
+                filterKey="languages"
+                onChange={onChange}
+                options={options.languages}
+              />
+              <MetadataFilterSelect
+                filters={filters}
+                filterKey="publishers"
+                onChange={onChange}
+                options={options.publishers}
+              />
+            </div>
 
-        <fieldset className="library-filter__group">
-          <legend>Other</legend>
-          <label>
-            <Checkbox
-              className="m-checkbox-margin ml-checkbox-start"
-              checked={filters.favoritesOnly}
+            <fieldset className="grid grid-cols-2 gap-x-filter-choice-gap gap-y-control-gap p-0 border-0 collection-header-narrow:grid-cols-1">
+              <legend className="col-span-full w-full mb-filter-token-gap px-control-inset text-muted text-caption-size font-semibold tracking-field-label uppercase">
+                Reading status
+              </legend>
+              {(Object.keys(readingStatusLabels) as LibraryReadingStatus[]).map((status) => (
+                <label
+                  className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer"
+                  key={status}
+                >
+                  <Checkbox
+                    className="m-checkbox-margin ml-checkbox-start"
+                    checked={filters.readingStatuses.includes(status)}
 
-              onCheckedChange={() =>
-                onChange({ ...filters, favoritesOnly: !filters.favoritesOnly })
-              }
-            />
-            <span>Favorites</span>
-          </label>
-          <label>
-            <Checkbox
-              className="m-checkbox-margin ml-checkbox-start"
-              checked={filters.missingMetadata}
+                    onCheckedChange={() => onChange(toggleReadingStatus(filters, status))}
+                  />
+                  <span>{readingStatusLabels[status]}</span>
+                </label>
+              ))}
+            </fieldset>
 
-              onCheckedChange={() =>
-                onChange({ ...filters, missingMetadata: !filters.missingMetadata })
-              }
-            />
-            <span>Missing metadata</span>
-          </label>
-          <label>
-            <Checkbox
-              className="m-checkbox-margin ml-checkbox-start"
-              checked={filters.missingCover}
+            <fieldset className="grid grid-cols-2 gap-x-filter-choice-gap gap-y-control-gap p-0 border-0 collection-header-narrow:grid-cols-1">
+              <legend className="col-span-full w-full mb-filter-token-gap px-control-inset text-muted text-caption-size font-semibold tracking-field-label uppercase">
+                Other
+              </legend>
+              <label className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer">
+                <Checkbox
+                  className="m-checkbox-margin ml-checkbox-start"
+                  checked={filters.favoritesOnly}
 
-              onCheckedChange={() => onChange({ ...filters, missingCover: !filters.missingCover })}
-            />
-            <span>Missing cover</span>
-          </label>
-        </fieldset>
-      </div>
-    </details>
+                  onCheckedChange={() =>
+                    onChange({ ...filters, favoritesOnly: !filters.favoritesOnly })
+                  }
+                />
+                <span>Favorites</span>
+              </label>
+              <label className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer">
+                <Checkbox
+                  className="m-checkbox-margin ml-checkbox-start"
+                  checked={filters.missingMetadata}
+
+                  onCheckedChange={() =>
+                    onChange({ ...filters, missingMetadata: !filters.missingMetadata })
+                  }
+                />
+                <span>Missing metadata</span>
+              </label>
+              <label className="flex items-center gap-field-label min-h-filter-check-height text-text text-caption-size cursor-pointer">
+                <Checkbox
+                  className="m-checkbox-margin ml-checkbox-start"
+                  checked={filters.missingCover}
+
+                  onCheckedChange={() =>
+                    onChange({ ...filters, missingCover: !filters.missingCover })
+                  }
+                />
+                <span>Missing cover</span>
+              </label>
+            </fieldset>
+          </PopoverContent>
+        ) : null}
+      </Popover>
+    </div>
   );
 });
 
@@ -284,11 +347,15 @@ export function LibraryFilterTokens({
   }
 
   return (
-    <div className="library-filter-tokens" aria-label="Active filters" role="group">
+    <div className="flex flex-wrap gap-field-label" aria-label="Active filters" role="group">
       {tokens.map((token) => (
-        <span className="library-filter-token" key={token.id}>
+        <span
+          className="inline-flex items-center gap-filter-token-gap min-h-filter-token-height pl-field-compact-inline pr-filter-token-gap py-0 border-standard border-solid border-line rounded-pill text-text bg-surface text-caption-size"
+          key={token.id}
+        >
           <span>{token.label}</span>
           <IconButton
+            className="size-filter-token-remove control-enabled:cursor-pointer"
             label={`Remove ${token.label} filter`}
             onClick={() => onChange(token.remove(filters))}
           >

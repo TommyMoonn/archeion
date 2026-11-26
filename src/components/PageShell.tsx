@@ -33,7 +33,7 @@ export function PageShell({
     >
       {sidebar}
       <main
-        className="page-shell relative min-w-0 h-auto min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-gutter-stable m-0 pt-page-top px-page-inline pb-page-bottom border-0 rounded-none bg-surface-main shadow-none page-short:pt-page-short-top page-short:pb-page-short-bottom page-narrow:px-dialog-panel page-mobile:px-collection-loading page-mobile:pt-field-standard page-mobile:pb-page-compact-bottom page-compact:pt-page-compact-top page-compact:pb-page-compact-bottom"
+        className="page-shell relative data-[import-drop-active=true]:shadow-library-drop data-[import-drop-active=true]:after:import-drop-label data-[import-drop-active=true]:after:block after:hidden after:absolute after:z-9 after:top-button-standard after:end-button-standard after:py-field-label after:px-field-standard-inline after:border after:border-solid after:border-accent-border after:rounded-pill after:text-accent-strong after:bg-surface-main-raised after:shadow-app-tooltip after:text-caption-size after:font-semibold after:pointer-events-none min-w-0 h-auto min-h-0 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-gutter-stable m-0 pt-page-top px-page-inline pb-page-bottom border-0 rounded-none bg-surface-main shadow-none page-short:pt-page-short-top page-short:pb-page-short-bottom page-narrow:px-dialog-panel page-mobile:px-collection-loading page-mobile:pt-field-standard page-mobile:pb-page-compact-bottom page-compact:pt-page-compact-top page-compact:pb-page-compact-bottom"
         data-import-drop-active={importDropTarget?.active || undefined}
         data-import-drop-destination={importDropTarget?.destination}
         data-import-drop-id={importDropTarget?.id}

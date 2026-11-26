@@ -36,6 +36,7 @@ type AppSelectProps<TValue extends string> = AppSelectAppearance & {
   onOpen?: () => void;
   options: Array<AppSelectOption<TValue>>;
   size?: Exclude<ControlSize, "prominent">;
+  variant?: "default" | "filter";
   value: TValue;
 };
 
@@ -52,6 +53,7 @@ export function AppSelect<TValue extends string>({
   size = "standard",
   triggerIcon,
   value,
+  variant = "default",
 }: AppSelectProps<TValue>) {
   const generatedId = useId();
   const controlId = id ?? `app-select-${generatedId}`;
@@ -77,8 +79,14 @@ export function AppSelect<TValue extends string>({
     elementRef: rootRef,
     kind: "popover",
     onDismiss: (reason) => {
-      restoreFocusRef.current = reason === "escape";
-      setOpen(false);
+      restoreFocusRef.current = false;
+      if (reason === "escape") {
+        // The central capture handler prevents Base UI's native Escape path.
+        flushSync(() => setOpen(false));
+        focusElementIfUsable(buttonRef.current);
+      } else {
+        setOpen(false);
+      }
     },
     originRef: buttonRef,
     triggerRef: buttonRef,
@@ -104,7 +112,8 @@ export function AppSelect<TValue extends string>({
       className={cn(
         "app-select relative inline-grid max-w-full text-text",
         isOpen ? "z-40" : "z-1",
-        iconOnly ? "min-w-0" : "min-w-select-trigger",
+        iconOnly || variant === "filter" ? "min-w-0" : "min-w-select-trigger",
+        variant === "filter" && "w-full tracking-normal normal-case",
         `app-select--${size} app-select--${appearance}`,
         className,
       )}
@@ -163,6 +172,7 @@ export function AppSelect<TValue extends string>({
             id={`${controlId}-button`}
             ref={buttonRef}
             size={size}
+            variant={variant}
             type="button"
             onKeyDown={(event) => {
               if (disabled || isOpen) return;

@@ -1,15 +1,12 @@
-import { CollectionLoading } from "../../components/CollectionLoading";
-import { Tooltip } from "../../components/Tooltip";
+import { collectionContent } from "../../components/collectionPresentation";
+import { Alert } from "../../components/ui/alert";
 import {
-  BookOpen,
-  ChevronDown,
-  CircleAlert,
-  FileCheck2,
-  FileWarning,
-  FolderOpen,
-  TriangleAlert,
-} from "lucide-react";
-import { useId } from "react";
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../../components/ui/collapsible";
+import { CollectionLoading } from "../../components/CollectionLoading";
+import { ChevronDown, CircleAlert, FileCheck2, FileWarning, TriangleAlert } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { LibraryIntegrityHeader } from "./LibraryIntegrityHeader";
@@ -20,7 +17,7 @@ import type {
   EpubIntegrityReadState,
 } from "../../types/epubIntegrity";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
-import { BookCover } from "./BookCover";
+import { IntegrityBookRow } from "./IntegrityBookRow";
 import { EpubIssueDetails } from "./EpubIssueDetails";
 import { resolveEpubIssueBooks, type ResolvedEpubIssueBook } from "./libraryEpubIssuesReadModel";
 
@@ -45,7 +42,6 @@ function EpubIssueBook({
 }: Omit<LibraryEpubIssuesViewProps, "books" | "onRefresh" | "state"> & {
   resolved: ResolvedEpubIssueBook;
 }) {
-  const titleId = useId();
   const { book, entry, errorCount, readerAvailable, warningCount } = resolved;
   const title = bookTitle(book);
   const author = bookAuthor(book);
@@ -55,80 +51,62 @@ function EpubIssueBook({
     : "The diagnostics indicate that this EPUB cannot be opened in Reader.";
 
   return (
-    <article aria-labelledby={titleId} className="epub-issues-book" data-reader-book-id={book.id}>
-      <div className="epub-issues-book__header">
-        <Tooltip content={`Open details for ${title}`}>
-          <button
-            aria-label={`Open details for ${title}`}
-            className="epub-issues-book__cover-action"
-            onClick={() => onOpenDetails(book)}
-            type="button"
-          >
-            <BookCover book={book} className="book-cover--epub-issue" />
-          </button>
-        </Tooltip>
-        <div className="epub-issues-book__identity">
-          <h2 id={titleId}>
-            <button
-              className="epub-issues-book__title-action"
-              onClick={() => onOpenDetails(book)}
-              type="button"
-            >
-              {title}
-            </button>
-          </h2>
-          <p>{author || "Author unavailable"}</p>
-          <span title={book.relativePath}>{book.relativePath}</span>
-          <div
-            className="epub-issues-book__summary"
+    <article
+      aria-label={title}
+      className="epub-issues-book min-w-0 overflow-hidden border-standard border-solid border-line rounded-control bg-surface-main"
+      data-reader-book-id={book.id}
+    >
+      <IntegrityBookRow
+        book={book}
+        onOpenDetails={onOpenDetails}
+        onRead={onRead}
+        onReveal={onReveal}
+        readerUnavailableReason={readerUnavailableReason}
+        status={
+          <span
+            className="epub-issues-book__summary flex items-center flex-wrap gap-y-control-gap-compact gap-x-integrity-row-block text-muted text-caption-size [&>span]:inline-flex [&>span]:items-center [&>span]:gap-integrity-small-gap [&>span]:whitespace-nowrap [&>span[data-severity=error]]:text-error [&>span[data-severity=warning]]:text-warning"
             data-reader-available={readerAvailable ? "true" : "false"}
           >
             {errorCount > 0 ? (
               <span data-severity="error">
-                <CircleAlert aria-hidden="true" size={14} />
+                <CircleAlert aria-hidden="true" className="size-icon-glyph-compact" />
                 {countLabel(errorCount, "error")}
               </span>
             ) : null}
             {warningCount > 0 ? (
               <span data-severity="warning">
-                <TriangleAlert aria-hidden="true" size={14} />
+                <TriangleAlert aria-hidden="true" className="size-icon-glyph-compact" />
                 {countLabel(warningCount, "warning")}
               </span>
             ) : null}
             {!readerAvailable ? (
-              <strong className="epub-issues-book__reader-status">Reader unavailable</strong>
+              <strong className="epub-issues-book__reader-status text-text-strong font-medium">
+                Reader unavailable
+              </strong>
             ) : null}
-          </div>
-        </div>
-        <div className="epub-issues-book__actions">
-          <Button
-            disabled={!readerAvailable}
-            disabledReason={readerUnavailableReason}
-            icon={<BookOpen />}
-            onClick={() => onRead(book)}
-            size="compact"
-            variant="secondary"
-          >
-            Read
-          </Button>
-          <Button
-            icon={<FolderOpen />}
-            onClick={() => onReveal(book)}
-            size="compact"
-            variant="ghost"
-          >
-            Reveal
-          </Button>
-        </div>
-      </div>
+          </span>
+        }
+      >
+        <span className="min-w-0 truncate text-muted text-meta" title={book.relativePath}>
+          {book.fileName}
+        </span>
+        <span className="min-w-0 truncate text-muted text-caption-size">
+          {author || "Author unavailable"}
+        </span>
+      </IntegrityBookRow>
 
-      <details className="epub-issues-book__disclosure">
-        <summary>
+      <Collapsible className="epub-issues-book__disclosure border-0 border-t border-solid border-line">
+        <CollapsibleTrigger className="group flex w-full items-center justify-between min-h-control-standard gap-control-gap px-button-standard py-control-gap border-0 text-muted bg-transparent text-start text-meta font-medium cursor-pointer hover:bg-surface-shell-hover hover:text-text-strong aria-expanded:text-text-strong focus-visible:-outline-offset-3!">
           <span>{`View ${countLabel(issueCount, "diagnostic issue")}`}</span>
-          <ChevronDown aria-hidden="true" size={18} />
-        </summary>
-        <EpubIssueDetails issues={entry.diagnostics.issues} />
-      </details>
+          <ChevronDown
+            aria-hidden="true"
+            className="size-icon-glyph-standard shrink-0 text-muted motion-safe:transition-transform duration-fast ease-standard group-aria-expanded:rotate-180"
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent keepMounted>
+          <EpubIssueDetails issues={entry.diagnostics.issues} />
+        </CollapsibleContent>
+      </Collapsible>
     </article>
   );
 }
@@ -149,7 +127,10 @@ export function LibraryEpubIssuesView({
   const resultLabel = countLabel(affectedBooks.length, "affected book");
 
   return (
-    <section aria-labelledby="epub-issues-title" className="epub-issues-view">
+    <section
+      aria-labelledby="epub-issues-title"
+      className="epub-issues-view mx-auto w-full max-w-collection-workspace"
+    >
       <LibraryIntegrityHeader
         kind="epub-issues"
         refreshing={refreshing}
@@ -165,7 +146,7 @@ export function LibraryEpubIssuesView({
 
       <div
         aria-busy={initialLoading || refreshing || undefined}
-        className="collection-content epub-issues-content"
+        className={`${collectionContent} epub-issues-content grid gap-integrity-gap`}
         data-surface-state={
           initialLoading
             ? "loading"
@@ -177,29 +158,32 @@ export function LibraryEpubIssuesView({
         }
       >
         {state.status === "error" && snapshot ? (
-          <div className="epub-issues-error" role="alert">
+          <Alert className="epub-issues-error static grid integrity-alert-columns gap-x-integrity-row-block gap-y-control-gap-compact px-integrity-alert-inline py-integrity-alert-block border-standard border-solid border-danger-border rounded-control text-error bg-danger-soft text-meta-only [@media(max-width:680px)]:grid-cols-1 [&>span]:text-muted">
             <strong>EPUB diagnostics could not be refreshed.</strong>
             <span>{state.error?.message ?? "Try refreshing the diagnostics again."}</span>
-          </div>
+          </Alert>
         ) : null}
 
         {initialLoading ? (
           <CollectionLoading message={"Checking EPUB files"} />
         ) : failedWithoutSnapshot ? (
-          <div role="alert">
-            <EmptyState
-              action={
-                <Button variant="secondary" onClick={() => void onRefresh()}>
-                  Try again
-                </Button>
-              }
-              description={
-                state.error?.message ?? "EPUB diagnostics could not be refreshed. Try again."
-              }
-              icon={<FileWarning strokeWidth={1.5} />}
-              title="EPUB Issues unavailable"
-            />
-          </div>
+          <EmptyState
+            role="alert"
+            action={
+              <Button
+                className="control-enabled:cursor-pointer"
+                variant="secondary"
+                onClick={() => void onRefresh()}
+              >
+                Try again
+              </Button>
+            }
+            description={
+              state.error?.message ?? "EPUB diagnostics could not be refreshed. Try again."
+            }
+            icon={<FileWarning strokeWidth={1.5} />}
+            title="EPUB Issues unavailable"
+          />
         ) : affectedBooks.length === 0 ? (
           <EmptyState
             description="No current Reader-relevant EPUB problems were found."
@@ -207,7 +191,7 @@ export function LibraryEpubIssuesView({
             title="No EPUB issues"
           />
         ) : (
-          <div className="epub-issues-books">
+          <div className="epub-issues-books grid gap-integrity-gap pb-page-bottom">
             {affectedBooks.map((resolved) => (
               <EpubIssueBook
                 key={resolved.book.id}

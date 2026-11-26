@@ -1,3 +1,4 @@
+import { collectionHeader } from "../../../src/components/collectionPresentation";
 import { useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -140,7 +141,7 @@ export function Fixture() {
       <button onClick={() => setIdentity("first")}>Open surface</button>
       <button onClick={submit}>Background action</button>
       <section className="library">
-        <header className="library-header">
+        <header className={collectionHeader.root}>
           <h1>Library</h1>
         </header>
         <div className="book-grid">

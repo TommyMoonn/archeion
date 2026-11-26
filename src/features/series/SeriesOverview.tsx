@@ -1,9 +1,11 @@
+import { collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { ChevronRight, Layers } from "lucide-react";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, type Ref } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
+import { cn } from "../../utils/cn";
 import { focusElementIfRestorationOwned, focusIsUnowned } from "../../utils/focusRestoration";
 import type { CollectionCardSize, LibraryView, SeriesSort } from "../../types/library";
 import type { SeriesEntry } from "../../types/series";
@@ -49,21 +51,30 @@ const SeriesOverviewCard = memo(function SeriesOverviewCard({
   if (!representative) return null;
 
   return (
-    <article className="series-card">
+    <article className="series-card relative block min-w-0 rounded-card border-standard border-solid border-line bg-series-card transition-input-surface hover:border-line-strong hover:bg-surface-raised focus-within:border-line-strong focus-within:bg-surface-raised">
       <button
         aria-label={`Open ${entry.displayName}`}
-        className="series-card__open"
+        className="series-card__open grid w-full min-w-0 series-card-columns items-center series-card-gap border-none bg-transparent series-card-inset text-start text-inherit cursor-pointer"
         data-library-series-key={entry.key}
         onClick={() => onOpen(entry)}
         type="button"
       >
-        <BookCover book={representative} className="book-cover--series" />
-        <span className="series-card__copy">
-          <strong>{entry.displayName}</strong>
-          <span>{volumeCountLabel(entry.books.length)}</span>
-          <span className="series-card__status">{seriesProgressLabel(entry)}</span>
+        <BookCover
+          book={representative}
+          className="book-cover--series series-cover-width rounded-small"
+        />
+        <span className="series-card__copy grid min-w-0 gap-series-copy-gap">
+          <strong className="truncate font-app-display text-heading text-text-strong">
+            {entry.displayName}
+          </strong>
+          <span className="truncate text-muted text-caption-size">
+            {volumeCountLabel(entry.books.length)}
+          </span>
+          <span className="series-card__status truncate text-muted text-caption-size">
+            {seriesProgressLabel(entry)}
+          </span>
         </span>
-        <ChevronRight aria-hidden="true" size={17} />
+        <ChevronRight aria-hidden="true" className="text-muted-soft size-icon-glyph-medium" />
       </button>
     </article>
   );
@@ -135,7 +146,11 @@ export const SeriesOverview = memo(function SeriesOverview({
   }, [onReturnFocusComplete, returnFocusKey, surfaceState, visibleEntries]);
 
   return (
-    <section ref={overviewRef} aria-labelledby="series-overview-title" className="series-overview">
+    <section
+      ref={overviewRef}
+      aria-labelledby="series-overview-title"
+      className="series-overview mx-auto w-full max-w-collection-workspace"
+    >
       <SeriesOverviewHeader
         {...{
           onQueryChange,
@@ -155,7 +170,7 @@ export const SeriesOverview = memo(function SeriesOverview({
 
       <div
         aria-busy={surfaceState === "loading" || undefined}
-        className="collection-content series-overview__content"
+        className={`${collectionContent} series-overview__content`}
         data-surface-state={surfaceState}
       >
         {surfaceState === "loading" ? (
@@ -169,7 +184,12 @@ export const SeriesOverview = memo(function SeriesOverview({
         ) : visibleEntries.length === 0 ? (
           <EmptyState
             action={
-              <Button onClick={onClearSearch} size="standard" variant="secondary">
+              <Button
+                className="control-enabled:cursor-pointer"
+                onClick={onClearSearch}
+                size="standard"
+                variant="secondary"
+              >
                 Clear search
               </Button>
             }
@@ -178,7 +198,16 @@ export const SeriesOverview = memo(function SeriesOverview({
           />
         ) : (
           <div
-            className={`series-grid series-grid--${view} collection-content__items`}
+            className={cn(
+              "series-grid collection-content__items grid gap-series-grid-gap pb-series-grid-bottom page-short:pt-series-detail-gap",
+              view === "list"
+                ? "grid-cols-1 series-size-medium"
+                : cardSize === "small"
+                  ? "series-grid-small series-size-small"
+                  : cardSize === "large"
+                    ? "series-grid-large series-size-large"
+                    : "series-grid-medium series-size-medium series-stacked:grid-cols-1",
+            )}
             data-series-card-size={cardSize}
           >
             {visibleEntries.map((entry) => (

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { AppSelect } from "../../../src/components/AppSelect";
 import { Dialog } from "../../../src/components/Dialog";
 import { TooltipProvider } from "../../../src/components/Tooltip";
-import { LibraryFilterPopover } from "../../../src/features/library/LibraryFilterPopover";
+import {
+  LibraryFilterPopover,
+  LibraryFilterTokens,
+} from "../../../src/features/library/LibraryFilterPopover";
 import { createDefaultLibraryFilters } from "../../../src/types/library";
 import { ChevronDown } from "lucide-react";
 
@@ -53,17 +56,22 @@ function SelectControlsFixture() {
         value={value}
       />
       <button type="button">After select</button>
-      <LibraryFilterPopover
-        filters={filters}
-        onChange={setFilters}
-        onClear={() => setFilters(createDefaultLibraryFilters())}
-        options={{
-          series: ["First series", "Second series"],
-          subjects: [],
-          languages: [],
-          publishers: [],
-        }}
-      />
+      <div className="[container-name:collection-header] [container-type:inline-size]">
+        <LibraryFilterPopover
+          filters={filters}
+          onChange={setFilters}
+          onClear={() => setFilters(createDefaultLibraryFilters())}
+          options={{
+            series: ["First series", "Second series"],
+            subjects: [
+              "A substantially longer tag that must wrap within the available filter menu width",
+            ],
+            languages: [],
+            publishers: [],
+          }}
+        />
+        <LibraryFilterTokens filters={filters} onChange={setFilters} />
+      </div>
       {dialog ? (
         <Dialog title="Select dialog" onClose={() => setDialog(false)}>
           {select("Dialog choice")}

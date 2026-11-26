@@ -5,6 +5,7 @@ import { extendTailwindMerge } from "tailwind-merge";
 const merge = extendTailwindMerge({
   extend: {
     theme: {
+      radius: ["control", "small", "menu", "card", "dialog", "pill", "collection-utility-child"],
       spacing: [
         "control-compact",
         "control-standard",
@@ -18,6 +19,7 @@ const merge = extendTailwindMerge({
         "checkbox-large",
         "checkbox-margin",
         "checkbox-start",
+        "select-trigger",
         "field-label",
         "field-inline",
         "field-standard",
@@ -40,9 +42,23 @@ const merge = extendTailwindMerge({
         "control-inset",
         "busy-inset",
         "icon-glyph-standard",
+        "collection-search-clear",
+        "collection-sort-min",
+        "book-row-cover",
+        "filter-token-remove",
+        "filter-token-height",
+        "filter-panel-width",
+        "filter-panel-height",
+        "book-selection-control",
+        "cover-progress-height",
+        "selection-menu-min",
+        "feedback-dismiss",
       ],
       text: [
         "caption",
+        "caption-size",
+        "meta-only",
+        "body-only",
         "meta",
         "body",
         "body-large",

@@ -140,12 +140,12 @@ describe("LibraryDuplicatesView", () => {
     expect(groups[1]?.textContent).toContain("EPUB identifier");
     expect(groups[1]?.textContent).toContain("urn:shared");
     expect(rendered.textContent).toContain("Authors/Alpha.epub");
-    expect(rendered.textContent).toContain("1.0 MB");
-    expect(rendered.textContent).toContain("Ada");
+    expect(rendered.textContent).not.toContain("1.0 MB");
+    expect(rendered.textContent).not.toContain("Modified");
     expect(rendered.textContent).not.toContain("Review matches before changing archive files.");
 
     const alphaTitle = rendered.querySelector<HTMLElement>(
-      '[data-reader-book-id="book-a"] .duplicate-member__identity strong',
+      '[data-reader-book-id="book-a"] .integrity-book-row__identity strong',
     );
     const tooltipId = alphaTitle?.getAttribute("aria-describedby");
     expect(tooltipId).toBeTruthy();
@@ -167,38 +167,27 @@ describe("LibraryDuplicatesView", () => {
       alphaRow
         .querySelector<HTMLButtonElement>('button[aria-label="Open details for Alpha"]')
         ?.click();
-      Array.from(alphaRow.querySelectorAll<HTMLButtonElement>("button"))
-        .find((button) => button.textContent?.trim() === "Read")
-        ?.click();
-      Array.from(alphaRow.querySelectorAll<HTMLButtonElement>("button"))
-        .find((button) => button.textContent?.trim() === "Reveal")
-        ?.click();
     });
     expect(props.onOpenDetails).toHaveBeenCalledWith(alpha);
-    expect(props.onRead).toHaveBeenCalledWith(alpha);
-    expect(props.onReveal).toHaveBeenCalledWith(alpha);
-
-    await act(async () => {
-      alphaRow
-        .querySelector<HTMLButtonElement>('button[aria-label="File actions for Alpha"]')
-        ?.click();
-    });
-    const move = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
-      (item) => item.textContent?.includes("Move to folder"),
-    );
-    await act(async () => move?.click());
-    expect(props.onMove).toHaveBeenCalledWith(alpha);
-
-    await act(async () => {
-      alphaRow
-        .querySelector<HTMLButtonElement>('button[aria-label="File actions for Alpha"]')
-        ?.click();
-    });
-    const remove = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
-    ).find((item) => item.textContent?.includes("Delete EPUB"));
-    await act(async () => remove?.click());
-    expect(props.onDelete).toHaveBeenCalledWith(alpha);
+    const menuTrigger = alphaRow.querySelector<HTMLButtonElement>(
+      'button[aria-label="File actions for Alpha"]',
+    )!;
+    expect(alphaRow.querySelectorAll("button")).toHaveLength(2);
+    for (const [label, callback] of [
+      ["Read", props.onRead],
+      ["Reveal", props.onReveal],
+      ["Move to folder", props.onMove],
+      ["Delete EPUB", props.onDelete],
+    ] as const) {
+      await act(async () => menuTrigger.click());
+      const action = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+      ).find((item) => item.textContent?.trim() === label);
+      expect(action).toBeDefined();
+      await act(async () => action?.click());
+      expect(callback).toHaveBeenCalledWith(alpha);
+    }
+    expect(props.onOpenDetails).toHaveBeenCalledTimes(1);
   });
 
   it("publishes refreshed groups in stable result order", async () => {

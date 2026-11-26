@@ -1,4 +1,4 @@
-import { Check, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import {
   memo,
   useId,
@@ -12,12 +12,14 @@ import {
   openContextMenuFromPointer,
   useContextMenuController,
 } from "../../components/contextMenuController";
+import { Badge } from "../../components/ui/badge";
 import { IconButton } from "../../components/IconButton";
 import type { ReadonlyBook } from "../../types/book";
 import { displayedBookProgress } from "../reading/readingProgress";
 import { BookContextMenu } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
+import { BookSelectionIndicator } from "./BookSelectionIndicator";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 import type { LibrarySelectionIntent } from "./librarySelection";
 
@@ -112,7 +114,7 @@ function BookCardComponent({
 
   return (
     <article
-      className="book-card"
+      className="book-card group/card relative min-w-0 [&:has(.book-menu[data-open])]:z-3"
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
@@ -124,7 +126,13 @@ function BookCardComponent({
         aria-describedby={description ? descriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : `View details for ${title}`}
         aria-pressed={selectionMode ? selected : inspected}
-        className="book-card__select"
+        className={[
+          "book-card__select block w-full cursor-pointer border-none bg-transparent p-0 text-start text-inherit book-card-deferred-layout",
+          selected || inspected
+            ? "[&_.book-cover]:border-2 [&_.book-cover]:border-accent"
+            : "[&:hover_.book-cover]:border-line-strong",
+          selectionMode ? "" : "[&:hover_.book-cover]:book-cover-lift",
+        ].join(" ")}
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
         ref={primaryActionRef}
@@ -132,12 +140,23 @@ function BookCardComponent({
       >
         <BookCover book={book}>
           {progressPercent === null ? null : (
-            <span className="book-card__progress-badge">{progressPercent}%</span>
+            <Badge
+              variant="cover-overlay"
+              className="book-card__progress-badge pointer-events-none absolute end-book-menu-card-inset bottom-book-menu-card-inset z-1 min-h-cover-progress-height"
+            >
+              {progressPercent}%
+            </Badge>
           )}
         </BookCover>
-        <span className="book-card__copy">
-          <strong>{title}</strong>
-          {author ? <span>{author}</span> : null}
+        <span className="book-card__copy block h-book-card-copy-height overflow-hidden px-control-inset pt-book-card-copy-top">
+          <strong className="m-0 line-clamp-2 text-ellipsis h-book-card-title-height text-text text-body font-semibold leading-collection-copy">
+            {title}
+          </strong>
+          {author ? (
+            <span className="mt-book-copy-gap block truncate text-muted text-meta leading-inherit">
+              {author}
+            </span>
+          ) : null}
         </span>
       </button>
       {description ? (
@@ -146,17 +165,11 @@ function BookCardComponent({
         </span>
       ) : null}
       {selectionMode || selected ? (
-        <span
-          aria-hidden="true"
-          className="book-selection-control book-selection-control--card"
-          data-selected={selected || undefined}
-        >
-          {selected ? <Check aria-hidden="true" size={15} strokeWidth={2.25} /> : null}
-        </span>
+        <BookSelectionIndicator selected={selected} placement="card" />
       ) : null}
       <IconButton
         aria-pressed={book.isFavorite}
-        className="book-favorite"
+        className="book-favorite control-enabled:cursor-pointer absolute top-book-menu-card-inset left-book-menu-card-inset z-2 border-book-menu-border bg-book-menu-surface text-text opacity-0 group-hover/card:opacity-100 hover:opacity-100 focus-visible:opacity-100 data-[active=true]:opacity-100 data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/card:pointer-events-none group-data-[selection-mode=true]/card:invisible [@media(hover:none)]:opacity-100"
         data-active={book.isFavorite || undefined}
         label={`Favorite ${title}`}
         onClick={() => onToggleFavorite(book)}

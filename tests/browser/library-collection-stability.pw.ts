@@ -35,6 +35,135 @@ for (const view of ["grid", "list"] as const) {
   });
 }
 
+test("populated Library grid and list fill the same width as their toolbar", async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto(`${fixture}?count=50&motion=off`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".book-grid")).toHaveAttribute("data-window-total", "50");
+  await expect(page.locator(".library-result-count")).toHaveCSS(
+    "font-variant-numeric",
+    "tabular-nums",
+  );
+
+  for (const label of ["Create folder", "About Archeion", "Settings"]) {
+    await expect(page.getByRole("button", { name: label, exact: true })).toHaveCSS(
+      "cursor",
+      "pointer",
+    );
+  }
+  await expect(page.locator(".book-favorite").first()).toHaveCSS("cursor", "pointer");
+
+  for (const view of ["grid", "list"] as const) {
+    await page.evaluate((nextView) => window.uiStabilityFixture.setView(nextView), view);
+    const collection = page.locator(view === "grid" ? ".book-grid" : ".book-list");
+    await expect(collection).toHaveAttribute("data-window-total", "50");
+    for (const viewport of [
+      { width: 1920, height: 1080 },
+      { width: 1920, height: 640 },
+      { width: 1280, height: 800 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const sort = page.getByRole("combobox", { name: "Sort library" });
+      await expect
+        .poll(async () => (await sort.boundingBox())?.width ?? 0)
+        .toBeGreaterThanOrEqual(177);
+      for (const label of ["Select books", "Rescan archive"]) {
+        const icon = page.getByRole("button", { name: label, exact: true }).locator(".icon-slot");
+        await expect(icon).toHaveCSS("width", "18px");
+        await expect(icon).toHaveCSS("height", "18px");
+      }
+      await expect
+        .poll(() =>
+          collection.evaluate((node) => {
+            const toolbar = document.querySelector(".library-header")!.getBoundingClientRect();
+            const results = node.getBoundingClientRect();
+            return Math.max(
+              Math.abs(results.left - toolbar.left),
+              Math.abs(results.right - toolbar.right),
+            );
+          }),
+        )
+        .toBeLessThan(1);
+    }
+  }
+});
+
+test("list columns retain their fixed spacing and use all available identity width", async ({
+  page,
+}) => {
+  await page.goto(`${fixture}?count=50&motion=off&longBookMetadata`);
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await page.evaluate(() => {
+    window.uiStabilityFixture.setView("list");
+    document.documentElement.style.fontSize = "24px";
+  });
+  const row = page.locator(".book-row").first();
+  const primary = row.locator(".book-row__select");
+  for (const width of [1280, 1100, 821, 820, 560]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect
+      .poll(() =>
+        primary.evaluate((button) => {
+          const style = getComputedStyle(button);
+          return {
+            columns: style.gridTemplateColumns.split(" ").length,
+            gap: style.columnGap,
+            start: style.paddingInlineStart,
+            end: style.paddingInlineEnd,
+          };
+        }),
+      )
+      .toEqual({
+        columns: width > 1100 ? 4 : width > 820 ? 3 : 2,
+        gap: "16px",
+        start: "10px",
+        end: "124px",
+      });
+    if (width > 1100) await expect(row.locator(".book-row__file")).toBeVisible();
+    else await expect(row.locator(".book-row__file")).toBeHidden();
+    if (width > 820) await expect(row.locator(".book-row__date")).toBeVisible();
+    else await expect(row.locator(".book-row__date")).toBeHidden();
+    await expect(row.locator(".book-cover")).toHaveCSS("width", "42px");
+  }
+});
+
+test("bulk action menu preserves selection and hands focus back from the metadata dialog", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${fixture}?count=2&motion=off`);
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await page.evaluate(() => window.uiStabilityFixture.setView("list"));
+  await page.getByRole("button", { name: "Select books", exact: true }).click();
+  await page.getByRole("button", { name: "Select all", exact: true }).click();
+  const bar = page.getByRole("group", { name: "Book selection actions" });
+  const statusIcon = bar.locator(".library-selection-bar__status-icon");
+  await expect(statusIcon).toHaveCSS("width", "20px");
+  await expect(statusIcon).toHaveCSS("height", "20px");
+  const trigger = bar.getByRole("button", { name: "More bulk actions" });
+  const menu = page.getByRole("menu", { name: "More bulk actions" });
+  await trigger.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(menu.getByRole("menuitem", { name: "Edit metadata" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Edit metadata for 2 books" });
+  await expect(dialog).toBeVisible();
+  await expect(menu).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+  await trigger.click();
+  await expect(menu).toBeVisible();
+  await page.getByRole("combobox", { name: "Sort library" }).click();
+  await expect(menu).toBeHidden();
+  await expect(bar).toContainText("2 selected");
+});
+
 for (const width of [1280, 900]) {
   test(`selection header morphs without moving the collection at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
@@ -299,3 +428,43 @@ for (const view of ["grid", "list"] as const) {
     }
   }
 }
+
+test("grid card sizes and fixed spacing survive narrow layouts and larger text", async ({
+  page,
+}) => {
+  for (const [cardSize, minimum] of [
+    ["small", 120],
+    ["medium", 150],
+    ["large", 190],
+  ] as const) {
+    await page.setViewportSize({ width: 1280, height: 850 });
+    await page.goto(`${fixture}?count=50&cardSize=${cardSize}&motion=off`);
+    const grid = page.locator(".book-grid");
+    await expect(grid).toHaveAttribute("data-book-card-size", cardSize);
+    await expect(grid).toBeVisible();
+    await expect(grid.locator(".book-card").first()).toBeVisible();
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "24px";
+    });
+    for (const width of [1280, 560]) {
+      await page.setViewportSize({ width, height: 850 });
+      const columns = await grid.evaluate((node) =>
+        getComputedStyle(node).gridTemplateColumns.split(" ").map(parseFloat),
+      );
+      if (width === 560 && cardSize === "medium") expect(columns).toHaveLength(2);
+      else expect(Math.min(...columns)).toBeGreaterThanOrEqual(minimum - 1);
+      await expect(grid).toHaveCSS("column-gap", width === 560 ? "14px" : "20px");
+      await expect(grid).toHaveCSS("row-gap", width === 560 ? "24px" : "28px");
+      await expect(grid).toHaveCSS("padding-bottom", "32px");
+      await page.evaluate(() => {
+        document.documentElement.dataset.density = "compact";
+      });
+      await expect(grid).toHaveCSS("column-gap", "18px");
+      await expect(grid).toHaveCSS("row-gap", "22px");
+      await expect(grid).toHaveCSS("padding-bottom", "28px");
+      await page.evaluate(() => {
+        document.documentElement.dataset.density = "comfortable";
+      });
+    }
+  }
+});

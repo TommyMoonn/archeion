@@ -1,4 +1,4 @@
-import { Check, Heart, Pencil } from "lucide-react";
+import { Heart, Pencil } from "lucide-react";
 import {
   memo,
   useId,
@@ -20,6 +20,7 @@ import { bookAddedTimestamp } from "./bookAddedDate";
 import { BookContextMenu, MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
+import { BookSelectionIndicator } from "./BookSelectionIndicator";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 import type { LibrarySelectionIntent } from "./librarySelection";
 import {
@@ -120,7 +121,7 @@ function BookRowComponent({
 
   return (
     <article
-      className="book-row"
+      className="book-row group/row relative min-w-0 border-0 border-b border-solid border-line first:border-t data-[selected=true]:bg-accent-soft data-[selected=true]:shadow-book-row-selected data-[inspected=true]:outline-2 data-[inspected=true]:outline-solid data-[inspected=true]:outline-accent data-[inspected=true]:outline-offset-2 [&:has(.book-menu[data-open])]:z-3"
       data-reader-book-id={book.id}
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
@@ -132,19 +133,27 @@ function BookRowComponent({
         aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
         aria-label={selectionMode ? `Select ${title}` : undefined}
         aria-pressed={selectionMode ? selected : inspected}
-        className="book-row__select"
+        className="book-row__select grid book-row-columns collection-viewport-stacked:book-row-columns-stacked collection-viewport-stacked:page-narrow:book-row-columns-narrow items-center gap-collection-compact w-full min-h-book-row-height py-field-standard-block ps-field-standard-inline pe-book-row-actions border-none text-inherit bg-transparent text-start cursor-pointer transition-book-row duration-standard ease-standard hover:bg-surface-shell-hover book-row-deferred-layout"
         onClick={activateBook}
         onKeyDown={handlePrimaryKeyDown}
         ref={primaryActionRef}
         type="button"
       >
-        <BookCover book={book} className="book-cover--row" />
-        <span className="book-row__identity">
-          <strong>{title}</strong>
-          {author ? <span>{author}</span> : null}
+        <BookCover book={book} className="book-cover--row w-book-row-cover rounded-small" />
+        <span className="book-row__identity min-w-0">
+          <strong className="block truncate text-text text-body font-semibold leading-inherit">
+            {title}
+          </strong>
+          {author ? (
+            <span className="mt-book-copy-gap block truncate text-muted text-meta font-normal leading-inherit">
+              {author}
+            </span>
+          ) : null}
         </span>
-        <span className="book-row__file">{book.fileName}</span>
-        <span className="book-row__date">
+        <span className="book-row__file truncate text-muted text-meta font-normal leading-inherit collection-viewport-stacked:hidden">
+          {book.fileName}
+        </span>
+        <span className="book-row__date truncate text-muted text-meta font-normal leading-inherit page-narrow:hidden">
           {addedAt === undefined ? "—" : formatMediumDate(addedAt)}
         </span>
       </button>
@@ -154,17 +163,11 @@ function BookRowComponent({
         </span>
       ) : null}
       {selectionMode || selected ? (
-        <span
-          aria-hidden="true"
-          className="book-selection-control book-selection-control--row"
-          data-selected={selected || undefined}
-        >
-          {selected ? <Check aria-hidden="true" size={14} strokeWidth={2.25} /> : null}
-        </span>
+        <BookSelectionIndicator selected={selected} placement="row" />
       ) : null}
       {canManageFile && !book.isFileMissing && onRenameFile ? (
         <IconButton
-          className="book-row__rename"
+          className="book-row__rename control-enabled:cursor-pointer absolute top-1/2 end-book-row-rename-end -translate-y-1/2 text-muted group-data-[selection-mode=true]/row:invisible group-data-[selection-mode=true]/row:pointer-events-none"
           label={`Rename file for ${bookTitle(book)}`}
           onClick={() => onRenameFile(book)}
         >
@@ -173,7 +176,7 @@ function BookRowComponent({
       ) : null}
       <IconButton
         aria-pressed={book.isFavorite}
-        className="book-row__favorite"
+        className="book-row__favorite control-enabled:cursor-pointer absolute top-1/2 end-book-row-favorite-end -translate-y-1/2 text-muted data-[active=true]:text-accent-strong data-[active=true]:control-hover:text-accent-strong data-[active=true]:control-active:text-accent-strong group-data-[selection-mode=true]/row:invisible group-data-[selection-mode=true]/row:pointer-events-none"
         data-active={book.isFavorite || undefined}
         label={`Favorite ${title}`}
         onClick={() => onToggleFavorite(book)}
@@ -249,7 +252,7 @@ export const BookList = memo(function BookList({
   return (
     <section
       ref={collectionRef}
-      className="book-list collection-content__items"
+      className="book-list collection-content__items grid self-start w-full pb-book-row-bottom"
       aria-label="Books"
       aria-busy={preparingReturn || undefined}
       inert={preparingReturn || undefined}
@@ -260,7 +263,7 @@ export const BookList = memo(function BookList({
       data-window-total={books.length}
     >
       <div
-        className="book-list__window"
+        className="book-list__window grid min-w-0"
         style={{ paddingBlockStart: range.topSpacer, paddingBlockEnd: range.bottomSpacer }}
       >
         {retainedBooks.map((book, retainedIndex) => (

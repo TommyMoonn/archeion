@@ -5,13 +5,15 @@ type EmptyStateProps = {
   action?: ReactNode;
   description: string;
   icon?: ReactNode;
+  role?: "alert";
   title: string;
 };
 
-export function EmptyState({ action, description, icon, title }: EmptyStateProps) {
+export function EmptyState({ action, description, icon, role, title }: EmptyStateProps) {
   return (
     <Empty
       as="section"
+      role={role}
       className={`empty-state box-border w-full max-w-empty-state items-center px-dialog-panel text-center ${icon ? "gap-empty-art py-status-inset" : "gap-empty-text py-dialog-panel"}`}
     >
       {icon ? (

@@ -29,7 +29,7 @@ export function RescanArchiveButton({ isRescanning, onRescan }: RescanArchiveBut
       <IconButton
         aria-expanded={confirmationOpen}
         aria-haspopup="dialog"
-        className="library-rescan-button"
+        className="library-rescan-button size-control-compact rounded-collection-utility-child aria-expanded:border-line-strong aria-expanded:text-text-strong aria-expanded:bg-surface-hover control-enabled:cursor-pointer"
         disabled={isRescanning}
         disabledReason="Wait for the archive scan to finish"
         label={isRescanning ? "Scanning archive" : "Rescan archive"}

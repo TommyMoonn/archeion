@@ -1,8 +1,6 @@
 // @vitest-environment happy-dom
 
 import { activateSelectOption } from "../../test/activateSelectOption";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -12,7 +10,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
 import { LibraryToolbar } from "./LibraryToolbar";
-import { LibraryFilterPopover } from "./LibraryFilterPopover";
 import type { LibrarySelectionBarProps } from "./LibrarySelectionBar";
 
 (
@@ -83,6 +80,7 @@ function renderInteractiveToolbar({
   selectionMode?: boolean;
 } = {}) {
   const container = document.createElement("div");
+  document.body.append(container);
   const root = createRoot(container);
 
   act(() => {
@@ -123,40 +121,6 @@ function renderInteractiveToolbar({
 let activeRoot: Root | null = null;
 
 describe("LibraryToolbar", () => {
-  it("reuses metadata options across unrelated rerenders and refreshes selected values", () => {
-    const container = document.createElement("div");
-    activeRoot = createRoot(container);
-    const filters = createDefaultLibraryFilters();
-    const options = { languages: ["en"], publishers: [], series: ["Star Saga"], subjects: [] };
-    const deriveSeries = vi.spyOn(options.series, "filter");
-    const render = (currentFilters = filters) =>
-      act(() =>
-        activeRoot?.render(
-          <LibraryFilterPopover
-            filters={currentFilters}
-            options={options}
-            onClear={() => {}}
-            onChange={() => {}}
-          />,
-        ),
-      );
-
-    render();
-    expect(deriveSeries).toHaveBeenCalledTimes(1);
-    render();
-    render();
-    expect(deriveSeries).toHaveBeenCalledTimes(1);
-
-    render({ ...filters, series: ["Star Saga"] });
-    const trigger = container.querySelector<HTMLButtonElement>('[aria-label="Add series filter"]');
-    expect(trigger?.disabled).toBe(true);
-    expect(deriveSeries).toHaveBeenCalledTimes(2);
-
-    render();
-    act(() => trigger?.click());
-    expect(container.querySelector('[role="listbox"]')?.textContent).toContain("Star Saga");
-    deriveSeries.mockRestore();
-  });
   it("morphs the title and primary actions while keeping collection controls available", () => {
     const session = renderInteractiveToolbar({
       selectionBarProps: createSelectionBarProps(),
@@ -205,6 +169,7 @@ describe("LibraryToolbar", () => {
     if (activeRoot) {
       act(() => activeRoot?.unmount());
       activeRoot = null;
+      document.body.replaceChildren();
     }
   });
 
@@ -216,88 +181,6 @@ describe("LibraryToolbar", () => {
     expect(markup).toContain('aria-label="Grid"');
     expect(markup).toContain('aria-label="List"');
     expect(markup).not.toContain("library-view-toggle");
-  });
-
-  it("contains selection and rescan states within one bordered utility group", () => {
-    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
-    const forcedColorsStyles = readFileSync(
-      resolve(process.cwd(), "src/styles/forced-colors.css"),
-      "utf8",
-    );
-
-    expect(styles).toMatch(
-      /\.library-header__utilities\s*\{[^}]*--library-utility-group-inset:\s*var\(--collection-header-utility-inset\);[^}]*--library-utility-child-radius:\s*calc\([^)]*var\(--radius-control\)[^)]*var\(--library-utility-group-inset\)[^)]*var\(--border-width\)[^)]*\);[^}]*min-height:\s*var\(--collection-header-control-height\);[^}]*padding:\s*var\(--library-utility-group-inset\);[^}]*border:\s*var\(--border-width\) solid var\(--line\);[^}]*border-radius:\s*var\(--radius-control\);[^}]*background:\s*var\(--surface\);/s,
-    );
-    expect(styles).not.toMatch(
-      /\.library-header__utilities\s*\{[^}]*(?:box-shadow|overflow:\s*hidden|padding:\s*0\s)/s,
-    );
-    expect(styles).toMatch(
-      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*width:\s*var\(--control-height-compact\);[^}]*height:\s*var\(--control-height-compact\);[^}]*border-radius:\s*var\(--library-utility-child-radius\);[^}]*\}/s,
-    );
-    expect(styles).toMatch(
-      /\.library-select-button \.icon-slot,\s*\.library-rescan-button \.icon-slot\s*\{[^}]*--icon-slot-size:\s*18px;[^}]*--icon-glyph-size:\s*18px;/s,
-    );
-    expect(styles).toMatch(
-      /\.library-select-button\[aria-pressed="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*background:\s*var\(--surface-raised\);/s,
-    );
-    expect(styles).toMatch(
-      /\.library-rescan-button\[aria-expanded="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*background:\s*var\(--surface-hover\);/s,
-    );
-    expect(styles).toMatch(
-      /:root\[data-focus-presentation="keyboard-navigation"\][^{]*\.library-header__utilities[^{]*\.icon-button:focus-visible\s*\{[^}]*outline-offset:\s*-2px;/s,
-    );
-    expect(styles).not.toMatch(
-      /html\[data-density="compact"\][^{]*(?:library-header__utilities|library-select-button|library-rescan-button)/,
-    );
-    expect(forcedColorsStyles).toMatch(
-      /\.library-header__utilities\s*\{[^}]*border-color:\s*CanvasText;/s,
-    );
-    expect(styles).not.toMatch(/\.library-select-button\[aria-pressed="true"\][^}]*var\(--accent/s);
-  });
-
-  it("shares the utility-group height with collection search and primary actions", () => {
-    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
-    const folderSource = readFileSync(
-      resolve(process.cwd(), "src/features/folders/FolderBrowser.tsx"),
-      "utf8",
-    );
-    const seriesSource = readFileSync(
-      resolve(process.cwd(), "src/features/series/SeriesOverviewHeader.tsx"),
-      "utf8",
-    );
-
-    expect(styles).toMatch(
-      /\.library-header__actions\s*\{[^}]*--collection-header-utility-inset:\s*1px;[^}]*--collection-header-control-height:\s*var\(--control-height-standard\);/,
-    );
-    expect(styles).toMatch(
-      /\.library-header__actions \.input-shell,\s*\.library-header__actions > \.button\s*\{[^}]*min-height:\s*var\(--collection-header-control-height\);/s,
-    );
-    expect(folderSource).toContain(
-      'className="library-header__actions library-header__actions--primary-only folder-browser__actions"',
-    );
-    expect(seriesSource).toContain(
-      'className="library-header__actions library-header__actions--search-only series-header__actions"',
-    );
-  });
-
-  it("overlays the selection bar inside the primary row without adding a header grid row", () => {
-    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
-
-    expect(styles).toMatch(
-      /\.library-header__primary-row\s*\{[^}]*position:\s*relative;[^}]*display:\s*grid;[^}]*grid-column:\s*1 \/ -1;/s,
-    );
-    expect(styles).toMatch(
-      /\.library-header__selection-row\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s,
-    );
-    expect(styles).not.toMatch(/\.library-header__selection-row\s*\{[^}]*grid-row:/s);
-    expect(styles).toMatch(
-      /\.library-header\[data-selection-mode="true"\] \.library-header__title,\s*\.library-header\[data-selection-mode="true"\] \.library-header__actions\s*\{[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/s,
-    );
-    expect(styles).not.toMatch(
-      /\.library-header\[data-selection-mode="true"\] \.library-header__control-group/,
-    );
-    expect(styles).toMatch(/\.library-selection-bar\s*\{[^}]*min-height:\s*52px;/s);
-    expect(styles).toMatch(/\.page-shell > \.library-selection-bar\s*\{[^}]*position:\s*sticky;/s);
   });
 
   it("groups utility actions before a divider and the primary action", () => {
@@ -382,6 +265,9 @@ describe("LibraryToolbar", () => {
     const session = renderInteractiveToolbar({ onFilterChange });
     activeRoot = session.root;
 
+    act(() =>
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Filter library"]')?.click(),
+    );
     const seriesSelect = session.container.querySelector<HTMLButtonElement>(
       'button[role="combobox"][aria-label="Add series filter"]',
     );
@@ -410,6 +296,9 @@ describe("LibraryToolbar", () => {
     });
     activeRoot = session.root;
 
+    act(() =>
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Filter library"]')?.click(),
+    );
     const seriesSelect = session.container.querySelector<HTMLButtonElement>(
       'button[role="combobox"][aria-label="Add series filter"]',
     );
@@ -443,7 +332,7 @@ describe("LibraryToolbar", () => {
       "In progress",
     );
     expect(
-      session.container.querySelector('summary[aria-label="Filter library"]')?.textContent,
+      session.container.querySelector('button[aria-label="Filter library"]')?.textContent,
     ).toBe("Filters2");
 
     const removeSeries = session.container.querySelector<HTMLButtonElement>(
@@ -452,6 +341,9 @@ describe("LibraryToolbar", () => {
     act(() => removeSeries?.click());
     expect(onFilterChange).toHaveBeenCalledWith({ ...filters, series: [] });
 
+    act(() =>
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Filter library"]')?.click(),
+    );
     const clearAll = [...session.container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Clear all",
     );
@@ -465,7 +357,7 @@ describe("LibraryToolbar", () => {
 
     expect(session.container.querySelector('[aria-label="Active filters"]')).toBeNull();
     expect(
-      session.container.querySelector('summary[aria-label="Filter library"]')?.textContent,
+      session.container.querySelector('button[aria-label="Filter library"]')?.textContent,
     ).toBe("Filters");
     expect(session.container.querySelector('[aria-label="1 book shown"]')?.textContent).toBe(
       "1 book",

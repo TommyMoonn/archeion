@@ -239,11 +239,11 @@ describe("LibraryPage selection and bulk workflows", () => {
     });
     act(() => {
       session.container
-        .querySelector<HTMLElement>('summary[aria-label="More bulk actions"]')
+        .querySelector<HTMLElement>('button[aria-label="More bulk actions"]')
         ?.click();
     });
     await act(async () => {
-      buttonWithText(session.container, "Annotations (JSON)").click();
+      buttonWithText(document.body, "Annotations (JSON)").click();
       await Promise.resolve();
     });
 
@@ -286,11 +286,11 @@ describe("LibraryPage selection and bulk workflows", () => {
     });
     act(() => {
       session.container
-        .querySelector<HTMLElement>('summary[aria-label="More bulk actions"]')
+        .querySelector<HTMLElement>('button[aria-label="More bulk actions"]')
         ?.click();
     });
     await act(async () => {
-      buttonWithText(session.container, "Annotations (Markdown)").click();
+      buttonWithText(document.body, "Annotations (Markdown)").click();
       await Promise.resolve();
     });
 

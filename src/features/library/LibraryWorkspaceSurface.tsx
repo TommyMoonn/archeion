@@ -351,7 +351,7 @@ export function LibraryWorkspaceSurface({
           <div
             aria-busy={surfaceState === "loading" || undefined}
             ref={bookCollectionRootRef}
-            className="collection-content library-content library-content--books"
+            className="collection-content library-content library-content--books grid content-start min-h-collection-workspace-height max-w-collection-workspace mx-auto gap-y-collection-content pt-collection-content pb-0 data-[surface-state=empty]:pt-0 data-[surface-state=filter-empty]:pt-0 data-[surface-state=loading]:pt-0 data-[surface-state=search-empty]:pt-0 page-short:min-h-collection-workspace-height-short page-narrow:min-h-collection-workspace-height-narrow"
             data-surface-state={surfaceState}
             onAnimationEnd={(event) => {
               if (
@@ -374,7 +374,7 @@ export function LibraryWorkspaceSurface({
               <ContinueReading books={continuePreview} onContinue={bookCollectionProps.onRead} />
             ) : null}
             {surfaceState !== "results" ? (
-              <div className="collection-content__state">
+              <div className="collection-content__state grid place-items-center min-h-inherit [&>.empty-state]:m-0 [&>.collection-content\_\_loading]:m-0">
                 {surfaceState === "loading" ? (
                   <CollectionLoading
                     message={isImporting ? "Adding EPUB files" : "Loading library"}
@@ -382,7 +382,11 @@ export function LibraryWorkspaceSurface({
                 ) : surfaceState === "filter-empty" ? (
                   <EmptyState
                     action={
-                      <Button variant="secondary" onClick={onClearFilters}>
+                      <Button
+                        className="control-enabled:cursor-pointer"
+                        variant="secondary"
+                        onClick={onClearFilters}
+                      >
                         Clear filters
                       </Button>
                     }
@@ -406,7 +410,11 @@ export function LibraryWorkspaceSurface({
                 ) : (
                   <EmptyState
                     action={
-                      <Button variant="secondary" onClick={onClearLibrarySearch}>
+                      <Button
+                        className="control-enabled:cursor-pointer"
+                        variant="secondary"
+                        onClick={onClearLibrarySearch}
+                      >
                         Clear search
                       </Button>
                     }

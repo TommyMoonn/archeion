@@ -143,7 +143,8 @@ test("Library filter retains its outer panel through selection and nested Escape
   page,
 }) => {
   await page.goto(fixture);
-  await page.getByLabel("Filter library").click();
+  const filter = page.getByLabel("Filter library");
+  await filter.click();
   const panel = page.getByRole("dialog", { name: "Library filters" });
   const series = panel.getByRole("combobox", { name: "Add series filter" });
   await series.click();
@@ -155,6 +156,7 @@ test("Library filter retains its outer panel through selection and nested Escape
   await expect(panel.getByRole("option", { name: "First series" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(panel.getByRole("listbox")).toHaveCount(0);
+  await expect(series).toBeFocused();
   await expect(panel).toBeVisible();
   await series.click();
   await panel.getByRole("option", { name: "Second series" }).click();
@@ -163,6 +165,17 @@ test("Library filter retains its outer panel through selection and nested Escape
   await expect(panel.getByRole("listbox")).toHaveCount(0);
   await expect(panel).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(panel).not.toBeVisible();
+  await expect(filter).toBeFocused();
+  await page.getByRole("button", { name: "Remove Series: First series filter" }).click();
+  await filter.click();
+  await expect(series).toBeEnabled();
+  await series.click();
+  await expect(panel.getByRole("option", { name: "First series" })).toBeVisible();
+  await panel.getByText("Reading status", { exact: true }).click();
+  await expect(panel.getByRole("listbox")).toHaveCount(0);
+  await expect(panel).toBeVisible();
+  await page.getByRole("button", { name: "Toggle disabled" }).click();
   await expect(panel).not.toBeVisible();
 });
 
@@ -235,5 +248,44 @@ for (const theme of ["", "&light", "&themeStress=distinct"]) {
     expect(Math.abs(colors.verticalOffset)).toBeLessThanOrEqual(1);
     await panel.getByRole("button", { name: "Clear all" }).click();
     await expect(count).toHaveCount(0);
+  });
+}
+
+for (const viewport of [
+  { width: 1280, height: 900 },
+  { width: 360, height: 400 },
+]) {
+  test(`Library filters fit the viewport and allow long metadata options at ${viewport.width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto(fixture);
+    await page.getByLabel("Filter library").click();
+    const panel = page.getByRole("dialog", { name: "Library filters" });
+    const tag = panel.getByRole("combobox", { name: "Add tag filter" });
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(async () => {
+        const box = await panel.boundingBox();
+        if (!box) return false;
+        return (
+          box.x >= 7 &&
+          box.y >= 7 &&
+          box.x + box.width <= viewport.width - 7 &&
+          box.y + box.height <= viewport.height - 7 &&
+          Math.abs(box.width - Math.min(340, viewport.width - 32)) <= 1
+        );
+      })
+      .toBe(true);
+    await expect(tag).toHaveCSS("min-height", "34px");
+    await tag.click();
+    const menu = panel.getByRole("listbox");
+    await expect(menu).toBeVisible();
+    expect(await menu.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    await menu.getByRole("option", { name: /A substantially longer tag/ }).click();
+    await expect(panel).toBeVisible();
+    await expect(tag).toBeDisabled();
+    await panel.getByRole("button", { name: "Clear all" }).click();
+    await expect(tag).toBeEnabled();
   });
 }

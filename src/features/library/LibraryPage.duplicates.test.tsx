@@ -76,7 +76,8 @@ describe("LibraryPage duplicate review integration", () => {
     expect(session.container.querySelector(".details-drawer")?.textContent).toContain("Alpha");
     await act(async () => closeDetails.click());
 
-    const reveal = await waitForButtonWithText(session.container, "Reveal");
+    const menu = await openControlledContextMenu(session.container, "File actions for Alpha");
+    const reveal = contextMenuItemWithText(menu, "Reveal");
     await act(async () => reveal.click());
     expect(storage.revealBookFile).toHaveBeenCalledWith(alpha.id);
   });
@@ -108,7 +109,9 @@ describe("LibraryPage duplicate review integration", () => {
     );
     suite.trackRoot(session.root);
 
-    await act(async () => (await waitForButtonWithText(session.container, "Read")).click());
+    await waitForButtonWithLabel(session.container, "File actions for Alpha");
+    const menu = await openControlledContextMenu(session.container, "File actions for Alpha");
+    await act(async () => contextMenuItemWithText(menu, "Read").click());
     await vi.waitFor(() => expect(readerRoute).toBeDefined());
 
     const returnContext = readerReturnContextFromState(readerRoute?.state, "archive-books");

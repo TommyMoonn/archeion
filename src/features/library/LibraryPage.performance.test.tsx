@@ -33,7 +33,7 @@ vi.mock("./BookCover", () => ({
   BookCover: ({ book, className }: { book: Book; className?: string }) => {
     if (!className) {
       gridCoverRenderCounts.set(book.id, (gridCoverRenderCounts.get(book.id) ?? 0) + 1);
-    } else if (className === "book-cover--series") {
+    } else if (className.split(" ").includes("book-cover--series")) {
       seriesCoverRenderCounts.set(book.id, (seriesCoverRenderCounts.get(book.id) ?? 0) + 1);
     }
     return <span data-cover-book-id={book.id} />;
@@ -329,13 +329,12 @@ describe("LibraryPage collection callback stability", () => {
     });
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
 
+    const trigger = container.querySelector<HTMLButtonElement>(".archive-switcher__trigger")!;
+    await act(async () => trigger.click());
     await act(async () => {
-      const details = container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
-      details.open = true;
-      Array.from(details.querySelectorAll<HTMLButtonElement>("button"))
+      Array.from(document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
         .find((button) => button.textContent?.trim() === "Reveal archive folder")!
         .click();
-      await Promise.resolve();
     });
     expect(revealActiveArchive).toHaveBeenCalledTimes(1);
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });

@@ -172,6 +172,20 @@ describe("LibraryFeedbackStack", () => {
     expect(tokens[0]?.getAttribute("aria-atomic")).toBe("true");
   });
 
+  it("toggles feedback details without dismissing the token", () => {
+    const session = renderStack();
+    activeRoot = session.root;
+    const trigger = session.container.querySelector<HTMLButtonElement>(
+      '[data-slot="collapsible-trigger"]',
+    )!;
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    act(() => trigger.click());
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    act(() => trigger.click());
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(session.onDismiss).not.toHaveBeenCalled();
+  });
+
   it("dismisses tokens from the close button", () => {
     const session = renderStack();
     activeRoot = session.root;

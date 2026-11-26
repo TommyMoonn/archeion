@@ -1,3 +1,4 @@
+import { collectionHeader } from "../../../src/components/collectionPresentation";
 import { createInstalledFontCatalog } from "../../../src/storage/installedFontCatalog";
 import { AppPreferencesStore } from "../../../src/stores/appPreferencesStore";
 import { AppearanceRuntime } from "../../../src/themes/AppearanceRuntime";
@@ -12,6 +13,14 @@ declare global {
     };
   }
 }
+
+const header = document.querySelector(".library-header");
+const title = header?.querySelector("h1");
+const eyebrow = header?.querySelector(".eyebrow");
+if (!header || !title || !eyebrow) throw new Error("Application font fixture header is missing.");
+header.className = collectionHeader.root;
+title.className = collectionHeader.title;
+eyebrow.className = collectionHeader.eyebrow;
 
 const store = new AppPreferencesStore();
 const runtime = new AppearanceRuntime({

@@ -245,7 +245,7 @@ describe("LibrarySidebar", () => {
 
     for (const markup of [expanded, collapsed]) {
       expect(markup).toContain('<aside aria-label="Library sidebar"');
-      expect(markup).toContain('<nav class="sidebar__nav" aria-label="Library navigation"');
+      expect(markup).toMatch(/<nav[^>]*aria-label="Library navigation"/);
     }
   });
 
@@ -432,58 +432,61 @@ describe("LibrarySidebar", () => {
     );
   });
 
-  it("keeps the archive switcher focused on known archives and management", () => {
-    const markup = renderSidebar();
-    const parsed = document.createElement("div");
-    parsed.innerHTML = markup;
-    const archiveRows = parsed.querySelectorAll("button.archive-switcher__archive");
+  async function openArchiveMenu(container: HTMLElement) {
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Current archive: Books"]',
+    );
+    if (!trigger) throw new Error("Missing archive switcher trigger.");
+    await act(async () => {
+      trigger.click();
+    });
+    const menu = document.querySelector<HTMLElement>('[role="menu"][aria-label="Archives"]');
+    if (!menu) throw new Error("Archive menu did not open.");
+    return { trigger, menu };
+  }
 
-    expect(markup).toContain("Books");
-    expect(markup).toContain("Comics");
-    expect(markup).toContain("Manage archives");
-    expect(markup).toContain("Reveal archive folder");
-    expect(markup).not.toContain("Manage vaults");
-    expect(markup).not.toContain("Open archive");
-    expect(markup).not.toContain("Open folder as archive");
-    expect(markup).not.toContain("Create empty archive");
-    expect(markup).not.toContain("E:\\Comics");
-    expect(markup.match(/role="separator"/g)).toHaveLength(1);
-    expect(archiveRows).toHaveLength(1);
-    expect(archiveRows[0]?.querySelector("svg")).toBeNull();
-    expect(markup).toContain("archive-switcher__current menu-item menu-item--trailing-icon");
-    expect(markup).toContain("archive-switcher__menu menu-popover");
-    expect(markup).toContain("menu-trigger menu-trigger--disclosure");
-    expect(markup).not.toContain('role="menu"');
-    expect(markup).not.toContain('role="menuitem"');
+  it("lists known archives with the current archive identified and management actions", async () => {
+    const session = renderInteractiveSidebar();
+    activeRoot = session.root;
+    const { trigger, menu } = await openArchiveMenu(session.container);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    expect(items.map((item) => item.textContent?.trim())).toEqual([
+      "Books",
+      "Comics",
+      "Reveal archive folder",
+      "Manage archives",
+    ]);
+    expect(items[0]?.getAttribute("aria-current")).toBe("true");
+    expect(items[1]?.querySelector("svg")).toBeNull();
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
   });
 
   it.each(["Reveal archive folder", "Manage archives"])(
-    "closes and restores switcher focus before %s runs",
-    (label) => {
-      const invoke = vi.fn(() => {
-        expect(details.open).toBe(false);
-        expect(document.activeElement).toBe(summary);
-      });
+    "closes and restores switcher focus when %s runs",
+    async (label) => {
+      const invoke = vi.fn();
       const session = renderInteractiveSidebar({ type: "library" }, vi.fn(), {
         onRevealArchive: invoke,
         onManageArchives: invoke,
       });
       activeRoot = session.root;
-      const details = session.container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
-      const summary = details.querySelector("summary")!;
-      const action = Array.from(details.querySelectorAll<HTMLButtonElement>("button")).find(
-        (button) => button.textContent?.trim() === label,
-      )!;
-      act(() => {
-        details.open = true;
+      const { trigger, menu } = await openArchiveMenu(session.container);
+      const action = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+        (item) => item.textContent?.trim() === label,
+      );
+      if (!action) throw new Error(`Missing ${label} action.`);
+      await act(async () => {
         action.focus();
         action.click();
       });
       expect(invoke).toHaveBeenCalledOnce();
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(trigger);
     },
   );
 
-  it("keeps unavailable archive reveal focusable, explained, and inert", () => {
+  it("keeps unavailable archive reveal focusable, explained, and inert", async () => {
     const onRevealArchive = vi.fn();
     const reason = "The active archive folder is unavailable.";
     const session = renderInteractiveSidebar({ type: "library" }, vi.fn(), {
@@ -491,22 +494,22 @@ describe("LibrarySidebar", () => {
       revealArchiveDisabledReason: reason,
     });
     activeRoot = session.root;
-    const details = session.container.querySelector<HTMLDetailsElement>(".archive-switcher")!;
-    const action = Array.from(details.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent?.includes("Reveal archive folder"),
-    )!;
+    const { trigger, menu } = await openArchiveMenu(session.container);
+    const action = Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
+      (item) => item.textContent?.trim() === "Reveal archive folder",
+    );
+    if (!action) throw new Error("Missing reveal action.");
     expect(action.getAttribute("aria-disabled")).toBe("true");
     expect(action.disabled).toBe(false);
-    expect(document.getElementById(action.getAttribute("aria-describedby")!)?.textContent).toBe(
-      reason,
-    );
-    act(() => {
-      details.open = true;
+    expect(
+      document.getElementById(action.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe(reason);
+    await act(async () => {
       action.focus();
       action.click();
     });
     expect(document.activeElement).toBe(action);
-    expect(details.open).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(onRevealArchive).not.toHaveBeenCalled();
   });
 
@@ -523,8 +526,8 @@ describe("LibrarySidebar", () => {
       },
     ]);
 
-    expect(markup).toContain('class="sidebar__section-heading"');
-    expect(markup).toContain('class="sidebar__folder-scroll"');
+    expect(markup).toContain('class="sidebar__section-heading ');
+    expect(markup).toContain('class="sidebar__folder-scroll ');
     expect(markup).toMatch(
       /sidebar__section-heading[\s\S]*?Create folder[\s\S]*?sidebar__folder-scroll/,
     );
@@ -580,18 +583,19 @@ describe("LibrarySidebar", () => {
     expect(session.onLocationChange).toHaveBeenCalledExactlyOnceWith({ type });
   });
 
-  it("switches to the selected saved archive and closes its menu", () => {
+  it("switches to the selected saved archive and closes its menu", async () => {
     const onSwitchArchive = vi.fn();
     const session = renderInteractiveSidebar(undefined, undefined, { onSwitchArchive });
     activeRoot = session.root;
-    const details = session.container.querySelector<HTMLDetailsElement>(".archive-switcher");
-    const saved = session.container.querySelector<HTMLButtonElement>(".archive-switcher__archive");
-    if (!details || !saved) throw new Error("Saved archive control was not rendered.");
-    act(() => {
-      details.open = true;
+    const { trigger, menu } = await openArchiveMenu(session.container);
+    const saved = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      (item) => item.textContent?.trim() === "Comics",
+    );
+    if (!saved) throw new Error("Saved archive control was not rendered.");
+    await act(async () => {
       saved.click();
     });
     expect(onSwitchArchive).toHaveBeenCalledExactlyOnceWith(savedArchive);
-    expect(details.open).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 });

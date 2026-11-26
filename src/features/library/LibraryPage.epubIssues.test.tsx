@@ -10,6 +10,8 @@ import type { EpubDiagnosticAnalysisResult } from "../../types/epubIntegrity";
 import "./LibraryEpubIssuesView";
 import {
   createStorage,
+  contextMenuItemWithText,
+  openControlledContextMenu,
   renderLibraryPage,
   setupLibraryPageTestSuite,
   waitForButtonWithLabel,
@@ -86,10 +88,18 @@ describe("LibraryPage EPUB Issues integration", () => {
     );
     await act(async () => closeDetails.click());
 
-    await act(async () => (await waitForButtonWithText(session.container, "Reveal")).click());
+    const revealMenu = await openControlledContextMenu(
+      session.container,
+      "File actions for Affected EPUB",
+    );
+    await act(async () => contextMenuItemWithText(revealMenu, "Reveal").click());
     expect(storage.revealBookFile).toHaveBeenCalledWith(affectedBook.id);
 
-    await act(async () => (await waitForButtonWithText(session.container, "Read")).click());
+    const readMenu = await openControlledContextMenu(
+      session.container,
+      "File actions for Affected EPUB",
+    );
+    await act(async () => contextMenuItemWithText(readMenu, "Read").click());
     await vi.waitFor(() => expect(readerRoute).toBeDefined());
     expect(readerReturnContextFromState(readerRoute?.state, "archive-books")).toMatchObject({
       href,

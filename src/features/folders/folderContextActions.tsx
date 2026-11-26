@@ -50,7 +50,6 @@ export function createFolderContextActions({
   }
 
   actions.push({
-    className: "folder-menu__danger",
     danger: true,
     icon: <Trash2 />,
     id: "delete",
