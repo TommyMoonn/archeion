@@ -167,20 +167,23 @@ export function LibraryEpubIssuesView({
         {initialLoading ? (
           <CollectionLoading message={"Checking EPUB files"} />
         ) : failedWithoutSnapshot ? (
-          <div role="alert">
-            <EmptyState
-              action={
-                <Button variant="secondary" onClick={() => void onRefresh()}>
-                  Try again
-                </Button>
-              }
-              description={
-                state.error?.message ?? "EPUB diagnostics could not be refreshed. Try again."
-              }
-              icon={<FileWarning strokeWidth={1.5} />}
-              title="EPUB Issues unavailable"
-            />
-          </div>
+          <EmptyState
+            role="alert"
+            action={
+              <Button
+                className="control-enabled:cursor-pointer"
+                variant="secondary"
+                onClick={() => void onRefresh()}
+              >
+                Try again
+              </Button>
+            }
+            description={
+              state.error?.message ?? "EPUB diagnostics could not be refreshed. Try again."
+            }
+            icon={<FileWarning strokeWidth={1.5} />}
+            title="EPUB Issues unavailable"
+          />
         ) : affectedBooks.length === 0 ? (
           <EmptyState
             description="No current Reader-relevant EPUB problems were found."

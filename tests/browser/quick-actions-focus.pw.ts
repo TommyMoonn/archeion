@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { MAIN_CONTENT_ID } from "../../src/components/SkipLink";
 import lightManifest from "../../themes/built-in/archeion-light/theme.json" with { type: "json" };
 import { themeColorContrastRatio } from "../../src/themes/themeColor";
 import type { ThemeColor } from "../../src/themes/themeTokenRegistry";
@@ -7,9 +8,7 @@ for (const motion of ["off", "on"]) {
   for (const origin of ["page", "control"]) {
     test(`theme confirmation restores ${origin} focus with motion ${motion}`, async ({ page }) => {
       await page.goto(`/tests/browser/fixtures/ui-stability.html?count=2&motion=${motion}`);
-      const main = page.locator("main.page-shell");
-      await expect(main).toBeVisible();
-      const opener = page.getByRole("button", { name: "Collapse sidebar", exact: true });
+      const { main, opener } = await waitForLibrary(page);
       if (origin === "page") await main.click({ position: { x: 10, y: 10 } });
       else await opener.focus();
       await page.keyboard.press("Control+Shift+P");
@@ -38,8 +37,7 @@ for (const theme of ["dark", "light", "custom", "forced-colors"]) {
     await page.goto(
       `/tests/browser/fixtures/ui-stability.html?count=2&motion=off&theme=${theme === "forced-colors" ? "light" : theme}`,
     );
-    const main = page.locator("main.page-shell");
-    await expect(main).toBeVisible();
+    const { main } = await waitForLibrary(page);
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
     await page.keyboard.press("Enter");
@@ -65,6 +63,15 @@ for (const theme of ["dark", "light", "custom", "forced-colors"]) {
       ),
     ).toBeGreaterThanOrEqual(3);
   });
+}
+
+async function waitForLibrary(page: Page) {
+  const opener = page.getByRole("button", { name: "Collapse sidebar", exact: true });
+  // A cold Vite fixture must finish booting before the focus interaction starts.
+  await expect(opener).toBeVisible({ timeout: 15_000 });
+  const main = page.locator(`#${MAIN_CONTENT_ID}`);
+  await expect(main).toBeVisible();
+  return { main, opener };
 }
 
 function toHex(rgb: string): ThemeColor {

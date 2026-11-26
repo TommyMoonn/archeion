@@ -383,6 +383,23 @@ for (const [surface, chunk] of [
   ["issues", "LibraryEpubIssuesView"],
   ["duplicates", "LibraryDuplicatesView"],
 ]) {
+  test(`${surface}: failed chunk centers the retry state in the collection`, async ({ page }) => {
+    await page.route(builtChunk(chunk), (route) => route.abort());
+    await page.goto(`${fixture}?surface=${surface}`);
+    const content = page.locator('.collection-content[data-surface-state="error"]');
+    const error = content.getByRole("alert");
+    await expect(error).toContainText("This view could not be opened.");
+    await expect(error.getByRole("button", { name: "Try again" })).toBeEnabled();
+    const [workspace, card] = await Promise.all([content.boundingBox(), error.boundingBox()]);
+    if (!workspace || !card) throw new Error("Error surface is missing geometry");
+    expect(
+      Math.abs(card.x + card.width / 2 - workspace.x - workspace.width / 2),
+    ).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(card.y + card.height / 2 - workspace.y - workspace.height / 2),
+    ).toBeLessThanOrEqual(1);
+  });
+
   test(`${surface}: shared header bounds through delayed delivery`, async ({ page }) => {
     let release!: () => void;
     const held = new Promise<void>((resolve) => {

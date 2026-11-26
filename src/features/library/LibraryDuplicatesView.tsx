@@ -191,20 +191,23 @@ export function LibraryDuplicatesView({
         {initialLoading ? (
           <CollectionLoading message={"Checking for duplicate EPUBs"} />
         ) : failedWithoutSnapshot ? (
-          <div role="alert">
-            <EmptyState
-              action={
-                <Button variant="secondary" onClick={() => void onRefresh()}>
-                  Try again
-                </Button>
-              }
-              description={
-                state.error?.message ?? "Duplicate analysis could not be refreshed. Try again."
-              }
-              icon={<Copy strokeWidth={1.5} />}
-              title="Duplicates unavailable"
-            />
-          </div>
+          <EmptyState
+            role="alert"
+            action={
+              <Button
+                className="control-enabled:cursor-pointer"
+                variant="secondary"
+                onClick={() => void onRefresh()}
+              >
+                Try again
+              </Button>
+            }
+            description={
+              state.error?.message ?? "Duplicate analysis could not be refreshed. Try again."
+            }
+            icon={<Copy strokeWidth={1.5} />}
+            title="Duplicates unavailable"
+          />
         ) : groups.length === 0 ? (
           <EmptyState
             description="No current exact or identifier-based duplicate groups were found."

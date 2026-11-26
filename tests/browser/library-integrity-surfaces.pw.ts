@@ -155,3 +155,33 @@ test("diagnostic severity stays in the row without displacing the filename and a
   expect(summaryBounds!.y).toBeLessThan(authorBounds!.y + authorBounds!.height);
   await expect(book).toHaveCSS("border-radius", "6px");
 });
+
+for (const [view, title] of [
+  ["integrity-duplicates", "Duplicates unavailable"],
+  ["integrity-issues", "EPUB Issues unavailable"],
+]) {
+  for (const width of [1280, 560]) {
+    test(`${view}: initial analysis error is centered and retryable at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto(`${fixture}?view=${view}&error=initial`);
+      const content = page.locator('.collection-content[data-surface-state="error"]');
+      const error = content.getByRole("alert");
+      await expect(error.getByRole("heading", { name: title })).toBeVisible();
+      await expect(error).toContainText("Refresh failed.");
+      const [workspace, card] = await Promise.all([content.boundingBox(), error.boundingBox()]);
+      if (!workspace || !card) throw new Error("Error surface is missing geometry");
+      expect(
+        Math.abs(card.x + card.width / 2 - workspace.x - workspace.width / 2),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(card.y + card.height / 2 - workspace.y - workspace.height / 2),
+      ).toBeLessThanOrEqual(1);
+      const retry = error.getByRole("button", { name: "Try again" });
+      await expect(retry).toHaveCSS("cursor", "pointer");
+      await retry.click();
+      await expect(page.locator("output")).toHaveText("refresh");
+    });
+  }
+}

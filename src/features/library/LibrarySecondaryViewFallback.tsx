@@ -1,6 +1,7 @@
 import { collectionContent } from "../../components/collectionPresentation";
 import { CollectionLoading } from "../../components/CollectionLoading";
 import { Button } from "../../components/Button";
+import { EmptyState } from "../../components/EmptyState";
 import type { ComponentProps, ReactNode } from "react";
 import { SeriesDetailHeader } from "../series/SeriesDetailHeader";
 import type { SeriesEntry } from "../../types/series";
@@ -26,16 +27,20 @@ export function LibrarySecondaryViewFallback({
         data-surface-state={onRetry ? "error" : "loading"}
       >
         {onRetry ? (
-          <>
-            <p role="alert">This view could not be opened.</p>
-            <Button
-              className="control-enabled:cursor-pointer"
-              onClick={onRetry}
-              variant="secondary"
-            >
-              Try again
-            </Button>
-          </>
+          <EmptyState
+            role="alert"
+            title="This view could not be opened."
+            description="Try opening this view again."
+            action={
+              <Button
+                className="control-enabled:cursor-pointer"
+                onClick={onRetry}
+                variant="secondary"
+              >
+                Try again
+              </Button>
+            }
+          />
         ) : (
           <CollectionLoading message={loadingLabel} />
         )}

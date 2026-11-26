@@ -71,13 +71,17 @@ export function IntegrityFixture() {
   const [action, setAction] = useState("");
   const params = new URLSearchParams(location.search);
   const error = params.has("error");
+  const initialFailure = params.get("error") === "initial";
   const actionFor = (name: string) => (book: ReadonlyBook) => setAction(`${name}:${book.id}`);
   const shared = {
     books,
     onOpenDetails: actionFor("details"),
     onRead: actionFor("read"),
     onReveal: actionFor("reveal"),
-    onRefresh: async () => true,
+    onRefresh: async () => {
+      setAction("refresh");
+      return true;
+    },
   };
   return (
     <LibraryStorageContext.Provider value={storage}>
@@ -90,7 +94,7 @@ export function IntegrityFixture() {
               onMove={actionFor("move")}
               state={{
                 status: error ? "error" : "ready",
-                snapshot: duplicates,
+                snapshot: initialFailure ? null : duplicates,
                 error: error ? { operation: "duplicates", message: "Refresh failed." } : null,
               }}
             />
@@ -99,7 +103,7 @@ export function IntegrityFixture() {
               {...shared}
               state={{
                 status: error ? "error" : "ready",
-                snapshot: diagnostics,
+                snapshot: initialFailure ? null : diagnostics,
                 error: error ? { operation: "diagnostics", message: "Refresh failed." } : null,
               }}
             />
