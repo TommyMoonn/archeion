@@ -169,23 +169,42 @@ describe("LibraryEpubIssuesView", () => {
           'button[aria-label="Open details for Readable with warning"]',
         )
         ?.click();
-      buttonWithText(readableRow, "Readable with warning")?.click();
-      buttonWithText(readableRow, "Read")?.click();
-      buttonWithText(readableRow, "Reveal")?.click();
     });
-    expect(props.onRead).toHaveBeenCalledWith(readable);
-    expect(props.onOpenDetails).toHaveBeenCalledTimes(2);
-    expect(props.onOpenDetails).toHaveBeenNthCalledWith(1, readable);
-    expect(props.onOpenDetails).toHaveBeenNthCalledWith(2, readable);
-    expect(props.onReveal).toHaveBeenCalledWith(readable);
-    expect(readableRow.querySelector(".epub-issues-book__header")?.textContent).toContain("Read");
-    expect(readableRow.querySelector(".epub-issues-book__header")?.textContent).toContain("Reveal");
-    expect(readableRow.querySelector(":scope > .epub-issues-book__actions")).toBeNull();
+    expect(props.onOpenDetails).toHaveBeenCalledExactlyOnceWith(readable);
+    const rowButton = readableRow.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open details for Readable with warning"]',
+    )!;
+    expect(rowButton.textContent).toContain("Readable with warningreadable.epubAda");
+    expect(buttonWithText(readableRow, "Read")).toBeUndefined();
+    expect(buttonWithText(readableRow, "Reveal")).toBeUndefined();
+    const menuTrigger = readableRow.querySelector<HTMLButtonElement>(
+      'button[aria-label="File actions for Readable with warning"]',
+    )!;
+    for (const [label, callback] of [
+      ["Read", props.onRead],
+      ["Reveal", props.onReveal],
+    ] as const) {
+      await act(async () => menuTrigger.click());
+      const item = document.querySelector<HTMLElement>('[role="menu"]');
+      const action = buttonWithText(item!, label)!;
+      expect(action.getAttribute("aria-disabled")).toBeNull();
+      await act(async () => action.click());
+      expect(callback).toHaveBeenCalledWith(readable);
+    }
+    expect(props.onOpenDetails).toHaveBeenCalledTimes(1);
     expect(
       blockedRow.querySelector('[data-issue-code="inspection-limit-exceeded"]'),
     ).not.toBeNull();
-    expect(buttonWithText(blockedRow, "Read")?.getAttribute("aria-disabled")).toBe("true");
-    expect(buttonWithText(readableRow, "Read")?.getAttribute("aria-disabled")).toBeNull();
+    await act(async () =>
+      blockedRow
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="File actions for Unreadable archive"]',
+        )
+        ?.click(),
+    );
+    const blockedMenu = document.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(buttonWithText(blockedMenu, "Read")?.getAttribute("aria-disabled")).toBe("true");
+    expect(buttonWithText(blockedMenu, "Reveal")?.getAttribute("aria-disabled")).toBeNull();
   });
 
   it("publishes replacement diagnostics through Refresh", async () => {

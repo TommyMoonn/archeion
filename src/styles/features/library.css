@@ -1634,9 +1634,3 @@ html[data-motion="on"] .details-drawer[open][data-surface-state="closing"] {
   .icon-button:focus-visible {
   outline-offset: -2px;
 }
-
-/* The unlayered global icon-slot reset is still owned by the shell migration. */
-.duplicate-member__menu-trigger .icon-slot {
-  --icon-slot-size: var(--spacing-segment-glyph);
-  --icon-glyph-size: var(--spacing-segment-glyph);
-}

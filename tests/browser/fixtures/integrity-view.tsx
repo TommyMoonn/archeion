@@ -71,12 +71,12 @@ export function IntegrityFixture() {
   const [action, setAction] = useState("");
   const params = new URLSearchParams(location.search);
   const error = params.has("error");
-  const noop = (book: ReadonlyBook) => setAction(book.id);
+  const actionFor = (name: string) => (book: ReadonlyBook) => setAction(`${name}:${book.id}`);
   const shared = {
     books,
-    onOpenDetails: noop,
-    onRead: noop,
-    onReveal: noop,
+    onOpenDetails: actionFor("details"),
+    onRead: actionFor("read"),
+    onReveal: actionFor("reveal"),
     onRefresh: async () => true,
   };
   return (
@@ -86,8 +86,8 @@ export function IntegrityFixture() {
           {params.get("view") === "integrity-duplicates" ? (
             <LibraryDuplicatesView
               {...shared}
-              onDelete={noop}
-              onMove={noop}
+              onDelete={actionFor("delete")}
+              onMove={actionFor("move")}
               state={{
                 status: error ? "error" : "ready",
                 snapshot: duplicates,

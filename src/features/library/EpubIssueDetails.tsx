@@ -83,15 +83,15 @@ export function EpubIssueDetails({ issues }: Readonly<{ issues: EpubDiagnostics[
   return (
     <section
       aria-label="Diagnostic details"
-      className="epub-issue-details py-integrity-gap px-integrity-header-inline"
+      className="epub-issue-details pb-control-gap px-button-standard"
     >
-      <ol className="epub-issue-details__list grid gap-control-gap m-0 p-0 list-none">
+      <ol className="epub-issue-details__list grid gap-control-gap-compact m-0 p-0 list-none">
         {issues.map((issue, index) => {
           const error = issue.severity === "error";
           const Icon = error ? CircleAlert : TriangleAlert;
           return (
             <li
-              className="epub-issue-detail grid grid-cols-[var(--spacing-integrity-row-gap)_minmax(0,1fr)] items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 py-integrity-alert-block px-integrity-row-block border-standard border-solid border-line rounded-control bg-integrity-detail group/issue"
+              className="epub-issue-detail grid grid-cols-[var(--spacing-integrity-row-gap)_minmax(0,1fr)] items-start gap-y-control-gap-compact gap-x-integrity-row-block min-w-0 py-control-gap px-control-gap border-standard border-solid border-line rounded-control bg-surface group/issue"
               data-issue-code={issue.code}
               data-severity={issue.severity}
               key={`${issue.code}:${issue.resourcePath ?? ""}:${index}`}

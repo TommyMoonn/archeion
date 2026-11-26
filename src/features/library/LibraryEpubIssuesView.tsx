@@ -5,17 +5,7 @@ import {
   CollapsibleContent,
 } from "../../components/ui/collapsible";
 import { CollectionLoading } from "../../components/CollectionLoading";
-import { Tooltip } from "../../components/Tooltip";
-import {
-  BookOpen,
-  ChevronDown,
-  CircleAlert,
-  FileCheck2,
-  FileWarning,
-  FolderOpen,
-  TriangleAlert,
-} from "lucide-react";
-import { useId } from "react";
+import { ChevronDown, CircleAlert, FileCheck2, FileWarning, TriangleAlert } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { LibraryIntegrityHeader } from "./LibraryIntegrityHeader";
@@ -26,7 +16,7 @@ import type {
   EpubIntegrityReadState,
 } from "../../types/epubIntegrity";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
-import { BookCover } from "./BookCover";
+import { IntegrityBookRow } from "./IntegrityBookRow";
 import { EpubIssueDetails } from "./EpubIssueDetails";
 import { resolveEpubIssueBooks, type ResolvedEpubIssueBook } from "./libraryEpubIssuesReadModel";
 
@@ -51,7 +41,6 @@ function EpubIssueBook({
 }: Omit<LibraryEpubIssuesViewProps, "books" | "onRefresh" | "state"> & {
   resolved: ResolvedEpubIssueBook;
 }) {
-  const titleId = useId();
   const { book, entry, errorCount, readerAvailable, warningCount } = resolved;
   const title = bookTitle(book);
   const author = bookAuthor(book);
@@ -62,48 +51,19 @@ function EpubIssueBook({
 
   return (
     <article
-      aria-labelledby={titleId}
-      className="epub-issues-book min-w-0 overflow-hidden border-standard border-solid border-line rounded-card bg-integrity-card focus-within:border-line-strong"
+      aria-label={title}
+      className="epub-issues-book min-w-0 overflow-hidden border-standard border-solid border-line rounded-control bg-surface-main"
       data-reader-book-id={book.id}
     >
-      <div className="epub-issues-book__header grid grid-cols-[var(--spacing-integrity-issue-cover)_minmax(0,1fr)_auto] items-center min-w-0 gap-integrity-gap py-integrity-header-block px-integrity-header-inline bg-integrity-header [@media(max-width:680px)]:grid-cols-[var(--spacing-integrity-issue-cover-narrow)_minmax(0,1fr)]">
-        <Tooltip content={`Open details for ${title}`}>
-          <button
-            aria-label={`Open details for ${title}`}
-            className="epub-issues-book__cover-action block p-0 border-0 rounded-small text-inherit bg-transparent text-start cursor-pointer hover:text-accent-strong"
-            onClick={() => onOpenDetails(book)}
-            type="button"
-          >
-            <BookCover
-              book={book}
-              className="book-cover--epub-issue w-integrity-issue-cover rounded-small [@media(max-width:680px)]:w-integrity-issue-cover-narrow"
-            />
-          </button>
-        </Tooltip>
-        <div className="epub-issues-book__identity grid min-w-0 gap-integrity-copy-gap">
-          <h2
-            className="min-w-0 m-0 truncate text-heading font-app-display text-text-strong"
-            id={titleId}
-          >
-            <button
-              className="epub-issues-book__title-action max-w-full truncate p-0 border-0 rounded-small text-inherit bg-transparent text-start cursor-pointer hover:text-accent-strong"
-              onClick={() => onOpenDetails(book)}
-              type="button"
-            >
-              {title}
-            </button>
-          </h2>
-          <p className="min-w-0 m-0 truncate text-muted text-meta-only">
-            {author || "Author unavailable"}
-          </p>
+      <IntegrityBookRow
+        book={book}
+        onOpenDetails={onOpenDetails}
+        onRead={onRead}
+        onReveal={onReveal}
+        readerUnavailableReason={readerUnavailableReason}
+        status={
           <span
-            className="min-w-0 m-0 truncate text-muted font-mono text-caption-size"
-            title={book.relativePath}
-          >
-            {book.relativePath}
-          </span>
-          <div
-            className="epub-issues-book__summary flex items-center flex-wrap gap-y-integrity-small-gap gap-x-integrity-row-block mt-folder-action-gap text-muted text-caption-size [&>span]:inline-flex [&>span]:items-center [&>span]:min-w-0 [&>span]:gap-integrity-small-gap [&>span]:m-0 [&>span]:whitespace-nowrap [&>span[data-severity=error]]:text-error [&>span[data-severity=warning]]:text-warning"
+            className="epub-issues-book__summary flex items-center flex-wrap gap-y-control-gap-compact gap-x-integrity-row-block text-muted text-caption-size [&>span]:inline-flex [&>span]:items-center [&>span]:gap-integrity-small-gap [&>span]:whitespace-nowrap [&>span[data-severity=error]]:text-error [&>span[data-severity=warning]]:text-warning"
             data-reader-available={readerAvailable ? "true" : "false"}
           >
             {errorCount > 0 ? (
@@ -119,43 +79,28 @@ function EpubIssueBook({
               </span>
             ) : null}
             {!readerAvailable ? (
-              <strong className="epub-issues-book__reader-status inline-flex items-center min-w-0 gap-integrity-small-gap m-0 whitespace-nowrap ps-integrity-row-block border-0 border-s border-solid border-line-strong text-text-strong font-medium">
+              <strong className="epub-issues-book__reader-status text-text-strong font-medium">
                 Reader unavailable
               </strong>
             ) : null}
-          </div>
-        </div>
-        <div className="epub-issues-book__actions flex items-center justify-end flex-wrap gap-control-gap-compact [&>.button:last-child]:-me-button-compact [@media(max-width:680px)]:col-span-full [@media(max-width:680px)]:justify-start [@media(max-width:680px)]:[&>.button:last-child]:me-0">
-          <Button
-            className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
-            disabled={!readerAvailable}
-            disabledReason={readerUnavailableReason}
-            icon={<BookOpen />}
-            onClick={() => onRead(book)}
-            size="compact"
-            variant="secondary"
-          >
-            Read
-          </Button>
-          <Button
-            className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
-            icon={<FolderOpen />}
-            onClick={() => onReveal(book)}
-            size="compact"
-            variant="ghost"
-          >
-            Reveal
-          </Button>
-        </div>
-      </div>
+          </span>
+        }
+      >
+        <span className="min-w-0 truncate text-muted text-meta" title={book.relativePath}>
+          {book.fileName}
+        </span>
+        <span className="min-w-0 truncate text-muted text-caption-size">
+          {author || "Author unavailable"}
+        </span>
+      </IntegrityBookRow>
 
       <Collapsible className="epub-issues-book__disclosure border-0 border-t border-solid border-line">
-        <CollapsibleTrigger className="group flex w-full items-center justify-between min-h-integrity-disclosure-height gap-integrity-row-block px-integrity-header-inline py-0 border-0 text-text bg-transparent text-start text-meta-only font-medium cursor-pointer hover:bg-surface-hover aria-expanded:bg-surface-hover">
+        <CollapsibleTrigger className="group flex w-full items-center justify-between min-h-control-standard gap-control-gap px-button-standard py-control-gap border-0 text-muted bg-transparent text-start text-meta font-medium cursor-pointer hover:bg-surface-shell-hover hover:text-text-strong aria-expanded:text-text-strong focus-visible:outline-offset-[-3px]!">
           <span>{`View ${countLabel(issueCount, "diagnostic issue")}`}</span>
           <ChevronDown
             aria-hidden="true"
-            className="text-muted transition-transform duration-fast ease-standard group-aria-expanded:rotate-180"
-            size={18}
+            className="shrink-0 text-muted motion-safe:transition-transform duration-fast ease-standard group-aria-expanded:rotate-180"
+            size={16}
           />
         </CollapsibleTrigger>
         <CollapsibleContent keepMounted>

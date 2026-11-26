@@ -1,23 +1,18 @@
 import { Alert } from "../../components/ui/alert";
 import { Badge } from "../../components/ui/badge";
 import { CollectionLoading } from "../../components/CollectionLoading";
-import { BookOpen, Copy, Ellipsis, FolderOpen, MoveRight, Trash2 } from "lucide-react";
+import { Copy, MoveRight, Trash2 } from "lucide-react";
 import { memo, useId } from "react";
 
 import { Button } from "../../components/Button";
 import { LibraryIntegrityHeader } from "./LibraryIntegrityHeader";
-import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import { EmptyState } from "../../components/EmptyState";
-import { Tooltip } from "../../components/Tooltip";
-import { useContextMenuController } from "../../components/contextMenuController";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import type {
   EpubIntegrityReadState,
   EpubDuplicateAnalysisResult,
 } from "../../types/epubIntegrity";
-import { formatFileSize, formatMediumDate } from "../../utils/formatters";
-import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
-import { BookCover } from "./BookCover";
+import { IntegrityBookRow } from "./IntegrityBookRow";
 import {
   resolveDuplicateGroups,
   type ResolvedDuplicateGroup,
@@ -50,114 +45,42 @@ const DuplicateMember = memo(function DuplicateMember({
 }: Omit<LibraryDuplicatesViewProps, "books" | "onRefresh" | "state"> & {
   member: ResolvedDuplicateMember;
 }) {
-  const { book, signature } = member;
-  const title = bookTitle(book);
-  const author = bookAuthor(book);
-  const menu = useContextMenuController();
+  const { book } = member;
   const fileUnavailableReason = book.isFileMissing ? "The EPUB file is missing." : undefined;
 
   return (
     <article
-      className="duplicate-member relative grid grid-cols-[minmax(var(--spacing-integrity-member-column),1fr)_minmax(var(--spacing-integrity-metadata-column),1.4fr)_auto] items-center min-w-0 gap-integrity-row-gap py-integrity-row-block px-integrity-row-inline border-0 not-first:border-t not-first:border-solid border-line focus-within:bg-integrity-row-focus [@media(680px<width<=1040px)]:grid-cols-[minmax(var(--spacing-integrity-member-column-medium),1fr)_auto] [@media(max-width:680px)]:grid-cols-1"
+      className="duplicate-member min-w-0 border-0 not-first:border-t not-first:border-solid border-line"
       data-reader-book-id={book.id}
     >
-      <button
-        aria-label={`Open details for ${title}`}
-        className="duplicate-member__details grid grid-cols-[var(--spacing-integrity-duplicate-cover)_minmax(0,1fr)] items-center min-w-0 gap-integrity-row-block p-segment-inset border-0 rounded-control text-inherit bg-transparent text-start cursor-pointer hover:bg-surface-hover"
-        onClick={() => onOpenDetails(book)}
-        type="button"
+      <IntegrityBookRow
+        book={book}
+        onOpenDetails={onOpenDetails}
+        onRead={onRead}
+        onReveal={onReveal}
+        additionalActions={[
+          {
+            disabled: Boolean(fileUnavailableReason),
+            disabledReason: fileUnavailableReason,
+            icon: <MoveRight />,
+            id: "move",
+            label: "Move to folder",
+            onSelect: () => onMove(book),
+          },
+          {
+            className: "book-menu__danger",
+            danger: true,
+            icon: <Trash2 />,
+            id: "delete",
+            label: book.isFileMissing ? "Remove metadata" : "Delete EPUB",
+            onSelect: () => onDelete(book),
+          },
+        ]}
       >
-        <BookCover
-          book={book}
-          className="book-cover--duplicate w-integrity-duplicate-cover rounded-small"
-        />
-        <span className="duplicate-member__identity grid min-w-0 gap-folder-action-gap [&>strong]:truncate [&>strong]:text-text-strong [&>strong]:text-body-only [&>strong]:font-semibold [&>span]:truncate [&>span]:text-muted [&>span]:text-meta-only">
-          <Tooltip content={title} onlyWhenTruncated>
-            <strong>{title}</strong>
-          </Tooltip>
-          <span>{author || "Author unavailable"}</span>
+        <span className="min-w-0 truncate text-muted text-meta" title={book.relativePath}>
+          {book.relativePath}
         </span>
-      </button>
-      <dl className="duplicate-member__metadata grid grid-cols-[minmax(var(--spacing-integrity-meta-column),1fr)_minmax(var(--spacing-integrity-file-column),auto)_minmax(var(--spacing-integrity-date-column),auto)] min-w-0 gap-integrity-gap m-0 [@media(680px<width<=1040px)]:col-span-full [@media(680px<width<=1040px)]:row-start-2 [@media(max-width:680px)]:grid-cols-2 [@media(max-width:680px)]:[&>div:first-child]:col-span-full [&>div]:min-w-0 [&>div]:m-0">
-        <div>
-          <dt className="mb-folder-action-gap text-muted text-caption-size">Path</dt>
-          <dd className="m-0 min-w-0 truncate text-text text-meta-only" title={book.relativePath}>
-            {book.relativePath}
-          </dd>
-        </div>
-        <div>
-          <dt className="mb-folder-action-gap text-muted text-caption-size">File</dt>
-          <dd className="m-0 min-w-0 truncate text-text text-meta-only">
-            {formatFileSize(signature.sizeBytes)}
-          </dd>
-        </div>
-        <div>
-          <dt className="mb-folder-action-gap text-muted text-caption-size">Modified</dt>
-          <dd className="m-0 min-w-0 truncate text-text text-meta-only">
-            <time dateTime={new Date(signature.modifiedAtMillis).toISOString()}>
-              {formatMediumDate(new Date(signature.modifiedAtMillis).toISOString())}
-            </time>
-          </dd>
-        </div>
-      </dl>
-      <div className="duplicate-member__actions flex items-center justify-end gap-integrity-small-gap [&>.button]:min-w-0 [@media(max-width:680px)]:justify-start [@media(max-width:680px)]:flex-wrap">
-        <Button
-          className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
-          disabled={Boolean(fileUnavailableReason)}
-          disabledReason={fileUnavailableReason}
-          icon={<BookOpen />}
-          onClick={() => onRead(book)}
-          size="compact"
-          variant="secondary"
-        >
-          Read
-        </Button>
-        <Button
-          className="[&:not(:disabled):not([aria-disabled=true])]:cursor-pointer"
-          disabled={Boolean(fileUnavailableReason)}
-          disabledReason={fileUnavailableReason}
-          icon={<FolderOpen />}
-          onClick={() => onReveal(book)}
-          size="compact"
-          variant="ghost"
-        >
-          Reveal
-        </Button>
-        <ContextMenuTrigger
-          className="duplicate-member__menu-trigger inline-grid size-control-compact min-h-control-compact place-items-center p-0 border-standard border-solid border-transparent rounded-control text-muted bg-transparent hover:border-line hover:text-text hover:bg-surface-raised aria-expanded:border-line aria-expanded:text-text aria-expanded:bg-surface-raised"
-          controller={menu}
-          label={`File actions for ${title}`}
-          tooltip={`File actions for ${title}`}
-        >
-          <span aria-hidden="true" className="icon-slot">
-            <Ellipsis />
-          </span>
-        </ContextMenuTrigger>
-        <ContextMenuSurface
-          actions={[
-            {
-              disabled: Boolean(fileUnavailableReason),
-              disabledReason: fileUnavailableReason,
-              icon: <MoveRight />,
-              id: "move",
-              label: "Move to folder",
-              onSelect: () => onMove(book),
-            },
-            {
-              className: "book-menu__danger",
-              danger: true,
-              icon: <Trash2 />,
-              id: "delete",
-              label: book.isFileMissing ? "Remove metadata" : "Delete EPUB",
-              onSelect: () => onDelete(book),
-            },
-          ]}
-          ariaLabel={`File actions for ${title}`}
-          className="book-menu__popover [&_[data-slot=menu-item-label]]:whitespace-nowrap [&_[data-slot=menu-item-label]]:wrap-normal"
-          controller={menu}
-          dismissKey={`${book.id}:${book.relativePath ?? "missing"}`}
-        />
-      </div>
+      </IntegrityBookRow>
     </article>
   );
 });
@@ -175,20 +98,17 @@ function DuplicateGroup({
   return (
     <section
       aria-labelledby={titleId}
-      className="duplicate-group min-w-0 overflow-hidden border-standard border-solid border-line rounded-card bg-integrity-card group/duplicate"
+      className="duplicate-group min-w-0 overflow-hidden border-standard border-solid border-line rounded-control bg-surface-main group/duplicate"
       data-duplicate-kind={group.kind}
     >
-      <header className="duplicate-group__header grid grid-cols-[minmax(0,1fr)_minmax(var(--spacing-integrity-group-identity-column),auto)] items-center gap-series-detail-gap py-integrity-header-block px-integrity-header-inline border-b-line bg-integrity-header [@media(max-width:680px)]:grid-cols-1">
-        <div>
-          <Badge className="duplicate-group__classification min-h-integrity-badge-height px-control-gap py-0 whitespace-normal border-integrity-badge-border text-accent-strong bg-integrity-badge text-caption-size leading-[inherit] font-medium group-data-[duplicate-kind=probable]/duplicate:border-line-strong group-data-[duplicate-kind=probable]/duplicate:text-text group-data-[duplicate-kind=probable]/duplicate:bg-integrity-badge-probable">
-            {exact ? "Exact duplicate" : "Probable duplicate"}
-          </Badge>
-          <h2
-            className="mt-field-label mb-0 mx-0 text-heading font-app-display text-text-strong"
-            id={titleId}
-          >
+      <header className="duplicate-group__header grid grid-cols-[minmax(0,1fr)_minmax(var(--spacing-integrity-group-identity-column),auto)] items-center gap-control-gap py-control-gap px-button-standard border-0 border-b border-solid border-line bg-surface [@media(max-width:680px)]:grid-cols-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-control-gap">
+          <h2 className="m-0 text-body font-semibold text-text-strong" id={titleId}>
             {members.length} {members.length === 1 ? "copy" : "copies"}
           </h2>
+          <Badge className="duplicate-group__classification min-h-integrity-badge-height px-control-gap py-0 whitespace-normal rounded-small! border-line-strong text-accent-strong bg-transparent text-caption-size leading-[inherit] font-medium group-data-[duplicate-kind=probable]/duplicate:text-text">
+            {exact ? "Exact duplicate" : "Probable duplicate"}
+          </Badge>
         </div>
         <dl className="duplicate-group__identity m-0 min-w-0 w-[min(100%,var(--spacing-integrity-identity-width))] justify-self-end [@media(max-width:680px)]:w-full [@media(max-width:680px)]:justify-self-stretch [&>div]:m-0 [&>div]:min-w-0">
           <div>
@@ -291,7 +211,7 @@ export function LibraryDuplicatesView({
             title="No duplicate groups"
           />
         ) : (
-          <div className="duplicate-groups grid gap-integrity-group-gap pb-page-bottom">
+          <div className="duplicate-groups grid gap-integrity-gap pb-page-bottom">
             {groups.map((resolved) => (
               <DuplicateGroup
                 key={`${resolved.group.kind}:${resolved.group.identity}`}
