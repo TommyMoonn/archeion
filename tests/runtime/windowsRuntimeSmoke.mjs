@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import JSZip from "jszip";
-import { By } from "selenium-webdriver";
+import { By, Key } from "selenium-webdriver";
 import { runFontPreferenceFlows } from "./windowsFontPreferences.mjs";
 
 async function createEpubFixture(destination, chapterText = "Temporary test fixture.") {
@@ -211,6 +211,52 @@ export async function runRuntimeFlows({
     assert.equal(persisted.preferences.reader.fontSize, 21);
     const registry = await invoke(driver, "load_archive_registry");
     assert.equal(registry.archives[0].rootPath, archiveRoot);
+  });
+
+  await logStep("Book Details native drawer and metadata focus return", async () => {
+    const book = await driver.wait(
+      async () => (await driver.findElements(By.css(".book-card__select")))[0] || false,
+      20_000,
+      "The imported book did not appear in the Library",
+    );
+    await book.sendKeys(Key.ENTER);
+    const edit = By.xpath("//dialog[@open]//button[normalize-space(.)='Edit metadata']");
+    const editButton = await driver.wait(
+      async () => (await driver.findElements(edit))[0] || false,
+      10_000,
+      "Book Details did not render its metadata action",
+    );
+    assert.equal(
+      await driver.executeScript(
+        "return arguments[0].closest('dialog').matches(':modal')",
+        editButton,
+      ),
+      true,
+    );
+    await editButton.sendKeys(Key.ENTER);
+    await driver.wait(
+      () =>
+        driver.executeScript(
+          "return document.querySelector('dialog:modal')?.textContent.includes('Edit EPUB metadata')",
+        ),
+      10_000,
+      "The metadata editor did not take ownership of the native top layer",
+    );
+    await driver.actions().sendKeys(Key.ESCAPE).perform();
+    await driver.wait(
+      () =>
+        driver.executeScript(
+          "return document.activeElement?.closest('dialog:modal')?.classList.contains('details-drawer') && document.activeElement.textContent.trim() === 'Edit metadata'",
+        ),
+      10_000,
+      "Closing the editor did not return focus to Edit metadata in Book Details",
+    );
+    await driver.actions().sendKeys(Key.ESCAPE).perform();
+    await driver.wait(
+      () => driver.executeScript("return document.activeElement === arguments[0]", book),
+      10_000,
+      "Closing Book Details did not return focus to the inspected book",
+    );
   });
 
   await logStep("secondary-window lifecycle", async () => {

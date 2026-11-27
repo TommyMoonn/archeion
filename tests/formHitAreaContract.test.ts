@@ -30,7 +30,6 @@ describe("form semantics and control hit-area contract", () => {
   const forms = read("src/styles/components/forms.css");
   const base = read("src/styles/base.css");
   const tokens = read("src/styles/tokens.css");
-  const filesystem = read("src/styles/features/filesystem.css");
   const windowFrame = read("src/styles/layout/window-frame.css");
   const forcedColors = read("src/styles/forced-colors.css");
   const archive = read("src/styles/features/archive.css");
@@ -49,12 +48,8 @@ describe("form semantics and control hit-area contract", () => {
     expect(
       cssBlock(forms, '.form-field :where(input, select, textarea)[aria-invalid="true"],'),
     ).toContain("outline: 2px dashed var(--error-strong)");
-    expect(cssBlock(filesystem, '.epub-filename-field:has(input[aria-invalid="true"])')).toContain(
-      "outline: 2px dashed var(--error-strong)",
-    );
     expect(forcedColors).toContain('[role="group"]');
     expect(forcedColors).toContain('.input-shell:has(input[aria-invalid="true"])');
-    expect(forcedColors).toContain('.epub-filename-field:has(input[aria-invalid="true"])');
     expect(forcedColors).toContain("outline: 2px dashed Mark");
   });
 

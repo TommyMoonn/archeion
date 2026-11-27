@@ -106,9 +106,8 @@ describe("BulkMetadataDialog", () => {
       activateCheckbox(seriesToggle);
       setInputValue(seriesInput, "Shared Series");
     });
-    const seriesHelpId = seriesInput.getAttribute("aria-describedby");
-    expect(seriesHelpId).toBe("bulk-metadata-series-help");
-    expect(document.getElementById(seriesHelpId!)?.textContent).toBe(
+    const seriesHelpId = seriesInput.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(seriesHelpId)?.textContent).toBe(
       "Leave blank to clear this field.",
     );
     act(() => button(container, "Review changes").click());
@@ -147,22 +146,22 @@ describe("BulkMetadataDialog", () => {
     const textarea = container.querySelector<HTMLTextAreaElement>(
       'textarea[aria-label="Tags to apply"]',
     )!;
-    expect(textarea.getAttribute("aria-describedby")).toBe("bulk-metadata-subjects-help");
-    expect(
-      container
-        .querySelector('[role="radiogroup"][aria-label="Tag operation"]')
-        ?.getAttribute("aria-describedby"),
-    ).toBe("bulk-metadata-subjects-help");
+    const tagMode = container.querySelector('[role="radiogroup"][aria-label="Tag operation"]');
+    for (const control of [textarea, tagMode]) {
+      const helpId = control?.getAttribute("aria-describedby") ?? "";
+      expect(document.getElementById(helpId)?.textContent).toContain(
+        "Use one tag per line. Commas remain part of the tag.",
+      );
+    }
     act(() => {
       activateCheckbox(tagToggle);
       setTextareaValue(textarea, "Science\r\nTechnology");
     });
     act(() => button(container, "Review changes").click());
 
-    const previewValues = [
-      ...container.querySelectorAll<HTMLElement>('[data-multiline="true"]'),
-    ].map((element) => element.textContent);
-    expect(previewValues).toEqual(["“Science, Technology”", "“Science”\n“Technology”"]);
+    expect(container.querySelector("dd")?.textContent).toBe(
+      "“Science, Technology”→“Science”\n“Technology”",
+    );
   });
 
   it("keeps sustained writes inside the loaded review dialog", () => {

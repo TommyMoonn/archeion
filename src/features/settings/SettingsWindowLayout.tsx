@@ -50,7 +50,7 @@ export function SettingsWindowLayout({ children }: { children: ReactNode }) {
         </SettingsSidebarFrame>
         <section
           aria-label="Settings content"
-          className="settings-content min-h-0 overflow-y-auto overscroll-contain scrollbar-gutter-stable px-settings-content-inset pt-settings-content-top pb-settings-content-bottom settings-window-narrow:px-settings-content-narrow-inset settings-window-mobile:px-dialog-gap settings-window-mobile:pt-settings-content-narrow-inset settings-window-mobile:pb-settings-row-standard settings-window-short:pt-settings-content-short-top settings-window-short:pb-settings-content-short-bottom"
+          className="settings-content min-h-0 overflow-y-auto overscroll-contain scrollbar-gutter-stable px-settings-content-inset pt-settings-content-top pb-settings-content-bottom settings-window-narrow:px-settings-content-narrow-inset settings-window-mobile:px-dialog-gap settings-window-mobile:pt-settings-content-narrow-inset settings-window-mobile:pb-settings-row-standard settings-window-short:pt-settings-content-short-top settings-window-short:pb-settings-content-short-bottom [&_[data-utility-stage=loading]]:absolute [&_[data-utility-stage=loading]]:inset-0 has-[[data-utility-stage=loading]]:relative has-[[data-utility-stage=loading]]:scrollbar-gutter-auto"
           data-utility-slot="content"
           ref={contentRef}
         >

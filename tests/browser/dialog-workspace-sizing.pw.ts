@@ -6,6 +6,7 @@ async function openWorkspace(page: Page, surface: string, scale = 1) {
     document.documentElement.style.fontSize = `${scale * 16}px`;
   }, scale);
   await page.getByRole("button", { name: "Open dialog", exact: true }).click();
+  await page.evaluate(() => document.fonts.ready);
   expect(await page.locator("dialog").evaluate((dialog) => dialog.matches(":modal"))).toBe(true);
 }
 
@@ -24,8 +25,8 @@ async function capture(page: Page, state: string) {
     const content = body.lastElementChild!;
     const contentBottom =
       content.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop;
-    const preview = dialog.querySelector(".cover-writeback__preview");
-    const controls = dialog.querySelector(".cover-writeback__controls");
+    const preview = dialog.querySelector('[data-slot="cover-editor-preview"]');
+    const controls = dialog.querySelector('[data-slot="cover-editor-controls"]');
     return {
       outer: rect(dialog),
       title: rect(dialog.querySelector(".dialog__copy")!),
@@ -76,6 +77,7 @@ test("desktop cover uses content-sized workspace and proportionate feedback thro
   await page.setViewportSize({ width: 1100, height: 900 });
   await openWorkspace(page, "cover");
   const baseline = await capture(page, "cover-initial");
+  expect(baseline.outer.width).toBe(820);
   await page.getByRole("button", { name: "Choose image", exact: true }).click();
   stable(await capture(page, "cover-preparing"), baseline);
   await release(page);
@@ -115,9 +117,9 @@ test("desktop metadata gives its form the available height without pending/statu
   await openWorkspace(page, "metadata");
   const baseline = await capture(page, "metadata-initial");
   expect.soft(baseline.body.height).toBeGreaterThanOrEqual(600);
-  const emptySummary = await page.locator(".metadata-writeback__changes").evaluate((summary) => ({
-    bottom: summary.getBoundingClientRect().bottom,
-    feedbackBottom: summary.closest(".dialog__feedback")!.getBoundingClientRect().bottom,
+  const emptySummary = await page.getByText("Pending changes").evaluate((heading) => ({
+    bottom: heading.closest("section")!.getBoundingClientRect().bottom,
+    feedbackBottom: heading.closest(".dialog__feedback")!.getBoundingClientRect().bottom,
   }));
   expect(emptySummary.bottom).toBeLessThanOrEqual(emptySummary.feedbackBottom);
   await page.locator(".dialog__body").focus();
@@ -128,6 +130,7 @@ test("desktop metadata gives its form the available height without pending/statu
     .getByRole("textbox", { name: "Subjects", exact: true })
     .fill("Changed 日本語 Ελληνικά العربية subjects");
   stable(await capture(page, "metadata-one-change"), baseline);
+  await expect(page.getByRole("status")).toHaveCSS("position", "absolute");
   const summaryOverflow = () =>
     page.locator(".dialog__feedback").evaluate((feedback) => ({
       content: feedback.scrollHeight,
@@ -167,6 +170,104 @@ test("desktop metadata gives its form the available height without pending/statu
   await test
     .info()
     .attach("metadata-closed", { body: await page.screenshot(), contentType: "image/png" });
+});
+
+test("metadata preserves the inclusive breakpoint and wraps the full read-only identifier", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await openWorkspace(page, "metadata");
+  const dialog = page.getByRole("dialog", { name: "Edit EPUB metadata" });
+  await expect(dialog).toHaveCSS("width", "800px");
+  const title = dialog.getByRole("textbox", { name: "Title", exact: true });
+  const author = dialog.getByRole("textbox", { name: "Author", exact: true });
+  const language = dialog.getByRole("textbox", { name: "Language", exact: true });
+  const fieldWidths = () =>
+    Promise.all([title, author, language].map((field) => field.evaluate((f) => f.clientWidth)));
+  await expect(language).toHaveCSS("width", "180px");
+  await page.setViewportSize({ width: 721, height: 900 });
+  const [wideTitle, wideAuthor] = await fieldWidths();
+  expect(wideAuthor).toBeLessThan(wideTitle);
+  await page.setViewportSize({ width: 720, height: 900 });
+  await expect
+    .poll(async () => {
+      const [titleWidth, authorWidth, languageWidth] = await fieldWidths();
+      return titleWidth === authorWidth && titleWidth === languageWidth;
+    })
+    .toBe(true);
+
+  await page.setViewportSize({ width: 400, height: 550 });
+  const identifier = dialog.getByText(/^urn:isbn:/);
+  await expect(dialog.getByRole("textbox", { name: "Identifier", exact: true })).toHaveCount(0);
+  expect(
+    await identifier.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const bounds = element.getBoundingClientRect();
+      const lines = Array.from(range.getClientRects());
+      return lines.length > 1 && lines.every((line) => line.left >= bounds.left - 1);
+    }),
+  ).toBe(true);
+});
+
+for (const forcedColors of ["none", "active"] as const) {
+  test(`metadata keeps keyboard focus and discards a closed draft in forced-colors ${forcedColors}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 800, height: 750 });
+    await page.emulateMedia({ forcedColors });
+    await openWorkspace(page, "metadata");
+    const open = page.getByRole("button", { name: "Open dialog", exact: true });
+    const dialog = page.getByRole("dialog", { name: "Edit EPUB metadata" });
+    const title = dialog.getByRole("textbox", { name: "Title", exact: true });
+    const description = dialog.getByRole("textbox", { name: "Description", exact: true });
+    for (const field of [title, description]) {
+      await field.click();
+      await expect(field).toHaveCSS("outline-style", "none");
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Shift+Tab");
+      await expect(field).toBeFocused();
+      await expect(field).toHaveCSS("outline-style", "solid");
+      await expect(field).toHaveCSS("outline-width", "2px");
+      await expect(field).toHaveCSS("outline-offset", "2px");
+    }
+
+    const original = await title.inputValue();
+    await title.fill("Unsaved title");
+    await expect(dialog.getByRole("list", { name: "Changed metadata fields" })).toHaveText("Title");
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(open).toBeFocused();
+    await open.press("Enter");
+    await expect(title).toHaveValue(original);
+    await expect(dialog.getByRole("button", { name: "Write metadata to EPUB" })).toBeDisabled();
+    await expect(page.locator("body")).not.toHaveAttribute("data-operation", "pending");
+  });
+}
+
+test("metadata writeback errors retain their forced-color emphasis", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await openWorkspace(page, "metadata");
+  const dialog = page.getByRole("dialog", { name: "Edit EPUB metadata" });
+  await dialog.getByRole("textbox", { name: "Title", exact: true }).fill("Edited title");
+  await dialog.getByRole("button", { name: "Write metadata to EPUB" }).click();
+  await release(page, "This EPUB could not be written.");
+  const alert = dialog.getByRole("alert");
+  await expect(alert).toHaveText("This EPUB could not be written.");
+  const colors = await alert.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const sample = document.createElement("span");
+    sample.style.cssText = "color: MarkText; background: Mark; border: 1px solid Mark;";
+    document.body.append(sample);
+    const expected = getComputedStyle(sample);
+    const values = (style: CSSStyleDeclaration) => [
+      style.color,
+      style.backgroundColor,
+      style.borderTopColor,
+    ];
+    return { actual: values(style), expected: values(expected) };
+  });
+  expect(colors.actual).toEqual(colors.expected);
 });
 
 for (const surface of ["cover", "metadata"]) {

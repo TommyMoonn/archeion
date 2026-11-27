@@ -69,14 +69,14 @@ async function openRenameDialog(container: HTMLElement, name: string) {
     await Promise.resolve();
   });
   const save = await waitForButtonWithText(container, "Save");
-  const input = container.querySelector<HTMLInputElement>(".dialog-form input");
+  const input = container.querySelector<HTMLInputElement>("#rename-folder-form input");
   if (!input) throw new Error("The rename input was not rendered.");
   return { input, save };
 }
 
 async function flushAnimationFrame() {
   await act(async () => {
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
   });
 }
 
@@ -383,8 +383,8 @@ describe("LibraryPage folder path continuity", () => {
       throw new Error("The Series navigation control was not rendered.");
     }
     const navigateToSeries = navigate;
-    await import("../series/SeriesOverview");
     await act(async () => {
+      await import("../series/SeriesOverview");
       seriesNavigation.focus();
       await navigateToSeries("/?archiveId=archive-books&view=series");
     });

@@ -6,6 +6,7 @@ const merge = extendTailwindMerge({
   extend: {
     theme: {
       radius: ["control", "small", "menu", "card", "dialog", "pill", "collection-utility-child"],
+      tracking: ["field-label", "cover-editor-label"],
       spacing: [
         "control-compact",
         "control-standard",
@@ -82,7 +83,10 @@ const merge = extendTailwindMerge({
         "reader-title-small",
       ],
     },
-    classGroups: { "border-w": ["border-standard"] },
+    classGroups: {
+      "border-w": ["border-standard"],
+      transition: ["transition-icon-action", "details-cover-action-transition"],
+    },
   },
 });
 

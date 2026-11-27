@@ -72,7 +72,8 @@ a {
 }
 
 :root[data-focus-presentation="keyboard-navigation"] [data-slot="select-item"]:focus-visible,
-:root[data-focus-presentation="keyboard-navigation"] .menu-item:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .menu-item:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"] .book-details-resize-handle:focus-visible {
   outline-offset: -2px;
 }
 

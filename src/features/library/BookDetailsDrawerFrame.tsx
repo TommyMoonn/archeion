@@ -1,5 +1,5 @@
 import { Heart, Pin, PinOff, X } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 import { IconButton } from "../../components/IconButton";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import { bookTitle } from "./libraryFilters";
@@ -7,6 +7,13 @@ import type { ReadonlyBook } from "../../types/book";
 import type { BookDetailsInitialFocus } from "./useLibraryWorkspaceDialogs";
 import { LibraryPanelResizeHandle } from "./LibraryPanelResizeHandle";
 import { BOOK_DETAILS_MIN_WIDTH, BOOK_DETAILS_MAX_WIDTH } from "../../types/libraryDetails";
+import {
+  detailsFavorite,
+  detailsFrame,
+  detailsPanel,
+  detailsResizeHandle,
+  detailsResizeTooltip,
+} from "./bookDetailsStyles";
 
 export type BookDetailsDrawerProps = {
   book: ReadonlyBook;
@@ -49,11 +56,14 @@ export function BookDetailsDrawerFrame({
   onWidthCommit,
 }: BookDetailsDrawerProps & { children: ReactNode }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const resolveInitialFocus = useCallback(
+    () => dialogRef.current?.querySelector<HTMLElement>("[data-dialog-initial-focus]") ?? null,
+    [],
+  );
   const title = bookTitle(book);
   const modal = useModalDialogLifecycle({
     dialogRef,
-    initialFocusRef: initialFocus === "close" ? closeButtonRef : undefined,
+    resolveInitialFocus,
     onClose,
     returnFocusTo,
     surfaceKind: "drawer",
@@ -61,7 +71,7 @@ export function BookDetailsDrawerFrame({
   return (
     <dialog
       ref={dialogRef}
-      className="details-drawer"
+      className={`details-drawer fixed inset-y-0 start-auto end-0 m-0 h-dvh max-h-none w-details-drawer max-w-none overscroll-none p-0 open:block page-mobile:w-details-drawer-mobile details-surface-duration app-motion:open:animate-details-enter app-motion:open:data-[surface-state=closing]:animate-details-exit [&_.button]:enabled:cursor-pointer [&_.icon-button]:control-enabled:cursor-pointer ${detailsFrame}`}
       style={width === undefined ? undefined : { width: `min(${width}px, 100%)` }}
       aria-label={title}
       aria-modal="true"
@@ -72,7 +82,8 @@ export function BookDetailsDrawerFrame({
       {width !== undefined && onWidthChange ? (
         <LibraryPanelResizeHandle
           label="Resize book details"
-          className="book-details-resize-handle"
+          tooltip={detailsResizeTooltip}
+          className={detailsResizeHandle}
           edge="start"
           width={width}
           minWidth={BOOK_DETAILS_MIN_WIDTH}
@@ -81,11 +92,12 @@ export function BookDetailsDrawerFrame({
           onWidthCommit={onWidthCommit}
         />
       ) : null}
-      <div className="details-drawer__panel">
-        {" "}
-        <header className="details-drawer__header">
-          <p>Book details</p>
-          <div className="details-drawer__header-actions">
+      <div className={detailsPanel}>
+        <header className="details-drawer__header flex min-h-collection-count items-center justify-between border-0 border-b border-solid border-line-subtle pr-details-edge pl-details-inset">
+          <p className="m-0 text-muted text-caption-size font-semibold tracking-details-label uppercase">
+            Book details
+          </p>
+          <div className="flex items-center gap-folder-action-gap">
             {onTogglePinned ? (
               <IconButton
                 label={pinned ? "Unpin book details" : "Pin book details"}
@@ -97,7 +109,7 @@ export function BookDetailsDrawerFrame({
             ) : null}
             <IconButton
               aria-pressed={book.isFavorite}
-              className="details-favorite-button"
+              className={detailsFavorite}
               label={`Favorite ${title}`}
               onClick={() => onToggleFavorite(book)}
               tooltip={`Favorite ${title}`}
@@ -106,7 +118,7 @@ export function BookDetailsDrawerFrame({
             </IconButton>
             <IconButton
               autoFocus={initialFocus === "close"}
-              ref={closeButtonRef}
+              data-dialog-initial-focus={initialFocus === "close" || undefined}
               label="Close book details"
               onClick={onClose}
               tooltip="Close book details"

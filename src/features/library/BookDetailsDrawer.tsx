@@ -18,6 +18,8 @@ import { useMemo, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { Alert } from "../../components/ui/alert";
+import { Badge } from "../../components/ui/badge";
 import { BookDetailsDrawerFrame, type BookDetailsDrawerProps } from "./BookDetailsDrawerFrame";
 import { formatFileSize, formatLongDate } from "../../utils/formatters";
 import { BookCover } from "./BookCover";
@@ -28,6 +30,39 @@ import {
   readingStatusForProgress,
 } from "../reading/readingProgress";
 import { bookCompletionActionLabel } from "./bookCompletionActionLabel";
+import {
+  detailsActions,
+  detailsAuthor,
+  detailsBody,
+  detailsCover,
+  detailsDescription,
+  detailsDescriptionHeading,
+  detailsFooter,
+  detailsHeading,
+  detailsMetadata,
+  detailsMetadataLabel,
+  detailsMetadataRow,
+  detailsMetadataValue,
+  detailsMissing,
+  detailsMissingActions,
+  detailsProgress,
+  detailsSecondaryActions,
+  detailsTitle,
+} from "./bookDetailsStyles";
+
+const progressBadge =
+  "details-progress-pill m-0 min-h-dialog-panel max-w-full shrink justify-center border-details-progress-border bg-details-progress px-input-gap py-0 text-text font-medium leading-none whitespace-normal tabular-nums";
+const secondaryAction =
+  "min-w-0 text-muted details-focus-visible:border-accent details-focus-visible:text-text details-hover:border-line details-hover:bg-surface-raised details-hover:text-text";
+const coverAction = [
+  "details-cover__replace absolute right-control-gap bottom-control-gap shadow-app-tooltip backdrop-blur-details-cover-action details-cover-action-transition",
+  "border-details-cover-action-border bg-details-cover-action text-details-cover-action-text control-active:bg-details-cover-action control-active:text-details-cover-action-text",
+  "details-hover:border-details-cover-action-border-hover details-hover:bg-details-cover-action-hover details-hover:text-details-cover-action-text-hover",
+  "details-focus-visible:border-details-cover-action-border-hover details-focus-visible:bg-details-cover-action-hover details-focus-visible:text-details-cover-action-text-hover",
+  "folder-fine-pointer:pointer-events-none folder-fine-pointer:opacity-0 folder-fine-pointer:details-cover-action-offset",
+  "folder-fine-pointer:group-hover/cover:pointer-events-auto folder-fine-pointer:group-hover/cover:opacity-100 folder-fine-pointer:group-hover/cover:details-cover-action-rest",
+  "folder-fine-pointer:group-focus-within/cover:pointer-events-auto folder-fine-pointer:group-focus-within/cover:opacity-100 folder-fine-pointer:group-focus-within/cover:details-cover-action-rest",
+].join(" ");
 
 export type { BookDetailsDrawerProps } from "./BookDetailsDrawerFrame";
 
@@ -75,13 +110,14 @@ export function BookDetailsDrawerContent({
 
   return (
     <>
-      <div className="details-drawer__body">
-        <div className="details-cover">
-          <BookCover book={book} className="book-cover--details" />
+      <div className={detailsBody}>
+        <div className={`${detailsCover} group/cover`}>
+          <BookCover book={book} className="m-0" />
           {!book.isFileMissing ? (
             <IconButton
               autoFocus={initialFocus === "cover"}
-              className="details-cover__replace"
+              data-dialog-initial-focus={initialFocus === "cover" || undefined}
+              className={coverAction}
               label="Replace cover"
               onClick={() => onReplaceCover(book)}
             >
@@ -89,22 +125,22 @@ export function BookDetailsDrawerContent({
             </IconButton>
           ) : null}
         </div>
-        <div className="details-drawer__title constrained-user-content">
-          <h2 id="book-details-title">{title}</h2>
-          {author ? <p>{author}</p> : null}
-          <div className="details-progress-controls">
+        <div className={detailsTitle}>
+          <h2 className={detailsHeading} id="book-details-title">
+            {title}
+          </h2>
+          {author ? <p className={detailsAuthor}>{author}</p> : null}
+          <div className={detailsProgress}>
             {progress > 0 ? (
-              <span
-                className="details-progress-pill"
-                aria-label={`Reading progress ${progressLabel}`}
-              >
+              <Badge className={progressBadge} aria-label={`Reading progress ${progressLabel}`}>
                 {progressLabel}
-              </span>
+              </Badge>
             ) : null}
             {hasSavedPosition || progress > 0 ? (
               <IconButton
                 autoFocus={initialFocus === "clear-progress"}
-                className="details-clear-progress"
+                data-dialog-initial-focus={initialFocus === "clear-progress" || undefined}
+                className="details-clear-progress size-dialog-panel text-muted-soft details-hover:bg-surface-raised details-hover:text-text"
                 label="Clear reading progress"
                 onClick={() => onClearProgress(book)}
                 tooltip="Clear reading progress"
@@ -112,38 +148,50 @@ export function BookDetailsDrawerContent({
                 <Eraser aria-hidden="true" />
               </IconButton>
             ) : (
-              <span className="details-progress-pill">Unread</span>
+              <Badge className={progressBadge}>Unread</Badge>
             )}
           </div>
         </div>
 
         {book.isFileMissing ? (
-          <section className="details-missing" role="status">
-            <CircleAlert aria-hidden="true" size={19} />
+          <Alert className={`${detailsMissing} static wrap-normal`} role="status">
+            <CircleAlert aria-hidden="true" className="mt-px size-feedback-glyph text-danger" />
             <div>
-              <strong>Book file missing</strong>
-              <p>This book was not found in the archive folder.</p>
+              <strong className="text-text text-meta-only font-semibold">Book file missing</strong>
+              <p className="m-0 mt-filter-token-gap text-caption-size leading-field-compact">
+                This book was not found in the archive folder.
+              </p>
             </div>
-            <div>
+            <div className={detailsMissingActions}>
               <Button
+                className="min-h-control-compact px-dialog-copy"
                 icon={<RefreshCw aria-hidden="true" />}
                 onClick={onRescan}
                 variant="secondary"
               >
                 Rescan
               </Button>
-              <Button onClick={() => onDelete(book)} variant="ghost">
+              <Button
+                className="min-h-control-compact px-dialog-copy"
+                onClick={() => onDelete(book)}
+                variant="ghost"
+              >
                 Remove metadata
               </Button>
             </div>
-          </section>
+          </Alert>
         ) : (
-          <div className="details-actions">
-            <Button icon={<BookOpen aria-hidden="true" />} onClick={() => onRead(book)}>
+          <div className={detailsActions}>
+            <Button
+              className="w-full"
+              icon={<BookOpen aria-hidden="true" />}
+              onClick={() => onRead(book)}
+            >
               {hasSavedPosition ? "Continue reading" : "Read book"}
             </Button>
             {hasSavedPosition ? (
               <Button
+                className="w-full"
                 icon={<RotateCcw aria-hidden="true" />}
                 onClick={() => onReadFromBeginning(book)}
                 ref={startFromBeginningRef}
@@ -154,6 +202,7 @@ export function BookDetailsDrawerContent({
             ) : null}
             {completionActionLabel ? (
               <Button
+                className="w-full"
                 icon={<Check aria-hidden="true" />}
                 onClick={(event) => {
                   if (
@@ -170,9 +219,11 @@ export function BookDetailsDrawerContent({
                 {completionActionLabel}
               </Button>
             ) : null}
-            <div className="details-actions__secondary">
+            <div className={detailsSecondaryActions}>
               <Button
                 autoFocus={initialFocus === "metadata"}
+                data-dialog-initial-focus={initialFocus === "metadata" || undefined}
+                className={secondaryAction}
                 icon={<Info aria-hidden="true" />}
                 onClick={() => onViewMetadata(book)}
                 size="compact"
@@ -182,7 +233,7 @@ export function BookDetailsDrawerContent({
               </Button>
               {canRevealFile ? (
                 <Button
-                  className={canManageFile ? undefined : "details-actions__wide"}
+                  className={`${secondaryAction}${canManageFile ? "" : " col-span-full"}`}
                   icon={<FolderOpen aria-hidden="true" />}
                   onClick={() => onRevealFile(book)}
                   size="compact"
@@ -194,6 +245,7 @@ export function BookDetailsDrawerContent({
               {canManageFile ? (
                 <>
                   <Button
+                    className={secondaryAction}
                     icon={<ArrowRight aria-hidden="true" />}
                     onClick={() => onMoveFile(book)}
                     size="compact"
@@ -202,6 +254,7 @@ export function BookDetailsDrawerContent({
                     Move file
                   </Button>
                   <Button
+                    className={secondaryAction}
                     icon={<Pencil aria-hidden="true" />}
                     onClick={() => onRenameFile(book)}
                     size="compact"
@@ -216,40 +269,44 @@ export function BookDetailsDrawerContent({
         )}
 
         {book.sourceMetadata?.description?.trim() ? (
-          <section className="details-description">
-            <h3>Description</h3>
-            <p>{book.sourceMetadata.description}</p>
+          <section className={detailsDescription}>
+            <h3 className={detailsDescriptionHeading}>Description</h3>
+            <p className="m-0 text-muted whitespace-pre-wrap">{book.sourceMetadata.description}</p>
           </section>
         ) : null}
 
-        <dl className="book-metadata book-metadata--compact">
-          <div>
-            <dt>
-              <File aria-hidden="true" size={16} />
+        <dl className={detailsMetadata}>
+          <div className={detailsMetadataRow}>
+            <dt className={detailsMetadataLabel}>
+              <File aria-hidden="true" className="size-icon-glyph-standard" />
               File
             </dt>
-            <dd>
-              <span className="book-metadata__path" title={fileDetails.path}>
+            <dd className={detailsMetadataValue}>
+              <span
+                className="block min-w-0 max-w-full wrap-anywhere whitespace-normal"
+                title={fileDetails.path}
+              >
                 {fileDetails.path}
               </span>
-              <span>{fileDetails.size}</span>
+              <span className="wrap-anywhere text-muted">{fileDetails.size}</span>
             </dd>
           </div>
           {fileDetails.lastOpenedAt ? (
-            <div>
-              <dt>
-                <Clock aria-hidden="true" size={16} />
+            <div className={detailsMetadataRow}>
+              <dt className={detailsMetadataLabel}>
+                <Clock aria-hidden="true" className="size-icon-glyph-standard" />
                 Last opened
               </dt>
-              <dd>{fileDetails.lastOpenedAt}</dd>
+              <dd className={detailsMetadataValue}>{fileDetails.lastOpenedAt}</dd>
             </div>
           ) : null}
         </dl>
       </div>
 
       {canDeleteBook && !book.isFileMissing ? (
-        <footer className="details-drawer__footer">
+        <footer className={detailsFooter}>
           <Button
+            className="w-full"
             variant="danger"
             icon={<Trash2 aria-hidden="true" />}
             onClick={() => onDelete(book)}

@@ -54,7 +54,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     ]) {
       expect(tokens).toMatch(new RegExp(`${token}:\\s*${value};`));
     }
-    expect(cssBlock(".app-shell", appShellSource)).toContain(
+    expect(cssBlock(".app-shell", appShellSource).replace(/\s+/g, " ")).toContain(
       "grid-template-columns: var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr)",
     );
   });

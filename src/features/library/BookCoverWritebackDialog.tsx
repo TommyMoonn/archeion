@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { Alert } from "../../components/ui/alert";
 import { CoverWritebackFields } from "./CoverWritebackFields";
 import type {
   EpubCoverFraming,
@@ -12,6 +13,10 @@ import type {
   EpubCoverWritebackResult,
   ReadonlyBook,
 } from "../../types/book";
+
+const feedbackClass =
+  "flex items-start gap-control-gap rounded-menu border-standard border-solid px-dialog-gap-narrow py-dialog-copy text-caption-size leading-field-compact [&>svg]:mt-px [&>svg]:size-icon-glyph-medium [&>svg]:flex-none";
+const errorClass = `${feedbackClass} border-danger-border bg-dialog-subtle text-danger`;
 
 type BookCoverWritebackDialogProps = {
   book: ReadonlyBook;
@@ -203,7 +208,7 @@ export function BookCoverWritebackDialog({
 
   return (
     <Dialog
-      className="dialog--cover-writeback"
+      className="dialog-width-cover"
       layout="workspace"
       feedbackPlacement="inline"
       returnFocusTo={returnFocusTo}
@@ -213,31 +218,44 @@ export function BookCoverWritebackDialog({
       feedback={
         <>
           <div role="status" aria-atomic="true">
-            {isWriting ? <p className="cover-writeback__status">Writing cover to EPUB…</p> : null}
+            {isWriting ? (
+              <Alert
+                className={`${feedbackClass} border-line bg-dialog-subtle text-muted`}
+                role={undefined}
+              >
+                Writing cover to EPUB…
+              </Alert>
+            ) : null}
             {success ? (
-              <p className="cover-writeback__status" data-tone="success">
-                <CircleCheck aria-hidden="true" size={17} />
+              <Alert
+                className={`${feedbackClass} border-success-border bg-cover-feedback-success text-success`}
+                role={undefined}
+              >
+                <CircleCheck aria-hidden="true" />
                 Cover written to EPUB.
-              </p>
+              </Alert>
             ) : null}
             {warning ? (
-              <p className="cover-writeback__status" data-tone="warning">
-                <CircleAlert aria-hidden="true" size={17} />
+              <Alert
+                className={`${feedbackClass} border-cover-feedback-warning-border bg-dialog-subtle text-accent`}
+                role={undefined}
+              >
+                <CircleAlert aria-hidden="true" />
                 {warning}
-              </p>
+              </Alert>
             ) : null}
           </div>
           {book.isFileMissing ? (
-            <p className="cover-writeback__status" data-tone="error" role="alert">
-              <CircleAlert aria-hidden="true" size={17} />
+            <Alert className={errorClass}>
+              <CircleAlert aria-hidden="true" />
               The EPUB file is missing. Cover writeback is unavailable.
-            </p>
+            </Alert>
           ) : null}
           {error ? (
-            <p className="cover-writeback__status" data-tone="error" role="alert">
-              <CircleAlert aria-hidden="true" size={17} />
+            <Alert className={errorClass}>
+              <CircleAlert aria-hidden="true" />
               {error}
-            </p>
+            </Alert>
           ) : null}
         </>
       }

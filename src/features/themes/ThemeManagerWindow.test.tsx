@@ -187,7 +187,9 @@ describe("ThemeManagerWindow", () => {
     expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
     expect(container.querySelector("[data-utility-ready]")).toBeNull();
     expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBeNull();
-    expect(container.querySelector('[role="status"]')?.textContent).toBe("Opening Theme Manager");
+    expect(container.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe(
+      "Loading Theme Manager",
+    );
 
     await act(async () => initialization.resolve());
     await settle();

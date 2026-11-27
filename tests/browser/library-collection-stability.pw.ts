@@ -157,10 +157,68 @@ test("bulk action menu preserves selection and hands focus back from the metadat
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await expect(bar).toContainText("2 selected");
+
+  await trigger.press("ArrowDown");
+  await menu.getByRole("menuitem", { name: "Edit metadata" }).press("Enter");
+  await dialog.getByRole("checkbox", { name: "Series" }).press("Space");
+  await dialog.getByRole("textbox", { name: "New series" }).fill("Shared series");
+  await dialog.getByRole("button", { name: "Review changes" }).press("Enter");
+  const review = page.getByRole("dialog", { name: "Review metadata changes" });
+  await expect(review).toContainText("2 of 2 selected books will be modified.");
+  const back = review.getByRole("button", { name: "Back", exact: true });
+  await back.focus();
+  await page.keyboard.press("Escape");
+  const discard = page.getByRole("dialog", { name: "Discard metadata changes?" });
+  await expect(discard.getByRole("button", { name: "Keep editing" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(discard).toHaveCount(0);
+  await expect(back).toBeFocused();
+  await back.press("Enter");
+  await expect(dialog.getByRole("textbox", { name: "New series" })).toHaveValue("Shared series");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).press("Enter");
+  await discard.getByRole("button", { name: "Discard changes" }).press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+
   await trigger.click();
   await expect(menu).toBeVisible();
   await page.getByRole("combobox", { name: "Sort library" }).click();
   await expect(menu).toBeHidden();
+  await expect(bar).toContainText("2 selected");
+});
+
+test("cancelling bulk file dialogs returns focus and preserves the selected books", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${fixture}?count=2&motion=off`, { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".book-grid")).toBeVisible();
+  await page.getByRole("button", { name: "Select books", exact: true }).click();
+  const bar = page.getByRole("group", { name: "Book selection actions" });
+  const moveTrigger = bar.getByRole("button", { name: "Move selected books", exact: true });
+  await expect(moveTrigger).toBeDisabled();
+  await bar.getByRole("button", { name: "Select all", exact: true }).click();
+
+  await moveTrigger.press("Enter");
+  const move = page.getByRole("dialog", { name: "Move 2 selected books", exact: true });
+  await expect(move.getByRole("button", { name: "Move", exact: true })).toBeEnabled();
+  await expect(move.getByRole("heading", { name: "Move 2 selected books" })).toBeFocused();
+  await expect(move.getByRole("combobox", { name: "Destination" })).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(move).toHaveCount(0);
+  await expect(moveTrigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+
+  const more = bar.getByRole("button", { name: "More bulk actions" });
+  await more.press("ArrowDown");
+  const menu = page.getByRole("menu", { name: "More bulk actions" });
+  await menu.getByRole("menuitem", { name: "Delete to Recycle Bin" }).press("Enter");
+  const deletion = page.getByRole("dialog", { name: "Delete 2 selected books?", exact: true });
+  await expect(deletion.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(deletion).toHaveCount(0);
+  await expect(more).toBeFocused();
   await expect(bar).toContainText("2 selected");
 });
 

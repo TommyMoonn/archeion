@@ -139,18 +139,6 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(markup).toContain("Write metadata to EPUB");
   });
 
-  it("uses a large-dialog layout with a scrollable metadata body", () => {
-    const { container } = renderDialog(book);
-    const dialog = container.querySelector("dialog");
-    const body = container.querySelector(".metadata-writeback");
-    const footer = container.querySelector(".dialog__footer");
-
-    expect(dialog?.classList.contains("dialog--metadata-writeback")).toBe(true);
-    expect(body).not.toBeNull();
-    expect(footer?.textContent).toContain("Write metadata to EPUB");
-    expect(footer?.querySelector(".metadata-writeback")).toBeNull();
-  });
-
   it("displays Identifier as read-only reference metadata", () => {
     const identifierBook: Book = {
       ...book,
@@ -161,38 +149,20 @@ describe("BookAdvancedMetadataDialog", () => {
     };
     const { container } = renderDialog(identifierBook);
 
-    expect(container.textContent).toContain("Identifier");
-    expect(container.textContent).toContain("urn:isbn:1234567890");
-    expect(container.querySelector("input#metadata-identifier")).toBeNull();
-    expect(container.querySelector("textarea#metadata-identifier")).toBeNull();
+    expect(container.querySelector("#metadata-identifier-label")?.textContent).toBe("Identifier");
+    const reference = container.querySelector('[aria-labelledby="metadata-identifier-label"]');
+    expect(reference?.textContent).toBe("urn:isbn:1234567890");
+    expect(reference?.matches("input, textarea, [contenteditable], [tabindex]")).toBe(false);
     expect(writeButton(container).disabled).toBe(true);
-    expect(
-      container.querySelector(
-        ".metadata-writeback__field--reference.metadata-writeback__field--wide",
-      ),
-    ).not.toBeNull();
-    expect(
-      container
-        .querySelector('input[name="archeion-epub-metadata-title"]')
-        ?.closest("label")
-        ?.classList.contains("metadata-writeback__field--wide"),
-    ).toBe(true);
-    expect(
-      container
-        .querySelector('input[name="archeion-epub-metadata-language"]')
-        ?.closest("label")
-        ?.classList.contains("metadata-writeback__field--compact"),
-    ).toBe(true);
   });
 
   it("shows an empty reference state when Identifier is not embedded", () => {
     const { container } = renderDialog(book);
     const identifierReference = container.querySelector(
-      ".metadata-writeback__field--reference .metadata-writeback__reference-value",
+      '[aria-labelledby="metadata-identifier-label"]',
     );
 
     expect(identifierReference?.textContent).toBe("—");
-    expect(container.querySelector("input#metadata-identifier")).toBeNull();
   });
 
   it("disables WebView autocomplete on metadata editor fields", () => {
@@ -236,7 +206,7 @@ describe("BookAdvancedMetadataDialog", () => {
 
     await changeInput(input(container, "title"), "New Title");
 
-    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+    const pendingChanges = container.querySelector('[aria-label="Changed metadata fields"]');
     expect(pendingChanges?.textContent).toContain("Title");
     expect(pendingChanges?.textContent).not.toContain("Identifier");
 
@@ -312,7 +282,7 @@ describe("BookAdvancedMetadataDialog", () => {
 
   it("renders the empty pending-change state once", () => {
     const { container } = renderDialog(book);
-    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+    const pendingChanges = container.querySelector('section[aria-live="polite"]');
     const emptyMessages = pendingChanges?.textContent?.match(/No metadata changes\./g);
 
     expect(emptyMessages).toHaveLength(1);
@@ -355,7 +325,7 @@ describe("BookAdvancedMetadataDialog", () => {
     await changeInput(input(container, "title"), "New Title");
     await changeInput(input(container, "creator"), "New Author");
 
-    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+    const pendingChanges = container.querySelector('section[aria-live="polite"]');
 
     expect(pendingChanges?.textContent).toContain("2 fields changed");
     expect(pendingChanges?.textContent).toContain("Title");
@@ -402,9 +372,7 @@ describe("BookAdvancedMetadataDialog", () => {
     };
     const { container } = renderDialog(longMetadataBook);
 
-    const pendingChanges = container.querySelector(".metadata-writeback__changes");
-
-    expect(container.querySelector("input#metadata-identifier")).toBeNull();
+    const pendingChanges = container.querySelector('section[aria-live="polite"]');
     expect(pendingChanges?.textContent).toContain("No metadata changes.");
     expect(pendingChanges?.textContent).not.toContain("Identifier");
     expect(writeButton(container).disabled).toBe(true);
@@ -420,6 +388,8 @@ describe("BookAdvancedMetadataDialog", () => {
     await changeInput(input(container, "title"), "Edited Title");
 
     expect(writeButton(container).disabled).toBe(true);
-    expect(container.textContent).toContain("Metadata writeback is unavailable");
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Metadata writeback is unavailable",
+    );
   });
 });

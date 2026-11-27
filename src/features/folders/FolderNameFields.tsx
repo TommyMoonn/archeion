@@ -1,6 +1,7 @@
 import { Field, FieldLabel, fieldInputClassName } from "../../components/ui/field";
 import { Input as FieldInput } from "../../components/ui/input";
 import type { FormEvent, Ref } from "react";
+
 export function FolderNameFields({
   formId,
   handleSubmit,
@@ -19,7 +20,7 @@ export function FolderNameFields({
   onNameChange: (name: string) => void;
 }) {
   return (
-    <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
+    <form id={formId} className="grid" noValidate onSubmit={handleSubmit}>
       <Field>
         <FieldLabel>Name</FieldLabel>
         <FieldInput

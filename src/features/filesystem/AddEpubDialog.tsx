@@ -166,8 +166,8 @@ export function AddEpubDialog({
       title="Add EPUB files"
       feedback={
         error ? (
-          <FieldError className="add-epub-dialog__error" role="alert">
-            <CircleAlert aria-hidden="true" size={15} />
+          <FieldError className="flex items-center gap-control-gap-compact" role="alert">
+            <CircleAlert aria-hidden="true" className="size-icon-glyph-small" />
             {error}
           </FieldError>
         ) : (

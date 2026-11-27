@@ -115,6 +115,7 @@
   --spacing-page-compact-top: 30px;
   --spacing-page-compact-bottom: 28px;
   --spacing-icon-glyph-compact: 14px;
+  --spacing-icon-glyph-small: 15px;
   --spacing-icon-glyph-standard: 16px;
   --spacing-icon-glyph-prominent: 20px;
   --spacing-icon-slot-compact: 16px;
@@ -213,7 +214,6 @@
   --spacing-book-row-favorite-end: 45px;
   --spacing-book-row-bottom: 40px;
   --spacing-book-selection-control: 30px;
-  --spacing-book-selection-glyph: 15px;
   --spacing-resume-bottom: 22px;
   --spacing-resume-heading-gap: 16px;
   --spacing-resume-heading-height: 20px;
@@ -325,6 +325,62 @@
   --spacing-dialog-gap-narrow: 12px;
   --spacing-dialog-copy: 10px;
   --spacing-dialog-footer: 9px;
+  --spacing-import-form: 14px;
+  --spacing-import-picker: 46px;
+  --spacing-import-file-list: 4px;
+  --spacing-metadata-form: 14px;
+  --spacing-metadata-section: 9px;
+  --spacing-metadata-row: 11px;
+  --spacing-metadata-column: 12px;
+  --spacing-metadata-language-track: 112px;
+  --spacing-metadata-language-max: 180px;
+  --spacing-metadata-reference-label: 92px;
+  --spacing-metadata-summary-top: 5px;
+  --spacing-metadata-change-block: 4px;
+  --spacing-metadata-status-inline: 13px;
+  --spacing-bulk-metadata-inset: 13px;
+  --spacing-bulk-metadata-label: 3px;
+  --spacing-bulk-metadata-block: 10px;
+  --spacing-bulk-metadata-review: 12px;
+  --spacing-bulk-metadata-review-label: 76px;
+  --spacing-bulk-metadata-unavailable: 5px;
+  --spacing-cover-editor: 16px;
+  --spacing-cover-editor-column: 22px;
+  --spacing-cover-editor-controls: 15px;
+  --spacing-cover-editor-copy: 3px;
+  --spacing-cover-editor-thumbnail: 48px;
+  --spacing-cover-preview: 240px;
+  --spacing-cover-preview-narrow: 210px;
+  --spacing-cover-preview-track: 200px;
+  --spacing-cover-controls-track: 280px;
+  --spacing-cover-preview-glyph: 34px;
+  --spacing-cover-preview-label: 9px;
+  --spacing-cover-preview-checker: 8px;
+  --spacing-cover-detail-label: 88px;
+  /* Book Details keeps its pixel geometry when interface text is enlarged. */
+  --spacing-details-cover: 164px;
+  --spacing-details-cover-docked-max: calc(100% - 64px);
+  --spacing-details-drawer: min(420px, 100%);
+  --spacing-details-drawer-mobile: calc(100% - 18px);
+  --spacing-details-body: 26px;
+  --spacing-details-inset: 22px;
+  --spacing-details-section: 20px;
+  --spacing-details-edge: 18px;
+  --spacing-details-control-top: 14px;
+  --spacing-details-progress-top: 13px;
+  --spacing-details-empty-top: 76px;
+  --spacing-details-metadata-label: 120px;
+  --spacing-details-skeleton-line: 0.65rem;
+  --spacing-details-skeleton-short: 68%;
+  --tracking-details-label: 0.08em;
+  --blur-details-cover-action: 8px;
+  --color-details-cover-action: rgb(10 11 13 / 78%);
+  --color-details-cover-action-hover: rgb(10 11 13 / 94%);
+  --color-details-cover-action-text: rgb(255 255 255 / 86%);
+  --color-details-cover-action-text-hover: #fff;
+  --color-details-cover-action-border: rgb(255 255 255 / 18%);
+  --color-details-cover-action-border-hover: rgb(255 255 255 / 34%);
+  --tracking-cover-editor-label: 0.02em;
   --spacing-skeleton-label-width: min(8rem, 75%);
   --spacing-skeleton-label-height: 0.65em;
   --container-dialog-description: 65ch;
@@ -398,6 +454,9 @@
   --spacing-slider-thumb: 16px;
   --spacing-overlay-viewport-inset: 16px;
   --container-dialog: 430px;
+  --container-metadata-dialog: 800px;
+  --container-bulk-metadata-dialog: 720px;
+  --container-cover-dialog: 820px;
   --container-popover: 420px;
   --container-tooltip: 280px;
 
@@ -420,6 +479,7 @@
   --breakpoint-collection-narrow: 620px;
   --breakpoint-panel-narrow: 680px;
   --breakpoint-dialog-narrow: 720px;
+  --breakpoint-bulk-metadata-stacked: 620px;
   --breakpoint-workspace-narrow: 760px;
   --breakpoint-shell-narrow: 820px;
   --breakpoint-collection-wide: 900px;
@@ -438,6 +498,10 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --color-details-favorite: color-mix(in srgb, var(--accent) 8%, transparent);
+  --color-details-favorite-hover: color-mix(in srgb, var(--accent) 12%, transparent);
+  --color-details-progress: color-mix(in srgb, var(--accent) 9%, transparent);
+  --color-details-progress-border: color-mix(in srgb, var(--accent) 24%, var(--line));
   --spacing-filter-panel-height: min(620px, calc(100dvh - 180px), var(--available-height, 100dvh));
   --shadow-sidebar-drop: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
   --spacing-menu-viewport-min: min(
@@ -504,6 +568,7 @@
   --color-canvas: var(--canvas);
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
+  --color-import-file-list: color-mix(in srgb, var(--canvas-deep) 46%, transparent);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
   --color-resume-card: color-mix(in srgb, var(--surface) 46%, transparent);
   --shadow-book-row-selected: inset 3px 0 var(--accent);
@@ -517,6 +582,15 @@
   --color-series-hint-border: color-mix(in srgb, var(--accent) 24%, var(--line));
   --color-series-marker-border: color-mix(in srgb, var(--accent) 30%, var(--line));
   --color-surface: var(--surface);
+  --color-bulk-metadata-field: color-mix(in srgb, var(--surface) 72%, transparent);
+  --color-bulk-metadata-enabled: color-mix(in srgb, var(--accent-soft) 58%, var(--surface));
+  --color-bulk-metadata-enabled-border: color-mix(in srgb, var(--accent) 42%, var(--line));
+  --color-bulk-metadata-review: color-mix(in srgb, var(--surface) 78%, transparent);
+  --color-cover-feedback-success: color-mix(in srgb, var(--success-soft) 72%, var(--surface));
+  --color-cover-feedback-warning-border: color-mix(in srgb, var(--accent) 34%, var(--line));
+  --color-dialog-subtle: color-mix(in srgb, var(--surface) 76%, transparent);
+  --color-metadata-change: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  --color-metadata-success: color-mix(in srgb, var(--success-soft) 76%, var(--surface-raised));
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
   --color-surface-app-frame: var(--surface-app-frame);
@@ -527,6 +601,7 @@
   --color-font-picker-divider: color-mix(in srgb, var(--line) 60%, transparent);
   --color-line-strong: var(--line-strong);
   --color-text: var(--text);
+  --color-filename-suffix: color-mix(in srgb, var(--text) 4%, transparent);
   --color-text-strong: var(--text-strong);
   --color-muted: var(--muted);
   --color-muted-soft: var(--muted-soft);
@@ -590,6 +665,31 @@
 
 /* Keep shared animation definitions available to legacy CSS as well as utilities. */
 @theme static inline {
+  --animate-details-enter: details-drawer-enter var(--surface-duration) var(--motion-ease-standard);
+  --animate-details-exit: details-drawer-exit var(--surface-duration) var(--motion-ease-standard)
+    forwards;
+
+  @keyframes details-drawer-enter {
+    from {
+      opacity: 1;
+      transform: var(--surface-from-transform, translateX(100%));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes details-drawer-exit {
+    from {
+      opacity: 1;
+      transform: var(--surface-from-transform, translateX(0));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(100%);
+    }
+  }
   --animate-tooltip-enter: app-tooltip-bounce-in var(--motion-duration-emphasized)
     var(--motion-ease-standard);
   @keyframes app-tooltip-bounce-in {
@@ -659,6 +759,97 @@
 /* These utilities have no native Tailwind theme namespace. */
 @utility border-standard {
   border-width: var(--border-width);
+}
+
+@utility transition-field-focus {
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+@utility dialog-width-metadata {
+  --dialog-width: var(--container-metadata-dialog);
+}
+
+@utility dialog-width-bulk-metadata {
+  --dialog-width: var(--container-bulk-metadata-dialog);
+}
+
+@utility bulk-metadata-toggle-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility bulk-metadata-review-columns {
+  grid-template-columns: var(--spacing-bulk-metadata-review-label) minmax(0, 1fr);
+}
+
+@utility bulk-metadata-change-columns {
+  grid-template-columns: minmax(0, auto) auto minmax(0, 1fr);
+}
+
+@custom-variant bulk-metadata-stacked {
+  @media (max-width: theme(--breakpoint-bulk-metadata-stacked)) {
+    @slot;
+  }
+}
+
+@utility dialog-width-cover {
+  --dialog-width: var(--container-cover-dialog);
+}
+
+@utility cover-editor-book-columns {
+  grid-template-columns: var(--spacing-cover-editor-thumbnail) minmax(0, 1fr);
+}
+
+@utility cover-editor-workspace-columns {
+  grid-template-columns:
+    minmax(var(--spacing-cover-preview-track), 0.72fr)
+    minmax(var(--spacing-cover-controls-track), 1.28fr);
+}
+
+@utility cover-editor-detail-columns {
+  grid-template-columns: var(--spacing-cover-detail-label) minmax(0, 1fr);
+}
+
+@utility cover-preview-checker {
+  --checker-tint: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  --checker-step: var(--spacing-cover-preview-checker);
+  --checker-offset: calc(-1 * var(--checker-step));
+  --checker-tile: calc(2 * var(--checker-step));
+  background:
+    linear-gradient(45deg, var(--checker-tint) 25%, transparent 25%) 0 0,
+    linear-gradient(-45deg, var(--checker-tint) 25%, transparent 25%) 0 var(--checker-step),
+    linear-gradient(45deg, transparent 75%, var(--checker-tint) 75%) var(--checker-step)
+      var(--checker-offset),
+    linear-gradient(-45deg, transparent 75%, var(--checker-tint) 75%) var(--checker-offset) 0,
+    var(--surface);
+  background-size: var(--checker-tile) var(--checker-tile);
+}
+
+@custom-variant cover-editor-narrow {
+  @media (max-width: theme(--breakpoint-panel-narrow)) {
+    @slot;
+  }
+}
+
+@utility metadata-core-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(var(--spacing-metadata-language-track), 0.34fr);
+}
+
+@utility metadata-reference-columns {
+  grid-template-columns: var(--spacing-metadata-reference-label) minmax(0, 1fr);
+}
+
+@custom-variant metadata-stacked {
+  @media (max-width: theme(--breakpoint-dialog-narrow)) {
+    @slot;
+  }
+}
+
+@utility transition-filename-suffix {
+  transition:
+    border-inline-start-color var(--motion-duration-standard) var(--motion-ease-standard),
+    color var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 @utility duration-fast {
@@ -747,6 +938,10 @@
 @custom-variant control-active (&:active:not(:disabled):not([aria-disabled="true"]));
 @custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
 
+/* Book Details keeps its local focus and hover colors during the base button press. */
+@custom-variant details-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
+@custom-variant details-focus-visible (&:focus:focus-visible:not(:disabled):not([aria-disabled="true"]));
+
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
 
 @custom-variant folder-fine-pointer {
@@ -831,6 +1026,9 @@
 }
 @utility border-b-line {
   border-bottom: var(--border-width) solid var(--line);
+}
+@utility border-t-line {
+  border-top: var(--border-width) solid var(--line);
 }
 @utility text-body-only {
   font-size: var(--text-body);
@@ -1047,6 +1245,63 @@ html[data-density="compact"] {
 }
 @utility scrollbar-gutter-stable {
   scrollbar-gutter: stable;
+}
+
+@utility details-surface-duration {
+  --surface-duration: var(--motion-duration-view);
+}
+
+@custom-variant details-narrow {
+  @container book-details (max-width: 320px) {
+    @slot;
+  }
+}
+
+@utility details-cover-action-offset {
+  transform: translateY(var(--spacing-filter-token-gap));
+}
+
+@utility details-cover-action-rest {
+  transform: translateY(0);
+}
+
+@utility details-cover-action-transition {
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+@utility details-metadata-columns {
+  grid-template-columns: minmax(var(--spacing-details-metadata-label), 0.8fr) minmax(0, 1.2fr);
+}
+
+@utility details-missing-columns {
+  grid-template-columns: auto 1fr;
+}
+
+@utility details-skeleton-sheen {
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    color-mix(in srgb, var(--text) 7%, transparent) 48%,
+    transparent 68%
+  );
+  background-size: 220% 100%;
+}
+
+@utility docked-details-track {
+  --library-details-track: auto;
+}
+
+@utility docked-library-scrollbar {
+  &::-webkit-scrollbar {
+    --scrollbar-inline-size: var(--spacing-control-gap-compact);
+  }
+  &::-webkit-scrollbar-thumb {
+    --scrollbar-thumb-border: 0;
+    --scrollbar-thumb-background: var(--line-subtle);
+    --scrollbar-thumb-hover-background: var(--line-strong);
+  }
 }
 
 @utility grid-cols-dialog-bottom {

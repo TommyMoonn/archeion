@@ -11,7 +11,7 @@ export function installUIStabilityProbe({ limit = 2400 } = {}) {
     titlebar: ".window-titlebar",
     icons: "svg.lucide",
     footer: ".dialog__footer",
-    status: "[role=status], [role=alert], .metadata-writeback__changes",
+    status: "[role=status], [role=alert], .dialog__feedback section[aria-live=polite]",
     actions: "dialog[open] .button, .about-update-status .button",
     toast: ".page-shell-notice",
   };

@@ -208,7 +208,8 @@ describe("BookDetailsDrawer", () => {
     expect(markup).not.toContain("Continue reading");
     expect(markup).not.toContain("Start from beginning");
     expect(markup).not.toContain("Clear reading progress");
-    expect(markup).toContain('<span class="details-progress-pill">Unread</span>');
+    const details = new DOMParser().parseFromString(markup, "text/html");
+    expect(details.querySelector('[data-slot="badge"]')?.textContent).toBe("Unread");
   });
 
   it("shows manual completion without creating a saved position", () => {
@@ -250,7 +251,6 @@ describe("BookDetailsDrawer", () => {
 
     expect(markup).toContain(relativePath);
     expect(markup).toContain(`title="${relativePath}"`);
-    expect(markup).toContain('class="book-metadata__path"');
     expect(markup).toContain("2.0 MB");
     expect(markup).toContain("Reveal in folder");
     expect(markup).not.toContain(">Location<");
@@ -274,41 +274,31 @@ describe("BookDetailsDrawer", () => {
     expect(markup).toContain("Edit metadata");
     expect(markup).toContain("Replace cover");
     expect(markup).toContain("details-cover__replace");
-    expect(markup).toContain("details-favorite-button");
-    expect(markup).toContain('aria-label="Favorite Volume 01"');
+    const details = new DOMParser().parseFromString(markup, "text/html");
+    expect(details.querySelector('header button[aria-label="Favorite Volume 01"]')).not.toBeNull();
     expect(markup).not.toContain(">Favorite</span>");
   });
 
-  it("uses a balanced two-column secondary action grid when file management is available", () => {
+  it("lists secondary actions in order and respects file-management availability", () => {
     const withFileManagement = renderDetails();
-    const secondaryActions = withFileManagement.match(
-      /<div class="details-actions__secondary">[\s\S]*?<\/div>/,
-    )?.[0];
-    const secondaryActionMarkup = secondaryActions ?? "";
-    const revealButtonMarkup = withFileManagement.match(
-      /<button[^>]*>[\s\S]*?Reveal in folder[\s\S]*?<\/button>/,
-    )?.[0];
-
-    expect(revealButtonMarkup).toBeDefined();
-    expect(revealButtonMarkup).not.toContain("details-actions__wide");
-    expect(secondaryActionMarkup).not.toContain("Replace cover");
-    expect(secondaryActionMarkup.match(/<button/g)).toHaveLength(4);
-    expect(secondaryActionMarkup.match(/button--compact/g)).toHaveLength(4);
-    expect(withFileManagement).toContain("Move file");
-    expect(secondaryActionMarkup.indexOf("Edit metadata")).toBeLessThan(
-      secondaryActionMarkup.indexOf("Reveal in folder"),
-    );
-    expect(secondaryActionMarkup.indexOf("Reveal in folder")).toBeLessThan(
-      secondaryActionMarkup.indexOf("Move file"),
-    );
-    expect(secondaryActionMarkup.indexOf("Move file")).toBeLessThan(
-      secondaryActionMarkup.indexOf("Rename file"),
-    );
+    const details = new DOMParser().parseFromString(withFileManagement, "text/html");
+    const actions = Array.from(details.querySelectorAll(".details-actions__secondary button"));
+    expect(actions.map((button) => button.textContent)).toEqual([
+      "Edit metadata",
+      "Reveal in folder",
+      "Move file",
+      "Rename file",
+    ]);
     expect(withFileManagement).not.toContain("Choose destination");
     expect(withFileManagement).not.toContain("Move file to...");
 
     const revealOnly = renderDetails(book, { canManageFile: false });
 
-    expect(revealOnly).toContain("details-actions__wide");
+    const revealOnlyDetails = new DOMParser().parseFromString(revealOnly, "text/html");
+    expect(
+      Array.from(revealOnlyDetails.querySelectorAll(".details-actions__secondary button")).map(
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Edit metadata", "Reveal in folder"]);
   });
 });

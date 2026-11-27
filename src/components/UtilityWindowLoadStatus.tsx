@@ -1,4 +1,5 @@
 import { Button } from "./Button";
+import { Spinner } from "./ui/spinner";
 import {
   useUtilityWindowLoadState,
   type UtilityWindowLoadState,
@@ -13,16 +14,19 @@ export function UtilityWindowLoadStatus({
 }) {
   const failed = state === "error";
   return (
-    <div className="utility-load-status" data-utility-stage={failed ? "error" : "loading"}>
-      <p role={failed ? "alert" : "status"}>
-        {failed
-          ? `${title} could not be loaded. Reload this window to try again.`
-          : `Opening ${title}`}
-      </p>
-      {failed && (
-        <Button onClick={() => location.reload()} variant="secondary">
-          Reload window
-        </Button>
+    <div
+      className={`utility-load-status${failed ? "" : " grid size-full place-items-center text-muted"}`}
+      data-utility-stage={failed ? "error" : "loading"}
+    >
+      {failed ? (
+        <>
+          <p role="alert">{title} could not be loaded. Reload this window to try again.</p>
+          <Button onClick={() => location.reload()} variant="secondary">
+            Reload window
+          </Button>
+        </>
+      ) : (
+        <Spinner aria-label={`Loading ${title}`} className="size-6 stroke-2" data-visible />
       )}
     </div>
   );

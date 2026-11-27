@@ -51,14 +51,11 @@
 
   :root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible),
   :root[data-focus-presentation="keyboard-navigation"]
-    .epub-filename-field:has(input:focus-visible),
-  :root[data-focus-presentation="keyboard-navigation"]
     .reader-note-editor__field:has(textarea:focus-visible) {
     outline: 2px solid Highlight;
   }
 
   :root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible,
-  :root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible,
   :root[data-focus-presentation="keyboard-navigation"]
     .reader-note-editor__field
     textarea:focus-visible {
@@ -73,9 +70,8 @@
     .book-card,
     .book-row,
     .book-cover,
-    .details-cover__replace,
     .details-drawer,
-    .cover-writeback__preview,
+    [data-slot="cover-editor-preview"],
     .settings-status,
     .settings-window,
     .about-window__link,
@@ -104,7 +100,7 @@
     .book-cover,
     .details-cover__replace,
     .details-drawer,
-    .cover-writeback__preview,
+    [data-slot="cover-editor-preview"],
     .settings-status,
     .settings-window,
     .reader-illustration-viewer,
@@ -184,6 +180,13 @@
 
   :where(button, a[href], summary, [role="button"]):hover:not(:disabled):not(
       [aria-disabled="true"]
+    ):not(
+      :where(
+        .details-cover__replace,
+        .details-clear-progress,
+        .details-favorite-button,
+        .details-actions__secondary .button
+      )
     ) {
     color: LinkText;
   }
@@ -244,8 +247,7 @@
   }
 
   :where(input, select, textarea, [role="group"])[aria-invalid="true"],
-  .input-shell:has(input[aria-invalid="true"]),
-  .epub-filename-field:has(input[aria-invalid="true"]) {
+  .input-shell:has(input[aria-invalid="true"]) {
     border-color: Mark;
     outline: 2px dashed Mark;
     outline-offset: 2px;

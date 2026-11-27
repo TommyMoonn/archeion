@@ -34,7 +34,9 @@
 
 .app-shell {
   display: grid;
-  grid-template-columns: var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr);
+  grid-template-columns:
+    var(--library-sidebar-current-width, var(--sidebar-width)) minmax(0, 1fr)
+    var(--library-details-track,);
   height: 100dvh;
   min-height: 0;
   overflow: hidden;

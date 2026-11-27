@@ -22,7 +22,7 @@ describe("application scrollbar contract", () => {
     expect(resetCss).toMatch(/\*::-webkit-scrollbar-button\s*\{[^}]*display:\s*none;[^}]*\}/s);
     expect(resetCss).toMatch(/\*::-webkit-scrollbar-track\s*\{[^}]*background:\s*transparent;/s);
     expect(resetCss).toMatch(
-      /\*::-webkit-scrollbar-thumb\s*\{[^}]*min-height:\s*40px;[^}]*background:\s*var\(--line-strong\);/s,
+      /\*::-webkit-scrollbar-thumb\s*\{[^}]*min-height:\s*40px;[^}]*background:\s*var\(--scrollbar-thumb-background,\s*var\(--line-strong\)\);/s,
     );
   });
 });

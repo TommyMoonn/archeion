@@ -20,10 +20,10 @@ export function DialogSkeleton({
       className={[
         "dialog-skeleton contents bg-transparent rounded-none",
         "text-transparent! caret-transparent! text-shadow-none! [&_*]:text-transparent! [&_*]:caret-transparent! [&_*]:text-shadow-none! [&_*::placeholder]:text-transparent!",
-        String.raw`[&_:is(input,textarea,button,.segmented-control,.metadata-writeback\_\_reference-value,.cover-writeback\_\_preview,.book-cover)]:bg-surface-raised!`,
-        String.raw`[&_:is(input,textarea,button,.segmented-control,.metadata-writeback\_\_reference-value,.cover-writeback\_\_preview,.book-cover)]:border-transparent!`,
-        String.raw`[&_:is(input,textarea,button,.segmented-control,.metadata-writeback\_\_reference-value,.cover-writeback\_\_preview,.book-cover)]:shadow-none!`,
-        String.raw`[&_:is(label>span,h3,.app-select\_\_label,.add-epub-dialog\_\_field>span,.cover-writeback\_\_framing>span,.cover-writeback\_\_book_strong,.cover-writeback\_\_book_small)]:skeleton-label`,
+        String.raw`[&_:is(input,textarea,button,.segmented-control,[data-slot=metadata-reference],[data-slot=cover-editor-preview],.book-cover)]:bg-surface-raised!`,
+        String.raw`[&_:is(input,textarea,button,.segmented-control,[data-slot=metadata-reference],[data-slot=cover-editor-preview],.book-cover)]:border-transparent!`,
+        String.raw`[&_:is(input,textarea,button,.segmented-control,[data-slot=metadata-reference],[data-slot=cover-editor-preview],.book-cover)]:shadow-none!`,
+        String.raw`[&_:is(label>span,h3,.app-select\_\_label,[role=group]>[data-slot=field-label],[data-slot=cover-editor-book]_:is(strong,small))]:skeleton-label`,
       ].join(" ")}
       aria-hidden="true"
       inert

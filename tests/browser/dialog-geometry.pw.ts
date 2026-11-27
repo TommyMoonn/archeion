@@ -24,6 +24,7 @@ async function openSurface(page: Page, surface: string, scale = 1) {
   }, scale);
   await page.getByRole("button", { name: "Open dialog", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveAccessibleName(/\S/);
+  await page.evaluate(() => document.fonts.ready);
   expect(await page.locator("dialog").evaluate((dialog) => dialog.matches(":modal"))).toBe(true);
 }
 
@@ -113,13 +114,13 @@ async function expectAlignedForm(page: Page, surface: string) {
   const dialog = page.getByRole("dialog");
   const control =
     surface === "rename"
-      ? dialog.locator(".epub-filename-field")
+      ? dialog.locator('[data-slot="filename-field"]')
       : surface === "metadata"
         ? dialog.getByRole("textbox", { name: "Title", exact: true })
         : surface === "bulk"
-          ? dialog.locator(".bulk-metadata-field--tags")
+          ? dialog.locator('[data-slot="bulk-metadata-tags"]')
           : surface === "cover"
-            ? dialog.locator(".cover-writeback__book")
+            ? dialog.locator('[data-slot="cover-editor-book"]')
             : surface.startsWith("folder")
               ? dialog.getByRole("textbox", { name: "Name", exact: true })
               : dialog.getByRole("combobox").first();
@@ -260,6 +261,36 @@ for (const surface of ["add", "move", "rename", "folder", "bulk"]) {
   }
 }
 
+test("Add EPUB distinguishes the busy picker and import errors in forced colors", async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await openSurface(page, "add");
+  const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
+  const picker = dialog.getByRole("button", { name: "book.epub" });
+  await dialog.getByRole("button", { name: "Add EPUB" }).click();
+  await expect(picker).toBeDisabled();
+  await expect(picker).toHaveCSS("opacity", "0.6");
+  await page.evaluate(() => window.dialogGeometryFixture.release(true));
+  const alert = dialog.getByRole("alert");
+  await expect(alert).toContainText("Synthetic operation failure");
+  expect(
+    await alert.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const sample = document.createElement("span");
+      sample.style.forcedColorAdjust = "none";
+      sample.style.color = "MarkText";
+      sample.style.backgroundColor = "Mark";
+      element.append(sample);
+      const system = getComputedStyle(sample);
+      const matches =
+        style.color === system.color && style.backgroundColor === system.backgroundColor;
+      sample.remove();
+      return matches;
+    }),
+  ).toBe(true);
+});
+
 for (const scale of [1, 2]) {
   test(`cover preparation, retry, write and warning preserve geometry text ${scale}`, async ({
     page,
@@ -299,6 +330,33 @@ for (const scale of [1, 2]) {
   });
 }
 
+test("cover preview keeps its aspect and stacks at the inclusive viewport boundary", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 681, height: 900 });
+  await openSurface(page, "cover");
+  const preview = page.locator('[data-slot="cover-editor-preview"]');
+  const controls = page.locator('[data-slot="cover-editor-controls"]');
+
+  const previewSize = () =>
+    preview.evaluate((node) => {
+      const { width, height } = node.getBoundingClientRect();
+      return { width, height };
+    });
+  const top = (element: typeof preview) =>
+    element.evaluate((node) => node.getBoundingClientRect().top);
+  const wide = await previewSize();
+  expect(wide.width).toBeGreaterThanOrEqual(200);
+  expect(wide.width).toBeLessThanOrEqual(240);
+  expect(Math.abs(wide.height - wide.width * 1.5)).toBeLessThanOrEqual(1);
+  expect(await top(controls)).toBe(await top(preview));
+
+  await page.setViewportSize({ width: 680, height: 900 });
+  const narrow = await previewSize();
+  expect(narrow).toEqual({ width: 210, height: 315 });
+  expect(await top(controls)).toBeGreaterThan((await top(preview)) + narrow.height);
+});
+
 for (const width of [480, 1100]) {
   test(`cover explicit write, aligned controls and keyboard navigation at ${width}px`, async ({
     page,
@@ -318,12 +376,13 @@ for (const width of [480, 1100]) {
     await reachableShell(page);
     await containedTabOrder(page);
     if (width === 1100) {
-      const tops = await page
-        .locator(".cover-writeback__workspace")
-        .evaluate((workspace) => [
-          workspace.querySelector(".cover-writeback__preview")!.getBoundingClientRect().top,
-          workspace.querySelector(".cover-writeback__controls")!.getBoundingClientRect().top,
-        ]);
+      const tops = await Promise.all(
+        ["cover-editor-preview", "cover-editor-controls"].map((slot) =>
+          page
+            .locator(`[data-slot="${slot}"]`)
+            .evaluate((node) => node.getBoundingClientRect().top),
+        ),
+      );
       expect(Math.abs(tops[0] - tops[1])).toBeLessThanOrEqual(1);
     }
     await page.locator(".dialog__body").evaluate((body) => {
@@ -353,14 +412,59 @@ for (const width of [480, 1100]) {
   });
 }
 
-for (const surface of ["rename", "folder"]) {
+test("folder move keeps a scrollable destination list inside the modal", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 550 });
+  await openSurface(page, "move-folder", 2);
+  const dialog = page.getByRole("dialog", { name: "Move folder" });
+  const destination = dialog.getByRole("combobox", { name: /Destination/ });
+  const move = dialog.getByRole("button", { name: "Move", exact: true });
+  await expect(move).toBeDisabled();
+  await expect(destination).toHaveAccessibleName(/Archive root/);
+  await expectAlignedControl(page, destination);
+
+  await destination.press("Enter");
+  const list = dialog.getByRole("listbox");
+  await expect(list.getByRole("option", { name: "Archive root" })).toBeFocused();
+  const source = list.getByRole("option", { name: "Fiction", exact: true });
+  const descendant = list.getByRole("option", { name: "Fiction/Classics", exact: true });
+  await expect(source).toBeDisabled();
+  await expect(descendant).toBeDisabled();
+  await page.keyboard.press("ArrowDown");
+  await expect(source).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(source).toHaveAttribute("aria-selected", "false");
+  await expect(move).toBeDisabled();
+  await page.keyboard.press("End");
+  const last = list.getByRole("option", { name: "Shelf 24" });
+  await expect(last).toBeFocused();
+  await expect(last).toBeInViewport();
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await expect(list).toHaveCount(0);
+  await expect(destination).toBeFocused();
+  await expect(move).toBeDisabled();
+
+  await destination.press("End");
+  await expect(last).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(destination).toHaveAccessibleName(/Shelf 24/);
+  await expect(move).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open dialog" })).toBeFocused();
+});
+
+for (const [surface, submitName] of [
+  ["rename", "Rename file"],
+  ["folder", "Save"],
+]) {
   test(`${surface} validation remains associated and Escape restores focus`, async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 520 });
     await openSurface(page, surface, 2);
     const baseline = await bounds(page);
     const input = page.getByRole("textbox");
     await input.fill("");
-    await page.locator(".dialog__footer .button--primary").click();
+    await page.getByRole("button", { name: submitName, exact: true }).click();
     await expect(input).toHaveAttribute("aria-invalid", "true");
     await expect(input).toHaveAccessibleDescription(/Enter a (filename|folder name)/);
     await expect(input).toBeFocused();
@@ -368,6 +472,46 @@ for (const surface of ["rename", "folder"]) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Open dialog", exact: true })).toBeFocused();
+  });
+}
+
+for (const forcedColors of ["none", "active"] as const) {
+  test(`filename field owns keyboard focus and pointer validation in forced colors ${forcedColors}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ forcedColors });
+    await page.goto("/tests/browser/fixtures/dialog-geometry.html?surface=rename");
+    await page.getByRole("button", { name: "Open dialog", exact: true }).press("Enter");
+
+    const input = page.getByRole("textbox", { name: /^Filename/ });
+    const field = page.getByRole("dialog").locator('[data-slot="filename-field"]');
+    const suffix = page.getByText(".epub", { exact: true });
+    await expect(field).toHaveCSS("transition-property", "border-color, box-shadow");
+    await expect(suffix).toHaveCSS("transition-property", "border-inline-start-color, color");
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAccessibleDescription(".epub");
+    await input.press("Shift+Tab");
+    await expect(page.getByRole("region", { name: "Rename EPUB file content" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(input).toBeFocused();
+    await expect(field).toHaveCSS("outline-style", "solid");
+    await expect(field).toHaveCSS("outline-width", "2px");
+    await expect(field).toHaveCSS("outline-offset", "2px");
+    await expect(input).toHaveCSS("outline-style", "none");
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(input).not.toBeFocused();
+    await suffix.click();
+    await expect(input).toBeFocused();
+    await expect(field).toHaveCSS("outline-style", "none");
+    await input.fill("");
+    await page.getByRole("button", { name: "Rename file", exact: true }).click();
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAccessibleDescription(".epub Enter a filename.");
+    await expect(field).toHaveCSS("outline-style", "dashed");
+    await expect(field).toHaveCSS("outline-width", "2px");
+    await expect(field).toHaveCSS("outline-offset", "2px");
+    await expect(input).toHaveCSS("outline-style", "none");
   });
 }
 
@@ -466,4 +610,17 @@ test("bulk fields preserve checkbox hit targets, editable values and compact geo
   await expect(tags).toBeFocused();
   await expect(tags).toHaveCSS("outline-style", "solid");
   await expect(tags).toHaveCSS("outline-width", "2px");
+  for (const control of [input, textarea]) {
+    await control.focus();
+    await expect(control).toBeFocused();
+    await expect(control).toHaveCSS("outline-style", "solid");
+    await expect(control).toHaveCSS("outline-width", "2px");
+    await expect(control).toHaveCSS("outline-offset", "2px");
+  }
+  await dialog.getByRole("button", { name: "Review changes" }).press("Enter");
+  const review = page.getByRole("dialog", { name: "Review metadata changes" });
+  await expect(review.getByText("“One tag” “Another tag”", { exact: true })).toHaveCSS(
+    "white-space",
+    "pre-line",
+  );
 });

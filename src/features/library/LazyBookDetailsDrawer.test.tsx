@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -33,15 +35,17 @@ describe("BookDetailsLoadingSkeleton", () => {
     expect(markup).toContain("Loading book details");
     expect(markup).toContain("The Eminence in Shadow, Vol. 2");
     expect(markup).toContain("Daisuke Aizawa");
-    expect(markup).toContain('class="details-cover"');
-    expect(markup).toContain("book-details-loading__cover");
-    expect(markup).toContain("details-progress-controls");
-    expect(markup).toContain('class="details-actions__secondary"');
-    expect(markup).toContain("book-details-loading__description-lines");
-    expect(markup).toContain(
-      'class="book-metadata book-metadata--compact book-details-loading__metadata"',
-    );
-    expect(markup).toContain('class="details-drawer__footer"');
+    const details = new DOMParser().parseFromString(markup, "text/html");
+    expect(details.querySelectorAll('.details-cover [data-slot="skeleton"]')).toHaveLength(1);
+    expect(
+      details.querySelectorAll('.details-progress-controls [data-slot="skeleton"]'),
+    ).toHaveLength(2);
+    expect(
+      details.querySelectorAll('.details-actions__secondary [data-slot="skeleton"]'),
+    ).toHaveLength(4);
+    expect(details.querySelectorAll('section [data-slot="skeleton"]')).toHaveLength(3);
+    expect(details.querySelectorAll('dl [data-slot="skeleton"]')).toHaveLength(3);
+    expect(details.querySelectorAll('footer [data-slot="skeleton"]')).toHaveLength(1);
     expect(markup).not.toContain("Opening book details");
     expect(markup).not.toContain("<button");
   });
@@ -54,8 +58,11 @@ describe("BookDetailsLoadingSkeleton", () => {
 
     expect(markup).not.toContain("details-progress-controls");
     expect(markup).toContain("details-actions");
-    expect(markup).not.toContain("details-drawer__footer");
-    expect(markup.match(/book-details-loading__action--compact/g)).toHaveLength(1);
+    const details = new DOMParser().parseFromString(markup, "text/html");
+    expect(details.querySelector("footer")).toBeNull();
+    expect(
+      details.querySelectorAll('.details-actions__secondary [data-slot="skeleton"]'),
+    ).toHaveLength(1);
   });
 
   it("shows a missing-file placeholder instead of unavailable book actions", () => {
@@ -63,8 +70,9 @@ describe("BookDetailsLoadingSkeleton", () => {
       <BookDetailsLoadingSkeleton book={{ ...book, isFileMissing: true }} />,
     );
 
-    expect(markup).toContain("book-details-loading__missing");
+    const details = new DOMParser().parseFromString(markup, "text/html");
+    expect(details.querySelectorAll('section [data-slot="skeleton"]')).toHaveLength(8);
     expect(markup).not.toContain("details-actions");
-    expect(markup).not.toContain("details-drawer__footer");
+    expect(details.querySelector("footer")).toBeNull();
   });
 });

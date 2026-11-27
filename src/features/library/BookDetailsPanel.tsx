@@ -1,6 +1,7 @@
 import { BookOpen, Clock, Heart, Info, PinOff } from "lucide-react";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { Empty, EmptyDescription } from "../../components/ui/empty";
 import type { ReadonlyBook } from "../../types/book";
 import { BookCover } from "./BookCover";
 import { BookDetailsContent } from "./LazyBookDetailsDrawer";
@@ -10,6 +11,21 @@ import { LibraryPanelResizeHandle } from "./LibraryPanelResizeHandle";
 import { BOOK_DETAILS_MIN_WIDTH, BOOK_DETAILS_MAX_WIDTH } from "../../types/libraryDetails";
 import { formatLongDate } from "../../utils/formatters";
 import { ContinueReadingBook } from "./ContinueReading";
+import {
+  detailsActions,
+  detailsAuthor,
+  detailsBody,
+  detailsCover,
+  detailsDescription,
+  detailsDescriptionHeading,
+  detailsFavorite,
+  detailsFrame,
+  detailsHeading,
+  detailsPanel,
+  detailsResizeHandle,
+  detailsResizeTooltip,
+  detailsTitle,
+} from "./bookDetailsStyles";
 
 type BookDetailsPanelProps = {
   details: BookDetailsDrawerProps | null;
@@ -39,10 +55,15 @@ export function BookDetailsPanel({
   const summary = selectionCount > 1;
   const [lastReadBook, ...otherBooks] = resumeBooks;
   return (
-    <aside className="book-details-panel" aria-label="Book details" style={{ width }}>
+    <aside
+      className={`book-details-panel relative min-h-0 min-w-0 overflow-hidden ${detailsFrame}`}
+      aria-label="Book details"
+      style={{ width }}
+    >
       <LibraryPanelResizeHandle
         label="Resize book details"
-        className="book-details-resize-handle"
+        tooltip={detailsResizeTooltip}
+        className={detailsResizeHandle}
         edge="start"
         width={width}
         minWidth={BOOK_DETAILS_MIN_WIDTH}
@@ -50,10 +71,10 @@ export function BookDetailsPanel({
         onWidthChange={onWidthChange}
         onWidthCommit={onWidthCommit}
       />
-      <div className="details-drawer__panel">
-        <div className="book-details-panel__controls">
+      <div className={detailsPanel}>
+        <div className="pointer-events-none absolute inset-x-sidebar-inset top-details-control-top z-2 flex justify-between [&_.icon-button]:pointer-events-auto">
           <IconButton
-            className="details-favorite-button"
+            className={`bg-surface-main control-active:bg-surface-main ${detailsFavorite}`}
             label={details && !summary ? `Favorite ${bookTitle(details.book)}` : "Favorite book"}
             disabled={!details || summary}
             aria-pressed={details && !summary ? details.book.isFavorite : false}
@@ -66,21 +87,30 @@ export function BookDetailsPanel({
               fill={details && !summary && details.book.isFavorite ? "currentColor" : "none"}
             />
           </IconButton>
-          <IconButton label="Unpin book details" aria-pressed="true" onClick={onUnpin}>
+          <IconButton
+            className="bg-surface-main control-hover:bg-surface-main control-active:bg-surface-main"
+            label="Unpin book details"
+            aria-pressed="true"
+            onClick={onUnpin}
+          >
             <PinOff aria-hidden="true" />
           </IconButton>
         </div>
         {details && !summary ? (
           <BookDetailsContent {...details} initialFocus="none" />
         ) : !summary && !emptyLibrary && lastReadBook ? (
-          <div className="details-drawer__body">
-            <div className="details-cover">
-              <BookCover book={lastReadBook} className="book-cover--details" />
+          <div className={detailsBody}>
+            <div className={detailsCover}>
+              <BookCover book={lastReadBook} className="m-0" />
             </div>
-            <div className="details-drawer__title constrained-user-content">
-              <h2>{bookTitle(lastReadBook)}</h2>
-              {bookAuthor(lastReadBook) ? <p>{bookAuthor(lastReadBook)}</p> : null}
-              <p className="book-details-panel__reading-status">
+            <div className={detailsTitle}>
+              <h2 className={detailsHeading}>{bookTitle(lastReadBook)}</h2>
+              {bookAuthor(lastReadBook) ? (
+                <p className={detailsAuthor}>{bookAuthor(lastReadBook)}</p>
+              ) : null}
+              <p
+                className={`${detailsAuthor} flex flex-wrap justify-center gap-x-sidebar-inset gap-y-folder-action-gap`}
+              >
                 <span>Last read</span>
                 {typeof lastReadBook.progressPercent === "number" &&
                 Number.isFinite(lastReadBook.progressPercent) &&
@@ -89,14 +119,16 @@ export function BookDetailsPanel({
                 ) : null}
               </p>
             </div>
-            <div className="details-actions">
+            <div className={detailsActions}>
               <Button
+                className="w-full"
                 icon={<BookOpen aria-hidden="true" />}
                 onClick={() => onContinue(lastReadBook)}
               >
                 Continue reading
               </Button>
               <Button
+                className="w-full"
                 variant="secondary"
                 icon={<Info aria-hidden="true" />}
                 onClick={() => onInspect(lastReadBook)}
@@ -105,14 +137,19 @@ export function BookDetailsPanel({
               </Button>
             </div>
             {lastReadBook.sourceMetadata?.description?.trim() ? (
-              <section className="details-description book-details-panel__description">
-                <h3>Description</h3>
-                <p>{lastReadBook.sourceMetadata.description}</p>
+              <section className={detailsDescription}>
+                <h3 className={detailsDescriptionHeading}>Description</h3>
+                <p className="m-0 line-clamp-4 text-muted whitespace-pre-wrap">
+                  {lastReadBook.sourceMetadata.description}
+                </p>
               </section>
             ) : null}
             {lastReadBook.lastOpenedAt ? (
-              <p className="book-details-panel__last-opened">
-                <Clock aria-hidden="true" size={16} />
+              <p className="book-details-panel__last-opened m-0 mt-details-section flex items-baseline justify-center gap-control-gap text-center text-muted text-body-supporting font-normal">
+                <Clock
+                  aria-hidden="true"
+                  className="mt-control-inset size-icon-glyph-standard shrink-0 self-start"
+                />
                 <span>
                   Last opened{" "}
                   <time dateTime={lastReadBook.lastOpenedAt}>
@@ -122,29 +159,39 @@ export function BookDetailsPanel({
               </p>
             ) : null}
             {otherBooks.length > 0 ? (
-              <section className="book-details-panel__other-books" aria-label="Also in progress">
-                <h3>Also in progress</h3>
-                <div className="book-details-panel__reading-list">
+              <section className="mt-dialog-panel" aria-label="Also in progress">
+                <h3 className="m-0 mb-sidebar-inset text-body font-semibold">Also in progress</h3>
+                <div className="grid gap-control-gap [&_.continue-book]:w-full">
                   {otherBooks.map((book) => (
                     <ContinueReadingBook key={book.id} book={book} onContinue={onContinue} />
                   ))}
                 </div>
               </section>
             ) : null}
-            <p className="book-details-panel__hint">Select another book to view its details.</p>
+            <p className="m-0 mt-details-section text-center text-muted text-body-supporting font-normal wrap-anywhere">
+              Select another book to view its details.
+            </p>
           </div>
         ) : (
-          <div className="book-details-panel__empty">
-            {!summary ? <BookOpen aria-hidden="true" size={32} strokeWidth={1.5} /> : null}
-            <h2>{summary ? `${selectionCount} books selected` : "Book details"}</h2>
-            <p>
+          <Empty className="block min-h-0 flex-1 overflow-y-auto px-dialog-panel pt-details-empty-top pb-dialog-panel text-center">
+            {!summary ? (
+              <BookOpen
+                aria-hidden="true"
+                className="mb-filter-group-gap size-control-compact text-muted"
+                strokeWidth={1.5}
+              />
+            ) : null}
+            <h2 className="m-0 text-title-small">
+              {summary ? `${selectionCount} books selected` : "Book details"}
+            </h2>
+            <EmptyDescription className="mt-control-gap text-body-supporting font-normal wrap-normal">
               {summary
                 ? "Use the selection bar to manage these books together."
                 : emptyLibrary
                   ? "Book details appear here after you add and select a book."
                   : "Select a book to see its description, reading progress, and metadata."}
-            </p>
-          </div>
+            </EmptyDescription>
+          </Empty>
         )}
       </div>
     </aside>

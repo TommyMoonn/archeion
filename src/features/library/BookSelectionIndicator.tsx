@@ -24,7 +24,7 @@ export function BookSelectionIndicator({
       {selected ? (
         <Check
           aria-hidden="true"
-          className={placement === "card" ? "size-book-selection-glyph" : "size-icon-glyph-compact"}
+          className={placement === "card" ? "size-icon-glyph-small" : "size-icon-glyph-compact"}
           strokeWidth={2.25}
         />
       ) : null}

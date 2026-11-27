@@ -262,7 +262,7 @@ function LibraryWorkspaceDialogContent({
         title="Edit EPUB metadata"
         actionLabel="Write metadata to EPUB"
         actionIcon={<Save aria-hidden="true" />}
-        className="dialog--metadata-writeback"
+        className="dialog-width-metadata"
         workspace
         feedbackSize="summary"
         closeOnBackdropClick={false}
@@ -291,7 +291,7 @@ function LibraryWorkspaceDialogContent({
         actionLabel="Write cover to EPUB"
         actionIcon={<Save aria-hidden="true" />}
         dismissLabel="Close"
-        className="dialog--cover-writeback"
+        className="dialog-width-cover"
         workspace
         feedbackPlacement="inline"
         onClose={dialogActions.closeBookEditor}
@@ -334,7 +334,6 @@ function LibraryWorkspaceDialogContent({
       <AsyncDialogShell
         loadingContent={loadingContent}
         key={`${dialog.type}:${dialog.book.id}`}
-        className="dialog--move-epub"
         title="Move EPUB file"
         actionLabel="Move"
         actionIcon={<MoveRight aria-hidden="true" />}
@@ -489,7 +488,7 @@ function LibraryWorkspaceDialogContent({
         loadingDescription={BULK_METADATA_DESCRIPTION}
         reserveFeedback={false}
         reserveActionIndicator={false}
-        className="dialog--bulk-metadata"
+        className="dialog-width-bulk-metadata"
         onClose={dialogActions.close}
         closeOnBackdropClick={false}
       >
