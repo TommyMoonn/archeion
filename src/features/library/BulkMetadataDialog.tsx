@@ -1,4 +1,5 @@
 import { FieldError } from "../../components/ui/field";
+import { Alert } from "../../components/ui/alert";
 import { SurfacePresence } from "../../components/SurfacePresence";
 import { ArrowLeft, Save, ListChecks, CircleAlert } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
@@ -134,10 +135,12 @@ export function BulkMetadataDialog({
     return (
       <>
         <Dialog
-          className="dialog--bulk-metadata"
+          className="dialog-width-bulk-metadata"
           feedback={
             error ? (
-              <FieldError role="alert">{error}</FieldError>
+              <Alert>
+                <FieldError>{error}</FieldError>
+              </Alert>
             ) : (
               <p role="status">{isWriting ? "Writing metadata to EPUBs…" : ""}</p>
             )
@@ -167,40 +170,48 @@ export function BulkMetadataDialog({
             </>
           }
         >
-          <div className="bulk-metadata-preview">
+          <div className="grid min-h-0 min-w-0 max-w-full gap-control-gap">
             {preview.map(({ book, changes }) => (
               <section
-                className="bulk-metadata-preview__book"
+                className="min-w-0 rounded-menu border-standard border-solid border-line bg-bulk-metadata-review px-bulk-metadata-inset py-bulk-metadata-review data-[skipped=true]:opacity-64"
                 data-skipped={changes.length === 0 || undefined}
                 key={book.id}
               >
-                <div>
-                  <strong className="constrained-user-content">{bookTitle(book)}</strong>
+                <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-bulk-metadata-review">
+                  <strong className="min-w-0 flex-auto text-meta-only wrap-anywhere text-text-strong">
+                    {bookTitle(book)}
+                  </strong>
                   {book.isFileMissing ? (
-                    <span className="bulk-metadata-preview__unavailable">
-                      <CircleAlert aria-hidden="true" size={14} /> File unavailable
+                    <span className="inline-flex flex-none items-center gap-bulk-metadata-unavailable text-caption-size text-danger">
+                      <CircleAlert aria-hidden="true" className="size-icon-glyph-compact" /> File
+                      unavailable
                     </span>
                   ) : changes.length === 0 ? (
-                    <span>No changes</span>
+                    <span className="flex-none text-caption-size text-muted">No changes</span>
                   ) : (
-                    <span>{changes.length === 1 ? "1 field" : `${changes.length} fields`}</span>
+                    <span className="flex-none text-caption-size text-muted">
+                      {changes.length === 1 ? "1 field" : `${changes.length} fields`}
+                    </span>
                   )}
                 </div>
                 {changes.length ? (
-                  <dl>
+                  <dl className="mx-0 mt-bulk-metadata-block mb-0 grid min-w-0 gap-control-gap-compact">
                     {changes.map((change) => (
-                      <div key={change.field}>
-                        <dt>{change.label}</dt>
-                        <dd>
+                      <div
+                        className="grid min-w-0 bulk-metadata-review-columns gap-bulk-metadata-block"
+                        key={change.field}
+                      >
+                        <dt className="text-caption-size text-muted">{change.label}</dt>
+                        <dd className="m-0 grid min-w-0 bulk-metadata-change-columns gap-field-label text-caption-size text-muted">
                           <span
-                            className="constrained-user-content"
+                            className="min-w-0 wrap-anywhere whitespace-normal data-[multiline=true]:whitespace-pre-line"
                             data-multiline={change.field === "subjects" || undefined}
                           >
                             {change.from}
                           </span>
                           <span aria-hidden="true">→</span>
                           <strong
-                            className="constrained-user-content"
+                            className="min-w-0 font-semibold wrap-anywhere whitespace-normal text-text data-[multiline=true]:whitespace-pre-line"
                             data-multiline={change.field === "subjects" || undefined}
                           >
                             {change.to}
@@ -222,7 +233,7 @@ export function BulkMetadataDialog({
   return (
     <>
       <Dialog
-        className="dialog--bulk-metadata"
+        className="dialog-width-bulk-metadata"
         closeOnBackdropClick={false}
         description={BULK_METADATA_DESCRIPTION}
         onClose={requestClose}

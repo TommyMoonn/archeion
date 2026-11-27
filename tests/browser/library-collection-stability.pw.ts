@@ -157,6 +157,30 @@ test("bulk action menu preserves selection and hands focus back from the metadat
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   await expect(bar).toContainText("2 selected");
+
+  await trigger.press("ArrowDown");
+  await menu.getByRole("menuitem", { name: "Edit metadata" }).press("Enter");
+  await dialog.getByRole("checkbox", { name: "Series" }).press("Space");
+  await dialog.getByRole("textbox", { name: "New series" }).fill("Shared series");
+  await dialog.getByRole("button", { name: "Review changes" }).press("Enter");
+  const review = page.getByRole("dialog", { name: "Review metadata changes" });
+  await expect(review).toContainText("2 of 2 selected books will be modified.");
+  const back = review.getByRole("button", { name: "Back", exact: true });
+  await back.focus();
+  await page.keyboard.press("Escape");
+  const discard = page.getByRole("dialog", { name: "Discard metadata changes?" });
+  await expect(discard.getByRole("button", { name: "Keep editing" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(discard).toHaveCount(0);
+  await expect(back).toBeFocused();
+  await back.press("Enter");
+  await expect(dialog.getByRole("textbox", { name: "New series" })).toHaveValue("Shared series");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).press("Enter");
+  await discard.getByRole("button", { name: "Discard changes" }).press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(bar).toContainText("2 selected");
+
   await trigger.click();
   await expect(menu).toBeVisible();
   await page.getByRole("combobox", { name: "Sort library" }).click();

@@ -118,7 +118,7 @@ async function expectAlignedForm(page: Page, surface: string) {
       : surface === "metadata"
         ? dialog.getByRole("textbox", { name: "Title", exact: true })
         : surface === "bulk"
-          ? dialog.locator(".bulk-metadata-field--tags")
+          ? dialog.locator('[data-slot="bulk-metadata-tags"]')
           : surface === "cover"
             ? dialog.locator('[data-slot="cover-editor-book"]')
             : surface.startsWith("folder")
@@ -610,4 +610,17 @@ test("bulk fields preserve checkbox hit targets, editable values and compact geo
   await expect(tags).toBeFocused();
   await expect(tags).toHaveCSS("outline-style", "solid");
   await expect(tags).toHaveCSS("outline-width", "2px");
+  for (const control of [input, textarea]) {
+    await control.focus();
+    await expect(control).toBeFocused();
+    await expect(control).toHaveCSS("outline-style", "solid");
+    await expect(control).toHaveCSS("outline-width", "2px");
+    await expect(control).toHaveCSS("outline-offset", "2px");
+  }
+  await dialog.getByRole("button", { name: "Review changes" }).press("Enter");
+  const review = page.getByRole("dialog", { name: "Review metadata changes" });
+  await expect(review.getByText("“One tag” “Another tag”", { exact: true })).toHaveCSS(
+    "white-space",
+    "pre-line",
+  );
 });

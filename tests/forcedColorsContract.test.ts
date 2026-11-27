@@ -45,7 +45,6 @@ function normalizeSelectorWhitespace(source: string): string {
 const forcedColorsSource = read("src/styles/forced-colors.css");
 const forcedColorsBlock = cssBlock("@media (forced-colors: active)", forcedColorsSource);
 const formsSource = read("src/styles/components/forms.css");
-const librarySource = read("src/styles/features/library.css");
 const readerSource = read("src/styles/features/reader.css");
 const auditedErrorSources = [
   ["application startup", "src/app/App.tsx", /data-tone="error" role="alert"/],
@@ -270,10 +269,6 @@ describe("forced-colors and focus visibility contract", () => {
       cssBlock(
         ':root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible',
         formsSource,
-      ),
-      cssBlock(
-        ':root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > textarea:focus-visible',
-        librarySource,
       ),
     ];
     const readerFocusContracts = [

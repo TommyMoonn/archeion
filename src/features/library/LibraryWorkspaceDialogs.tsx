@@ -488,7 +488,7 @@ function LibraryWorkspaceDialogContent({
         loadingDescription={BULK_METADATA_DESCRIPTION}
         reserveFeedback={false}
         reserveActionIndicator={false}
-        className="dialog--bulk-metadata"
+        className="dialog-width-bulk-metadata"
         onClose={dialogActions.close}
         closeOnBackdropClick={false}
       >

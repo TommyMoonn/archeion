@@ -338,6 +338,12 @@
   --spacing-metadata-summary-top: 5px;
   --spacing-metadata-change-block: 4px;
   --spacing-metadata-status-inline: 13px;
+  --spacing-bulk-metadata-inset: 13px;
+  --spacing-bulk-metadata-label: 3px;
+  --spacing-bulk-metadata-block: 10px;
+  --spacing-bulk-metadata-review: 12px;
+  --spacing-bulk-metadata-review-label: 76px;
+  --spacing-bulk-metadata-unavailable: 5px;
   --spacing-cover-editor: 16px;
   --spacing-cover-editor-column: 22px;
   --spacing-cover-editor-controls: 15px;
@@ -426,6 +432,7 @@
   --spacing-overlay-viewport-inset: 16px;
   --container-dialog: 430px;
   --container-metadata-dialog: 800px;
+  --container-bulk-metadata-dialog: 720px;
   --container-cover-dialog: 820px;
   --container-popover: 420px;
   --container-tooltip: 280px;
@@ -449,6 +456,7 @@
   --breakpoint-collection-narrow: 620px;
   --breakpoint-panel-narrow: 680px;
   --breakpoint-dialog-narrow: 720px;
+  --breakpoint-bulk-metadata-stacked: 620px;
   --breakpoint-workspace-narrow: 760px;
   --breakpoint-shell-narrow: 820px;
   --breakpoint-collection-wide: 900px;
@@ -547,6 +555,10 @@
   --color-series-hint-border: color-mix(in srgb, var(--accent) 24%, var(--line));
   --color-series-marker-border: color-mix(in srgb, var(--accent) 30%, var(--line));
   --color-surface: var(--surface);
+  --color-bulk-metadata-field: color-mix(in srgb, var(--surface) 72%, transparent);
+  --color-bulk-metadata-enabled: color-mix(in srgb, var(--accent-soft) 58%, var(--surface));
+  --color-bulk-metadata-enabled-border: color-mix(in srgb, var(--accent) 42%, var(--line));
+  --color-bulk-metadata-review: color-mix(in srgb, var(--surface) 78%, transparent);
   --color-cover-feedback-success: color-mix(in srgb, var(--success-soft) 72%, var(--surface));
   --color-cover-feedback-warning-border: color-mix(in srgb, var(--accent) 34%, var(--line));
   --color-dialog-subtle: color-mix(in srgb, var(--surface) 76%, transparent);
@@ -705,6 +717,28 @@
 
 @utility dialog-width-metadata {
   --dialog-width: var(--container-metadata-dialog);
+}
+
+@utility dialog-width-bulk-metadata {
+  --dialog-width: var(--container-bulk-metadata-dialog);
+}
+
+@utility bulk-metadata-toggle-columns {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility bulk-metadata-review-columns {
+  grid-template-columns: var(--spacing-bulk-metadata-review-label) minmax(0, 1fr);
+}
+
+@utility bulk-metadata-change-columns {
+  grid-template-columns: minmax(0, auto) auto minmax(0, 1fr);
+}
+
+@custom-variant bulk-metadata-stacked {
+  @media (max-width: theme(--breakpoint-bulk-metadata-stacked)) {
+    @slot;
+  }
 }
 
 @utility dialog-width-cover {
