@@ -133,7 +133,7 @@
     background: CanvasText;
   }
 
-  .archive-manager-window__sidebar {
+  [data-archive-catalog] {
     border-color: CanvasText;
   }
 
@@ -141,7 +141,7 @@
     border-color: CanvasText;
   }
 
-  .archive-row[data-active="true"] {
+  [data-archive-row][data-active="true"] {
     border-color: Highlight;
     color: HighlightText;
     background: Highlight;
@@ -152,7 +152,7 @@
     outline-offset: -1px;
   }
 
-  .archive-row--missing {
+  :where([data-archive-row])[data-missing="true"] {
     border-inline-start: 3px double Mark;
     box-shadow: none;
   }

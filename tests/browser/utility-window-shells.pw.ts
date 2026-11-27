@@ -35,7 +35,7 @@ const windows = [
     mode: "archive-manager",
     module: "ArchiveManagerWindow",
     slot: null,
-    plane: ".archive-manager-window__main",
+    plane: "[data-archive-detail]",
     width: 1100,
     height: 760,
   },

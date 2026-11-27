@@ -28,7 +28,6 @@ const cssSource = collectFiles(stylesRoot, ".css")
   .join("\n");
 const appShellSource = read("src/styles/layout/app-shell.css");
 const tokensSource = read("src/styles/tokens.css");
-const archiveSource = read("src/styles/features/archive.css");
 const readerSource = read("src/styles/features/reader.css");
 const readerPageSource = read("src/features/reader/ReaderPage.tsx");
 const readerNoteSource = read("src/features/reader/ReaderNoteEditor.tsx");
@@ -68,10 +67,6 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
       (match) => match[1],
     );
     expect(containers.filter((name) => spacing.has(name))).toEqual([]);
-  });
-
-  it("keeps menu trigger dimensions owned by shared controls", () => {
-    expect(archiveSource).not.toMatch(/\.archive-row-menu summary\s*{[^}]*\b(?:width|height):/s);
   });
 
   it("keeps explicit focus-visible treatment on global controls and reader page-turn zones", () => {

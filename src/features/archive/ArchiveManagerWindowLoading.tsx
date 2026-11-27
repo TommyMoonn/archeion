@@ -1,35 +1,31 @@
-import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { UtilityWindowLoadStatus } from "../../components/UtilityWindowLoadStatus";
 import { useUtilityWindowLoadState } from "../../components/useUtilityWindowLoadState";
+import {
+  ArchiveManagerLayout,
+  archiveFallbackClassName,
+  archiveFallbackHeadingClassName,
+  archiveFallbackMessageClassName,
+} from "./ArchiveManagerLayout";
 
 export function ArchiveManagerWindowLoading({ failed = false }: { failed?: boolean }) {
   const loadState = useUtilityWindowLoadState();
   const state = failed ? "error" : loadState;
   return (
-    <main
-      aria-busy={state === "loading" || undefined}
-      className="archive-manager-shell"
-      id={ARCHIVE_MANAGER_MAIN_CONTENT_ID}
-      tabIndex={-1}
-    >
-      <div className="archive-manager-window">
-        <div className="archive-manager-window__body">
-          <aside
-            aria-hidden="true"
-            className="archive-manager-window__sidebar archive-manager-window__sidebar--fallback"
-          />
-          <section className="archive-manager-window__main relative" aria-label="Archive Manager">
-            <div
-              className={
-                state === "loading" ? "absolute inset-0" : "archive-manager-window__fallback"
-              }
-            >
-              {state === "error" ? <h1>Archive Manager</h1> : null}
-              <UtilityWindowLoadStatus title="Archive Manager" state={state} />
-            </div>
-          </section>
+    <ArchiveManagerLayout busy={state === "loading"}>
+      {state === "loading" ? (
+        <div className="absolute inset-0">
+          <UtilityWindowLoadStatus title="Archive Manager" state={state} />
         </div>
-      </div>
-    </main>
+      ) : (
+        <div className={archiveFallbackClassName}>
+          <h1 className={archiveFallbackHeadingClassName}>Archive Manager</h1>
+          <UtilityWindowLoadStatus
+            title="Archive Manager"
+            state={state}
+            errorMessageClassName={archiveFallbackMessageClassName}
+          />
+        </div>
+      )}
+    </ArchiveManagerLayout>
   );
 }

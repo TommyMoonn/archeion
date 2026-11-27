@@ -372,6 +372,31 @@
   --spacing-details-metadata-label: 120px;
   --spacing-details-skeleton-line: 0.65rem;
   --spacing-details-skeleton-short: 68%;
+  /* Archive Manager keeps its pixel geometry at every interface text size. */
+  --spacing-archive-sidebar: 286px;
+  --spacing-archive-sidebar-stacked: 220px;
+  --spacing-archive-main: 20px;
+  --spacing-archive-main-block: clamp(24px, 4vw, 36px);
+  --spacing-archive-main-inline: clamp(28px, 5vw, 44px);
+  --spacing-archive-content: 440px;
+  --spacing-archive-message: 360px;
+  --spacing-archive-empty: 180px;
+  --spacing-archive-feedback: 10px;
+  --spacing-archive-mark: 78px;
+  --spacing-archive-logo: 68px;
+  --spacing-archive-row: 48px;
+  --spacing-archive-row-end: 4px;
+  --spacing-archive-row-menu: 26px;
+  --spacing-archive-menu: 170px;
+  --spacing-archive-badge: 18px;
+  --spacing-archive-rename-end: 58px;
+  --spacing-archive-save: 30px;
+  --leading-archive-row-title: 1.2;
+  --leading-archive-row-path: 1.18;
+  --leading-archive-feedback: 1.55;
+  --tracking-archive-wordmark: -0.045em;
+  --tracking-archive-fallback: -0.035em;
+  --tracking-archive-badge: 0.01em;
   --tracking-details-label: 0.08em;
   --blur-details-cover-action: 8px;
   --color-details-cover-action: rgb(10 11 13 / 78%);
@@ -627,6 +652,11 @@
   --color-error-strong: var(--error-strong);
   --color-error-soft: var(--error-soft);
   --color-error-border: var(--error-border);
+  --color-archive-busy: color-mix(in srgb, var(--text-strong) 4.5%, transparent);
+  --color-archive-missing: color-mix(in srgb, var(--error) 11%, transparent);
+  --color-archive-missing-border: color-mix(in srgb, var(--error) 42%, transparent);
+  --inset-shadow-archive-missing: inset 3px 0 var(--error-border);
+  --drop-shadow-archive-logo: 0 12px 22px color-mix(in srgb, var(--darkening) 34%, transparent);
   --color-info-soft: var(--info-soft);
   --color-info-border: var(--info-border);
   --color-danger: var(--danger);
@@ -761,6 +791,16 @@
   border-width: var(--border-width);
 }
 
+@utility border-e-standard {
+  border-inline-end-style: solid;
+  border-inline-end-width: var(--border-width);
+}
+
+@utility border-be-standard {
+  border-block-end-style: solid;
+  border-block-end-width: var(--border-width);
+}
+
 @utility transition-field-focus {
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -791,6 +831,24 @@
   @media (max-width: theme(--breakpoint-bulk-metadata-stacked)) {
     @slot;
   }
+}
+
+@custom-variant archive-stacked {
+  @media (max-width: theme(--breakpoint-workspace-narrow)) {
+    @slot;
+  }
+}
+
+@utility grid-cols-archive-manager {
+  grid-template-columns: var(--spacing-archive-sidebar) minmax(0, 1fr);
+}
+
+@utility grid-cols-archive-row {
+  grid-template-columns: minmax(0, 1fr) var(--spacing-archive-row-menu);
+}
+
+@utility grid-rows-archive-row {
+  grid-template-rows: auto auto;
 }
 
 @utility dialog-width-cover {

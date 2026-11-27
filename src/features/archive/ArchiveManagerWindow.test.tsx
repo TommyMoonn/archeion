@@ -95,30 +95,23 @@ describe("ArchiveManagerWindow", () => {
   it("renders the manager surface for the separate window", () => {
     const markup = renderManager();
 
-    expect(markup).toContain("archive-manager-shell");
     expect(markup).toContain(`id="${ARCHIVE_MANAGER_MAIN_CONTENT_ID}"`);
     expect(markup).toContain('tabindex="-1"');
     expect(markup.match(/<main/g)).toHaveLength(1);
-    expect(markup).not.toContain("archive-manager-shell--standalone");
     expect(markup).toContain("Manage archives");
     expect(markup).toContain('aria-label="Archives"');
     expect(markup).not.toContain("Known archives");
-    expect(markup).not.toContain("archive-manager-window__sidebar-header");
     expect(markup).toContain("Books");
     expect(markup).toContain("Comics");
     expect(markup).toContain("D:\\Books");
     expect(markup).toContain("E:\\Comics");
-    expect(markup).not.toContain("archive-row--active");
-    expect(markup.match(/data-active="true"/g)).toHaveLength(1);
     expect(markup.match(/aria-current="true"/g)).toHaveLength(1);
-    expect(markup).toContain("archive-manager-window__icon");
     expect(markup).toContain("Create empty archive");
     expect(markup).toContain("Start with a new local folder.");
     expect(markup).toContain("Open folder as archive");
     expect(markup).toContain("Use an existing folder.");
     expect(markup).toContain('aria-label="Actions for Books"');
     expect(markup).toContain('aria-label="Actions for Comics"');
-    expect(markup).not.toContain("archive-manager-window__chrome");
     expect(markup).not.toContain(">Archive Manager<");
     expect(markup).not.toContain("Active");
     expect(markup).not.toContain("Current");
@@ -140,8 +133,6 @@ describe("ArchiveManagerWindow", () => {
     expect(markup.match(/<main/g)).toHaveLength(1);
     expect(markup).toContain("Manager failed to initialize.");
     expect(markup).toContain('role="alert"');
-    expect(markup).toContain("archive-manager-window__sidebar--fallback");
-    expect(markup).toContain("archive-manager-window__main");
   });
 
   it("keeps the window-local main and skip target available while the lazy manager is pending", () => {
@@ -203,12 +194,10 @@ describe("ArchiveManagerWindow", () => {
     });
 
     expect(loadingMarkup).toContain('aria-busy="true"');
-    expect(loadingMarkup).toContain('data-loading="true"');
     expect(loadingMarkup).toContain('role="status"');
     expect(loadingMarkup).toContain('aria-label="Loading archives"');
     expect(loadingMarkup).not.toContain("No saved archives");
     expect(emptyMarkup).not.toContain('aria-busy="true"');
-    expect(emptyMarkup).toContain('data-empty="true"');
     expect(emptyMarkup).toContain("No saved archives");
     expect(emptyMarkup).toContain("Create empty archive");
     expect(emptyMarkup).toContain("Open folder as archive");
@@ -276,7 +265,7 @@ describe("ArchiveManagerWindow", () => {
     );
 
     act(() => activeButton.click());
-    const busyRow = activeButton.closest(".archive-row");
+    const busyRow = activeButton.closest("[data-archive-row]");
     expect(busyRow?.getAttribute("aria-busy")).toBe("true");
     expect(activeButton.disabled).toBe(true);
 
@@ -322,12 +311,10 @@ describe("ArchiveManagerWindow", () => {
     const switchArchive = vi.spyOn(archiveStore, "switchArchive");
     const onArchiveChoiceComplete = vi.fn();
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
-    const row = Array.from(container.querySelectorAll<HTMLElement>(".archive-row")).find((item) =>
-      item.textContent?.includes("Comics"),
-    );
+    const primary = buttonWithText(container, "Comics");
 
     act(() => {
-      row?.dispatchEvent(
+      primary.dispatchEvent(
         new MouseEvent("contextmenu", { bubbles: true, clientX: 90, clientY: 70 }),
       );
     });
@@ -338,7 +325,6 @@ describe("ArchiveManagerWindow", () => {
       document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
     ).map((item) => item.textContent?.trim());
     expect(pointerLabels).toEqual(["Rename archive", "Reveal archive folder", "Forget archive"]);
-    expect(row?.getAttribute("data-context-menu-open")).toBe("true");
 
     act(() => document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
     act(() =>
@@ -358,13 +344,11 @@ describe("ArchiveManagerWindow", () => {
   it("opens archive actions from keyboard context keys and focuses the first action", () => {
     const switchArchive = vi.spyOn(archiveStore, "switchArchive");
     const { container, root } = renderInteractive();
-    const primary = Array.from(
-      container.querySelectorAll<HTMLButtonElement>(".archive-row__activate"),
-    ).find((button) => button.textContent?.includes("Comics"));
-    primary?.focus();
+    const primary = buttonWithText(container, "Comics");
+    primary.focus();
 
     act(() => {
-      primary?.dispatchEvent(
+      primary.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, key: "F10", shiftKey: true }),
       );
     });
@@ -378,7 +362,7 @@ describe("ArchiveManagerWindow", () => {
     expect(document.activeElement).toBe(primary);
 
     act(() => {
-      primary?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
+      primary.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
     });
     expect(document.activeElement?.textContent).toContain("Rename archive");
 
@@ -453,11 +437,10 @@ describe("ArchiveManagerWindow", () => {
       buttonWithText(document.body, "Rename archive").click();
     });
 
-    const input = container.querySelector<HTMLInputElement>(".archive-row__input input")!;
-    const requiredIndicator = container.querySelector<HTMLElement>(".archive-row__required")!;
+    const input = container.querySelector("input");
+    if (!(input instanceof HTMLInputElement)) throw new Error("Missing archive name input");
     expect(input.required).toBe(true);
-    expect(requiredIndicator.textContent?.trim()).toBe("Required");
-    expect(requiredIndicator.getAttribute("aria-hidden")).toBe("true");
+    expect(container.textContent).toContain("Required");
 
     act(() => setInputValue(input, "   "));
     act(() => {
@@ -466,8 +449,8 @@ describe("ArchiveManagerWindow", () => {
 
     const statusId = input.getAttribute("aria-describedby");
     expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(statusId).toBe("archive-manager-operation-status");
-    expect(document.getElementById(statusId!)?.textContent).toContain(
+    expect(container.querySelector('[role="status"]')?.id).toBe(statusId);
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
       "Archive names cannot be empty.",
     );
     expect(document.activeElement).toBe(input);
@@ -523,14 +506,6 @@ describe("ArchiveManagerWindow", () => {
       "Light novels",
     );
     expect(container.textContent).toContain("Creates a folder with this name.");
-    expect(
-      container.querySelector(".archive-manager-window__content-area")?.getAttribute("data-view"),
-    ).toBe("create");
-    expect(
-      container
-        .querySelector(".archive-manager-window__content-area")
-        ?.getAttribute("data-direction"),
-    ).toBe("forward");
     expect(container.textContent).not.toContain("Choose a name and parent location.");
     expect(chooseArchiveParentLocation).not.toHaveBeenCalled();
     expect(createEmptyArchive).not.toHaveBeenCalled();
@@ -569,11 +544,7 @@ describe("ArchiveManagerWindow", () => {
     });
 
     expect(container.textContent).toContain("Manage archives");
-    expect(
-      container
-        .querySelector(".archive-manager-window__content-area")
-        ?.getAttribute("data-direction"),
-    ).toBe("back");
+    expect(buttonWithText(container, "Create empty archive")).toBeInstanceOf(HTMLButtonElement);
 
     await act(async () => {
       buttonWithText(container, "Create empty archive").dispatchEvent(

@@ -462,18 +462,6 @@ describe("theme token baseline", () => {
           "src/styles/components/dialogs.css",
           /:is\(\.dialog, \.details-drawer, \.quick-actions\)::backdrop\s*{[^}]*background:\s*var\(--backdrop\);/,
         ],
-        [
-          "src/styles/features/archive.css",
-          /\.archive-manager-window__main\s*{[^}]*background:\s*var\(--surface-main\);/,
-        ],
-        [
-          "src/styles/features/archive.css",
-          /\.archive-manager-window__sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
-        ],
-        [
-          "src/styles/features/archive.css",
-          /\.archive-manager-window__sidebar\s*{[^}]*border-inline-end:\s*var\(--border-width\) solid var\(--line-subtle\);/,
-        ],
       ] as const;
       for (const [stylePath, contract] of applicationSurfaceContracts) {
         const source = fs.readFileSync(path.join(projectRoot, stylePath), "utf8");

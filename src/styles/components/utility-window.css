@@ -111,7 +111,3 @@
   justify-items: center;
   min-height: 58px;
 }
-
-.archive-manager-window__fallback .utility-load-status p {
-  color: inherit;
-}

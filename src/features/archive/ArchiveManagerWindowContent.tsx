@@ -18,17 +18,23 @@ import {
   type ContextMenuController,
 } from "../../components/contextMenuController";
 import { Input } from "../../components/Input";
+import { Badge } from "../../components/ui/badge";
+import { Button as UiButton } from "../../components/ui/button";
+import { Empty, EmptyDescription } from "../../components/ui/empty";
 import { Spinner } from "../../components/ui/spinner";
 import type { ArchiveState } from "../../stores/archiveStore";
-import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
 import { ArchiveCreateView } from "./ArchiveCreateView";
+import { ArchiveManagerLayout } from "./ArchiveManagerLayout";
 import { createArchiveContextActions } from "./archiveContextActions";
 import { OpenArchiveButton } from "./OpenArchiveButton";
 
 type ArchiveManagerView = "manager" | "create";
 type ArchiveManagerTransitionDirection = "forward" | "back";
+
+const archiveStatusClassName =
+  "m-0 max-w-archive-message rounded-control border-standard border-solid border-error-border bg-error-soft px-archive-feedback py-field-label text-body leading-field-compact text-error wrap-anywhere";
 
 type ArchiveManagerWindowContentProps = {
   state: ArchiveState;
@@ -81,8 +87,9 @@ function ArchiveRowActions({
 
   return (
     <>
-      <span className="archive-row-menu" data-open={controller.isOpen || undefined}>
+      <span className="relative">
         <ContextMenuTrigger
+          className="hover:bg-surface-shell-hover aria-expanded:bg-surface-shell-hover aria-expanded:text-text-strong hover:control-active:bg-surface-shell-hover aria-expanded:control-active:bg-surface-shell-hover"
           controller={controller}
           disabled={disabled}
           label={`Actions for ${archive.displayName}`}
@@ -96,7 +103,7 @@ function ArchiveRowActions({
       <ContextMenuSurface
         actions={actions}
         ariaLabel={`Actions for ${archive.displayName}`}
-        className="archive-row-menu__popover"
+        className="min-w-archive-menu"
         controller={controller}
       />
     </>
@@ -209,21 +216,26 @@ function ArchiveRow({
   return (
     <div
       aria-busy={isBusy || undefined}
-      className={`archive-row${isBusy ? " archive-row--busy" : ""}${
-        isMissing ? " archive-row--missing" : ""
+      className={`group/archive relative grid min-h-archive-row grid-cols-archive-row grid-rows-archive-row items-center gap-x-field-label gap-y-control-inset rounded-control border-standard border-solid border-transparent py-field-label pr-archive-row-end pl-sidebar-inset hover:bg-surface-shell-hover data-active:bg-surface-shell-active ${
+        isMissing
+          ? "bg-error-soft inset-shadow-archive-missing"
+          : isBusy
+            ? "bg-archive-busy"
+            : "bg-transparent"
       }`}
+      data-archive-row=""
       data-active={isActive || undefined}
-      data-context-menu-open={contextMenu.isOpen || undefined}
+      data-missing={isMissing || undefined}
       onContextMenu={handleContextMenu}
     >
-      <div className="archive-row__main">
+      <div className="col-start-1 row-start-1 min-w-0">
         {isRenaming ? (
-          <div className="archive-row__rename-field">
+          <div className="relative min-w-0">
             <Input
               aria-describedby={renameInvalid ? statusId : undefined}
               aria-invalid={renameInvalid || undefined}
               autoFocus
-              className="archive-row__input"
+              className="w-full min-h-field-standard [&>input]:pe-archive-rename-end"
               label="Archive display name"
               onChange={(event) => {
                 setName(event.currentTarget.value);
@@ -245,41 +257,54 @@ function ArchiveRow({
               required
               value={name}
             />
-            <span aria-hidden="true" className="archive-row__required">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 end-archive-feedback -translate-y-1/2 text-caption font-medium leading-none text-muted"
+            >
               Required
             </span>
           </div>
         ) : (
-          <button
+          <UiButton
             aria-current={isActive ? "true" : undefined}
             aria-describedby={isMissing ? missingStateId : undefined}
-            className="archive-row__activate"
+            className="grid w-full min-w-0 cursor-pointer gap-control-inset rounded-none border-0 bg-transparent p-0 text-start text-inherit disabled:cursor-not-allowed disabled:opacity-100"
             disabled={isBusy}
             onClick={() => void activateArchive()}
             onKeyDown={handlePrimaryKeyDown}
             ref={primaryActionRef}
+            size={null}
             type="button"
+            variant={null}
           >
-            <span className="archive-row__title">{archive.displayName}</span>
-            <span className="archive-row__path" title={archive.rootPath}>
+            <span className="min-w-0 text-body font-regular leading-archive-row-title text-text-strong wrap-anywhere whitespace-normal">
+              {archive.displayName}
+            </span>
+            <span
+              className="min-w-0 text-caption leading-archive-row-path text-muted opacity-78 wrap-anywhere whitespace-normal"
+              title={archive.rootPath}
+            >
               {archive.rootPath}
             </span>
-          </button>
+          </UiButton>
         )}
       </div>
 
       {isMissing ? (
-        <div className="archive-row__meta" aria-label="Archive state">
-          <span className="archive-row__badge archive-row__badge--missing" id={missingStateId}>
+        <div className="col-start-1 row-start-2 flex min-w-0 flex-wrap" aria-label="Archive state">
+          <Badge
+            className="min-h-archive-badge border-archive-missing-border bg-archive-missing px-control-gap-compact py-0 font-medium leading-inherit tracking-archive-badge text-error whitespace-normal"
+            id={missingStateId}
+          >
             Archive folder not found
-          </span>
+          </Badge>
         </div>
       ) : null}
 
-      <div className="archive-row__actions">
+      <div className="col-start-2 row-span-2 row-start-1 flex items-center justify-end opacity-72 group-hover/archive:opacity-100 group-focus-within/archive:opacity-100">
         {isRenaming ? (
           <Button
-            className="archive-row__save"
+            className="min-h-archive-save cursor-pointer rounded-small px-archive-feedback text-caption disabled:cursor-not-allowed"
             disabled={isBusy}
             onClick={() => void renameArchive()}
             variant="secondary"
@@ -333,129 +358,114 @@ export function ArchiveManagerWindowContent({
   }
 
   return (
-    <main
-      className="archive-manager-shell"
-      id={ARCHIVE_MANAGER_MAIN_CONTENT_ID}
-      tabIndex={-1}
-      data-utility-ready={!isLoading || undefined}
+    <ArchiveManagerLayout
+      titleId="archive-manager-title"
+      busy={isLoading}
+      ready={!isLoading}
+      sidebar={
+        sortedArchives.length > 0 ? (
+          <div className="grid w-full min-h-0 flex-1 content-start gap-archive-row-end overflow-y-auto py-control-inset">
+            {sortedArchives.map((archive) => (
+              <ArchiveRow
+                activeArchiveId={activeArchiveId}
+                archive={archive}
+                isMissing={archive.id === missingArchiveId}
+                key={archive.id}
+                onArchiveChoiceComplete={onArchiveChoiceComplete}
+                setStatus={setStatus}
+                statusId={statusId}
+              />
+            ))}
+          </div>
+        ) : isLoading ? (
+          <div className="grid flex-1 place-items-center text-muted">
+            <Spinner aria-label="Loading archives" className="size-6 stroke-2" data-visible />
+          </div>
+        ) : (
+          <Empty className="m-auto max-w-archive-empty self-center px-button-standard py-dialog-panel text-center">
+            <EmptyDescription className="leading-field-compact">No saved archives</EmptyDescription>
+          </Empty>
+        )
+      }
     >
-      <section
-        className="archive-manager-window archive-manager-window--manager"
-        aria-labelledby="archive-manager-title"
-        aria-busy={isLoading || undefined}
-      >
-        <div className="archive-manager-window__body">
-          <aside
-            className="archive-manager-window__sidebar"
-            aria-label="Archives"
-            data-empty={!isLoading && sortedArchives.length === 0 ? true : undefined}
-            data-loading={isLoading || undefined}
-          >
-            {sortedArchives.length > 0 ? (
-              <div className="archive-list">
-                {sortedArchives.map((archive) => (
-                  <ArchiveRow
-                    activeArchiveId={activeArchiveId}
-                    archive={archive}
-                    isMissing={archive.id === missingArchiveId}
-                    key={archive.id}
-                    onArchiveChoiceComplete={onArchiveChoiceComplete}
-                    setStatus={setStatus}
-                    statusId={statusId}
-                  />
-                ))}
-              </div>
-            ) : isLoading ? (
-              <div className="grid flex-1 place-items-center text-muted">
-                <Spinner aria-label="Loading archives" className="size-6 stroke-2" data-visible />
-              </div>
-            ) : (
-              <p className="archive-list__empty">No saved archives</p>
-            )}
-          </aside>
-
-          <section className="archive-manager-window__main">
-            <div className="archive-manager-window__identity">
-              <div className="archive-manager-window__mark" aria-hidden="true">
-                <BrandLogo className="archive-manager-window__icon" />
-              </div>
-              <div className="archive-manager-window__identity-copy">
-                <h1 id="archive-manager-title">Archeion</h1>
-                <p>Manage archives</p>
-                {errorText ? (
-                  <p className="archive-manager-window__status" data-tone="error" role="alert">
-                    {errorText}
-                  </p>
-                ) : null}
-                {status ? (
-                  <p
-                    className="archive-manager-window__status"
-                    data-tone="error"
-                    id={statusId}
-                    role="status"
-                  >
-                    {status}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-
-            <div
-              className="archive-manager-window__content-area"
-              data-direction={transitionDirection}
-              data-view={view}
-            >
-              {view === "create" ? (
-                <ArchiveCreateView
-                  archiveName={archiveName}
-                  locationPath={locationPath}
-                  onArchiveChoiceComplete={onArchiveChoiceComplete}
-                  onArchiveNameChange={setArchiveName}
-                  onBack={() => {
-                    setStatus(null);
-                    setTransitionDirection("back");
-                    setView("manager");
-                  }}
-                  onCreated={() => {
-                    resetCreateForm();
-                    setTransitionDirection("back");
-                    setView("manager");
-                  }}
-                  onLocationChange={setLocationPath}
-                />
-              ) : (
-                <div className="archive-manager-window__content-panel">
-                  <div className="archive-manager-window__actions">
-                    <Button
-                      className="archive-action-row"
-                      icon={<Plus aria-hidden="true" />}
-                      onClick={() => {
-                        setStatus(null);
-                        setTransitionDirection("forward");
-                        setView("create");
-                      }}
-                      variant="secondary"
-                    >
-                      <span className="archive-action-row__copy">
-                        <span className="archive-action-row__title">Create empty archive</span>
-                        <span className="archive-action-row__description">
-                          Start with a new local folder.
-                        </span>
-                      </span>
-                    </Button>
-                    <OpenArchiveButton
-                      className="archive-action-row"
-                      description="Use an existing folder."
-                      onOpened={onArchiveChoiceComplete}
-                      variant="secondary"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+      <div className="grid justify-items-center gap-button-standard text-center">
+        <div className="grid size-archive-mark place-items-center" aria-hidden="true">
+          <BrandLogo className="size-archive-logo drop-shadow-archive-logo" />
         </div>
-      </section>
-    </main>
+        <div className="grid justify-items-center gap-field-label">
+          <h1
+            className="m-0 font-app-display text-display-compact font-semibold leading-none tracking-archive-wordmark text-text-strong"
+            id="archive-manager-title"
+          >
+            Archeion
+          </h1>
+          <p className="m-0 text-body leading-field-compact text-muted">Manage archives</p>
+          {errorText ? (
+            <p className={archiveStatusClassName} data-tone="error" role="alert">
+              {errorText}
+            </p>
+          ) : null}
+          {status ? (
+            <p className={archiveStatusClassName} data-tone="error" id={statusId} role="status">
+              {status}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div
+        className="archive-manager-window__content-area grid w-full max-w-archive-content min-w-0 justify-self-center"
+        data-direction={transitionDirection}
+        data-view={view}
+      >
+        {view === "create" ? (
+          <ArchiveCreateView
+            archiveName={archiveName}
+            locationPath={locationPath}
+            onArchiveChoiceComplete={onArchiveChoiceComplete}
+            onArchiveNameChange={setArchiveName}
+            onBack={() => {
+              setStatus(null);
+              setTransitionDirection("back");
+              setView("manager");
+            }}
+            onCreated={() => {
+              resetCreateForm();
+              setTransitionDirection("back");
+              setView("manager");
+            }}
+            onLocationChange={setLocationPath}
+          />
+        ) : (
+          <div className="archive-manager-window__content-panel">
+            <div className="archive-manager-window__actions">
+              <Button
+                className="archive-action-row"
+                icon={<Plus aria-hidden="true" />}
+                onClick={() => {
+                  setStatus(null);
+                  setTransitionDirection("forward");
+                  setView("create");
+                }}
+                variant="secondary"
+              >
+                <span className="archive-action-row__copy">
+                  <span className="archive-action-row__title">Create empty archive</span>
+                  <span className="archive-action-row__description">
+                    Start with a new local folder.
+                  </span>
+                </span>
+              </Button>
+              <OpenArchiveButton
+                className="archive-action-row"
+                description="Use an existing folder."
+                onOpened={onArchiveChoiceComplete}
+                variant="secondary"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </ArchiveManagerLayout>
   );
 }

@@ -32,7 +32,7 @@ window.uiStabilityState = () => ({
     document.querySelector(
       backend.windowMode === "main"
         ? ".book-grid, .book-list, .empty-state, .epub-container iframe"
-        : ".about-window-shell, .settings-window-shell, .archive-manager-shell, .theme-manager-window-shell",
+        : ".about-window-shell, .settings-window-shell, #archive-manager-main-content, .theme-manager-window-shell",
     ),
   ),
 });

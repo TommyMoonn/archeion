@@ -54,6 +54,10 @@ const merge = extendTailwindMerge({
         "cover-progress-height",
         "selection-menu-min",
         "feedback-dismiss",
+        "archive-feedback",
+        "archive-menu",
+        "archive-save",
+        "menu-viewport-min",
       ],
       text: [
         "caption",

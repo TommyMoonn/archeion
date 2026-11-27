@@ -148,7 +148,7 @@ test("Archive, Theme Manager, and About retain hierarchy above routine medium la
   await page.setViewportSize({ width: 860, height: 620 });
   await page.goto("/tests/browser/fixtures/?view=archive-shell&themeStress=equal");
   await weight(page.locator(".archive-action-row__title").first(), "500");
-  await weight(page.locator(".archive-manager-window__identity h1"), "600");
+  await weight(page.locator("#archive-manager-title"), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-archive.png") });
   await page.goto("/tests/browser/fixtures/?view=theme-manager");
   await weight(page.locator(".theme-catalog-list__item-name").first(), "500");

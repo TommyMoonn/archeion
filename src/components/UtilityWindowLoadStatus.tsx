@@ -8,9 +8,11 @@ import {
 export function UtilityWindowLoadStatus({
   title,
   state,
+  errorMessageClassName,
 }: {
   title: string;
   state: UtilityWindowLoadState;
+  errorMessageClassName?: string;
 }) {
   const failed = state === "error";
   return (
@@ -20,7 +22,9 @@ export function UtilityWindowLoadStatus({
     >
       {failed ? (
         <>
-          <p role="alert">{title} could not be loaded. Reload this window to try again.</p>
+          <p className={errorMessageClassName} role="alert">
+            {title} could not be loaded. Reload this window to try again.
+          </p>
           <Button onClick={() => location.reload()} variant="secondary">
             Reload window
           </Button>
