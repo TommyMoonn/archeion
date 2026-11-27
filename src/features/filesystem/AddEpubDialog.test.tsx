@@ -87,11 +87,9 @@ describe("AddEpubDialog replacement confirmation", () => {
   it("uses the selected Replace action directly when confirmations are disabled", async () => {
     const { container, onClose, onImport } = await renderDialog(false);
 
-    const operationGroup = container.querySelector<HTMLElement>(
-      '.add-epub-dialog__field[role="group"]',
-    );
-    expect(operationGroup?.getAttribute("aria-labelledby")).toBe("add-epub-operation-label");
-    expect(document.getElementById("add-epub-operation-label")?.textContent).toBe("Operation");
+    const operationGroup = container.querySelector('[role="group"]');
+    const labelId = operationGroup?.getAttribute("aria-labelledby");
+    expect(labelId && document.getElementById(labelId)?.textContent).toBe("Operation");
 
     await act(async () => {
       buttonWithText(container, "Add EPUB").click();

@@ -71,11 +71,6 @@ const auditedErrorSources = [
     /className="archive-manager-window__status"\s+data-tone="error"\s+role="alert"/,
   ],
   [
-    "filesystem dialogs",
-    "src/features/filesystem/AddEpubDialog.tsx",
-    /<FieldError className="add-epub-dialog__error" role="alert"/,
-  ],
-  [
     "library metadata",
     "src/features/library/BookAdvancedMetadataDialog.tsx",
     /data-tone="error" role="alert"/,

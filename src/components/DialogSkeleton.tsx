@@ -23,7 +23,7 @@ export function DialogSkeleton({
         String.raw`[&_:is(input,textarea,button,.segmented-control,.metadata-writeback\_\_reference-value,.cover-writeback\_\_preview,.book-cover)]:bg-surface-raised!`,
         String.raw`[&_:is(input,textarea,button,.segmented-control,.metadata-writeback\_\_reference-value,.cover-writeback\_\_preview,.book-cover)]:border-transparent!`,
         String.raw`[&_:is(input,textarea,button,.segmented-control,.metadata-writeback\_\_reference-value,.cover-writeback\_\_preview,.book-cover)]:shadow-none!`,
-        String.raw`[&_:is(label>span,h3,.app-select\_\_label,.add-epub-dialog\_\_field>span,.cover-writeback\_\_framing>span,.cover-writeback\_\_book_strong,.cover-writeback\_\_book_small)]:skeleton-label`,
+        String.raw`[&_:is(label>span,h3,.app-select\_\_label,[role=group]>[data-slot=field-label],.cover-writeback\_\_framing>span,.cover-writeback\_\_book_strong,.cover-writeback\_\_book_small)]:skeleton-label`,
       ].join(" ")}
       aria-hidden="true"
       inert

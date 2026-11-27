@@ -260,6 +260,36 @@ for (const surface of ["add", "move", "rename", "folder", "bulk"]) {
   }
 }
 
+test("Add EPUB distinguishes the busy picker and import errors in forced colors", async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await openSurface(page, "add");
+  const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
+  const picker = dialog.getByRole("button", { name: "book.epub" });
+  await dialog.getByRole("button", { name: "Add EPUB" }).click();
+  await expect(picker).toBeDisabled();
+  await expect(picker).toHaveCSS("opacity", "0.6");
+  await page.evaluate(() => window.dialogGeometryFixture.release(true));
+  const alert = dialog.getByRole("alert");
+  await expect(alert).toContainText("Synthetic operation failure");
+  expect(
+    await alert.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const sample = document.createElement("span");
+      sample.style.forcedColorAdjust = "none";
+      sample.style.color = "MarkText";
+      sample.style.backgroundColor = "Mark";
+      element.append(sample);
+      const system = getComputedStyle(sample);
+      const matches =
+        style.color === system.color && style.backgroundColor === system.backgroundColor;
+      sample.remove();
+      return matches;
+    }),
+  ).toBe(true);
+});
+
 for (const scale of [1, 2]) {
   test(`cover preparation, retry, write and warning preserve geometry text ${scale}`, async ({
     page,

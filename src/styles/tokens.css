@@ -115,6 +115,7 @@
   --spacing-page-compact-top: 30px;
   --spacing-page-compact-bottom: 28px;
   --spacing-icon-glyph-compact: 14px;
+  --spacing-icon-glyph-small: 15px;
   --spacing-icon-glyph-standard: 16px;
   --spacing-icon-glyph-prominent: 20px;
   --spacing-icon-slot-compact: 16px;
@@ -213,7 +214,6 @@
   --spacing-book-row-favorite-end: 45px;
   --spacing-book-row-bottom: 40px;
   --spacing-book-selection-control: 30px;
-  --spacing-book-selection-glyph: 15px;
   --spacing-resume-bottom: 22px;
   --spacing-resume-heading-gap: 16px;
   --spacing-resume-heading-height: 20px;
@@ -325,6 +325,9 @@
   --spacing-dialog-gap-narrow: 12px;
   --spacing-dialog-copy: 10px;
   --spacing-dialog-footer: 9px;
+  --spacing-import-form: 14px;
+  --spacing-import-picker: 46px;
+  --spacing-import-file-list: 4px;
   --spacing-skeleton-label-width: min(8rem, 75%);
   --spacing-skeleton-label-height: 0.65em;
   --container-dialog-description: 65ch;
@@ -504,6 +507,7 @@
   --color-canvas: var(--canvas);
   --color-checkbox-surface: light-dark(var(--surface), var(--line-strong));
   --color-canvas-deep: var(--canvas-deep);
+  --color-import-file-list: color-mix(in srgb, var(--canvas-deep) 46%, transparent);
   --color-settings-neutral-status: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
   --color-resume-card: color-mix(in srgb, var(--surface) 46%, transparent);
   --shadow-book-row-selected: inset 3px 0 var(--accent);

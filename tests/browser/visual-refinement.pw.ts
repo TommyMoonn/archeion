@@ -127,7 +127,7 @@ test("Add EPUB expands as one surface and settles before the fade completes", as
 
   await page.getByRole("button", { name: "Add EPUB", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
-  await expect(dialog.locator(".add-epub-dialog")).toBeVisible();
+  await expect(dialog.getByRole("group", { name: "Operation" })).toBeVisible();
 
   const samples = await dialog.evaluate((element) => {
     if (!(element instanceof HTMLElement)) throw new Error("Dialog element is missing");
@@ -144,7 +144,7 @@ test("Add EPUB expands as one surface and settles before the fade completes", as
     const targets = [
       element,
       ...element.querySelectorAll<HTMLElement>(
-        'h2, button, input:not([aria-hidden="true"]):not([type="hidden"]), .app-select__label, .add-epub-dialog__field > span',
+        'h2, button, input:not([aria-hidden="true"]):not([type="hidden"]), .app-select__label, [role="group"] > span',
       ),
     ];
     const pose = () => {
