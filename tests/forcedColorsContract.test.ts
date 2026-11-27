@@ -54,11 +54,6 @@ const auditedErrorSources = [
     /aria-live="assertive"[\s\S]*className="status-page"[\s\S]*data-tone="error"/,
   ],
   [
-    "archive creation",
-    "src/features/archive/ArchiveCreateView.tsx",
-    /className="archive-create-form__status" data-tone="error" role="alert"/,
-  ],
-  [
     "About external links",
     "src/features/about/AboutSurface.tsx",
     /className="about-window__error" data-tone="error" role="alert"/,

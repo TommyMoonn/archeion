@@ -591,7 +591,7 @@ for (const count of [0, 500]) {
       void window.uiStabilityFixture.switchArchive("b");
     }, count);
     await expect(page.locator("[data-archive-blocked]")).toBeVisible();
-    await expect(page.locator(".archive-handoff__workspace")).toHaveAttribute("inert", "");
+    await expect(page.locator("[data-archive-workspace]")).toHaveAttribute("inert", "");
     await expect(page.locator(".sidebar[data-retained-shell]")).toBeVisible();
     await page.keyboard.press("Control+Shift+P");
     await expect(page.locator(".quick-actions")).toHaveCount(0);
@@ -615,7 +615,7 @@ test("archive scan failure retains the outgoing identity and offers a contained 
   await page.evaluate(() => {
     void window.uiStabilityFixture.switchArchive("b");
   });
-  const status = page.locator(".archive-handoff__status");
+  const status = page.locator("[data-archive-handoff-status]");
   await expect(status).toHaveAttribute("role", "alert");
   await expect(page.locator(".sidebar")).toContainText("Synthetic a");
   await status.getByRole("button", { name: "Try again", exact: true }).click();
@@ -658,7 +658,7 @@ test("unavailable archive recovery keeps the retiring Library chrome", async ({ 
   await page.evaluate(() => {
     void window.uiStabilityFixture.switchArchive("b");
   });
-  const status = page.locator(".archive-handoff__status");
+  const status = page.locator("[data-archive-handoff-status]");
   await expect(status).toHaveAttribute("role", "alert");
   await expect(page.locator(".sidebar[data-retained-shell]")).toContainText("Synthetic a");
   await status.getByRole("button", { name: "Try again", exact: true }).focus();

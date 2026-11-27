@@ -43,6 +43,10 @@ if (
         document.documentElement.dataset.lastWindowCommand = command;
         return;
       }
+      if (view === "archive-shell" && command === "plugin:dialog|open") {
+        const path = new URLSearchParams(window.location.search).get("archiveParent");
+        return path;
+      }
       if (view === "about-updates" || view === "library-updates") {
         if (command === "plugin:app|version") return APPLICATION_VERSION_FALLBACK;
         if (

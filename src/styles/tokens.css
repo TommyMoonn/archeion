@@ -391,9 +391,19 @@
   --spacing-archive-badge: 18px;
   --spacing-archive-rename-end: 58px;
   --spacing-archive-save: 30px;
+  --spacing-archive-setup: clamp(18px, 3vw, 34px);
+  --spacing-archive-form-gap: 11px;
+  --spacing-archive-form-row: 56px;
+  --spacing-archive-form-input: 196px;
+  --spacing-archive-form-label: 176px;
+  --spacing-archive-create-action: 96px;
+  --spacing-archive-action: 58px;
+  --spacing-archive-action-gap: 3px;
   --leading-archive-row-title: 1.2;
   --leading-archive-row-path: 1.18;
   --leading-archive-feedback: 1.55;
+  --leading-archive-action-description: 1.3;
+  --leading-archive-form-description: 1.35;
   --tracking-archive-wordmark: -0.045em;
   --tracking-archive-fallback: -0.035em;
   --tracking-archive-badge: 0.01em;
@@ -698,6 +708,19 @@
   --animate-details-enter: details-drawer-enter var(--surface-duration) var(--motion-ease-standard);
   --animate-details-exit: details-drawer-exit var(--surface-duration) var(--motion-ease-standard)
     forwards;
+  --animate-archive-slide: archive-panel-slide var(--motion-duration-slow)
+    var(--motion-ease-standard);
+
+  @keyframes archive-panel-slide {
+    from {
+      opacity: 0;
+      transform: translateX(var(--archive-panel-slide-offset));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 
   @keyframes details-drawer-enter {
     from {
@@ -845,6 +868,31 @@
 
 @utility grid-cols-archive-row {
   grid-template-columns: minmax(0, 1fr) var(--spacing-archive-row-menu);
+}
+
+@utility grid-cols-archive-form-name {
+  grid-template-columns: minmax(var(--spacing-archive-form-label), 1fr) minmax(
+      0,
+      var(--spacing-archive-form-input)
+    );
+}
+
+@utility grid-cols-archive-form-location {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@custom-variant archive-form-narrow {
+  @container archive-detail (max-width: 360px) {
+    @slot;
+  }
+}
+
+@utility archive-slide-forward {
+  --archive-panel-slide-offset: var(--motion-distance-small);
+}
+
+@utility archive-slide-back {
+  --archive-panel-slide-offset: calc(-1 * var(--motion-distance-small));
 }
 
 @utility grid-rows-archive-row {

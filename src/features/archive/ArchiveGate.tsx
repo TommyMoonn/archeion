@@ -207,7 +207,12 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
 
   if (!presentedArchive) {
     return (
-      <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
+      <main
+        className="archive-setup grid h-full min-h-0 place-items-center bg-canvas-deep p-archive-setup in-[.window-app__content]:min-h-full"
+        aria-busy="true"
+        id={MAIN_CONTENT_ID}
+        tabIndex={-1}
+      >
         <LoadingStatus message="Opening archive" />
       </main>
     );
@@ -219,8 +224,12 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
     (state.status !== "loading" && state.status !== "ready");
   return (
     <ArchivePresentationContext value={{ archive: presentedArchive, blocked }}>
-      <div ref={frameRef} className="archive-handoff" data-archive-blocked={blocked || undefined}>
-        <div className="archive-handoff__workspace" inert={blocked}>
+      <div
+        ref={frameRef}
+        className="relative h-full min-h-0"
+        data-archive-blocked={blocked || undefined}
+      >
+        <div className="relative h-full min-h-0" data-archive-workspace inert={blocked}>
           <CoverUrlCacheScopeContext value={presentedArchive.archive.id}>
             {children}
           </CoverUrlCacheScopeContext>
@@ -228,7 +237,8 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
         {blocked ? (
           <section
             ref={statusRef}
-            className="archive-handoff__status"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-dialog-gap-narrow bg-surface-main p-dialog-panel text-muted"
+            data-archive-handoff-status
             role={failed ? "alert" : undefined}
           >
             {failed ? (

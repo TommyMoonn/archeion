@@ -71,17 +71,81 @@ test("Archive Manager retains native control calls and real drag hit areas", asy
 test("Archive Manager keeps focused create form state across the stacking breakpoint", async ({
   page,
 }) => {
+  const parent = "C:\\" + "UnbrokenArchiveFolder".repeat(8);
   await page.setViewportSize({ width: 860, height: 620 });
-  await page.goto("/tests/browser/fixtures/?view=archive-shell");
-  await page.getByRole("button", { name: "Create empty archive" }).click();
+  await page.goto(
+    `/tests/browser/fixtures/?view=archive-shell&archiveParent=${encodeURIComponent(parent)}`,
+  );
+  const create = page.getByRole("button", { name: "Create empty archive" });
+  await expect(create).toHaveCSS("min-height", "58px");
+  await create.click();
+  const form = page.getByRole("form", { name: "Create archive" });
   const name = page.getByRole("textbox", { name: /^Archive name/ });
+  const browse = form.getByRole("button", { name: "Browse" });
+  const submit = form.getByRole("button", { name: "Create", exact: true });
   await name.fill("Retained draft");
+  await expect(browse).toHaveCSS("min-height", "34px");
+  await expect(submit).toHaveCSS("min-height", "36px");
+  await browse.click();
+  const finalPath = form.getByText(`${parent}\\Retained draft`, { exact: true });
+  await expect(finalPath).toHaveText(`${parent}\\Retained draft`);
+  await name.focus();
   for (const width of [760, 320, 761, 860]) {
     await page.setViewportSize({ width, height: 620 });
     await expect(name).toBeFocused();
     await expect(name).toHaveValue("Retained draft");
+    await expect(finalPath).toBeVisible();
     expect((await shellGeometry(page)).horizontalOverflow).toBe(false);
+    await expect
+      .poll(() => form.evaluate((element) => element.scrollWidth - element.clientWidth))
+      .toBe(0);
+    if (width === 320) {
+      const submitBox = await submit.boundingBox();
+      const formBox = await form.boundingBox();
+      expect(submitBox?.width).toBe(formBox?.width);
+      await submit.scrollIntoViewIfNeeded();
+      await expect(submit).toBeInViewport();
+    }
   }
+});
+
+test("Archive Manager keeps create validation visible and associated in forced colors", async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.setViewportSize({ width: 480, height: 620 });
+  await page.goto("/tests/browser/fixtures/?view=archive-shell");
+  await page.getByRole("button", { name: "Create empty archive" }).click();
+  const name = page.getByRole("textbox", { name: /^Archive name/ });
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  const error = page.getByRole("alert").filter({ hasText: "Archive name is required." });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveAccessibleDescription(/Archive name is required\./);
+  await expect(error).toHaveText("Archive name is required.");
+  await expect(error).toHaveCSS("background-color", await systemColor(page, "Mark"));
+});
+
+test("Archive rescan keeps its warning and native confirmation focus", async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 620 });
+  await page.goto("/tests/browser/fixtures/ui-stability.html?count=2&motion=off");
+  const trigger = page.getByRole("button", { name: "Rescan archive", exact: true });
+  await expect(trigger).toHaveCSS("height", "32px");
+  await trigger.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Rescan archive?" });
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((element) => element.matches("dialog:modal"))).toBe(true);
+  await expect(dialog).toHaveAccessibleDescription(
+    "This refreshes book and missing-file records. EPUB files are not changed.",
+  );
+  const confirm = dialog.getByRole("button", { name: "Rescan archive" });
+  await expect(confirm).toHaveCSS("min-height", "36px");
+  const cancel = dialog.getByRole("button", { name: "Cancel" });
+  await expect(cancel).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(confirm).toBeFocused();
+  await confirm.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test("Archive Manager forced colors preserve structural boundaries and keyboard focus", async ({

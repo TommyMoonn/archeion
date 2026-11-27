@@ -625,7 +625,13 @@ describe("ArchiveManagerWindow", () => {
 
   it("creates a valid archive with separate name and parent path", async () => {
     vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue("D:\\Books");
-    const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive").mockResolvedValue(true);
+    let completeCreate: ((created: boolean) => void) | undefined;
+    const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive").mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          completeCreate = resolve;
+        }),
+    );
     const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
@@ -648,14 +654,21 @@ describe("ArchiveManagerWindow", () => {
       buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    await act(async () => {
-      buttonWithText(container, "Create").dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
+    const create = buttonWithText(container, "Create");
+    const browse = buttonWithText(container, "Browse");
+    act(() => create.click());
 
+    expect(create.getAttribute("aria-busy")).toBe("true");
+    expect(create.disabled).toBe(true);
+    expect(browse.disabled).toBe(true);
+    expect(
+      [...container.querySelectorAll('[role="status"]')].map((node) => node.textContent),
+    ).toContain("Creating archive…");
     expect(createEmptyArchive).toHaveBeenCalledWith({
       archiveName: "Light Novels",
       parentPath: "D:\\Books",
     });
+    await act(async () => completeCreate?.(true));
     expect(onArchiveChoiceComplete).toHaveBeenCalledTimes(1);
 
     act(() => root.unmount());

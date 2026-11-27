@@ -18,6 +18,7 @@ import {
   type ContextMenuController,
 } from "../../components/contextMenuController";
 import { Input } from "../../components/Input";
+import { Alert } from "../../components/ui/alert";
 import { Badge } from "../../components/ui/badge";
 import { Button as UiButton } from "../../components/ui/button";
 import { Empty, EmptyDescription } from "../../components/ui/empty";
@@ -34,7 +35,9 @@ type ArchiveManagerView = "manager" | "create";
 type ArchiveManagerTransitionDirection = "forward" | "back";
 
 const archiveStatusClassName =
-  "m-0 max-w-archive-message rounded-control border-standard border-solid border-error-border bg-error-soft px-archive-feedback py-field-label text-body leading-field-compact text-error wrap-anywhere";
+  "static max-w-archive-message rounded-control border-standard border-solid border-error-border bg-error-soft px-archive-feedback py-field-label text-body leading-field-compact text-error";
+const archiveActionClassName =
+  "min-h-archive-action w-full justify-start border-transparent bg-transparent px-button-standard text-text-strong whitespace-normal cursor-pointer control-hover:border-line control-hover:bg-surface-shell-hover control-active:border-transparent control-active:bg-transparent control-hover:control-active:border-line control-hover:control-active:bg-surface-shell-hover disabled:cursor-not-allowed aria-busy:disabled:cursor-not-allowed [&>.button__label]:min-w-0";
 
 type ArchiveManagerWindowContentProps = {
   state: ArchiveState;
@@ -401,23 +404,19 @@ export function ArchiveManagerWindowContent({
           </h1>
           <p className="m-0 text-body leading-field-compact text-muted">Manage archives</p>
           {errorText ? (
-            <p className={archiveStatusClassName} data-tone="error" role="alert">
+            <Alert className={archiveStatusClassName} data-tone="error">
               {errorText}
-            </p>
+            </Alert>
           ) : null}
           {status ? (
-            <p className={archiveStatusClassName} data-tone="error" id={statusId} role="status">
+            <Alert className={archiveStatusClassName} data-tone="error" id={statusId} role="status">
               {status}
-            </p>
+            </Alert>
           ) : null}
         </div>
       </div>
 
-      <div
-        className="archive-manager-window__content-area grid w-full max-w-archive-content min-w-0 justify-self-center"
-        data-direction={transitionDirection}
-        data-view={view}
-      >
+      <div className="@container/archive-detail grid w-full max-w-archive-content min-w-0 justify-self-center">
         {view === "create" ? (
           <ArchiveCreateView
             archiveName={archiveName}
@@ -437,32 +436,38 @@ export function ArchiveManagerWindowContent({
             onLocationChange={setLocationPath}
           />
         ) : (
-          <div className="archive-manager-window__content-panel">
-            <div className="archive-manager-window__actions">
-              <Button
-                className="archive-action-row"
-                icon={<Plus aria-hidden="true" />}
-                onClick={() => {
-                  setStatus(null);
-                  setTransitionDirection("forward");
-                  setView("create");
-                }}
-                variant="secondary"
-              >
-                <span className="archive-action-row__copy">
-                  <span className="archive-action-row__title">Create empty archive</span>
-                  <span className="archive-action-row__description">
-                    Start with a new local folder.
-                  </span>
+          <div
+            className={`grid w-full min-w-0 gap-archive-action-gap rounded-menu border-standard border-solid border-line-subtle bg-surface-main-raised px-field-standard-inline py-field-compact-block ${
+              transitionDirection === "back"
+                ? "app-motion:motion-safe:animate-archive-slide archive-slide-back"
+                : ""
+            }`}
+          >
+            <Button
+              className={archiveActionClassName}
+              icon={<Plus aria-hidden="true" />}
+              onClick={() => {
+                setStatus(null);
+                setTransitionDirection("forward");
+                setView("create");
+              }}
+              variant="secondary"
+            >
+              <span className="grid min-w-0 gap-archive-action-gap text-start">
+                <span className="text-body-only font-medium text-text-strong wrap-anywhere">
+                  Create empty archive
                 </span>
-              </Button>
-              <OpenArchiveButton
-                className="archive-action-row"
-                description="Use an existing folder."
-                onOpened={onArchiveChoiceComplete}
-                variant="secondary"
-              />
-            </div>
+                <span className="text-caption leading-archive-action-description text-muted wrap-anywhere">
+                  Start with a new local folder.
+                </span>
+              </span>
+            </Button>
+            <OpenArchiveButton
+              className={archiveActionClassName}
+              description="Use an existing folder."
+              onOpened={onArchiveChoiceComplete}
+              variant="secondary"
+            />
           </div>
         )}
       </div>
