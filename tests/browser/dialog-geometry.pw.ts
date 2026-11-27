@@ -120,7 +120,7 @@ async function expectAlignedForm(page: Page, surface: string) {
         : surface === "bulk"
           ? dialog.locator(".bulk-metadata-field--tags")
           : surface === "cover"
-            ? dialog.locator(".cover-writeback__book")
+            ? dialog.locator('[data-slot="cover-editor-book"]')
             : surface.startsWith("folder")
               ? dialog.getByRole("textbox", { name: "Name", exact: true })
               : dialog.getByRole("combobox").first();
@@ -330,6 +330,33 @@ for (const scale of [1, 2]) {
   });
 }
 
+test("cover preview keeps its aspect and stacks at the inclusive viewport boundary", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 681, height: 900 });
+  await openSurface(page, "cover");
+  const preview = page.locator('[data-slot="cover-editor-preview"]');
+  const controls = page.locator('[data-slot="cover-editor-controls"]');
+
+  const previewSize = () =>
+    preview.evaluate((node) => {
+      const { width, height } = node.getBoundingClientRect();
+      return { width, height };
+    });
+  const top = (element: typeof preview) =>
+    element.evaluate((node) => node.getBoundingClientRect().top);
+  const wide = await previewSize();
+  expect(wide.width).toBeGreaterThanOrEqual(200);
+  expect(wide.width).toBeLessThanOrEqual(240);
+  expect(Math.abs(wide.height - wide.width * 1.5)).toBeLessThanOrEqual(1);
+  expect(await top(controls)).toBe(await top(preview));
+
+  await page.setViewportSize({ width: 680, height: 900 });
+  const narrow = await previewSize();
+  expect(narrow).toEqual({ width: 210, height: 315 });
+  expect(await top(controls)).toBeGreaterThan((await top(preview)) + narrow.height);
+});
+
 for (const width of [480, 1100]) {
   test(`cover explicit write, aligned controls and keyboard navigation at ${width}px`, async ({
     page,
@@ -349,12 +376,13 @@ for (const width of [480, 1100]) {
     await reachableShell(page);
     await containedTabOrder(page);
     if (width === 1100) {
-      const tops = await page
-        .locator(".cover-writeback__workspace")
-        .evaluate((workspace) => [
-          workspace.querySelector(".cover-writeback__preview")!.getBoundingClientRect().top,
-          workspace.querySelector(".cover-writeback__controls")!.getBoundingClientRect().top,
-        ]);
+      const tops = await Promise.all(
+        ["cover-editor-preview", "cover-editor-controls"].map((slot) =>
+          page
+            .locator(`[data-slot="${slot}"]`)
+            .evaluate((node) => node.getBoundingClientRect().top),
+        ),
+      );
       expect(Math.abs(tops[0] - tops[1])).toBeLessThanOrEqual(1);
     }
     await page.locator(".dialog__body").evaluate((body) => {

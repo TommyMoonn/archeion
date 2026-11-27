@@ -338,6 +338,20 @@
   --spacing-metadata-summary-top: 5px;
   --spacing-metadata-change-block: 4px;
   --spacing-metadata-status-inline: 13px;
+  --spacing-cover-editor: 16px;
+  --spacing-cover-editor-column: 22px;
+  --spacing-cover-editor-controls: 15px;
+  --spacing-cover-editor-copy: 3px;
+  --spacing-cover-editor-thumbnail: 48px;
+  --spacing-cover-preview: 240px;
+  --spacing-cover-preview-narrow: 210px;
+  --spacing-cover-preview-track: 200px;
+  --spacing-cover-controls-track: 280px;
+  --spacing-cover-preview-glyph: 34px;
+  --spacing-cover-preview-label: 9px;
+  --spacing-cover-preview-checker: 8px;
+  --spacing-cover-detail-label: 88px;
+  --tracking-cover-editor-label: 0.02em;
   --spacing-skeleton-label-width: min(8rem, 75%);
   --spacing-skeleton-label-height: 0.65em;
   --container-dialog-description: 65ch;
@@ -412,6 +426,7 @@
   --spacing-overlay-viewport-inset: 16px;
   --container-dialog: 430px;
   --container-metadata-dialog: 800px;
+  --container-cover-dialog: 820px;
   --container-popover: 420px;
   --container-tooltip: 280px;
 
@@ -532,7 +547,9 @@
   --color-series-hint-border: color-mix(in srgb, var(--accent) 24%, var(--line));
   --color-series-marker-border: color-mix(in srgb, var(--accent) 30%, var(--line));
   --color-surface: var(--surface);
-  --color-metadata-feedback: color-mix(in srgb, var(--surface) 76%, transparent);
+  --color-cover-feedback-success: color-mix(in srgb, var(--success-soft) 72%, var(--surface));
+  --color-cover-feedback-warning-border: color-mix(in srgb, var(--accent) 34%, var(--line));
+  --color-dialog-subtle: color-mix(in srgb, var(--surface) 76%, transparent);
   --color-metadata-change: color-mix(in srgb, var(--surface-raised) 82%, transparent);
   --color-metadata-success: color-mix(in srgb, var(--success-soft) 76%, var(--surface-raised));
   --color-surface-raised: var(--surface-raised);
@@ -688,6 +705,45 @@
 
 @utility dialog-width-metadata {
   --dialog-width: var(--container-metadata-dialog);
+}
+
+@utility dialog-width-cover {
+  --dialog-width: var(--container-cover-dialog);
+}
+
+@utility cover-editor-book-columns {
+  grid-template-columns: var(--spacing-cover-editor-thumbnail) minmax(0, 1fr);
+}
+
+@utility cover-editor-workspace-columns {
+  grid-template-columns:
+    minmax(var(--spacing-cover-preview-track), 0.72fr)
+    minmax(var(--spacing-cover-controls-track), 1.28fr);
+}
+
+@utility cover-editor-detail-columns {
+  grid-template-columns: var(--spacing-cover-detail-label) minmax(0, 1fr);
+}
+
+@utility cover-preview-checker {
+  --checker-tint: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  --checker-step: var(--spacing-cover-preview-checker);
+  --checker-offset: calc(-1 * var(--checker-step));
+  --checker-tile: calc(2 * var(--checker-step));
+  background:
+    linear-gradient(45deg, var(--checker-tint) 25%, transparent 25%) 0 0,
+    linear-gradient(-45deg, var(--checker-tint) 25%, transparent 25%) 0 var(--checker-step),
+    linear-gradient(45deg, transparent 75%, var(--checker-tint) 75%) var(--checker-step)
+      var(--checker-offset),
+    linear-gradient(-45deg, transparent 75%, var(--checker-tint) 75%) var(--checker-offset) 0,
+    var(--surface);
+  background-size: var(--checker-tile) var(--checker-tile);
+}
+
+@custom-variant cover-editor-narrow {
+  @media (max-width: theme(--breakpoint-panel-narrow)) {
+    @slot;
+  }
 }
 
 @utility metadata-core-columns {
@@ -880,6 +936,9 @@
 }
 @utility border-b-line {
   border-bottom: var(--border-width) solid var(--line);
+}
+@utility border-t-line {
+  border-top: var(--border-width) solid var(--line);
 }
 @utility text-body-only {
   font-size: var(--text-body);

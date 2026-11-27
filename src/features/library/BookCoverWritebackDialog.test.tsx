@@ -323,7 +323,7 @@ describe("BookCoverWritebackDialog", () => {
     vi.mocked(open).mockResolvedValue("C:/covers/replacement.png");
     const { onPrepareCover, onWriteCover } = renderDialog();
     const framingGroup = container?.querySelector<HTMLElement>(
-      '.cover-writeback__framing[role="group"]',
+      '[role="group"][aria-labelledby="cover-writeback-framing-label"]',
     );
     const framingHelpId = framingGroup?.getAttribute("aria-describedby");
 

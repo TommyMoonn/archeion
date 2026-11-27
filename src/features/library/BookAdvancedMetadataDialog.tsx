@@ -39,7 +39,7 @@ type MetadataStatus =
   { tone: "success" | "working"; message: string } | { tone: "error"; message: string } | null;
 
 const feedbackPanelClass =
-  "min-w-0 rounded-card border-standard border-solid border-line bg-metadata-feedback";
+  "min-w-0 rounded-card border-standard border-solid border-line bg-dialog-subtle";
 const writebackStatusClass = `${feedbackPanelClass} static m-0 px-metadata-status-inline py-metadata-row text-meta-only leading-field-compact text-muted data-[tone=success]:border-success-border data-[tone=success]:bg-metadata-success data-[tone=success]:text-success data-[tone=error]:border-danger-border data-[tone=error]:text-danger`;
 
 function cleanValue(value: string): string | undefined {

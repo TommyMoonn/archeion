@@ -6,6 +6,7 @@ const merge = extendTailwindMerge({
   extend: {
     theme: {
       radius: ["control", "small", "menu", "card", "dialog", "pill", "collection-utility-child"],
+      tracking: ["field-label", "cover-editor-label"],
       spacing: [
         "control-compact",
         "control-standard",

@@ -25,8 +25,8 @@ async function capture(page: Page, state: string) {
     const content = body.lastElementChild!;
     const contentBottom =
       content.getBoundingClientRect().bottom - body.getBoundingClientRect().top + body.scrollTop;
-    const preview = dialog.querySelector(".cover-writeback__preview");
-    const controls = dialog.querySelector(".cover-writeback__controls");
+    const preview = dialog.querySelector('[data-slot="cover-editor-preview"]');
+    const controls = dialog.querySelector('[data-slot="cover-editor-controls"]');
     return {
       outer: rect(dialog),
       title: rect(dialog.querySelector(".dialog__copy")!),
@@ -77,6 +77,7 @@ test("desktop cover uses content-sized workspace and proportionate feedback thro
   await page.setViewportSize({ width: 1100, height: 900 });
   await openWorkspace(page, "cover");
   const baseline = await capture(page, "cover-initial");
+  expect(baseline.outer.width).toBe(820);
   await page.getByRole("button", { name: "Choose image", exact: true }).click();
   stable(await capture(page, "cover-preparing"), baseline);
   await release(page);

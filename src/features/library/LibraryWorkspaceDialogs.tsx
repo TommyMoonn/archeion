@@ -291,7 +291,7 @@ function LibraryWorkspaceDialogContent({
         actionLabel="Write cover to EPUB"
         actionIcon={<Save aria-hidden="true" />}
         dismissLabel="Close"
-        className="dialog--cover-writeback"
+        className="dialog-width-cover"
         workspace
         feedbackPlacement="inline"
         onClose={dialogActions.closeBookEditor}
