@@ -65,10 +65,8 @@ describe("LibraryPage dialogs and book actions", () => {
       await Promise.resolve();
     });
 
-    expect(await waitForButtonWithText(session.container, "Write metadata to EPUB")).toBeInstanceOf(
-      HTMLButtonElement,
-    );
-    expect(session.container.querySelector(".dialog--metadata-writeback")).not.toBeNull();
+    const write = await waitForButtonWithText(session.container, "Write metadata to EPUB");
+    expect(write.closest("dialog")?.querySelector("h2")?.textContent).toBe("Edit EPUB metadata");
     expect(session.container.querySelector(".details-drawer")).toBeNull();
   });
 
@@ -107,9 +105,8 @@ describe("LibraryPage dialogs and book actions", () => {
     const editMetadata = await waitForButtonWithText(session.container, "Edit metadata");
     editMetadata.focus();
     act(() => editMetadata.click());
-    const metadataDialog = session.container.querySelector<HTMLDialogElement>(
-      ".dialog--metadata-writeback",
-    );
+    const write = await waitForButtonWithText(session.container, "Write metadata to EPUB");
+    const metadataDialog = write.closest("dialog");
     expect(metadataDialog).toBeInstanceOf(HTMLDialogElement);
 
     await act(async () => {

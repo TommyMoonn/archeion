@@ -318,9 +318,10 @@ test("unpinning restores a modal drawer and nested editors return focus to the p
     .locator(panelSelector)
     .getByRole("button", { name: "Edit metadata", exact: true });
   await edit.click();
-  await expect(page.locator(".dialog--metadata-writeback")).toBeVisible();
+  const metadata = page.getByRole("dialog", { name: "Edit EPUB metadata" });
+  await expect(metadata).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.locator(".dialog--metadata-writeback")).toHaveCount(0);
+  await expect(metadata).toHaveCount(0);
   await expect(edit).toBeFocused();
   await page.getByRole("button", { name: "Unpin book details", exact: true }).click();
   await expect(page.locator(panelSelector)).toHaveCount(0);

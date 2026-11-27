@@ -262,7 +262,7 @@ function LibraryWorkspaceDialogContent({
         title="Edit EPUB metadata"
         actionLabel="Write metadata to EPUB"
         actionIcon={<Save aria-hidden="true" />}
-        className="dialog--metadata-writeback"
+        className="dialog-width-metadata"
         workspace
         feedbackSize="summary"
         closeOnBackdropClick={false}

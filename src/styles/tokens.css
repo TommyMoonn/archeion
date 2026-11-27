@@ -328,6 +328,16 @@
   --spacing-import-form: 14px;
   --spacing-import-picker: 46px;
   --spacing-import-file-list: 4px;
+  --spacing-metadata-form: 14px;
+  --spacing-metadata-section: 9px;
+  --spacing-metadata-row: 11px;
+  --spacing-metadata-column: 12px;
+  --spacing-metadata-language-track: 112px;
+  --spacing-metadata-language-max: 180px;
+  --spacing-metadata-reference-label: 92px;
+  --spacing-metadata-summary-top: 5px;
+  --spacing-metadata-change-block: 4px;
+  --spacing-metadata-status-inline: 13px;
   --spacing-skeleton-label-width: min(8rem, 75%);
   --spacing-skeleton-label-height: 0.65em;
   --container-dialog-description: 65ch;
@@ -401,6 +411,7 @@
   --spacing-slider-thumb: 16px;
   --spacing-overlay-viewport-inset: 16px;
   --container-dialog: 430px;
+  --container-metadata-dialog: 800px;
   --container-popover: 420px;
   --container-tooltip: 280px;
 
@@ -521,6 +532,9 @@
   --color-series-hint-border: color-mix(in srgb, var(--accent) 24%, var(--line));
   --color-series-marker-border: color-mix(in srgb, var(--accent) 30%, var(--line));
   --color-surface: var(--surface);
+  --color-metadata-feedback: color-mix(in srgb, var(--surface) 76%, transparent);
+  --color-metadata-change: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  --color-metadata-success: color-mix(in srgb, var(--success-soft) 76%, var(--surface-raised));
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
   --color-surface-app-frame: var(--surface-app-frame);
@@ -666,10 +680,28 @@
   border-width: var(--border-width);
 }
 
-@utility transition-filename-field {
+@utility transition-field-focus {
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
     box-shadow var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+@utility dialog-width-metadata {
+  --dialog-width: var(--container-metadata-dialog);
+}
+
+@utility metadata-core-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(var(--spacing-metadata-language-track), 0.34fr);
+}
+
+@utility metadata-reference-columns {
+  grid-template-columns: var(--spacing-metadata-reference-label) minmax(0, 1fr);
+}
+
+@custom-variant metadata-stacked {
+  @media (max-width: theme(--breakpoint-dialog-narrow)) {
+    @slot;
+  }
 }
 
 @utility transition-filename-suffix {

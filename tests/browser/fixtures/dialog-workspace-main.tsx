@@ -24,6 +24,7 @@ const book: Book = {
   sourceMetadata: {
     title: "A long book title 日本語 Ελληνικά العربية ".repeat(4),
     description: "Description 日本語 Ελληνικά العربية ".repeat(200),
+    identifier: `urn:isbn:${"1234567890".repeat(14)}`,
   },
   isFavorite: false,
   addedAt: "2026-10-23",

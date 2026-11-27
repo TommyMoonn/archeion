@@ -1,8 +1,13 @@
-/* Native surface timing and the pending feature-specific width overrides. */
+/* Native surface timing. */
 .dialog {
   --surface-duration: var(--motion-duration-emphasized);
   --surface-exit-duration: var(--motion-duration-fast);
-  --dialog-width: var(--container-dialog);
+}
+
+@layer base {
+  .dialog {
+    --dialog-width: var(--container-dialog);
+  }
 }
 
 /* One dimming treatment and timing owner for all native application surfaces. */

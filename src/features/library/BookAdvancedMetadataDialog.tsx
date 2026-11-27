@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { Alert } from "../../components/ui/alert";
+import { Badge } from "../../components/ui/badge";
 import type {
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
@@ -35,6 +37,10 @@ type MetadataChange = {
 
 type MetadataStatus =
   { tone: "success" | "working"; message: string } | { tone: "error"; message: string } | null;
+
+const feedbackPanelClass =
+  "min-w-0 rounded-card border-standard border-solid border-line bg-metadata-feedback";
+const writebackStatusClass = `${feedbackPanelClass} static m-0 px-metadata-status-inline py-metadata-row text-meta-only leading-field-compact text-muted data-[tone=success]:border-success-border data-[tone=success]:bg-metadata-success data-[tone=success]:text-success data-[tone=error]:border-danger-border data-[tone=error]:text-danger`;
 
 function cleanValue(value: string): string | undefined {
   const cleaned = value.replace(/\s+/g, " ").trim();
@@ -111,21 +117,32 @@ function PendingChangesSummary({ changes }: { changes: MetadataChange[] }) {
   const hasChanges = changes.length > 0;
 
   return (
-    <section className="metadata-writeback__changes" aria-live="polite">
-      <div className="metadata-writeback__changes-header">
-        <strong>Pending changes</strong>
-        {hasChanges ? <span>{changedFieldSummary(changes.length)}</span> : null}
+    <section className={`${feedbackPanelClass} px-metadata-row py-control-gap`} aria-live="polite">
+      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-field-standard-inline gap-y-control-gap-compact">
+        <strong className="text-meta-only font-semibold text-text">Pending changes</strong>
+        {hasChanges ? (
+          <span className="text-caption-size font-medium text-muted">
+            {changedFieldSummary(changes.length)}
+          </span>
+        ) : null}
       </div>
       {hasChanges ? (
-        <ul aria-label="Changed metadata fields">
+        <ul
+          aria-label="Changed metadata fields"
+          className="m-0 mt-control-gap flex list-none flex-wrap gap-control-gap-compact p-0"
+        >
           {changes.map((change) => (
-            <li key={change.field}>
-              <span>{change.label}</span>
+            <li className="min-w-0 max-w-full" key={change.field}>
+              <Badge className="block max-w-full truncate border-line py-metadata-change-block leading-control-label text-text bg-metadata-change">
+                {change.label}
+              </Badge>
             </li>
           ))}
         </ul>
       ) : (
-        <p>No metadata changes.</p>
+        <p className="m-0 mt-metadata-summary-top text-meta-only leading-field-compact text-muted">
+          No metadata changes.
+        </p>
       )}
     </section>
   );
@@ -141,18 +158,18 @@ function MetadataWritebackStatus({
   return (
     <>
       {isFileMissing ? (
-        <p className="metadata-writeback__status" data-tone="error" role="alert">
+        <Alert className={writebackStatusClass} data-tone="error">
           The EPUB file is missing. Metadata writeback is unavailable.
-        </p>
+        </Alert>
       ) : null}
 
-      <p
-        className={status ? "metadata-writeback__status" : "sr-only"}
+      <Alert
+        className={status ? writebackStatusClass : "sr-only absolute"}
         data-tone={status?.tone}
         role={status?.tone === "error" ? "alert" : "status"}
       >
         {status?.message}
-      </p>
+      </Alert>
     </>
   );
 }
@@ -209,7 +226,7 @@ export function BookAdvancedMetadataDialog({
 
   return (
     <Dialog
-      className="dialog--metadata-writeback"
+      className="dialog-width-metadata"
       layout="workspace"
       feedbackSize="summary"
       closeOnBackdropClick={false}

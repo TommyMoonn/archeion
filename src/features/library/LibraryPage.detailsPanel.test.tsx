@@ -429,11 +429,9 @@ describe("optional pinned Library details", () => {
       edit.focus();
       edit.click();
     });
-    await waitForButtonWithText(session.container, "Write metadata to EPUB");
+    const write = await waitForButtonWithText(session.container, "Write metadata to EPUB");
     await act(async () => {
-      session.container
-        .querySelector(".dialog--metadata-writeback")
-        ?.dispatchEvent(new Event("cancel", { cancelable: true }));
+      write.closest("dialog")?.dispatchEvent(new Event("cancel", { cancelable: true }));
       await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
     });
     expect(session.container.querySelector("dialog.details-drawer")).toBeNull();

@@ -1,7 +1,9 @@
+import { Field, FieldLabel } from "../../components/ui/field";
+import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
-import { Input as FieldInput } from "../../components/ui/input";
 import type { ReadonlyBook, ReadonlyEpubSourceMetadata } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
+import { cn } from "../../utils/cn";
 import {
   FIELD_LABELS,
   FIELD_INPUT_NAMES,
@@ -12,6 +14,10 @@ import {
   type EditableField,
   type MetadataFormState,
 } from "./metadataDialogModel";
+
+const fieldFocusClass =
+  "transition-field-focus focus:border-accent-border focus:ring-2 focus:ring-accent-soft";
+
 function textInputId(field: EditableField): string {
   return `metadata-${field}`;
 }
@@ -43,11 +49,14 @@ function MetadataFieldGroup({
   onFieldChange: MetadataFieldUpdate;
 }) {
   return (
-    <section
-      className={`metadata-writeback__group ${group.title === "Core metadata" ? "metadata-writeback__group--core" : ""}`.trim()}
-    >
-      <h3>{group.title}</h3>
-      <div className="metadata-writeback__grid">
+    <section className="grid min-w-0 gap-metadata-section">
+      <h3 className="m-0 text-meta-only font-semibold text-text">{group.title}</h3>
+      <div
+        className={cn(
+          "grid min-w-0 gap-x-metadata-column gap-y-metadata-row metadata-stacked:grid-cols-1",
+          group.title === "Core metadata" ? "metadata-core-columns" : "grid-cols-2",
+        )}
+      >
         {group.fields.map((field) => (
           <MetadataFieldControl
             book={book}
@@ -84,11 +93,14 @@ function MetadataFieldControl({
     const labelId = "metadata-identifier-label";
 
     return (
-      <div className="metadata-writeback__field metadata-writeback__field--reference metadata-writeback__field--wide">
-        <span id={labelId}>{label}</span>
+      <div className="col-span-full grid min-w-0 metadata-reference-columns items-baseline gap-metadata-column border-0 border-t border-solid border-line pt-control-gap pb-control-inset">
+        <FieldLabel className="text-caption-size tracking-normal" id={labelId}>
+          {label}
+        </FieldLabel>
         <div
           aria-labelledby={labelId}
-          className="metadata-writeback__reference-value"
+          data-slot="metadata-reference"
+          className="wrap-anywhere text-end font-mono text-caption-size leading-field-compact text-muted"
           title={identifier}
         >
           {value}
@@ -100,20 +112,22 @@ function MetadataFieldControl({
   const id = textInputId(field);
   const value = form[field];
   const placeholder = fieldPlaceholder(book, field);
-  const className = [
-    "metadata-writeback__field",
-    isTextAreaField(field) || field === "title" ? "metadata-writeback__field--wide" : "",
-    field === "language" ? "metadata-writeback__field--compact" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
 
   return (
-    <label className={className}>
-      <span>{label}</span>
+    <Field
+      className={cn(
+        "gap-control-gap-compact",
+        (isTextAreaField(field) || field === "title") && "col-span-full",
+        field === "language" && "max-w-metadata-language-max metadata-stacked:max-w-none",
+      )}
+    >
+      <FieldLabel className="text-caption-size tracking-normal">{label}</FieldLabel>
       {isTextAreaField(field) ? (
         <Textarea
-          className="min-h-field-textarea-standard px-field-standard-inline py-field-standard-block text-meta leading-field-standard wrap-anywhere"
+          className={cn(
+            fieldFocusClass,
+            "min-h-field-textarea-standard px-field-standard-inline py-field-standard-block text-meta leading-field-standard wrap-anywhere keyboard-navigation:focus-visible:outline-offset-2!",
+          )}
           {...DISABLE_INPUT_ASSISTANCE}
           id={id}
           name={FIELD_INPUT_NAMES[field]}
@@ -123,9 +137,13 @@ function MetadataFieldControl({
           placeholder={placeholder}
         />
       ) : (
-        <FieldInput
+        <Input
           standalone
-          className="min-h-field-standard truncate rounded-control border-standard border-solid border-line bg-canvas-deep px-field-standard-inline py-0 text-meta leading-inherit"
+          type="text"
+          className={cn(
+            fieldFocusClass,
+            "min-h-field-standard truncate rounded-control border-standard border-solid border-line bg-canvas-deep px-field-standard-inline py-0 text-meta leading-inherit",
+          )}
           {...DISABLE_INPUT_ASSISTANCE}
           id={id}
           name={FIELD_INPUT_NAMES[field]}
@@ -134,7 +152,7 @@ function MetadataFieldControl({
           placeholder={placeholder}
         />
       )}
-    </label>
+    </Field>
   );
 }
 
@@ -150,7 +168,7 @@ export function MetadataDialogFields({
   onFieldChange: MetadataFieldUpdate;
 }) {
   return (
-    <div className="metadata-writeback">
+    <div className="grid w-full min-w-0 max-w-full gap-metadata-form">
       {METADATA_FIELD_GROUPS.map((group) => (
         <MetadataFieldGroup
           book={book}

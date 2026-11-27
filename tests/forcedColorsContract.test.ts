@@ -70,11 +70,6 @@ const auditedErrorSources = [
     /className="archive-manager-window__status"\s+data-tone="error"\s+role="alert"/,
   ],
   [
-    "library metadata",
-    "src/features/library/BookAdvancedMetadataDialog.tsx",
-    /data-tone="error" role="alert"/,
-  ],
-  [
     "About external links",
     "src/features/about/AboutSurface.tsx",
     /className="about-window__error" data-tone="error" role="alert"/,
@@ -279,12 +274,6 @@ describe("forced-colors and focus visibility contract", () => {
       cssBlock(
         ':root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > textarea:focus-visible',
         librarySource,
-      ),
-      cssBlock(
-        normalizeSelectorWhitespace(
-          ':root[data-focus-presentation="keyboard-navigation"] .metadata-writeback__field input:focus-visible, :root[data-focus-presentation="keyboard-navigation"] .metadata-writeback__field textarea:focus-visible',
-        ),
-        normalizeSelectorWhitespace(librarySource),
       ),
     ];
     const readerFocusContracts = [

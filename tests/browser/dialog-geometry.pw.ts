@@ -24,6 +24,7 @@ async function openSurface(page: Page, surface: string, scale = 1) {
   }, scale);
   await page.getByRole("button", { name: "Open dialog", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveAccessibleName(/\S/);
+  await page.evaluate(() => document.fonts.ready);
   expect(await page.locator("dialog").evaluate((dialog) => dialog.matches(":modal"))).toBe(true);
 }
 
