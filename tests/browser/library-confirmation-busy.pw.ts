@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 for (const [opener, label, message] of [
+  ["Delete book", "Delete EPUB", "Deleting EPUB…"],
   ["Delete selected books", "Delete selected books", "Deleting selected books…"],
   ["Clear reading progress", "Clear progress", "Clearing reading progress…"],
   ["Delete folder", "Delete folder", "Deleting folder…"],

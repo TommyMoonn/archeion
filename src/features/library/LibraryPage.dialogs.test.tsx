@@ -164,11 +164,11 @@ describe("LibraryPage dialogs and book actions", () => {
       contextMenuItemWithText(menu, "Rename file").click();
       await Promise.resolve();
     });
-    const input = session.container.querySelector<HTMLInputElement>(".epub-filename-field input")!;
-    const submit = Array.from(
-      session.container.querySelectorAll<HTMLButtonElement>("dialog .dialog__footer button"),
-    ).find((button) => button.textContent === "Rename file");
-    if (!submit) throw new Error("Rename confirmation was not rendered.");
+    const submit = session.container.querySelector<HTMLButtonElement>(
+      'dialog[open] button[type="submit"]',
+    );
+    const input = submit?.form?.querySelector("input");
+    if (!submit || !input) throw new Error("Rename form was not rendered.");
     act(() => setInputValue(input, "Renamed"));
     await act(async () => {
       submit.click();
@@ -196,9 +196,9 @@ describe("LibraryPage dialogs and book actions", () => {
       contextMenuItemWithText(menu, "Rename file").click();
       await Promise.resolve();
     });
-    const submit = Array.from(
-      session.container.querySelectorAll<HTMLButtonElement>("dialog .dialog__footer button"),
-    ).find((button) => button.textContent === "Rename file");
+    const submit = session.container.querySelector<HTMLButtonElement>(
+      'dialog[open] button[type="submit"]',
+    );
     if (!submit) throw new Error("Rename confirmation was not rendered.");
     await act(async () => {
       submit.click();

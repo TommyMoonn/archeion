@@ -531,6 +531,7 @@
   --color-font-picker-divider: color-mix(in srgb, var(--line) 60%, transparent);
   --color-line-strong: var(--line-strong);
   --color-text: var(--text);
+  --color-filename-suffix: color-mix(in srgb, var(--text) 4%, transparent);
   --color-text-strong: var(--text-strong);
   --color-muted: var(--muted);
   --color-muted-soft: var(--muted-soft);
@@ -663,6 +664,18 @@
 /* These utilities have no native Tailwind theme namespace. */
 @utility border-standard {
   border-width: var(--border-width);
+}
+
+@utility transition-filename-field {
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+@utility transition-filename-suffix {
+  transition:
+    border-inline-start-color var(--motion-duration-standard) var(--motion-ease-standard),
+    color var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 @utility duration-fast {

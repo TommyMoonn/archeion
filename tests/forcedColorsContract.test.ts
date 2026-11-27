@@ -45,7 +45,6 @@ function normalizeSelectorWhitespace(source: string): string {
 const forcedColorsSource = read("src/styles/forced-colors.css");
 const forcedColorsBlock = cssBlock("@media (forced-colors: active)", forcedColorsSource);
 const formsSource = read("src/styles/components/forms.css");
-const filesystemSource = read("src/styles/features/filesystem.css");
 const librarySource = read("src/styles/features/library.css");
 const readerSource = read("src/styles/features/reader.css");
 const auditedErrorSources = [
@@ -250,12 +249,10 @@ describe("forced-colors and focus visibility contract", () => {
     const normalizedForcedColors = normalizeSelectorWhitespace(forcedColorsSource);
     const wrapperSelectors = [
       ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
-      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
       ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field:has(textarea:focus-visible)',
     ].join(", ");
     const wrappedChildSelectors = [
       ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
-      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
       ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
     ].join(", ");
     const wrapperFocus = cssBlock(wrapperSelectors, normalizedForcedColors);
@@ -279,7 +276,6 @@ describe("forced-colors and focus visibility contract", () => {
         ':root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible',
         formsSource,
       ),
-      cssBlock(".epub-filename-field:has(input:focus-visible)", filesystemSource),
       cssBlock(
         ':root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > textarea:focus-visible',
         librarySource,

@@ -104,13 +104,6 @@ describe("focus presentation contract", () => {
     const contracts = [
       {
         innerSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
-        source: normalizeSelectorWhitespace(read("src/styles/features/filesystem.css")),
-        wrapperSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
-      },
-      {
-        innerSelector:
           ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
         source: normalizeSelectorWhitespace(read("src/styles/features/reader.css")),
         wrapperSelector:
@@ -140,13 +133,6 @@ describe("focus presentation contract", () => {
       },
       {
         forcedSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
-        normalSource: normalizeSelectorWhitespace(read("src/styles/features/filesystem.css")),
-        normalSelector:
-          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
-      },
-      {
-        forcedSelector:
           ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field:has(textarea:focus-visible)',
         normalSource: normalizeSelectorWhitespace(read("src/styles/features/reader.css")),
         normalSelector:
@@ -156,7 +142,6 @@ describe("focus presentation contract", () => {
     const wrapperSelectors = wrapperContracts.map(({ forcedSelector }) => forcedSelector);
     const innerSelectors = [
       ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
-      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
       ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
     ];
     const innerRule = cssBlock(innerSelectors.join(", "), forcedColors);
@@ -187,7 +172,6 @@ describe("focus presentation contract", () => {
     const forcedColorsImport = styleIndex.indexOf('@import "./forced-colors.css";');
     for (const normalImport of [
       '@import "./components/forms.css";',
-      '@import "./features/filesystem.css";',
       '@import "./features/reader.css";',
     ]) {
       expect(forcedColorsImport).toBeGreaterThan(styleIndex.indexOf(normalImport));
@@ -203,12 +187,8 @@ describe("focus presentation contract", () => {
   });
 
   it("retains calm pointer field state while reserving the full ring for keyboard focus", () => {
-    const filesystem = read("src/styles/features/filesystem.css");
     const reader = read("src/styles/features/reader.css");
 
-    expect(cssBlock(".epub-filename-field:focus-within", filesystem)).toContain(
-      "border-color: var(--accent-border)",
-    );
     expect(cssBlock(".reader-note-editor__field:focus-within", reader)).toContain("background:");
     expect(cssBlock(".reader-note-editor__field:focus-within", reader)).not.toContain("outline:");
   });
@@ -218,7 +198,6 @@ describe("focus presentation contract", () => {
     const normalizedForcedColors = normalizeSelectorWhitespace(forcedColors);
     const innerSelectors = [
       ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
-      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
       ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
     ].join(", ");
 

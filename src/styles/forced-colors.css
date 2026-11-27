@@ -51,14 +51,11 @@
 
   :root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible),
   :root[data-focus-presentation="keyboard-navigation"]
-    .epub-filename-field:has(input:focus-visible),
-  :root[data-focus-presentation="keyboard-navigation"]
     .reader-note-editor__field:has(textarea:focus-visible) {
     outline: 2px solid Highlight;
   }
 
   :root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible,
-  :root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible,
   :root[data-focus-presentation="keyboard-navigation"]
     .reader-note-editor__field
     textarea:focus-visible {
@@ -244,8 +241,7 @@
   }
 
   :where(input, select, textarea, [role="group"])[aria-invalid="true"],
-  .input-shell:has(input[aria-invalid="true"]),
-  .epub-filename-field:has(input[aria-invalid="true"]) {
+  .input-shell:has(input[aria-invalid="true"]) {
     border-color: Mark;
     outline: 2px dashed Mark;
     outline-offset: 2px;

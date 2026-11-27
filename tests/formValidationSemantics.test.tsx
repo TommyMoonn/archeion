@@ -158,7 +158,7 @@ describe("form validation semantics", () => {
       );
     });
 
-    const form = container.querySelector<HTMLFormElement>(".dialog-form")!;
+    const form = container.querySelector<HTMLButtonElement>('button[type="submit"]')!.form!;
     const input = form.querySelector<HTMLInputElement>("input")!;
     act(() => setInputValue(input, "  "));
     await submit(form);
@@ -180,11 +180,11 @@ describe("form validation semantics", () => {
       root.render(<RenameFileDialog book={book} onClose={vi.fn()} onRename={onRename} />);
     });
 
-    const form = container.querySelector<HTMLFormElement>(".dialog-form")!;
+    const form = container.querySelector<HTMLButtonElement>('button[type="submit"]')!.form!;
     const input = form.querySelector<HTMLInputElement>("input")!;
     await submit(form);
 
-    const operationError = container.querySelector<HTMLElement>(".form-error")!;
+    const operationError = container.querySelector<HTMLElement>('[role="alert"]')!;
     const descriptions = input.getAttribute("aria-describedby")?.split(" ") ?? [];
     expect(onRename).toHaveBeenCalledWith("Novel.epub");
     expect(input.value).toBe("Novel");
@@ -195,6 +195,6 @@ describe("form validation semantics", () => {
     expect(operationError.id).toBe("");
 
     act(() => setInputValue(input, "Retry Novel"));
-    expect(container.querySelector(".form-error")).toBeNull();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 });

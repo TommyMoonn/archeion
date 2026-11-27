@@ -62,8 +62,3 @@ html[data-motion="on"]
   overflow-wrap: anywhere;
   white-space: normal;
 }
-
-.dialog-form {
-  display: grid;
-  gap: 10px;
-}

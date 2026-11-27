@@ -113,7 +113,7 @@ async function expectAlignedForm(page: Page, surface: string) {
   const dialog = page.getByRole("dialog");
   const control =
     surface === "rename"
-      ? dialog.locator(".epub-filename-field")
+      ? dialog.locator('[data-slot="filename-field"]')
       : surface === "metadata"
         ? dialog.getByRole("textbox", { name: "Title", exact: true })
         : surface === "bulk"
@@ -443,6 +443,46 @@ for (const [surface, submitName] of [
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Open dialog", exact: true })).toBeFocused();
+  });
+}
+
+for (const forcedColors of ["none", "active"] as const) {
+  test(`filename field owns keyboard focus and pointer validation in forced colors ${forcedColors}`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ forcedColors });
+    await page.goto("/tests/browser/fixtures/dialog-geometry.html?surface=rename");
+    await page.getByRole("button", { name: "Open dialog", exact: true }).press("Enter");
+
+    const input = page.getByRole("textbox", { name: /^Filename/ });
+    const field = page.getByRole("dialog").locator('[data-slot="filename-field"]');
+    const suffix = page.getByText(".epub", { exact: true });
+    await expect(field).toHaveCSS("transition-property", "border-color, box-shadow");
+    await expect(suffix).toHaveCSS("transition-property", "border-inline-start-color, color");
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAccessibleDescription(".epub");
+    await input.press("Shift+Tab");
+    await expect(page.getByRole("region", { name: "Rename EPUB file content" })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(input).toBeFocused();
+    await expect(field).toHaveCSS("outline-style", "solid");
+    await expect(field).toHaveCSS("outline-width", "2px");
+    await expect(field).toHaveCSS("outline-offset", "2px");
+    await expect(input).toHaveCSS("outline-style", "none");
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(input).not.toBeFocused();
+    await suffix.click();
+    await expect(input).toBeFocused();
+    await expect(field).toHaveCSS("outline-style", "none");
+    await input.fill("");
+    await page.getByRole("button", { name: "Rename file", exact: true }).click();
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAccessibleDescription(".epub Enter a filename.");
+    await expect(field).toHaveCSS("outline-style", "dashed");
+    await expect(field).toHaveCSS("outline-width", "2px");
+    await expect(field).toHaveCSS("outline-offset", "2px");
+    await expect(input).toHaveCSS("outline-style", "none");
   });
 }
 
