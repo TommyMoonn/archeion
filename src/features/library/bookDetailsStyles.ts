@@ -3,8 +3,8 @@ export const detailsFrame =
 
 export const detailsPanel = "flex h-full flex-col";
 
-export const detailsResizeHandle =
-  "book-details-resize-handle start-0 hover:border-s hover:border-solid hover:border-line data-[resizing=true]:border-s data-[resizing=true]:border-solid data-[resizing=true]:border-line";
+export const detailsResizeHandle = "book-details-resize-handle start-0";
+export const detailsResizeTooltip = "Drag to resize book details";
 
 export const detailsFavorite =
   "details-favorite-button details-hover:bg-surface-raised aria-pressed:bg-details-favorite aria-pressed:text-accent aria-pressed:control-active:bg-details-favorite aria-pressed:control-active:text-accent aria-pressed:details-hover:bg-details-favorite-hover aria-pressed:details-hover:text-accent-strong";

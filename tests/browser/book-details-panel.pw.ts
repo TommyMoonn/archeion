@@ -226,7 +226,12 @@ test("pointer resizing and width limits work in the pinned panel and slide-over"
   const rect = await handle.boundingBox();
   if (!rect) throw new Error("Book details resize handle is missing");
   await page.mouse.move(rect.x + rect.width / 2, rect.y + 100);
+  const resizeTip = page.getByRole("tooltip", { name: "Drag to resize book details" });
+  await expect(resizeTip).toBeVisible();
+  await expect(handle).toHaveCSS("border-inline-start-width", "0px");
   await page.mouse.down();
+  await expect(resizeTip).toHaveCount(0);
+  await expect(handle).toHaveCSS("border-inline-start-width", "0px");
   await page.mouse.move(rect.x + rect.width / 2 - 64, rect.y + 100);
   await page.mouse.up();
   await expect(handle).toHaveAttribute("aria-valuenow", "400");
@@ -298,6 +303,8 @@ test("pointer resizing and width limits work in the pinned panel and slide-over"
   await page.getByRole("button", { name: "Unpin book details" }).click();
   const drawer = page.locator("dialog.details-drawer");
   await expect(drawer).toHaveCSS("width", "480px");
+  await handle.hover();
+  await expect(drawer.getByRole("tooltip", { name: "Drag to resize book details" })).toBeVisible();
   await drawer.getByRole("separator", { name: "Resize book details" }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(handle).toHaveAttribute("aria-valuenow", "472");

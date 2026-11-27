@@ -23,6 +23,7 @@ import {
   detailsHeading,
   detailsPanel,
   detailsResizeHandle,
+  detailsResizeTooltip,
   detailsTitle,
 } from "./bookDetailsStyles";
 
@@ -61,6 +62,7 @@ export function BookDetailsPanel({
     >
       <LibraryPanelResizeHandle
         label="Resize book details"
+        tooltip={detailsResizeTooltip}
         className={detailsResizeHandle}
         edge="start"
         width={width}

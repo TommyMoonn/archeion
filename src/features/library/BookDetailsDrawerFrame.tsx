@@ -12,6 +12,7 @@ import {
   detailsFrame,
   detailsPanel,
   detailsResizeHandle,
+  detailsResizeTooltip,
 } from "./bookDetailsStyles";
 
 export type BookDetailsDrawerProps = {
@@ -81,6 +82,7 @@ export function BookDetailsDrawerFrame({
       {width !== undefined && onWidthChange ? (
         <LibraryPanelResizeHandle
           label="Resize book details"
+          tooltip={detailsResizeTooltip}
           className={detailsResizeHandle}
           edge="start"
           width={width}
