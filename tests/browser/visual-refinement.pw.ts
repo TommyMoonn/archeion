@@ -114,26 +114,20 @@ for (const theme of ["light", "dark", "custom"]) {
   }
 }
 
-test("cached Add EPUB entrance keeps form movement below one pixel", async ({ page }) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
+test("Add EPUB expands as one surface and settles before the fade completes", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto("/tests/browser/fixtures/ui-stability.html?count=0&motion=on");
   await expect(page.locator(".empty-state")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-motion", "on");
-  const open = page.getByRole("button", { name: "Add EPUB", exact: true });
-  const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
-  const operation = dialog.getByRole("group", { name: "Operation" });
-  await open.click();
-  await expect(operation).toBeVisible();
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
   await page.evaluate(async () => {
     await document.fonts.ready;
     document.documentElement.style.setProperty("--motion-duration-emphasized", "1500ms");
   });
 
-  await open.click();
-  await expect(operation).toBeVisible();
+  await page.getByRole("button", { name: "Add EPUB", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add EPUB files" });
+  await expect(dialog.getByRole("group", { name: "Operation" })).toBeVisible();
 
   const samples = await dialog.evaluate((element) => {
     if (!(element instanceof HTMLElement)) throw new Error("Dialog element is missing");
@@ -150,7 +144,7 @@ test("cached Add EPUB entrance keeps form movement below one pixel", async ({ pa
     const targets = [
       element,
       ...element.querySelectorAll<HTMLElement>(
-        'h2, button, input:not([aria-hidden="true"]):not([type="hidden"]), .app-select__label, [data-slot="field-label"], .segmented-control',
+        'h2, button, input:not([aria-hidden="true"]):not([type="hidden"]), .app-select__label, [role="group"] > span',
       ),
     ];
     const pose = () => {
@@ -178,9 +172,7 @@ test("cached Add EPUB entrance keeps form movement below one pixel", async ({ pa
   });
 
   for (const [index, position] of samples.start.positions.entries()) {
-    const settled = samples.end.positions[index];
-    expect(position[2]).toBeLessThan(settled[2]);
-    expect(Math.abs(position[1] - settled[1])).toBeLessThanOrEqual(0.5);
+    expect(position[2] / samples.end.positions[index][2]).toBeCloseTo(0.985, 3);
   }
   expect(samples.middle.positions).toEqual(samples.end.positions);
   expect(samples.settled.positions).toEqual(samples.end.positions);
