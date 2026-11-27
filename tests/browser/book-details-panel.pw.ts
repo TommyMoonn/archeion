@@ -230,9 +230,42 @@ test("pointer resizing and width limits work in the pinned panel and slide-over"
   await page.mouse.move(rect.x + rect.width / 2 - 64, rect.y + 100);
   await page.mouse.up();
   await expect(handle).toHaveAttribute("aria-valuenow", "400");
+  const secondaryActions = page.locator(`${panelSelector} .details-actions__secondary`);
+  const edit = secondaryActions.getByRole("button", { name: "Edit metadata" });
+  const reveal = secondaryActions.getByRole("button", { name: "Reveal in folder" });
+  await expect(edit).toHaveCSS("min-height", "32px");
+  await reveal.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(edit).toBeFocused();
+  await edit.hover();
+  await expect
+    .poll(() =>
+      edit.evaluate((button) => {
+        const probe = document.createElement("span");
+        probe.style.color = "var(--accent)";
+        button.append(probe);
+        const matches =
+          button.matches(":hover:focus-visible") &&
+          getComputedStyle(button).borderTopColor === getComputedStyle(probe).color;
+        probe.remove();
+        return matches;
+      }),
+    )
+    .toBe(true);
+  const wideEdit = await edit.boundingBox();
+  const wideReveal = await reveal.boundingBox();
+  expect(wideEdit).not.toBeNull();
+  expect(wideReveal).not.toBeNull();
+  expect(wideEdit?.y).toBe(wideReveal?.y);
   await handle.focus();
   await page.keyboard.press("Home");
   await expect(handle).toHaveAttribute("aria-valuenow", "280");
+  const narrowEdit = await edit.boundingBox();
+  const narrowReveal = await reveal.boundingBox();
+  expect(narrowEdit).not.toBeNull();
+  expect(narrowReveal).not.toBeNull();
+  expect(narrowEdit?.x).toBe(narrowReveal?.x);
+  expect(narrowEdit?.y).not.toBe(narrowReveal?.y);
   const labelsFit = await page.locator(panelSelector).evaluate((panel) =>
     Array.from(panel.querySelectorAll(".details-actions__secondary .button")).every((button) => {
       const label = button.querySelector(".button__label");
@@ -330,6 +363,41 @@ test("unpinning restores a modal drawer and nested editors return focus to the p
   await page.keyboard.press("Escape");
   await expect(page.locator("dialog.details-drawer")).toHaveCount(0);
   await expect(page.locator(".book-card__select").first()).toBeFocused();
+});
+
+test("closing editors in the slide-over restores focus to their Book Details actions", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 600 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(fixture);
+  const origin = page.locator(".book-card__select").first();
+  await origin.focus();
+  await page.keyboard.press("Enter");
+
+  const drawer = page.locator("dialog.details-drawer");
+  for (const [actionName, editorName, readyRole, readyControlName] of [
+    ["Edit metadata", "Edit EPUB metadata", "textbox", "Title"],
+    ["Replace cover", "Replace embedded cover", "button", "Choose image"],
+  ] as const) {
+    const action = drawer.getByRole("button", { name: actionName, exact: true });
+    if (actionName === "Replace cover") {
+      await expect(action).toHaveCSS("transition-property", "opacity, transform");
+    }
+    await action.focus();
+    await page.keyboard.press("Enter");
+    const editor = page.getByRole("dialog", { name: editorName });
+    await expect(
+      editor.getByRole(readyRole, { name: readyControlName, exact: true }),
+    ).toBeEnabled();
+    await page.keyboard.press("Escape");
+    await expect(editor).toHaveCount(0);
+    await expect(action).toBeFocused();
+    await expect(action).toHaveCSS("opacity", "1");
+  }
+  await page.keyboard.press("Escape");
+  await expect(drawer).toHaveCount(0);
+  await expect(origin).toBeFocused();
 });
 
 test("list inspection supports keyboard activation, enlarged text, and forced colors", async ({

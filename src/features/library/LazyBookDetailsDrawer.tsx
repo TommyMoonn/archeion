@@ -1,10 +1,30 @@
 import { Suspense } from "react";
 import { createAsyncSurface } from "../../components/createAsyncSurface";
+import { Skeleton } from "../../components/ui/skeleton";
 import { BookDetailsDrawerFrame } from "./BookDetailsDrawerFrame";
 import type { BookDetailsDrawerProps } from "./BookDetailsDrawer";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 import { displayedBookProgress, hasSavedReadingPosition } from "../reading/readingProgress";
 import { bookCompletionActionLabel } from "./bookCompletionActionLabel";
+import {
+  detailsActions,
+  detailsAuthor,
+  detailsBody,
+  detailsCover,
+  detailsDescription,
+  detailsDescriptionHeading,
+  detailsFooter,
+  detailsHeading,
+  detailsMetadata,
+  detailsMetadataLabel,
+  detailsMetadataRow,
+  detailsMetadataValue,
+  detailsMissing,
+  detailsMissingActions,
+  detailsProgress,
+  detailsSecondaryActions,
+  detailsTitle,
+} from "./bookDetailsStyles";
 const DrawerContent = createAsyncSurface<BookDetailsDrawerProps>(() =>
   import("./BookDetailsDrawer").then((module) => ({ default: module.BookDetailsDrawerContent })),
 );
@@ -30,6 +50,20 @@ type BookDetailsLoadingSkeletonProps = Pick<
   "book" | "canDeleteBook" | "canManageFile" | "canRevealFile"
 >;
 
+function DetailsSkeleton({ className }: { className: string }) {
+  return (
+    <Skeleton
+      className={`details-skeleton-sheen motion-safe:app-motion:animate-loading-sheen ${className}`}
+    />
+  );
+}
+
+const actionSkeleton =
+  "min-w-0 min-h-control-standard border-standard border-solid border-line-subtle";
+const compactActionSkeleton =
+  "min-w-0 min-h-control-compact border-standard border-solid border-line-subtle";
+const lineSkeleton = "h-details-skeleton-line rounded-pill";
+
 export function BookDetailsLoadingSkeleton({
   book,
   canDeleteBook = true,
@@ -45,81 +79,78 @@ export function BookDetailsLoadingSkeleton({
 
   return (
     <>
-      <div className="book-details-loading" aria-busy="true">
-        <div className="details-drawer__body" aria-hidden="true">
-          <div className="details-cover">
-            <span className="book-details-loading__placeholder book-details-loading__cover" />
+      <div className="book-details-loading flex min-h-0 flex-1 flex-col" aria-busy="true">
+        <div className={detailsBody} aria-hidden="true">
+          <div className={detailsCover}>
+            <DetailsSkeleton className="w-details-cover aspect-book-cover rounded-menu border-standard border-solid border-line shadow-app-card" />
           </div>
 
-          <div className="details-drawer__title constrained-user-content">
-            <h2 id="book-details-title">{title}</h2>
-            {author ? <p>{author}</p> : null}
+          <div className={detailsTitle}>
+            <h2 className={detailsHeading} id="book-details-title">
+              {title}
+            </h2>
+            {author ? <p className={detailsAuthor}>{author}</p> : null}
             {hasSavedPosition || progress > 0 ? (
-              <div className="details-progress-controls">
+              <div className={detailsProgress}>
                 {progress > 0 ? (
-                  <span className="book-details-loading__placeholder book-details-loading__pill" />
+                  <DetailsSkeleton className="w-cover-editor-thumbnail min-h-dialog-panel rounded-pill border-standard border-solid border-line-subtle" />
                 ) : null}
-                <span className="book-details-loading__placeholder book-details-loading__icon" />
+                <DetailsSkeleton className="size-dialog-panel" />
               </div>
             ) : null}
           </div>
 
           {book.isFileMissing ? (
-            <section className="details-missing book-details-loading__missing">
-              <span className="book-details-loading__placeholder book-details-loading__missing-icon" />
-              <div>
-                <span className="book-details-loading__placeholder book-details-loading__line book-details-loading__line--heading" />
-                <span className="book-details-loading__placeholder book-details-loading__line book-details-loading__line--copy" />
+            <section className={detailsMissing}>
+              <DetailsSkeleton className="size-feedback-glyph" />
+              <div className="grid gap-menu-item-block">
+                <DetailsSkeleton className="h-3 w-full max-w-36 rounded-pill" />
+                <DetailsSkeleton className={`${lineSkeleton} w-full max-w-52`} />
               </div>
-              <div>
-                <span className="book-details-loading__placeholder book-details-loading__action book-details-loading__action--compact" />
-                <span className="book-details-loading__placeholder book-details-loading__action book-details-loading__action--compact" />
+              <div className={detailsMissingActions}>
+                <DetailsSkeleton className={compactActionSkeleton} />
+                <DetailsSkeleton className={compactActionSkeleton} />
               </div>
             </section>
           ) : (
-            <div className="details-actions">
-              <span className="book-details-loading__placeholder book-details-loading__action" />
-              {hasSavedPosition ? (
-                <span className="book-details-loading__placeholder book-details-loading__action" />
-              ) : null}
+            <div className={detailsActions}>
+              <DetailsSkeleton className={actionSkeleton} />
+              {hasSavedPosition ? <DetailsSkeleton className={actionSkeleton} /> : null}
               {bookCompletionActionLabel(book) ? (
-                <span className="book-details-loading__placeholder book-details-loading__action" />
+                <DetailsSkeleton className={actionSkeleton} />
               ) : null}
-              <div className="details-actions__secondary">
+              <div className={detailsSecondaryActions}>
                 {Array.from({ length: secondaryActionCount }, (_, index) => (
-                  <span
-                    className="book-details-loading__placeholder book-details-loading__action book-details-loading__action--compact"
-                    key={index}
-                  />
+                  <DetailsSkeleton className={compactActionSkeleton} key={index} />
                 ))}
               </div>
             </div>
           )}
 
           {hasDescription ? (
-            <section className="details-description book-details-loading__description">
-              <h3>Description</h3>
-              <div className="book-details-loading__description-lines">
-                <span className="book-details-loading__placeholder book-details-loading__line" />
-                <span className="book-details-loading__placeholder book-details-loading__line" />
-                <span className="book-details-loading__placeholder book-details-loading__line book-details-loading__line--short" />
+            <section className={detailsDescription}>
+              <h3 className={detailsDescriptionHeading}>Description</h3>
+              <div className="grid gap-control-gap">
+                <DetailsSkeleton className={`${lineSkeleton} w-full`} />
+                <DetailsSkeleton className={`${lineSkeleton} w-full`} />
+                <DetailsSkeleton className={`${lineSkeleton} w-details-skeleton-short`} />
               </div>
             </section>
           ) : null}
 
-          <dl className="book-metadata book-metadata--compact book-details-loading__metadata">
-            <div>
-              <dt>File</dt>
-              <dd>
-                <span className="book-details-loading__placeholder book-details-loading__line book-details-loading__line--path" />
-                <span className="book-details-loading__placeholder book-details-loading__line book-details-loading__line--size" />
+          <dl className={detailsMetadata}>
+            <div className={detailsMetadataRow}>
+              <dt className={detailsMetadataLabel}>File</dt>
+              <dd className={`${detailsMetadataValue} items-end`}>
+                <DetailsSkeleton className={`${lineSkeleton} w-full max-w-40`} />
+                <DetailsSkeleton className={`${lineSkeleton} w-14`} />
               </dd>
             </div>
             {book.lastOpenedAt ? (
-              <div>
-                <dt>Last opened</dt>
-                <dd>
-                  <span className="book-details-loading__placeholder book-details-loading__line book-details-loading__line--date" />
+              <div className={detailsMetadataRow}>
+                <dt className={detailsMetadataLabel}>Last opened</dt>
+                <dd className={`${detailsMetadataValue} items-end`}>
+                  <DetailsSkeleton className={`${lineSkeleton} w-full max-w-28`} />
                 </dd>
               </div>
             ) : null}
@@ -127,8 +158,8 @@ export function BookDetailsLoadingSkeleton({
         </div>
 
         {canDeleteBook && !book.isFileMissing ? (
-          <footer className="details-drawer__footer" aria-hidden="true">
-            <span className="book-details-loading__placeholder book-details-loading__action book-details-loading__action--footer" />
+          <footer className={detailsFooter} aria-hidden="true">
+            <DetailsSkeleton className={`${actionSkeleton} w-full`} />
           </footer>
         ) : null}
       </div>

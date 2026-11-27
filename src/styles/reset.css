@@ -10,7 +10,7 @@
 }
 
 *::-webkit-scrollbar {
-  width: var(--spacing-scrollbar);
+  width: var(--scrollbar-inline-size, var(--spacing-scrollbar));
   height: var(--spacing-scrollbar);
 }
 
@@ -24,14 +24,14 @@
 
 *::-webkit-scrollbar-thumb {
   min-height: 40px;
-  border: 3px solid transparent;
+  border: var(--scrollbar-thumb-border, 3px solid transparent);
   border-radius: var(--radius-pill);
-  background: var(--line-strong);
+  background: var(--scrollbar-thumb-background, var(--line-strong));
   background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-soft);
+  background: var(--scrollbar-thumb-hover-background, var(--muted-soft));
   background-clip: padding-box;
 }
 

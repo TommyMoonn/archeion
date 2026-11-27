@@ -83,7 +83,10 @@ const merge = extendTailwindMerge({
         "reader-title-small",
       ],
     },
-    classGroups: { "border-w": ["border-standard"] },
+    classGroups: {
+      "border-w": ["border-standard"],
+      transition: ["transition-icon-action", "details-cover-action-transition"],
+    },
   },
 });
 

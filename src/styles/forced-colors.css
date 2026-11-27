@@ -70,7 +70,6 @@
     .book-card,
     .book-row,
     .book-cover,
-    .details-cover__replace,
     .details-drawer,
     [data-slot="cover-editor-preview"],
     .settings-status,
@@ -181,6 +180,13 @@
 
   :where(button, a[href], summary, [role="button"]):hover:not(:disabled):not(
       [aria-disabled="true"]
+    ):not(
+      :where(
+        .details-cover__replace,
+        .details-clear-progress,
+        .details-favorite-button,
+        .details-actions__secondary .button
+      )
     ) {
     color: LinkText;
   }

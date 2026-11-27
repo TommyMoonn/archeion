@@ -357,6 +357,29 @@
   --spacing-cover-preview-label: 9px;
   --spacing-cover-preview-checker: 8px;
   --spacing-cover-detail-label: 88px;
+  /* Book Details keeps its pixel geometry when interface text is enlarged. */
+  --spacing-details-cover: 164px;
+  --spacing-details-cover-docked-max: calc(100% - 64px);
+  --spacing-details-drawer: min(420px, 100%);
+  --spacing-details-drawer-mobile: calc(100% - 18px);
+  --spacing-details-body: 26px;
+  --spacing-details-inset: 22px;
+  --spacing-details-section: 20px;
+  --spacing-details-edge: 18px;
+  --spacing-details-control-top: 14px;
+  --spacing-details-progress-top: 13px;
+  --spacing-details-empty-top: 76px;
+  --spacing-details-metadata-label: 120px;
+  --spacing-details-skeleton-line: 0.65rem;
+  --spacing-details-skeleton-short: 68%;
+  --tracking-details-label: 0.08em;
+  --blur-details-cover-action: 8px;
+  --color-details-cover-action: rgb(10 11 13 / 78%);
+  --color-details-cover-action-hover: rgb(10 11 13 / 94%);
+  --color-details-cover-action-text: rgb(255 255 255 / 86%);
+  --color-details-cover-action-text-hover: #fff;
+  --color-details-cover-action-border: rgb(255 255 255 / 18%);
+  --color-details-cover-action-border-hover: rgb(255 255 255 / 34%);
   --tracking-cover-editor-label: 0.02em;
   --spacing-skeleton-label-width: min(8rem, 75%);
   --spacing-skeleton-label-height: 0.65em;
@@ -475,6 +498,10 @@
 
 /* Inline references resolve in the consumer scope, including Reader and theme previews. */
 @theme inline {
+  --color-details-favorite: color-mix(in srgb, var(--accent) 8%, transparent);
+  --color-details-favorite-hover: color-mix(in srgb, var(--accent) 12%, transparent);
+  --color-details-progress: color-mix(in srgb, var(--accent) 9%, transparent);
+  --color-details-progress-border: color-mix(in srgb, var(--accent) 24%, var(--line));
   --spacing-filter-panel-height: min(620px, calc(100dvh - 180px), var(--available-height, 100dvh));
   --shadow-sidebar-drop: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
   --spacing-menu-viewport-min: min(
@@ -638,6 +665,31 @@
 
 /* Keep shared animation definitions available to legacy CSS as well as utilities. */
 @theme static inline {
+  --animate-details-enter: details-drawer-enter var(--surface-duration) var(--motion-ease-standard);
+  --animate-details-exit: details-drawer-exit var(--surface-duration) var(--motion-ease-standard)
+    forwards;
+
+  @keyframes details-drawer-enter {
+    from {
+      opacity: 1;
+      transform: var(--surface-from-transform, translateX(100%));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes details-drawer-exit {
+    from {
+      opacity: 1;
+      transform: var(--surface-from-transform, translateX(0));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(100%);
+    }
+  }
   --animate-tooltip-enter: app-tooltip-bounce-in var(--motion-duration-emphasized)
     var(--motion-ease-standard);
   @keyframes app-tooltip-bounce-in {
@@ -885,6 +937,10 @@
 @custom-variant control-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
 @custom-variant control-active (&:active:not(:disabled):not([aria-disabled="true"]));
 @custom-variant keyboard-navigation (&:is(:root[data-focus-presentation="keyboard-navigation"] *));
+
+/* Book Details keeps its local focus and hover colors during the base button press. */
+@custom-variant details-hover (&:hover:not(:disabled):not([aria-disabled="true"]));
+@custom-variant details-focus-visible (&:focus:focus-visible:not(:disabled):not([aria-disabled="true"]));
 
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
 
@@ -1189,6 +1245,63 @@ html[data-density="compact"] {
 }
 @utility scrollbar-gutter-stable {
   scrollbar-gutter: stable;
+}
+
+@utility details-surface-duration {
+  --surface-duration: var(--motion-duration-view);
+}
+
+@custom-variant details-narrow {
+  @container book-details (max-width: 320px) {
+    @slot;
+  }
+}
+
+@utility details-cover-action-offset {
+  transform: translateY(var(--spacing-filter-token-gap));
+}
+
+@utility details-cover-action-rest {
+  transform: translateY(0);
+}
+
+@utility details-cover-action-transition {
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+@utility details-metadata-columns {
+  grid-template-columns: minmax(var(--spacing-details-metadata-label), 0.8fr) minmax(0, 1.2fr);
+}
+
+@utility details-missing-columns {
+  grid-template-columns: auto 1fr;
+}
+
+@utility details-skeleton-sheen {
+  background-image: linear-gradient(
+    100deg,
+    transparent 28%,
+    color-mix(in srgb, var(--text) 7%, transparent) 48%,
+    transparent 68%
+  );
+  background-size: 220% 100%;
+}
+
+@utility docked-details-track {
+  --library-details-track: auto;
+}
+
+@utility docked-library-scrollbar {
+  &::-webkit-scrollbar {
+    --scrollbar-inline-size: var(--spacing-control-gap-compact);
+  }
+  &::-webkit-scrollbar-thumb {
+    --scrollbar-thumb-border: 0;
+    --scrollbar-thumb-background: var(--line-subtle);
+    --scrollbar-thumb-hover-background: var(--line-strong);
+  }
 }
 
 @utility grid-cols-dialog-bottom {
