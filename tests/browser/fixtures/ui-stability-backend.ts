@@ -32,6 +32,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
   const settingsDelay = fixtureDelay(params.get("settingsDelay"), 80);
   const sourceDelay = fixtureDelay(params.get("sourceDelay"), 100);
   const archiveDelay = fixtureDelay(params.get("archiveDelay"), 100);
+  const archiveRegistryDelay = fixtureDelay(params.get("archiveRegistryDelay"), 0);
   const scanDelay = fixtureDelay(params.get("scanDelay"), 80);
   const progressDelay = fixtureDelay(params.get("progressDelay"), 0);
   let sourceFailure = params.get("sourceFailure") === "once";
@@ -303,6 +304,7 @@ export async function installUIStabilityBackend(params: URLSearchParams) {
           return { revision: ++revision, preferences };
         }
         case "load_archive_registry":
+          if (archiveRegistryDelay) await delay(archiveRegistryDelay);
           return registry();
         case "validate_archive_path":
           return true;

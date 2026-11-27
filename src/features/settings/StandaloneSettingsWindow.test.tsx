@@ -114,7 +114,9 @@ describe("SettingsWindow", () => {
 
     expect(container.querySelector('[data-testid="settings-titlebar"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="settings-surface"]')).toBeNull();
-    expect(container.querySelector('[role="status"]')?.textContent).toBe("Opening Settings");
+    expect(container.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe(
+      "Loading Settings",
+    );
     expect(container.querySelector('[data-utility-slot="navigation"]')).not.toBeNull();
     expect(container.querySelector("[data-utility-ready]")).toBeNull();
 

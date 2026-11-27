@@ -205,7 +205,7 @@ describe("ArchiveManagerWindow", () => {
     expect(loadingMarkup).toContain('aria-busy="true"');
     expect(loadingMarkup).toContain('data-loading="true"');
     expect(loadingMarkup).toContain('role="status"');
-    expect(loadingMarkup).toContain("Loading archives");
+    expect(loadingMarkup).toContain('aria-label="Loading archives"');
     expect(loadingMarkup).not.toContain("No saved archives");
     expect(emptyMarkup).not.toContain('aria-busy="true"');
     expect(emptyMarkup).toContain('data-empty="true"');

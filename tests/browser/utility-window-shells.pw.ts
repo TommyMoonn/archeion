@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { resolveBuiltInAppTheme, resolveTheme } from "../../src/themes/resolveTheme";
 import { applicationPresentation } from "../../src/themes/appearancePresentation";
 import { builtInShellPalettes as shellPalettes } from "../../src/themes/builtInThemes";
@@ -135,6 +135,15 @@ function expectStableFrame(actual: Geometry, expected: Geometry) {
   expect(actual.documentHeight).toBe(actual.viewportHeight);
 }
 
+async function expectCentered(indicator: Locator, content: Locator) {
+  const [spinner, area] = await Promise.all([indicator.boundingBox(), content.boundingBox()]);
+  if (!spinner || !area) throw new Error("Loading indicator or its content area is missing");
+  expect(Math.abs(spinner.x + spinner.width / 2 - area.x - area.width / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(spinner.y + spinner.height / 2 - area.y - area.height / 2)).toBeLessThanOrEqual(
+    1,
+  );
+}
+
 for (const utility of windows)
   for (const theme of utility.mode === "archive-manager"
     ? (["dark", "light", "custom"] as const)
@@ -165,7 +174,19 @@ for (const utility of windows)
         expect(events.every((event) => event.shell)).toBe(true);
         await expect(page.locator("[data-utility-ready]")).toHaveCount(0);
         await expect(page.locator(".reader-status-page")).toHaveCount(0);
-        await expect(page.locator(".utility-load-status")).toBeVisible();
+        const spinner = page.locator('.utility-load-status [data-slot="spinner"]');
+        await expect(spinner).toBeVisible();
+        await expect(spinner).toHaveAccessibleName(/^Loading /);
+        const loadingArea = page.locator(
+          utility.mode === "about"
+            ? '.utility-load-status[data-utility-stage="loading"]'
+            : utility.mode === "settings"
+              ? '[data-utility-slot="content"]'
+              : utility.mode === "theme-manager"
+                ? '[data-utility-slot="details"]'
+                : utility.plane,
+        );
+        await expectCentered(spinner, loadingArea);
         await expect(page.getByRole("button", { name: "Close window", exact: true })).toBeVisible();
         const selectors = [
           ".window-titlebar",
@@ -195,7 +216,8 @@ for (const utility of windows)
           await page.evaluate(() => window.uiStabilityFixture.holdUtilityInitialization());
         release();
         if (utility.mode === "settings" || utility.mode === "theme-manager") {
-          await expect(page.locator(".utility-window-ready .utility-load-status")).toBeVisible();
+          await expect(page.locator(".utility-window-ready").locator(spinner)).toBeVisible();
+          await expectCentered(spinner, loadingArea);
           await expect(page.locator("[data-utility-ready]")).toHaveCount(0);
           const during = await geometry(page, utility.plane);
           expectStableFrame(during, before);
@@ -235,6 +257,20 @@ for (const utility of windows)
       }
     });
   }
+
+test("Archive Manager centers the archive list spinner while the registry loads", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await page.goto(`${fixture}?window=archive-manager&archiveRegistryDelay=10000`);
+  const list = page.getByRole("complementary", { name: "Archives" });
+  const spinner = list.getByRole("status", { name: "Loading archives" });
+  await expect(spinner).toBeVisible();
+  await expectCentered(spinner, list);
+  await page.clock.fastForward(10_000);
+  await expect(spinner).toHaveCount(0);
+  await expect(list.getByRole("button", { name: /Synthetic a/ }).first()).toBeVisible();
+});
 
 for (const utility of windows) {
   test(`${utility.mode}: rejected import preserves the destination frame and reloads`, async ({

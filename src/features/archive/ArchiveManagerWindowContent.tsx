@@ -18,6 +18,7 @@ import {
   type ContextMenuController,
 } from "../../components/contextMenuController";
 import { Input } from "../../components/Input";
+import { Spinner } from "../../components/ui/spinner";
 import type { ArchiveState } from "../../stores/archiveStore";
 import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { archiveStore } from "../../stores/archiveStore";
@@ -365,9 +366,9 @@ export function ArchiveManagerWindowContent({
                 ))}
               </div>
             ) : isLoading ? (
-              <p className="archive-list__empty" role="status">
-                Loading archives
-              </p>
+              <div className="grid flex-1 place-items-center text-muted">
+                <Spinner aria-label="Loading archives" className="size-6 stroke-2" data-visible />
+              </div>
             ) : (
               <p className="archive-list__empty">No saved archives</p>
             )}

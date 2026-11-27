@@ -18,9 +18,13 @@ export function ArchiveManagerWindowLoading({ failed = false }: { failed?: boole
             aria-hidden="true"
             className="archive-manager-window__sidebar archive-manager-window__sidebar--fallback"
           />
-          <section className="archive-manager-window__main">
-            <div className="archive-manager-window__fallback">
-              <h1>Archive Manager</h1>
+          <section className="archive-manager-window__main relative" aria-label="Archive Manager">
+            <div
+              className={
+                state === "loading" ? "absolute inset-0" : "archive-manager-window__fallback"
+              }
+            >
+              {state === "error" ? <h1>Archive Manager</h1> : null}
               <UtilityWindowLoadStatus title="Archive Manager" state={state} />
             </div>
           </section>

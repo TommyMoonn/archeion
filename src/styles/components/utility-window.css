@@ -3,14 +3,14 @@
   display: contents;
 }
 
-.utility-load-status {
+.utility-load-status[data-utility-stage="error"] {
   display: grid;
   justify-items: start;
   align-content: start;
   gap: 12px;
   min-width: 0;
   max-width: 65ch;
-  color: var(--muted);
+  color: var(--error-strong);
   font-size: var(--type-body);
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -18,10 +18,6 @@
 
 .utility-load-status p {
   margin: 0;
-}
-
-.utility-load-status[data-utility-stage="error"] {
-  color: var(--error-strong);
 }
 
 .utility-placeholder,
@@ -94,7 +90,7 @@
   height: 110px;
 }
 
-.theme-manager__details-slot .utility-load-status {
+.theme-manager__details-slot .utility-load-status[data-utility-stage="error"] {
   margin: 22px 24px;
 }
 
