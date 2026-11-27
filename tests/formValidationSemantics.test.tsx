@@ -109,7 +109,7 @@ describe("form validation semantics", () => {
       root.render(<FolderNameDialog mode="create" onClose={vi.fn()} onSubmit={onSubmit} />);
     });
 
-    const form = container.querySelector<HTMLFormElement>(".dialog-form")!;
+    const form = container.querySelector<HTMLFormElement>("#create-folder-form")!;
     const input = form.querySelector<HTMLInputElement>("input")!;
     await submit(form);
 
@@ -136,11 +136,11 @@ describe("form validation semantics", () => {
       );
     });
 
-    const form = container.querySelector<HTMLFormElement>(".dialog-form")!;
+    const form = container.querySelector<HTMLFormElement>("#rename-folder-form")!;
     const input = form.querySelector<HTMLInputElement>("input")!;
     await submit(form);
 
-    const operationError = container.querySelector<HTMLElement>(".form-error")!;
+    const operationError = container.querySelector<HTMLElement>('[role="alert"]')!;
     expect(onSubmit).toHaveBeenCalledWith("Kept Folder");
     expect(input.value).toBe("Kept Folder");
     expect(input.getAttribute("aria-invalid")).toBeNull();
@@ -148,7 +148,7 @@ describe("form validation semantics", () => {
     expect(operationError.textContent).toBe("The folder could not be saved. Please try again.");
 
     act(() => setInputValue(input, "Retry Folder"));
-    expect(container.querySelector(".form-error")).toBeNull();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 
   it("keeps filename suffix help and validation feedback associated independently", async () => {

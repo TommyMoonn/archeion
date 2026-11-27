@@ -1,27 +1,3 @@
-.move-to-folder-dialog {
-  display: grid;
-  gap: 12px;
-}
-
-.move-to-folder-dialog .app-select,
-.move-to-folder-dialog .app-select__trigger {
-  width: 100%;
-}
-
-.move-to-folder-dialog .app-select__trigger {
-  justify-content: space-between;
-}
-
-.move-to-folder-dialog__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--type-caption);
-  font-weight: var(--type-control-label-weight);
-  letter-spacing: 0.04em;
-}
-
 .epub-filename-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

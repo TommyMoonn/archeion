@@ -301,17 +301,10 @@ export async function createFolderThroughDialog(container: HTMLElement, name: st
   await act(async () => {
     container.querySelector<HTMLButtonElement>('button[aria-label="Create folder"]')?.click();
   });
-  let input = container.querySelector<HTMLInputElement>(".dialog-form input");
-  for (let attempt = 0; !input && attempt < 5; attempt += 1) {
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
-    input = container.querySelector<HTMLInputElement>(".dialog-form input");
-  }
-
-  if (!input) {
-    throw new Error("Folder name input was not rendered.");
-  }
+  const input = await waitForRenderedElement(
+    () => container.querySelector<HTMLInputElement>("#create-folder-form input") ?? undefined,
+    "Folder name input was not rendered.",
+  );
 
   await act(async () => {
     setInputValue(input, name);

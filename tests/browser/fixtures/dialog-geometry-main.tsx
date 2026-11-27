@@ -14,6 +14,7 @@ import { BookCoverWritebackDialog } from "../../../src/features/library/BookCove
 import { BulkMetadataDialog } from "../../../src/features/library/BulkMetadataDialog";
 import { LibraryStorageProvider } from "../../../src/storage/LibraryStorageContext";
 import type { Book, EpubCoverPreparation } from "../../../src/types/book";
+import type { ReadonlyFolder } from "../../../src/types/folder";
 import "../../../src/styles/index.css";
 
 declare global {
@@ -42,6 +43,19 @@ const fileStat = {
   size: 4096,
   modifiedAt: 200,
 };
+const moveFolders: ReadonlyFolder[] = [
+  { id: "fiction", name: "Fiction", relativePath: "Fiction" },
+  {
+    id: "classics",
+    name: "Classics",
+    parentId: "fiction",
+    relativePath: "Fiction/Classics",
+  },
+  ...Array.from({ length: 24 }, (_, index) => {
+    const name = `Shelf ${String(index + 1).padStart(2, "0")}`;
+    return { id: name, name, relativePath: name };
+  }),
+].map((folder) => ({ ...folder, createdAt: "1", updatedAt: "1" }));
 const preparation: EpubCoverPreparation = {
   fileName: "A_very_long_selected_image_filename.png",
   sourceFormat: "PNG",
@@ -151,6 +165,15 @@ export function DialogGeometryFixture() {
           folders={[]}
           disableUnchanged={false}
           title="Move EPUB"
+          onMove={apply}
+        />
+      ) : null}
+      {open && surface === "move-folder" ? (
+        <MoveToFolderDialog
+          {...props}
+          folders={moveFolders}
+          excludedFolderIds={["fiction", "classics"]}
+          title="Move folder"
           onMove={apply}
         />
       ) : null}

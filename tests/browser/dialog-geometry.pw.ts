@@ -383,14 +383,59 @@ for (const width of [480, 1100]) {
   });
 }
 
-for (const surface of ["rename", "folder"]) {
+test("folder move keeps a scrollable destination list inside the modal", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 550 });
+  await openSurface(page, "move-folder", 2);
+  const dialog = page.getByRole("dialog", { name: "Move folder" });
+  const destination = dialog.getByRole("combobox", { name: /Destination/ });
+  const move = dialog.getByRole("button", { name: "Move", exact: true });
+  await expect(move).toBeDisabled();
+  await expect(destination).toHaveAccessibleName(/Archive root/);
+  await expectAlignedControl(page, destination);
+
+  await destination.press("Enter");
+  const list = dialog.getByRole("listbox");
+  await expect(list.getByRole("option", { name: "Archive root" })).toBeFocused();
+  const source = list.getByRole("option", { name: "Fiction", exact: true });
+  const descendant = list.getByRole("option", { name: "Fiction/Classics", exact: true });
+  await expect(source).toBeDisabled();
+  await expect(descendant).toBeDisabled();
+  await page.keyboard.press("ArrowDown");
+  await expect(source).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(source).toHaveAttribute("aria-selected", "false");
+  await expect(move).toBeDisabled();
+  await page.keyboard.press("End");
+  const last = list.getByRole("option", { name: "Shelf 24" });
+  await expect(last).toBeFocused();
+  await expect(last).toBeInViewport();
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await expect(list).toHaveCount(0);
+  await expect(destination).toBeFocused();
+  await expect(move).toBeDisabled();
+
+  await destination.press("End");
+  await expect(last).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(destination).toHaveAccessibleName(/Shelf 24/);
+  await expect(move).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Open dialog" })).toBeFocused();
+});
+
+for (const [surface, submitName] of [
+  ["rename", "Rename file"],
+  ["folder", "Save"],
+]) {
   test(`${surface} validation remains associated and Escape restores focus`, async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 520 });
     await openSurface(page, surface, 2);
     const baseline = await bounds(page);
     const input = page.getByRole("textbox");
     await input.fill("");
-    await page.locator(".dialog__footer .button--primary").click();
+    await page.getByRole("button", { name: submitName, exact: true }).click();
     await expect(input).toHaveAttribute("aria-invalid", "true");
     await expect(input).toHaveAccessibleDescription(/Enter a (filename|folder name)/);
     await expect(input).toBeFocused();

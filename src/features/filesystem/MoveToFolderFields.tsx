@@ -1,5 +1,6 @@
 import { Folder as FolderIcon } from "lucide-react";
 import { AppSelect, type AppSelectOption } from "../../components/AppSelect";
+
 export function MoveToFolderFields({
   options,
   destination,
@@ -10,19 +11,18 @@ export function MoveToFolderFields({
   setDestination: (value: string) => void;
 }) {
   return (
-    <div className="move-to-folder-dialog">
-      <AppSelect
-        id="move-folder-destination"
-        label={
-          <span className="move-to-folder-dialog__label">
-            <FolderIcon aria-hidden="true" size={14} />
-            Destination
-          </span>
-        }
-        onChange={setDestination}
-        options={options}
-        value={destination}
-      />
-    </div>
+    <AppSelect
+      className="grid w-full"
+      id="move-folder-destination"
+      label={
+        <span className="inline-flex items-center gap-control-gap-compact tracking-field-label">
+          <FolderIcon aria-hidden="true" className="size-icon-glyph-compact" />
+          Destination
+        </span>
+      }
+      onChange={setDestination}
+      options={options}
+      value={destination}
+    />
   );
 }
