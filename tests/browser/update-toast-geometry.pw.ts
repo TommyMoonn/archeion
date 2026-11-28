@@ -14,13 +14,13 @@ for (const placement of ["top", "side"] as const) {
         available: { version: "1.8.0", notes: null, publishedAt: null },
       }),
     );
-    await expect(page.locator(".update-toast")).toBeVisible();
+    await expect(page.locator('[aria-label="Application update"]')).toBeVisible();
     await page.locator(".book-card__select").first().click();
     await page.getByRole("button", { name: "Read book", exact: true }).click();
     const progress = page.getByRole("slider", { name: "Reading progress" });
     await expect(progress).toBeVisible();
     await expect(progress).toHaveAttribute("data-placement", placement);
-    await expect(page.locator(".update-toast")).toHaveCount(0);
+    await expect(page.locator('[aria-label="Application update"]')).toHaveCount(0);
     await progress.focus();
     await expect(progress).toBeFocused();
   });
@@ -246,7 +246,7 @@ for (const motion of ["app-off", "system-off"] as const) {
         available: { version: "123456789.123456789.123456789", notes: null, publishedAt: null },
       }),
     );
-    const toast = page.locator(".update-toast");
+    const toast = page.locator('[aria-label="Application update"]');
     await expect(toast).toBeVisible();
     expect(await toast.evaluate((element) => element.getAnimations().length)).toBe(0);
     await page.getByRole("main").evaluate((element) => {

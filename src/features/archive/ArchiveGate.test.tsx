@@ -259,7 +259,7 @@ describe("ArchiveGate ready archive replacement", () => {
     await render();
 
     expect(rendered.querySelector('[data-testid="reader"]')).toBeInstanceOf(HTMLElement);
-    expect(rendered.querySelector(".archive-handoff__workspace")?.hasAttribute("inert")).toBe(true);
+    expect(rendered.querySelector("[data-archive-workspace]")?.hasAttribute("inert")).toBe(true);
     expect(rendered.textContent).toContain("Opening archive");
     expect(routerMock.navigate).toHaveBeenCalledWith(
       {

@@ -14,6 +14,7 @@ export function SettingsWindow() {
   return (
     <div
       className="utility-window-ready contents"
+      data-utility-content
       data-utility-ready={initializationState === "ready" || undefined}
     >
       {initializationState !== "ready" ? (

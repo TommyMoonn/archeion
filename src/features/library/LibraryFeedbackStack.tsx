@@ -107,7 +107,7 @@ export function LibraryFeedbackStack({ onDismiss, tokens }: LibraryFeedbackStack
   return (
     <div
       aria-label="Library feedback"
-      className="library-feedback box-border fixed z-12 top-feedback-top end-feedback-end grid gap-input-gap w-feedback-width max-h-feedback-height p-control-inset overflow-y-auto overscroll-contain pointer-events-auto [@media(max-width:720px)]:top-feedback-top-narrow [@media(max-width:720px)]:inset-x-overlay-viewport-inset [@media(max-width:720px)]:w-auto [@media(max-width:720px)]:max-h-feedback-height-narrow"
+      className="library-feedback box-border fixed z-12 top-feedback-top end-feedback-end grid gap-input-gap w-feedback-width max-h-feedback-height p-control-inset overflow-y-auto overscroll-contain pointer-events-auto [@media(max-width:720px)]:top-feedback-top-narrow [@media(max-width:720px)]:inset-x-overlay-viewport-inset [@media(max-width:720px)]:w-auto [@media(max-width:720px)]:max-h-feedback-height-narrow in-[.app-shell:has([data-update-notice])]:max-h-update-feedback-height!"
       role="region"
     >
       {tokens.map((token) => (

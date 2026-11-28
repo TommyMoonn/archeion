@@ -11,7 +11,7 @@ import { ThemePreviewSession } from "../../../src/themes/ThemePreviewSession";
 import { defaultAppPreferences } from "../../../src/types/appSettings";
 import { shellStressThemes } from "../../fixtures/themes/shellStressThemes";
 
-function createFixtureServices(largeCatalog: boolean) {
+function createFixtureServices(search: URLSearchParams) {
   const packages = new Map<string, string>(
     Object.values(shellStressThemes).map((manifest) => [manifest.id, JSON.stringify(manifest)]),
   );
@@ -28,7 +28,7 @@ function createFixtureServices(largeCatalog: boolean) {
     "invalid-shell",
     JSON.stringify({ ...shellStressThemes.equal, id: "invalid-shell", schemaVersion: 2 }),
   );
-  if (largeCatalog) {
+  if (search.get("catalog") === "large") {
     for (let index = 0; index < 200; index += 1) {
       const id = `gallery-${String(index).padStart(3, "0")}`;
       packages.set(
@@ -60,6 +60,8 @@ function createFixtureServices(largeCatalog: boolean) {
         return () => listeners.delete(listener);
       },
       update: async (changes) => {
+        if (search.has("failSave"))
+          throw new Error("Fixture theme preferences could not be saved.");
         settings = { ...settings, ...changes };
         listeners.forEach((listener) => listener());
         return settings;
@@ -76,7 +78,12 @@ function createFixtureServices(largeCatalog: boolean) {
         packages.delete(id);
         return { revision: ++revision };
       },
-      revealThemesRoot: async () => undefined,
+      revealThemesRoot: async () => {
+        if (!search.has("holdFolderReveal")) return;
+        await new Promise<void>((resolve) => {
+          window.addEventListener("release-theme-folder", () => resolve(), { once: true });
+        });
+      },
       storeManifest: async (manifest) => {
         packages.set(manifest.id, JSON.stringify(manifest));
         return { revision: ++revision };
@@ -91,13 +98,11 @@ function createFixtureServices(largeCatalog: boolean) {
 }
 
 export function ThemeManagerFixture() {
-  const [fixture] = useState(() =>
-    createFixtureServices(new URLSearchParams(location.search).get("catalog") === "large"),
-  );
+  const [fixture] = useState(() => createFixtureServices(new URLSearchParams(location.search)));
   useEffect(() => fixture.runtime.start(), [fixture]);
   return (
     <TooltipProvider>
-      <main className="theme-manager-window-shell" style={{ height: "100dvh" }}>
+      <main className="flex h-dvh w-full min-h-0 min-w-0">
         <ThemeManagerSurface services={fixture.services} />
       </main>
     </TooltipProvider>

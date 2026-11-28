@@ -45,7 +45,7 @@ export function LibraryStorageProvider({ children, storage }: LibraryStorageProv
   if (!resolvedStorage) {
     return (
       <main
-        className="archive-setup"
+        className="archive-setup grid h-full min-h-0 place-items-center bg-canvas-deep p-archive-setup in-[.window-app__content]:min-h-full"
         aria-busy={!didStorageFail}
         id={MAIN_CONTENT_ID}
         tabIndex={-1}

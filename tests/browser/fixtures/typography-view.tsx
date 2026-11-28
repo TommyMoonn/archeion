@@ -11,6 +11,7 @@ import { ActionListButton } from "../../../src/components/MenuItem";
 import { TooltipProvider } from "../../../src/components/Tooltip";
 import { LibraryToolbar } from "../../../src/features/library/LibraryToolbar";
 import { AboutSurface } from "../../../src/features/about/AboutSurface";
+import { aboutWindowShellClassName } from "../../../src/features/about/AboutLayout";
 import { StandardSettingsRow } from "../../../src/features/settings/components/SettingsRows";
 import { SettingsSectionHeader } from "../../../src/features/settings/components/SettingsSectionHeader";
 import { createDefaultLibraryFilters, type LibrarySort } from "../../../src/types/library";
@@ -26,7 +27,7 @@ export function TypographyFixture() {
 
   if (new URLSearchParams(location.search).get("surface") === "about") {
     return (
-      <main className="about-window-shell">
+      <main className={aboutWindowShellClassName}>
         <AboutSurface />
       </main>
     );

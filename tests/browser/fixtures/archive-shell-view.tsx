@@ -38,6 +38,34 @@ export function ArchiveShellFixture() {
         "--line-subtle": "#555555",
       } as CSSProperties);
   const view = params.get("state");
+  let archiveState = state;
+  if (view === "empty") {
+    archiveState = { status: "setup", path: null, error: null, archives: [] };
+  } else if (view === "missing") {
+    archiveState = {
+      status: "missing",
+      path: archive.rootPath,
+      archive,
+      archives: [archive],
+      error: null,
+    };
+  } else if (view === "registry-error") {
+    archiveState = { status: "error", path: null, error: "Fixture registry error", archives: [] };
+  } else if (view === "catalog") {
+    archiveState = {
+      ...state,
+      archives: [
+        archive,
+        ...Array.from({ length: 20 }, (_, index) => ({
+          ...archive,
+          id: `saved-archive-${index}`,
+          displayName: `Saved archive ${index}`,
+          rootPath: `C:/fixture/${"long-folder-name".repeat(4)}/${index}`,
+          lastOpenedAt: "0",
+        })),
+      ],
+    };
+  }
 
   return (
     <TooltipProvider>
@@ -47,10 +75,10 @@ export function ArchiveShellFixture() {
         <div className="window-app__content">
           {view === "fallback" ? (
             <ArchiveManagerFallback message="Fixture initialization failure." />
-          ) : view === "loading" ? (
-            <ArchiveManagerWindowLoading />
+          ) : view === "loading" || view === "load-error" ? (
+            <ArchiveManagerWindowLoading failed={view === "load-error"} />
           ) : (
-            <ArchiveManagerWindowContent state={state} />
+            <ArchiveManagerWindowContent state={archiveState} />
           )}
         </div>
       </div>

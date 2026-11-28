@@ -147,18 +147,19 @@ test("Archive, Theme Manager, and About retain hierarchy above routine medium la
 }, testInfo) => {
   await page.setViewportSize({ width: 860, height: 620 });
   await page.goto("/tests/browser/fixtures/?view=archive-shell&themeStress=equal");
-  await weight(page.locator(".archive-action-row__title").first(), "500");
-  await weight(page.locator(".archive-manager-window__identity h1"), "600");
+  await weight(page.getByText("Create empty archive", { exact: true }), "500");
+  await weight(page.getByRole("heading", { name: "Archeion" }), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-archive.png") });
   await page.goto("/tests/browser/fixtures/?view=theme-manager");
-  await weight(page.locator(".theme-catalog-list__item-name").first(), "500");
-  await weight(page.locator(".theme-details__header h2"), "600");
+  await weight(
+    page.getByRole("navigation", { name: "Themes" }).locator("button [title]").first(),
+    "500",
+  );
+  await weight(page.getByRole("heading", { level: 2 }), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-themes.png") });
   await page.goto("/tests/browser/fixtures/?view=typography&surface=about");
-  await weight(page.locator(".about-window__link-copy strong").first(), "500");
-  await expect(page.locator(".about-window__link .lucide-external-link").first()).toHaveAttribute(
-    "stroke-width",
-    "2",
-  );
+  const website = page.getByRole("link", { name: /^Website/ });
+  await weight(website.getByText("Website", { exact: true }), "500");
+  await expect(website.locator(".lucide-external-link")).toHaveAttribute("stroke-width", "2");
   await page.screenshot({ path: testInfo.outputPath("typography-about.png") });
 });

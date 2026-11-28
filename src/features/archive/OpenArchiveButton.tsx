@@ -51,9 +51,11 @@ export function OpenArchiveButton({
       variant={variant}
     >
       {description ? (
-        <span className="archive-action-row__copy">
-          <span className="archive-action-row__title">{label}</span>
-          <span className="archive-action-row__description">{description}</span>
+        <span className="grid min-w-0 gap-archive-action-gap text-start">
+          <span className="text-body-only font-medium text-text-strong wrap-anywhere">{label}</span>
+          <span className="text-caption leading-archive-action-description text-muted wrap-anywhere">
+            {description}
+          </span>
         </span>
       ) : (
         label

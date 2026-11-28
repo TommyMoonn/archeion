@@ -74,7 +74,6 @@
     [data-slot="cover-editor-preview"],
     .settings-status,
     .settings-window,
-    .about-window__link,
     .reader-illustration-viewer,
     .reader-next-volume,
     .reader-side-panel,
@@ -84,7 +83,6 @@
     .reader-annotation-feedback,
     .reader-highlight-feedback,
     .reader-note-feedback,
-    .theme-preview-controls,
     .page-shell[data-import-drop-active="true"]::after,
     [data-slot="popover-content"],
     .library-feedback__token
@@ -112,7 +110,6 @@
     .reader-annotation-feedback,
     .reader-highlight-feedback,
     .reader-note-feedback,
-    .theme-preview-controls,
     .page-shell[data-import-drop-active="true"]::after,
     [data-slot="popover-content"],
     .library-feedback__token
@@ -133,7 +130,7 @@
     background: CanvasText;
   }
 
-  .archive-manager-window__sidebar {
+  [data-archive-catalog] {
     border-color: CanvasText;
   }
 
@@ -141,7 +138,7 @@
     border-color: CanvasText;
   }
 
-  .archive-row[data-active="true"] {
+  [data-archive-row][data-active="true"] {
     border-color: Highlight;
     color: HighlightText;
     background: Highlight;
@@ -152,7 +149,7 @@
     outline-offset: -1px;
   }
 
-  .archive-row--missing {
+  :where([data-archive-row])[data-missing="true"] {
     border-inline-start: 3px double Mark;
     box-shadow: none;
   }
@@ -202,7 +199,6 @@
       > [data-library-folder-primary-action][aria-current="page"],
     .settings-sidebar nav button[aria-current="page"],
     .archive-switcher__current[aria-current="true"],
-    .theme-catalog-list__item[aria-current="true"],
     .app-select__option[aria-selected="true"],
     .app-select__option[data-active],
     .app-select__option[data-highlighted],
@@ -244,6 +240,10 @@
     border-color: GrayText;
     color: GrayText;
     opacity: 1;
+  }
+
+  [data-theme-catalog-scroll] button:disabled {
+    opacity: revert-layer;
   }
 
   :where(input, select, textarea, [role="group"])[aria-invalid="true"],

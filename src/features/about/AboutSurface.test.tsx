@@ -63,7 +63,9 @@ describe("AboutSurface", () => {
 
   it("renders branding and opens every project destination through the approved owner", async () => {
     const container = renderSurface();
-    const links = Array.from(container.querySelectorAll<HTMLAnchorElement>(".about-window__link"));
+    const links = Array.from(
+      container.querySelectorAll<HTMLAnchorElement>("nav[aria-label='Archeion links'] a[href]"),
+    );
 
     expect(container.querySelector('img[alt=""]')).not.toBeNull();
     expect(links.map((link) => link.textContent)).toEqual([
@@ -91,9 +93,11 @@ describe("AboutSurface", () => {
     openExternalUrl.mockRejectedValueOnce(new Error("unavailable"));
     const container = renderSurface();
 
-    await act(async () =>
-      container.querySelector<HTMLAnchorElement>(".about-window__link")?.click(),
+    const website = container.querySelector<HTMLAnchorElement>(
+      "nav a[href='https://tommymoonn.github.io/archeion/']",
     );
+    if (!website) throw new Error("The project website link was not rendered.");
+    await act(async () => website.click());
 
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       "Archeion could not open that link.",

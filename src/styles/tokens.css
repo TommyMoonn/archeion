@@ -372,6 +372,101 @@
   --spacing-details-metadata-label: 120px;
   --spacing-details-skeleton-line: 0.65rem;
   --spacing-details-skeleton-short: 68%;
+  /* Archive Manager keeps its pixel geometry at every interface text size. */
+  --spacing-archive-sidebar: 286px;
+  --spacing-archive-sidebar-stacked: 220px;
+  --spacing-archive-main: 20px;
+  --spacing-archive-main-block: clamp(24px, 4vw, 36px);
+  --spacing-archive-main-inline: clamp(28px, 5vw, 44px);
+  --spacing-archive-content: 440px;
+  --spacing-archive-message: 360px;
+  --spacing-archive-empty: 180px;
+  --spacing-archive-feedback: 10px;
+  --spacing-archive-mark: 78px;
+  --spacing-archive-logo: 68px;
+  --spacing-archive-row: 48px;
+  --spacing-archive-row-end: 4px;
+  --spacing-archive-row-menu: 26px;
+  --spacing-archive-menu: 170px;
+  --spacing-archive-badge: 18px;
+  --spacing-archive-rename-end: 58px;
+  --spacing-archive-save: 30px;
+  --spacing-archive-setup: clamp(18px, 3vw, 34px);
+  --spacing-archive-form-gap: 11px;
+  --spacing-archive-form-row: 56px;
+  --spacing-archive-form-input: 196px;
+  --spacing-archive-form-label: 176px;
+  --spacing-archive-create-action: 96px;
+  --spacing-archive-action: 58px;
+  --spacing-archive-action-gap: 3px;
+  --leading-archive-row-title: 1.2;
+  --leading-archive-row-path: 1.18;
+  --leading-archive-feedback: 1.55;
+  --leading-archive-action-description: 1.3;
+  --leading-archive-form-description: 1.35;
+  --tracking-archive-wordmark: -0.045em;
+  --tracking-archive-fallback: -0.035em;
+  --tracking-archive-badge: 0.01em;
+
+  --spacing-theme-window: 24px;
+  --spacing-theme-window-narrow: 16px;
+  --spacing-theme-header-top: 22px;
+  --spacing-theme-header-bottom: 20px;
+  --spacing-theme-header-narrow: 18px;
+  --spacing-theme-header: 14px;
+  --spacing-theme-toolbar: 18px;
+  --spacing-theme-import-placeholder: 90px;
+  --spacing-theme-card-placeholder: 110px;
+  --spacing-theme-catalog-track: 228px;
+  --spacing-theme-catalog-stacked: 144px;
+  --spacing-theme-catalog-row: 48px;
+  --spacing-theme-catalog-block: 10px;
+  --spacing-theme-catalog-gap: 3px;
+  --spacing-theme-notice-limit: min(108px, 20dvh);
+  --spacing-theme-details-bottom: 30px;
+  --spacing-theme-details-left: 26px;
+  --spacing-theme-confirmation-error: 1em;
+  --spacing-theme-diagnostics: min(240px, 36dvh);
+  --spacing-theme-swatch-track: 110px;
+  --spacing-theme-preview-nav: 100px;
+  --spacing-theme-preview-thumbnail: 56px;
+  --spacing-theme-preview-mark: 4px;
+  --spacing-theme-preview-stroke: 3px;
+  --container-theme-preview-stacked: 24em;
+  --leading-theme-warning: var(--text-caption--line-height);
+  --leading-theme-copy: 1.45;
+  --leading-theme-catalog-status: 1.35;
+  --opacity-theme-catalog-disabled: 0.68;
+
+  --container-about: 420px;
+  --container-about-copy: 30ch;
+  --spacing-about-inset: 24px;
+  --spacing-about-inline-narrow: 20px;
+  --spacing-about-block: 16px;
+  --spacing-about-identity: 12px;
+  --spacing-about-logo: 64px;
+  --spacing-about-status: 58px;
+  --spacing-about-link: 52px;
+  --spacing-about-link-column: 10px;
+  --spacing-about-link-copy: 3px;
+
+  --spacing-update-notice-inset: 16px;
+  --spacing-update-notice-inset-narrow: 12px;
+  --spacing-update-notice-block: 10px;
+  --spacing-update-notice-inline: 12px;
+  --spacing-update-notice-row-gap: 4px;
+  --spacing-update-notice-column-gap: 24px;
+  --spacing-update-notice-column-gap-narrow: 16px;
+  --spacing-update-notice-indent: calc(var(--spacing-icon-slot-standard) + 12px);
+  --spacing-update-notice-indent-narrow: calc(var(--spacing-icon-slot-standard) + 8px);
+  --spacing-update-notice-height: min(40dvh, 360px);
+  --spacing-update-notice-height-narrow: min(42dvh, 320px);
+  --spacing-update-feedback-height: max(0px, calc(60dvh - 92px));
+  --spacing-update-external-icon: 13px;
+  --container-update-notice-min: 360px;
+  --container-update-notice-max: 440px;
+  --leading-update-message: 1.4;
+
   --tracking-details-label: 0.08em;
   --blur-details-cover-action: 8px;
   --color-details-cover-action: rgb(10 11 13 / 78%);
@@ -478,6 +573,7 @@
   --breakpoint-window-narrow: 560px;
   --breakpoint-collection-narrow: 620px;
   --breakpoint-panel-narrow: 680px;
+  --breakpoint-theme-preview-controls: 700px;
   --breakpoint-dialog-narrow: 720px;
   --breakpoint-bulk-metadata-stacked: 620px;
   --breakpoint-workspace-narrow: 760px;
@@ -593,6 +689,17 @@
   --color-metadata-success: color-mix(in srgb, var(--success-soft) 76%, var(--surface-raised));
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
+  --color-theme-preview-canvas: var(--theme-shell-canvas, var(--canvas));
+  --color-theme-preview-frame: var(--theme-shell-frame, var(--surface-app-frame));
+  --color-theme-preview-sidebar: var(--theme-shell-sidebar, var(--surface-sidebar));
+  --color-theme-preview-main: var(--theme-shell-main, var(--surface-main));
+  --color-theme-preview-raised: var(--theme-shell-surface-raised, var(--surface-raised));
+  --color-theme-preview-divider: var(--theme-shell-line-subtle, var(--line-subtle));
+  --color-theme-preview-text: var(--theme-shell-text, var(--text));
+  --color-theme-preview-strong: var(--theme-shell-text-strong, var(--text-strong));
+  --color-theme-preview-muted: var(--theme-shell-muted, var(--muted));
+  --color-theme-preview-accent: var(--theme-shell-accent, var(--accent));
+  --color-system-canvas-text: CanvasText;
   --color-surface-app-frame: var(--surface-app-frame);
   --color-surface-sidebar: var(--surface-sidebar);
   --color-surface-main: var(--surface-main);
@@ -627,6 +734,11 @@
   --color-error-strong: var(--error-strong);
   --color-error-soft: var(--error-soft);
   --color-error-border: var(--error-border);
+  --color-archive-busy: color-mix(in srgb, var(--text-strong) 4.5%, transparent);
+  --color-archive-missing: color-mix(in srgb, var(--error) 11%, transparent);
+  --color-archive-missing-border: color-mix(in srgb, var(--error) 42%, transparent);
+  --inset-shadow-archive-missing: inset 3px 0 var(--error-border);
+  --drop-shadow-archive-logo: 0 12px 22px color-mix(in srgb, var(--darkening) 34%, transparent);
   --color-info-soft: var(--info-soft);
   --color-info-border: var(--info-border);
   --color-danger: var(--danger);
@@ -668,6 +780,19 @@
   --animate-details-enter: details-drawer-enter var(--surface-duration) var(--motion-ease-standard);
   --animate-details-exit: details-drawer-exit var(--surface-duration) var(--motion-ease-standard)
     forwards;
+  --animate-archive-slide: archive-panel-slide var(--motion-duration-slow)
+    var(--motion-ease-standard);
+
+  @keyframes archive-panel-slide {
+    from {
+      opacity: 0;
+      transform: translateX(var(--archive-panel-slide-offset));
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 
   @keyframes details-drawer-enter {
     from {
@@ -761,6 +886,16 @@
   border-width: var(--border-width);
 }
 
+@utility border-e-standard {
+  border-inline-end-style: solid;
+  border-inline-end-width: var(--border-width);
+}
+
+@utility border-be-standard {
+  border-block-end-style: solid;
+  border-block-end-width: var(--border-width);
+}
+
 @utility transition-field-focus {
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -791,6 +926,125 @@
   @media (max-width: theme(--breakpoint-bulk-metadata-stacked)) {
     @slot;
   }
+}
+
+@custom-variant archive-stacked {
+  @media (max-width: theme(--breakpoint-workspace-narrow)) {
+    @slot;
+  }
+}
+
+@custom-variant theme-manager-stacked {
+  @media (max-width: theme(--breakpoint-panel-narrow)) {
+    @slot;
+  }
+}
+
+@custom-variant theme-details-stacked {
+  @media (max-width: theme(--breakpoint-window-small)) {
+    @slot;
+  }
+}
+
+@custom-variant theme-preview-controls-stacked {
+  @media (max-width: theme(--breakpoint-theme-preview-controls)) {
+    @slot;
+  }
+}
+
+@custom-variant theme-preview-stacked {
+  @container theme-shell-preview (max-width: theme(--container-theme-preview-stacked)) {
+    @slot;
+  }
+}
+
+@utility grid-cols-theme-swatch {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-details-swatches {
+  grid-template-columns: repeat(3, minmax(var(--spacing-theme-swatch-track), 1fr));
+}
+
+@utility grid-cols-theme-preview {
+  grid-template-columns: minmax(var(--spacing-theme-preview-nav), 0.3fr) minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-preview-thumbnail {
+  grid-template-columns: minmax(var(--spacing-control-compact), 0.28fr) minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-preview-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+@utility grid-cols-theme-preview-navigation {
+  grid-template-columns: auto var(--spacing-icon-slot-standard) repeat(2, minmax(0, 1fr));
+}
+
+@utility w-theme-preview-rule {
+  width: 65%;
+}
+
+@utility w-theme-preview-text-line {
+  width: 60%;
+}
+
+@utility grid-rows-theme-manager {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+@utility grid-cols-theme-manager {
+  grid-template-columns: minmax(var(--spacing-theme-catalog-track), 0.32fr) minmax(0, 1fr);
+}
+
+@utility grid-rows-theme-manager-stacked {
+  grid-template-rows: minmax(var(--spacing-theme-catalog-stacked), 0.42fr) minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-catalog-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@utility min-h-theme-notice {
+  min-height: calc(var(--text-meta) * var(--leading-theme-copy) + 2 * var(--spacing-control-gap));
+}
+
+@utility grid-cols-archive-manager {
+  grid-template-columns: var(--spacing-archive-sidebar) minmax(0, 1fr);
+}
+
+@utility grid-cols-archive-row {
+  grid-template-columns: minmax(0, 1fr) var(--spacing-archive-row-menu);
+}
+
+@utility grid-cols-archive-form-name {
+  grid-template-columns: minmax(var(--spacing-archive-form-label), 1fr) minmax(
+      0,
+      var(--spacing-archive-form-input)
+    );
+}
+
+@utility grid-cols-archive-form-location {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+@custom-variant archive-form-narrow {
+  @container archive-detail (max-width: 360px) {
+    @slot;
+  }
+}
+
+@utility archive-slide-forward {
+  --archive-panel-slide-offset: var(--motion-distance-small);
+}
+
+@utility archive-slide-back {
+  --archive-panel-slide-offset: calc(-1 * var(--motion-distance-small));
+}
+
+@utility grid-rows-archive-row {
+  grid-template-rows: auto auto;
 }
 
 @utility dialog-width-cover {
@@ -943,6 +1197,29 @@
 @custom-variant details-focus-visible (&:focus:focus-visible:not(:disabled):not([aria-disabled="true"]));
 
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
+@custom-variant update-notice-narrow {
+  @media (max-width: 560px) {
+    @slot;
+  }
+}
+
+@utility update-notice-width {
+  --update-notice-available: calc(
+    100% - var(--library-sidebar-current-width, var(--sidebar-width)) - 2 *
+      var(--spacing-update-notice-inset)
+  );
+  min-width: min(var(--container-update-notice-min), var(--update-notice-available));
+  max-width: min(var(--container-update-notice-max), var(--update-notice-available));
+}
+
+@utility update-notice-width-narrow {
+  --update-notice-available: calc(100% - 2 * var(--spacing-update-notice-inset-narrow));
+}
+
+@utility update-notice-compact-icon {
+  --icon-slot-size: var(--spacing-icon-slot-compact) !important;
+  --icon-glyph-size: var(--spacing-icon-glyph-compact) !important;
+}
 
 @custom-variant folder-fine-pointer {
   @media (hover: hover) and (pointer: fine) {
@@ -1245,6 +1522,24 @@ html[data-density="compact"] {
 }
 @utility scrollbar-gutter-stable {
   scrollbar-gutter: stable;
+}
+
+@utility scrollbar-gutter-both-edges {
+  scrollbar-gutter: stable both-edges;
+}
+
+@utility grid-cols-about-link {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+@utility transition-background {
+  transition: background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+@custom-variant about-narrow {
+  @media (max-width: theme(--breakpoint-window-small)) {
+    @slot;
+  }
 }
 
 @utility details-surface-duration {

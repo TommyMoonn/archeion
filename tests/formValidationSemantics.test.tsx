@@ -67,9 +67,11 @@ describe("form validation semantics", () => {
   it("focuses and describes the first missing archive field without hiding submission", async () => {
     act(() => root.render(<ArchiveCreateOwner />));
 
-    const form = container.querySelector<HTMLFormElement>(".archive-create-form")!;
-    const input = container.querySelector<HTMLInputElement>("#archive-create-name")!;
-    const submitButton = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const form = container.querySelector("form")!;
+    const input = form.querySelector<HTMLInputElement>(
+      'input[name="archeion-create-archive-name"]',
+    )!;
+    const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
 
     expect(submitButton.disabled).toBe(false);
     await submit(form);
@@ -88,10 +90,8 @@ describe("form validation semantics", () => {
     act(() => setInputValue(input, "Library"));
     await submit(form);
 
-    const locationGroup = container.querySelector<HTMLElement>(
-      '.archive-create-form__row[role="group"]',
-    )!;
-    const browse = container.querySelector<HTMLButtonElement>(".archive-create-form__browse")!;
+    const locationGroup = form.querySelector<HTMLElement>('[role="group"]')!;
+    const browse = locationGroup.querySelector("button")!;
     expect(locationGroup.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(browse);
     expect(

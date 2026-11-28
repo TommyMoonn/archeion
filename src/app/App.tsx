@@ -218,7 +218,7 @@ function StartupLoading() {
       <SkipLink targetId={MAIN_CONTENT_ID} />
       <div className="window-app__content">
         <main
-          className="archive-setup appearance-startup-shell"
+          className="archive-setup appearance-startup-shell grid h-full min-h-full place-items-center bg-canvas-deep p-archive-setup"
           aria-busy="true"
           id={MAIN_CONTENT_ID}
           tabIndex={-1}

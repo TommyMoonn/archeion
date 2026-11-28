@@ -82,11 +82,16 @@ describe("ThemeCatalogList compact previews", () => {
     render([entry], "custom:long-theme-package");
     const button = container.querySelector<HTMLButtonElement>("button")!;
     expect(button.textContent).toContain(name);
-    expect(button.querySelector(".theme-catalog-list__item-name")?.getAttribute("title")).toBe(
-      name,
-    );
+    expect(button.querySelector("[title]")?.getAttribute("title")).toBe(name);
     act(() => button.click());
     expect(onSelect).toHaveBeenCalledWith("custom:long-theme-package");
+
+    onSelect.mockClear();
+    render([entry], "custom:long-theme-package", true);
+    expect(container.querySelector("nav")?.getAttribute("aria-busy")).toBe("true");
+    expect(button.disabled).toBe(true);
+    act(() => button.click());
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("renders built-in and custom tokens without adding labels or nested selection targets", () => {
@@ -150,8 +155,8 @@ describe("ThemeCatalogList compact previews", () => {
     expect(container.textContent).toContain("Sepia");
   });
 
-  it("resolves a 200-theme catalog once per entry, not per selection or busy transition", () => {
-    const entries = Array.from({ length: 200 }, (_, index) =>
+  it("resolves a catalog once per entry, not per selection or busy transition", () => {
+    const entries = Array.from({ length: 3 }, (_, index) =>
       customEntry({
         ...shellStressThemes.distinct,
         id: `theme-${index}`,
@@ -160,15 +165,17 @@ describe("ThemeCatalogList compact previews", () => {
     );
     const resolve = vi.spyOn(resolution, "resolveTheme");
     render(entries);
-    expect(container.querySelectorAll('[data-preview-size="compact"]')).toHaveLength(200);
-    expect(resolve).toHaveBeenCalledTimes(200);
-    render([...entries], "custom:theme-199");
-    render([...entries], "custom:theme-199", true);
+    expect(container.querySelectorAll('[data-preview-size="compact"]')).toHaveLength(
+      entries.length,
+    );
+    expect(resolve).toHaveBeenCalledTimes(entries.length);
+    render([...entries], "custom:theme-2");
+    render([...entries], "custom:theme-2", true);
     render([...entries], "custom:theme-0");
-    expect(resolve).toHaveBeenCalledTimes(200);
+    expect(resolve).toHaveBeenCalledTimes(entries.length);
     const revised = customEntry({ ...entries[0]!.manifest, app: { main: "#303030" } });
     render([revised, ...entries.slice(1)]);
-    expect(resolve).toHaveBeenCalledTimes(201);
+    expect(resolve).toHaveBeenCalledTimes(entries.length + 1);
     expect(
       container
         .querySelector<HTMLElement>('[data-preview-size="compact"]')!

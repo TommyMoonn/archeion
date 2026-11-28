@@ -14,7 +14,8 @@ export function ThemeManagerWindow({ services }: ThemeManagerWindowProps = {}) {
 
   return (
     <div
-      className="utility-window-ready"
+      className="contents"
+      data-utility-content
       data-utility-ready={initializationState === "ready" || undefined}
     >
       {initializationState !== "ready" ? (

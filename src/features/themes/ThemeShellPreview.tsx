@@ -11,8 +11,10 @@ export function ThemeShellPreview({ theme }: ThemeShellPreviewProps) {
   const descriptionId = `${id}-description`;
 
   return (
-    <figure className="theme-shell-preview">
-      <figcaption id={captionId}>Application shell preview</figcaption>
+    <figure className="mx-0 mb-0 mt-theme-header-top grid min-w-0 gap-theme-catalog-block">
+      <figcaption className="text-caption text-muted" id={captionId}>
+        Application shell preview
+      </figcaption>
       <p className="sr-only" id={descriptionId}>
         Representative window chrome above navigation and workspace planes, separated by a quiet
         divider, with a raised content surface. This preview is not interactive.

@@ -169,7 +169,7 @@ describe("ThemeManagerWindow", () => {
       );
       await act(async () => initialization.resolve());
       expect(container.querySelector("[data-utility-ready]")).toBeNull();
-      expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+      expect(container.querySelector('section[aria-label="Theme Manager"]')).not.toBeNull();
       expect(container.querySelector('[data-testid="theme-manager-titlebar"]')).not.toBeNull();
     } finally {
       vi.useRealTimers();
@@ -184,9 +184,9 @@ describe("ThemeManagerWindow", () => {
     await act(async () => root.render(<ThemeManagerWindow services={createServices()} />));
 
     expect(container.querySelector('[data-testid="theme-manager-titlebar"]')).not.toBeNull();
-    expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+    expect(container.querySelector('section[aria-label="Theme Manager"]')).not.toBeNull();
     expect(container.querySelector("[data-utility-ready]")).toBeNull();
-    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBeNull();
+    expect(container.querySelector('[role="img"][aria-labelledby]')).toBeNull();
     expect(container.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe(
       "Loading Theme Manager",
     );
@@ -194,8 +194,8 @@ describe("ThemeManagerWindow", () => {
     await act(async () => initialization.resolve());
     await settle();
 
-    expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
-    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).not.toBeNull();
+    expect(container.querySelector('section[aria-label="Theme Manager"]')).not.toBeNull();
+    expect(container.querySelector('[role="img"][aria-labelledby]')).not.toBeNull();
     expect(container.querySelector("dialog")).toBeNull();
     expect(container.querySelector('button[aria-label="Close Theme Manager"]')).toBeNull();
     expect(container.textContent).toContain("Archeion Dark");
@@ -234,10 +234,8 @@ describe("ThemeManagerWindow", () => {
         .find((candidate) => candidate.textContent?.startsWith("Preview"))
         ?.click(),
     );
-    expect(container.querySelector(".theme-preview-controls")).not.toBeNull();
-    const shellPreview = container.querySelector<HTMLElement>(
-      '.theme-shell-preview__graphic[role="img"]',
-    )!;
+    expect(container.querySelector('aside[aria-label="Theme preview controls"]')).not.toBeNull();
+    const shellPreview = container.querySelector<HTMLElement>('[role="img"][aria-labelledby]')!;
     expect(shellPreview.style.getPropertyValue("--theme-shell-accent")).toBe("#8fc1e3");
 
     act(() =>
@@ -260,7 +258,7 @@ describe("ThemeManagerWindow", () => {
     await act(async () => root.render(<ThemeManagerWindow services={createServices()} />));
 
     expect(container.textContent).toContain("Theme Manager could not be loaded");
-    expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+    expect(container.querySelector('section[aria-label="Theme Manager"]')).not.toBeNull();
     expect(container.querySelector("[data-utility-ready]")).toBeNull();
 
     await act(async () => {
@@ -274,7 +272,7 @@ describe("ThemeManagerWindow", () => {
     expect(reload).toHaveBeenCalledOnce();
     expect(mocks.initialize).toHaveBeenCalledOnce();
     expect(loadDesktop).toHaveBeenCalledOnce();
-    expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
+    expect(container.querySelector('section[aria-label="Theme Manager"]')).not.toBeNull();
     expect(container.querySelector("[data-utility-ready]")).toBeNull();
     expect(consoleError).not.toHaveBeenCalled();
   });

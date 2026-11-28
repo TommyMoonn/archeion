@@ -54,6 +54,12 @@ const merge = extendTailwindMerge({
         "cover-progress-height",
         "selection-menu-min",
         "feedback-dismiss",
+        "archive-feedback",
+        "archive-menu",
+        "archive-save",
+        "archive-action",
+        "archive-action-gap",
+        "menu-viewport-min",
       ],
       text: [
         "caption",
@@ -85,6 +91,7 @@ const merge = extendTailwindMerge({
     },
     classGroups: {
       "border-w": ["border-standard"],
+      leading: ["leading-inherit", "leading-archive-form-description"],
       transition: ["transition-icon-action", "details-cover-action-transition"],
     },
   },

@@ -11,7 +11,7 @@ export function AboutWindow() {
   }, []);
 
   return (
-    <div className="utility-window-ready" data-utility-ready="true">
+    <div className="contents" data-utility-ready="true">
       <AboutSurface />
     </div>
   );

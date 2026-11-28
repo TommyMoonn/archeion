@@ -8,6 +8,7 @@ import { ThemeManagerLayoutContext } from "./themeManagerLayoutContext";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { IconButton } from "../../components/IconButton";
+import { Alert } from "../../components/ui/alert";
 import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
 import { ARCHEION_THEME_SCHEMA_URL } from "../../themes/themeTokenRegistry";
 import { ThemeRepository } from "../../themes/ThemeRepository";
@@ -22,6 +23,10 @@ import {
 } from "./useThemeManagerController";
 
 const THEME_GUIDE_URL = "https://tommymoonn.github.io/archeion/custom-themes.html";
+const resourceLinkClass =
+  "text-muted decoration-line-strong decoration-from-font underline-offset-3 control-hover:text-text-strong control-hover:decoration-current focus-visible:text-text-strong focus-visible:decoration-current";
+const noticeClass =
+  "m-0 wrap-anywhere rounded-control px-theme-catalog-block py-control-gap text-meta-only leading-theme-copy";
 
 export type ThemeManagerServices = Readonly<{
   catalog: ThemeManagerControllerOptions["catalog"];
@@ -77,10 +82,9 @@ function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
     <>
       {layout.toolbarHost &&
         createPortal(
-          <div className="theme-manager__toolbar">
-            <div className="theme-manager__toolbar-actions">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-theme-toolbar gap-y-sidebar-inset theme-manager-stacked:items-start">
+            <div className="flex flex-wrap items-center gap-control-gap">
               <Button
-                className="theme-manager__import"
                 disabled={busy || controller.previewActive}
                 icon={<FilePlus aria-hidden="true" />}
                 onClick={() => importInputRef.current?.click()}
@@ -105,11 +109,24 @@ function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
                 <FolderOpen aria-hidden="true" />
               </IconButton>
             </div>
-            <nav aria-label="Theme resources" className="theme-manager__toolbar-links">
-              <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
+            <nav
+              aria-label="Theme resources"
+              className="ms-auto flex flex-wrap items-center gap-theme-header text-meta-only theme-manager-stacked:ms-0 theme-manager-stacked:w-full"
+            >
+              <a
+                className={resourceLinkClass}
+                href={THEME_GUIDE_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
                 Theme guide
               </a>
-              <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
+              <a
+                className={resourceLinkClass}
+                href={ARCHEION_THEME_SCHEMA_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
                 Public schema
               </a>
             </nav>
@@ -130,11 +147,15 @@ function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
         createPortal(
           <>
             {controller.error ? (
-              <p className="theme-manager__status" data-tone="error" role="alert">
+              <p
+                className={`${noticeClass} bg-error-soft text-error-strong`}
+                data-tone="error"
+                role="alert"
+              >
                 {controller.error}
               </p>
             ) : controller.message ? (
-              <p className="theme-manager__status" aria-live="polite">
+              <p className={`${noticeClass} bg-surface-raised text-muted`} aria-live="polite">
                 {controller.message}
               </p>
             ) : null}
@@ -167,9 +188,9 @@ function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
             title="Update existing theme?"
           >
             {controller.error ? (
-              <p data-tone="error" role="alert">
+              <Alert className="my-theme-confirmation-error" data-tone="error">
                 {controller.error}
-              </p>
+              </Alert>
             ) : null}
           </Dialog>
         ) : null}

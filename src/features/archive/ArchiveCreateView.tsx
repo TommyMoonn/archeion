@@ -1,9 +1,11 @@
-import { FieldRequired } from "../../components/ui/field";
 import { ArrowLeft, FolderOpen } from "lucide-react";
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { Alert } from "../../components/ui/alert";
+import { Button as UiButton } from "../../components/ui/button";
+import { Field, FieldLabel, FieldRequired } from "../../components/ui/field";
 import { archiveStore } from "../../stores/archiveStore";
 import {
   deriveArchivePath,
@@ -20,6 +22,13 @@ type ArchiveCreateViewProps = {
   onCreated: () => void;
   onLocationChange: (value: string) => void;
 };
+
+const formRow =
+  "grid min-h-archive-form-row items-center gap-select-trigger-gap px-field-inline py-field-standard-block archive-form-narrow:grid-cols-1 archive-form-narrow:items-stretch";
+const fieldLabel = "text-meta-only leading-inherit tracking-normal text-text-strong";
+const fieldDescription =
+  "min-w-0 text-caption leading-archive-form-description text-muted wrap-anywhere whitespace-normal";
+const formError = "static text-meta-only leading-field-compact text-error text-start";
 
 export function ArchiveCreateView({
   archiveName,
@@ -117,7 +126,7 @@ export function ArchiveCreateView({
   return (
     <section
       aria-labelledby="archive-create-title"
-      className="archive-create-view archive-manager-window__content-panel"
+      className="grid w-full min-w-0 content-start gap-button-standard app-motion:motion-safe:animate-archive-slide archive-slide-forward"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -125,24 +134,43 @@ export function ArchiveCreateView({
         }
       }}
     >
-      <button className="archive-create-view__back" onClick={onBack} type="button">
-        <ArrowLeft aria-hidden="true" size={16} />
+      <UiButton
+        className="inline-grid auto-cols-max grid-flow-col min-h-control-compact items-center justify-self-start gap-field-label rounded-control border-transparent bg-transparent px-field-compact-inline py-0 text-meta-only leading-inherit text-muted cursor-pointer control-hover:border-line control-hover:bg-surface-shell-hover control-hover:text-text-strong"
+        onClick={onBack}
+        size={null}
+        type="button"
+        variant={null}
+      >
+        <ArrowLeft className="block size-icon-glyph-standard" aria-hidden="true" />
         <span>Back</span>
-      </button>
+      </UiButton>
 
-      <div className="archive-create-view__heading">
-        <h2 id="archive-create-title">Create archive</h2>
-      </div>
+      <h2
+        className="m-0 min-w-0 px-control-inset font-app-display text-heading leading-inherit tracking-archive-fallback text-text-strong"
+        id="archive-create-title"
+      >
+        Create archive
+      </h2>
 
-      <form className="archive-create-form" noValidate onSubmit={submitForm}>
-        <div className="archive-create-form__card">
-          <div className="archive-create-form__row archive-create-form__row--input">
-            <div className="archive-create-form__label-block">
-              <label htmlFor="archive-create-name" id={nameLabelId}>
-                Archive name <FieldRequired>Required</FieldRequired>
-              </label>
-              <span id={nameDescriptionId}>Creates a folder with this name.</span>
-            </div>
+      <form
+        aria-labelledby="archive-create-title"
+        className="grid gap-archive-form-gap"
+        noValidate
+        onSubmit={submitForm}
+      >
+        <div className="grid overflow-hidden rounded-menu border-standard border-solid border-line-subtle bg-surface-main-raised">
+          <div className={`${formRow} grid-cols-archive-form-name`}>
+            <Field className="gap-archive-action-gap" htmlFor="archive-create-name">
+              <FieldLabel className={fieldLabel} id={nameLabelId}>
+                Archive name{" "}
+                <FieldRequired className="leading-archive-form-description text-muted">
+                  Required
+                </FieldRequired>
+              </FieldLabel>
+              <span className={fieldDescription} id={nameDescriptionId}>
+                Creates a folder with this name.
+              </span>
+            </Field>
             <Input
               aria-describedby={
                 [nameDescriptionId, visibleNameError ? nameErrorId : undefined]
@@ -154,6 +182,7 @@ export function ArchiveCreateView({
               autoCapitalize="off"
               autoComplete="off"
               autoCorrect="off"
+              className="w-full max-w-archive-form-input min-w-0 justify-self-end border-transparent bg-surface-main focus-within:border-transparent focus-within:bg-surface-main has-[input[aria-invalid=true]]:border-transparent archive-form-narrow:max-w-none"
               id="archive-create-name"
               label="Archive name"
               name="archeion-create-archive-name"
@@ -164,6 +193,7 @@ export function ArchiveCreateView({
               placeholder="Light novels"
               ref={nameInputRef}
               required
+              size="standard"
               spellCheck={false}
               value={archiveName}
             />
@@ -177,15 +207,15 @@ export function ArchiveCreateView({
             }
             aria-invalid={locationError ? true : undefined}
             aria-labelledby={locationLabelId}
-            className="archive-create-form__row"
+            className={`${formRow} grid-cols-archive-form-location border-0 border-t border-solid border-line`}
             role="group"
           >
-            <div className="archive-create-form__row-copy">
-              <span className="archive-create-form__row-label" id={locationLabelId}>
+            <div className="grid min-w-0 gap-archive-action-gap">
+              <FieldLabel className={fieldLabel} id={locationLabelId}>
                 Location <FieldRequired>Required</FieldRequired>
-              </span>
+              </FieldLabel>
               <span
-                className="archive-create-form__row-description"
+                className={fieldDescription}
                 id={locationDescriptionId}
                 title={locationPath || undefined}
               >
@@ -193,7 +223,7 @@ export function ArchiveCreateView({
               </span>
             </div>
             <Button
-              className="archive-create-form__browse"
+              className="min-h-field-standard cursor-pointer px-sidebar-inset disabled:cursor-not-allowed aria-busy:disabled:cursor-not-allowed archive-form-narrow:w-full archive-form-narrow:min-w-0 archive-form-narrow:whitespace-normal"
               busy={isBrowsing}
               busyStatus="Choosing archive location…"
               disabled={isBrowsing || isCreating}
@@ -208,43 +238,37 @@ export function ArchiveCreateView({
         </div>
 
         {finalPath ? (
-          <p className="archive-create-form__path" title={finalPath}>
+          <p
+            className="m-0 w-full min-w-0 px-control-inset text-caption leading-field-compact text-muted text-start wrap-anywhere whitespace-normal"
+            title={finalPath}
+          >
             {finalPath}
           </p>
         ) : null}
 
         {visibleNameError ? (
-          <p
-            className="archive-create-form__status"
-            data-tone="error"
-            id={nameErrorId}
-            role="alert"
-          >
+          <Alert className={formError} data-tone="error" id={nameErrorId}>
             {visibleNameError}
-          </p>
+          </Alert>
         ) : null}
 
         {locationError ? (
-          <p
-            className="archive-create-form__status"
-            data-tone="error"
-            id={locationErrorId}
-            role="alert"
-          >
+          <Alert className={formError} data-tone="error" id={locationErrorId}>
             {locationError}
-          </p>
+          </Alert>
         ) : null}
 
         {status ? (
-          <p className="archive-create-form__status" data-tone="error" role="alert">
+          <Alert className={formError} data-tone="error">
             {status}
-          </p>
+          </Alert>
         ) : null}
 
-        <div className="archive-create-form__footer">
+        <div className="flex min-w-0 justify-center">
           <Button
             busy={isCreating}
             busyStatus="Creating archive…"
+            className="min-h-control-standard min-w-archive-create-action cursor-pointer rounded-menu px-overlay-viewport-inset disabled:cursor-not-allowed aria-busy:disabled:cursor-not-allowed archive-form-narrow:w-full archive-form-narrow:min-w-0 archive-form-narrow:whitespace-normal"
             disabled={isCreating}
             type="submit"
             variant="primary"

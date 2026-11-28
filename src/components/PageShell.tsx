@@ -27,7 +27,7 @@ export function PageShell({
 }: PageShellProps) {
   return (
     <div
-      className="app-shell data-[details-pinned=true]:docked-details-track"
+      className="app-shell has-[>[data-page-notice]]:relative data-[details-pinned=true]:docked-details-track"
       data-sidebar-collapsed={sidebarCollapsed || undefined}
       data-details-pinned={detailsPanel ? true : undefined}
     >
@@ -46,7 +46,14 @@ export function PageShell({
         {children}
       </main>
       {detailsPanel}
-      {notice ? <div className="page-shell-notice">{notice}</div> : null}
+      {notice ? (
+        <div
+          className="pointer-events-none absolute end-update-notice-inset inset-be-update-notice-inset z-15 contents w-max overflow-visible update-notice-width has-[>[data-update-notice]]:block update-notice-narrow:end-update-notice-inset-narrow update-notice-narrow:inset-be-update-notice-inset-narrow update-notice-narrow:update-notice-width-narrow"
+          data-page-notice
+        >
+          {notice}
+        </div>
+      ) : null}
     </div>
   );
 }

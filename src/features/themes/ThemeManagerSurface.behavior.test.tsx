@@ -143,18 +143,19 @@ describe("ThemeManagerSurface behavior", () => {
     expect(container.textContent).toContain("Public schema");
     expect(container.textContent).not.toContain("Browse, preview, and manage application themes.");
     expect(container.querySelector('button[aria-label="Close Theme Manager"]')).toBeNull();
-    expect(container.querySelector(".theme-manager-surface h1")?.textContent).toBe("Theme Manager");
+    expect(container.querySelector('section[aria-label="Theme Manager"] h1')?.textContent).toBe(
+      "Theme Manager",
+    );
 
-    const toolbar = container.querySelector(".theme-manager__toolbar")!;
-    const links = toolbar.querySelector(".theme-manager__toolbar-links")!;
-    const actions = toolbar.querySelector(".theme-manager__toolbar-actions")!;
-    expect(toolbar.firstElementChild).toBe(actions);
-    expect(toolbar.lastElementChild).toBe(links);
-    expect(actions.firstElementChild?.textContent).toContain("Import");
-    expect(links.getAttribute("aria-label")).toBe("Theme resources");
-    const catalog = container.querySelector(".theme-catalog-list")!;
-    expect(catalog.getAttribute("aria-label")).toBe("Themes");
-    expect(container.querySelector(".theme-details h2")?.textContent).toBe("Moon Ink");
+    const header = container.querySelector<HTMLElement>('[data-utility-slot="header"]')!;
+    expect(button(header, "Import").disabled).toBe(false);
+    const resources = header.querySelector('nav[aria-label="Theme resources"]')!;
+    expect([...resources.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
+      "Theme guide",
+      "Public schema",
+    ]);
+    expect(container.querySelector('nav[aria-label="Themes"]')).not.toBeNull();
+    expect(container.querySelector("h2")?.textContent).toBe("Moon Ink");
     expect(container.textContent).toContain("Archeion Dark");
     expect(container.textContent).toContain("Archeion Light");
     expect(container.textContent).toContain("Moon Ink");
@@ -168,7 +169,6 @@ describe("ThemeManagerSurface behavior", () => {
     expect(container.textContent).toContain(
       "A minimal, intuitive light theme designed for clear daytime reading.",
     );
-    expect(button(container, "Use theme").classList).toContain("button--compact");
 
     expect(container.textContent).not.toMatch(
       /Built in|This archive|Sepia|Create starter|Reader colors|capabilit/i,
@@ -212,17 +212,19 @@ describe("ThemeManagerSurface behavior", () => {
     await settle();
 
     const readerSelection = services.runtime.getPreviewContext()?.settings.readerTheme;
-    const shell = container.querySelector('.theme-shell-preview__graphic[role="img"]');
+    const shell = container.querySelector('[role="img"][aria-labelledby]');
     expect(shell).not.toBeNull();
     act(() => button(container, "Moon Ink").click());
     act(() => button(container, "Preview").click());
 
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
-    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBe(shell);
-    const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
-    expect(container.querySelector(".theme-manager-surface")?.contains(controls ?? null)).toBe(
-      true,
+    expect(container.querySelector('[role="img"][aria-labelledby]')).toBe(shell);
+    const controls = container.querySelector<HTMLElement>(
+      'aside[aria-label="Theme preview controls"]',
     );
+    expect(
+      container.querySelector('section[aria-label="Theme Manager"]')?.contains(controls ?? null),
+    ).toBe(true);
     expect(document.activeElement?.textContent).toContain("Revert");
     expect(
       [...container.querySelectorAll("button")].filter((candidate) =>
@@ -243,9 +245,7 @@ describe("ThemeManagerSurface behavior", () => {
     });
     await act(async () => root.render(<ThemeManagerSurface services={services} />));
     await settle();
-    const shell = container.querySelector<HTMLElement>(
-      '.theme-shell-preview__graphic[role="img"]',
-    )!;
+    const shell = container.querySelector<HTMLElement>('[role="img"][aria-labelledby]')!;
     expect(shell.style.getPropertyValue("--theme-shell-sidebar")).toBe("#ffffff");
     expect(services.applyPreview).not.toHaveBeenCalled();
     expect(services.keepPreview).not.toHaveBeenCalled();
@@ -253,7 +253,9 @@ describe("ThemeManagerSurface behavior", () => {
 
     act(() => button(container, "Preview").click());
     expect(services.applyPreview).toHaveBeenCalledOnce();
-    const controls = container.querySelector<HTMLElement>(".theme-preview-controls")!;
+    const controls = container.querySelector<HTMLElement>(
+      'aside[aria-label="Theme preview controls"]',
+    )!;
     expect(button(controls, "Use theme").getAttribute("aria-disabled")).toBe("true");
     act(() => button(controls, "Use theme").click());
     expect(services.keepPreview).not.toHaveBeenCalled();
@@ -265,7 +267,9 @@ describe("ThemeManagerSurface behavior", () => {
     expect(services.keepPreview).not.toHaveBeenCalled();
 
     act(() => button(container, "Preview").click());
-    const nextControls = container.querySelector<HTMLElement>(".theme-preview-controls")!;
+    const nextControls = container.querySelector<HTMLElement>(
+      'aside[aria-label="Theme preview controls"]',
+    )!;
     act(() => activateCheckbox(nextControls.querySelector<HTMLElement>('[role="checkbox"]')!));
     expect(button(nextControls, "Use theme").getAttribute("aria-disabled")).toBeNull();
     await act(async () => button(nextControls, "Use theme").click());
@@ -289,12 +293,12 @@ describe("ThemeManagerSurface behavior", () => {
 
     const dialogs = container.querySelectorAll("dialog");
     expect(dialogs).toHaveLength(1);
-    expect(container.querySelector(".theme-manager-surface")?.contains(dialogs[0] ?? null)).toBe(
-      true,
-    );
+    expect(
+      container.querySelector('section[aria-label="Theme Manager"]')?.contains(dialogs[0] ?? null),
+    ).toBe(true);
     expect(dialogs[0]?.textContent).toContain("Remove “Moon Ink” theme?");
     expect(dialogs[0]?.textContent).toContain("from Archeion");
-    expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).not.toBeNull();
+    expect(container.querySelector('[role="img"][aria-labelledby]')).not.toBeNull();
     expect(services.repository.deletePackage).not.toHaveBeenCalled();
     act(() => button(dialogs[0]!, "Cancel").click());
     expect(container.querySelector("dialog")).toBeNull();

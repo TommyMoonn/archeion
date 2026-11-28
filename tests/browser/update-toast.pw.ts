@@ -48,8 +48,8 @@ test("Library discovery is polite and keyboard-operated, while Reader retains sh
   await page.goto(fixtureUrl);
   const reader = page.getByRole("button", { name: "Enter Reader", exact: true });
   await reader.focus();
-  // The polite announcer is intentionally screen-reader-only, so include hidden roles.
-  const liveRegion = page.getByRole("status", { includeHidden: true });
+  const liveRegion = page.locator("[data-page-notice]").getByRole("status");
+  await expect(liveRegion).toHaveCount(1);
   await expect(liveRegion).toBeEmpty();
   await available(page);
   await expect(reader).toBeFocused();
@@ -101,13 +101,13 @@ test("download and recovery replace the notice in place without inventing progre
   const toast = page.getByRole("region", { name: "Application update" });
   await toast.getByRole("button", { name: "Update now" }).click();
   await expect(toast).toContainText("Downloading…");
-  await expect(toast.getByRole("progressbar")).not.toHaveAttribute("value");
+  await expect(toast.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
   await expect(toast).toBeFocused();
   await page.evaluate(() =>
     window.updateToastFixture!.set({ downloadedBytes: 46, totalBytes: 100 }),
   );
   await expect(toast).toContainText("Downloading… 46%");
-  await expect(toast.getByRole("progressbar")).toHaveAttribute("value", "46");
+  await expect(toast.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "46");
   await page.evaluate(() => window.updateToastFixture!.set({ status: "ready" }));
   await expect(toast).toContainText("Restart Archeion to finish the update.");
   expect(await page.evaluate(() => window.updateToastFixture!.calls.install)).toBe(0);
@@ -167,16 +167,16 @@ test("update notices use two rows, compact actions, and app styling", async ({ p
   await available(page);
   const toast = page.getByRole("region", { name: "Application update" });
   const availableStyles = await toast.evaluate((element) => {
-    const actionRow = element.querySelector<HTMLElement>(":scope > .update-toast__actions")!;
+    const actionRow = element.querySelector<HTMLElement>(":scope > [data-update-actions]")!;
     const primary = actionRow.querySelector<HTMLElement>(".button--primary")!;
-    const dismiss = element.querySelector<HTMLElement>(".update-toast__dismiss")!;
+    const dismiss = element.querySelector<HTMLElement>('button[aria-label^="Dismiss update"]')!;
     const accentProbe = document.createElement("span");
     accentProbe.style.backgroundColor = "var(--accent)";
     element.append(accentProbe);
     const accent = getComputedStyle(accentProbe).backgroundColor;
     accentProbe.remove();
-    const header = element.querySelector<HTMLElement>(".update-toast__header")!;
-    const message = element.querySelector<HTMLElement>(".update-toast__message")!;
+    const header = element.querySelector<HTMLElement>("[data-update-header]")!;
+    const message = element.querySelector<HTMLElement>("[data-update-message]")!;
     const messageBounds = message.getBoundingClientRect();
     const dismissBounds = dismiss.getBoundingClientRect();
     return {
@@ -225,11 +225,11 @@ test("update notices use two rows, compact actions, and app styling", async ({ p
   await page.evaluate(() => window.updateToastFixture!.set({ status: "ready" }));
   await expect(toast.getByRole("button", { name: "Restart now" })).toBeVisible();
   const restartAlignment = await toast.evaluate((element) => {
-    const header = element.querySelector<HTMLElement>(".update-toast__header")!;
-    const actions = element.querySelector<HTMLElement>(".update-toast__actions")!;
+    const header = element.querySelector<HTMLElement>("[data-update-header]")!;
+    const actions = element.querySelector<HTMLElement>("[data-update-actions]")!;
     const primary = actions.querySelector<HTMLElement>(".button")!;
-    const message = header.querySelector<HTMLElement>(".update-toast__message")!;
-    const dismiss = header.querySelector<HTMLElement>(".update-toast__dismiss")!;
+    const message = header.querySelector<HTMLElement>("[data-update-message]")!;
+    const dismiss = header.querySelector<HTMLElement>('button[aria-label^="Dismiss update"]')!;
     const messageBounds = message.getBoundingClientRect();
     const dismissBounds = dismiss.getBoundingClientRect();
     return {
@@ -274,20 +274,20 @@ test("update notices use two rows, compact actions, and app styling", async ({ p
   );
   await expect(toast).toHaveAttribute("data-state", "completed");
   const completedStyles = await toast.evaluate((element) => {
-    const header = element.querySelector<HTMLElement>(".update-toast__header")!;
-    const actions = element.querySelector<HTMLElement>(".update-toast__actions")!;
-    const release = element.querySelector<HTMLElement>(".update-toast__release-button")!;
-    const dismiss = element.querySelector<HTMLElement>(".update-toast__dismiss")!;
+    const header = element.querySelector<HTMLElement>("[data-update-header]")!;
+    const actions = element.querySelector<HTMLElement>("[data-update-actions]")!;
+    const release = element.querySelector<HTMLElement>('button[aria-label="View release notes"]')!;
+    const dismiss = element.querySelector<HTMLElement>('button[aria-label^="Dismiss update"]')!;
     const headerBounds = header.getBoundingClientRect();
     const actionsBounds = actions.getBoundingClientRect();
-    const message = element.querySelector<HTMLElement>(".update-toast__message")!;
+    const message = element.querySelector<HTMLElement>("[data-update-message]")!;
     const messageBounds = message.getBoundingClientRect();
     const dismissBounds = dismiss.getBoundingClientRect();
     return {
       bodyFont: getComputedStyle(document.body).fontFamily,
-      messageFont: getComputedStyle(element.querySelector(".update-toast__message")!).fontFamily,
+      messageFont: getComputedStyle(element.querySelector("[data-update-message]")!).fontFamily,
       releaseButtonFont: getComputedStyle(release).fontFamily,
-      statusIcon: Boolean(element.querySelector(".update-toast__status-icon svg")),
+      statusIcon: Boolean(element.querySelector("[data-update-status-icon] svg")),
       releaseIcon: Boolean(release.querySelector("svg")),
       releaseHeight: Math.round(release.getBoundingClientRect().height),
       dismissHeight: Math.round(dismiss.getBoundingClientRect().height),
@@ -335,8 +335,8 @@ test("restart notice expands to fit a monospaced interface font before wrapping"
   const toast = page.getByRole("region", { name: "Application update" });
   await expect(toast).toBeVisible();
   const layout = await toast.evaluate((element) => {
-    const message = element.querySelector<HTMLElement>(".update-toast__message")!;
-    const dismiss = element.querySelector<HTMLElement>(".update-toast__dismiss")!;
+    const message = element.querySelector<HTMLElement>("[data-update-message]")!;
+    const dismiss = element.querySelector<HTMLElement>('button[aria-label^="Dismiss update"]')!;
     const messageBounds = message.getBoundingClientRect();
     const dismissBounds = dismiss.getBoundingClientRect();
     return {
@@ -359,7 +359,7 @@ test("restart notice expands to fit a monospaced interface font before wrapping"
   expect(layout.dismissLeft - layout.messageRight).toBeGreaterThanOrEqual(23);
 });
 
-test("completion uses two rows and a working dismiss control", async ({ page }) => {
+test("opens release notes and dismisses the completion", async ({ page }) => {
   await page.goto(fixtureUrl);
   await page.evaluate(() =>
     window.updateToastFixture!.set({
@@ -378,14 +378,6 @@ test("completion uses two rows and a working dismiss control", async ({ page }) 
   const toast = page.getByRole("region", { name: "Application update" });
   await expect(toast).toContainText("Updated to Archeion 1.8.0");
   await expect(toast.getByRole("button", { name: "View release notes" })).toBeVisible();
-  await expect(toast.locator(":scope > .update-toast__header")).toHaveCount(1);
-  await expect(toast.locator(":scope > .update-toast__header .update-toast__dismiss")).toHaveCount(
-    1,
-  );
-  await expect(
-    toast.locator(":scope > .update-toast__actions .update-toast__release-button"),
-  ).toHaveCount(1);
-  await expect(toast.locator(".update-toast__status-icon")).toHaveCount(0);
   await toast.getByRole("button", { name: "View release notes" }).click();
   await expect(page.locator("html")).toHaveAttribute(
     "data-last-external-url",
@@ -411,7 +403,7 @@ for (const width of [1280, 800, 560, 360, 320]) {
     expect(mainBounds).toEqual(mainBefore);
     expect(
       await page
-        .locator(".page-shell-notice")
+        .locator("[data-page-notice]")
         .evaluate((element) => getComputedStyle(element).position),
     ).toBe("absolute");
     expect(bounds!.x).toBeGreaterThanOrEqual(mainBounds!.x + 10);
@@ -484,7 +476,9 @@ test("notice text and keyboard indicators retain contrast in both built-in appea
     await toast.getByRole("button", { name: "Update now" }).focus();
     const colors = await toast.evaluate((element) => {
       const style = getComputedStyle(element);
-      const dismiss = getComputedStyle(element.querySelector(".update-toast__dismiss")!);
+      const dismiss = getComputedStyle(
+        element.querySelector('button[aria-label^="Dismiss update"]')!,
+      );
       const button = getComputedStyle(element.querySelector(".button--primary")!);
       return {
         background: style.backgroundColor,

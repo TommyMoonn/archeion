@@ -19,15 +19,10 @@
 @import "./components/menus.css";
 @import "./components/utility-window.css";
 
-@import "./features/archive.css";
-@import "./features/updates.css";
 @import "./features/reader.css";
 @import "./built-in-reader-palettes.css";
 @import "./features/reader-content-actions.css";
-@import "./features/about.css";
 @import "./features/quick-actions.css";
-@import "./features/theme-preview.css";
-@import "./features/theme-manager.css";
 
 @import "./forced-colors.css";
 

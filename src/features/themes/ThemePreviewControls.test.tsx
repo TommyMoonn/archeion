@@ -115,7 +115,9 @@ describe("ThemePreviewControls", () => {
       expect(started.ok).toBe(true);
     });
 
-    const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
+    const controls = container.querySelector<HTMLElement>(
+      'aside[aria-label="Theme preview controls"]',
+    );
     expect(controls).not.toBeNull();
     expect(controls?.hasAttribute("style")).toBe(false);
     expect(controls?.style.getPropertyValue("--surface")).toBe("");
@@ -136,7 +138,9 @@ describe("ThemePreviewControls", () => {
     act(() => root.render(<NativeDialogPreviewOwner handle={started.handle} session={session} />));
 
     const dialog = container.querySelector("dialog")!;
-    const controls = container.querySelector<HTMLElement>(".theme-preview-controls")!;
+    const controls = container.querySelector<HTMLElement>(
+      'aside[aria-label="Theme preview controls"]',
+    )!;
     expect(dialog.contains(controls)).toBe(true);
     expect(document.activeElement?.textContent).toContain("Revert");
 

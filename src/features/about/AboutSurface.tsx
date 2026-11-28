@@ -9,7 +9,13 @@ import {
 } from "react";
 
 import { openExternalUrl } from "../../app/openExternalUrl";
-import { AboutLayout } from "./AboutLayout";
+import { Alert } from "../../components/ui/alert";
+import {
+  AboutLayout,
+  AboutLinkCopy,
+  aboutLinkListClassName,
+  aboutLinkRowClassName,
+} from "./AboutLayout";
 import { AboutLayoutContext } from "./aboutLayoutContext";
 import { AboutUpdateStatus } from "../updates/AboutUpdateStatus";
 import { CHANGELOG_URL } from "../updates/updateReleaseUrl";
@@ -79,30 +85,30 @@ function AboutSurfaceContent({ updateClient }: AboutSurfaceProps) {
     <>
       <AboutUpdateStatus client={updateClient} />
 
-      <nav aria-label="Archeion links" className="about-window__links">
+      <nav aria-label="Archeion links" className={aboutLinkListClassName}>
         {ABOUT_DESTINATIONS.map(({ href, icon: DestinationIcon, label, location }) => (
           <a
-            className="about-window__link"
+            className={`grid w-full grid-cols-about-link items-center gap-about-link-column bg-transparent text-start text-text no-underline transition-background control-hover:bg-surface-hover control-hover:text-text-strong focus-visible:bg-surface-hover focus-visible:text-text-strong keyboard-navigation:focus-visible:outline-offset-2! ${aboutLinkRowClassName}`}
             href={href}
             key={href}
             onClick={(event) => openDestination(event, href)}
             rel="noreferrer"
             target="_blank"
           >
-            <DestinationIcon aria-hidden="true" size={16} />
-            <span className="about-window__link-copy">
-              <strong>{label}</strong>
-              <small>{location}</small>
-            </span>
-            <ExternalLink aria-hidden="true" size={14} />
+            <DestinationIcon aria-hidden="true" className="size-icon-glyph-standard text-muted" />
+            <AboutLinkCopy label={label} location={location} />
+            <ExternalLink aria-hidden="true" className="size-icon-glyph-compact text-muted" />
           </a>
         ))}
       </nav>
 
       {externalLinkError ? (
-        <p className="about-window__error" data-tone="error" role="alert">
+        <Alert
+          className="w-full wrap-normal text-meta text-error-strong forced-colors:text-error-strong!"
+          data-tone="error"
+        >
           {externalLinkError}
-        </p>
+        </Alert>
       ) : null}
     </>
   );

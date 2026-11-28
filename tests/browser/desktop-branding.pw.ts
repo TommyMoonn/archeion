@@ -7,7 +7,11 @@ for (const mode of ["about", "archive-manager"] as const) {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto(`${fixture}?window=${mode}&windowInstance=7`);
+    await page.goto(
+      mode === "archive-manager"
+        ? "/tests/browser/fixtures/?view=archive-shell"
+        : "/tests/browser/fixtures/?view=about-updates",
+    );
     const brand = page.locator(".brand-logo");
     await expect(brand).toBeVisible();
     await expect(page.getByRole("heading", { name: "Archeion", exact: true })).toBeVisible();

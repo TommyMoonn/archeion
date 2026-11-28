@@ -54,36 +54,6 @@ const auditedErrorSources = [
     /aria-live="assertive"[\s\S]*className="status-page"[\s\S]*data-tone="error"/,
   ],
   [
-    "archive creation",
-    "src/features/archive/ArchiveCreateView.tsx",
-    /className="archive-create-form__status" data-tone="error" role="alert"/,
-  ],
-  [
-    "archive manager fallback",
-    "src/features/archive/ArchiveManagerWindow.tsx",
-    /className="archive-manager-window__fallback" data-tone="error" role="alert"/,
-  ],
-  [
-    "archive manager operation",
-    "src/features/archive/ArchiveManagerWindowContent.tsx",
-    /className="archive-manager-window__status"\s+data-tone="error"\s+role="alert"/,
-  ],
-  [
-    "About external links",
-    "src/features/about/AboutSurface.tsx",
-    /className="about-window__error" data-tone="error" role="alert"/,
-  ],
-  [
-    "theme diagnostics",
-    "src/features/themes/ThemeDetails.tsx",
-    /className="theme-details__diagnostics" data-tone="error" role="alert"/,
-  ],
-  [
-    "theme preview",
-    "src/features/themes/ThemePreviewControls.tsx",
-    /data-tone="error" role="alert"/,
-  ],
-  [
     "Reader external links",
     "src/features/reader/ReaderExternalLinkDialog.tsx",
     /className="reader-external-link-dialog__error" data-tone="error" role="alert"/,

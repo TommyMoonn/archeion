@@ -68,8 +68,8 @@ export function FeedbackFixture() {
   return (
     <TooltipProvider>
       <div style={{ padding: 16, minHeight: "100dvh" }}>
-        <header className="about-window__brand" style={{ width: 64 }}>
-          <BrandLogo />
+        <header>
+          <BrandLogo className="size-about-logo" />
         </header>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <Button onClick={() => setMode("empty")}>Empty</Button>

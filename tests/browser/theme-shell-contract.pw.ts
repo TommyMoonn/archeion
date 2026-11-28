@@ -6,10 +6,10 @@ import { shellStressThemes } from "../fixtures/themes/shellStressThemes";
 async function shellPresentation(page: Page, archive: boolean) {
   return page.evaluate((archive) => {
     const sidebar = document.querySelector<HTMLElement>(
-      archive ? ".archive-manager-window__sidebar" : ".sidebar",
+      archive ? "[data-archive-catalog]" : ".sidebar",
     )!;
     const main = document.querySelector<HTMLElement>(
-      archive ? ".archive-manager-window__main" : ".page-shell",
+      archive ? "[data-archive-detail]" : ".page-shell",
     )!;
     const titlebar = document.querySelector<HTMLElement>(".window-titlebar")!;
     const plane = titlebar.querySelector<HTMLElement>(".window-titlebar__navigation-plane");
@@ -68,9 +68,7 @@ for (const theme of ["equal", "distinct"] as const) {
       const resolved = resolveTheme(shellStressThemes[theme]);
       await page.setViewportSize({ width: 1100, height: 700 });
       await page.goto(`/tests/browser/fixtures/?view=${view}&themeStress=${theme}`);
-      await expect(
-        page.locator(archive ? ".archive-manager-window__main" : ".page-shell"),
-      ).toBeVisible();
+      await expect(page.locator(archive ? "[data-archive-detail]" : ".page-shell")).toBeVisible();
 
       const variables = await page.locator("html").evaluate((root) => ({
         frame: root.style.getPropertyValue("--surface-app-frame"),

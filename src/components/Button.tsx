@@ -85,7 +85,9 @@ export function Button({
           {busy ? <BusyIndicator /> : null}
         </span>
       ) : null}
-      <span className="button__label">{children}</span>
+      <span className="button__label" data-slot="button-label">
+        {children}
+      </span>
     </UiButton>
   );
   const tooltipText = hasExplainedDisabledState ? (disabledReason ?? "") : (tooltip ?? title ?? "");

@@ -11,7 +11,7 @@ const windows = [
     mode: "about",
     module: "AboutWindow",
     slot: "identity",
-    plane: ".about-window-shell",
+    plane: "#about-main-content",
     width: 520,
     height: 620,
   },
@@ -27,7 +27,7 @@ const windows = [
     mode: "theme-manager",
     module: "ThemeManagerWindow",
     slot: "workspace",
-    plane: ".theme-manager-surface",
+    plane: 'section[aria-label="Theme Manager"]',
     width: 1100,
     height: 780,
   },
@@ -35,7 +35,7 @@ const windows = [
     mode: "archive-manager",
     module: "ArchiveManagerWindow",
     slot: null,
-    plane: ".archive-manager-window__main",
+    plane: "[data-archive-detail]",
     width: 1100,
     height: 760,
   },
@@ -216,7 +216,7 @@ for (const utility of windows)
           await page.evaluate(() => window.uiStabilityFixture.holdUtilityInitialization());
         release();
         if (utility.mode === "settings" || utility.mode === "theme-manager") {
-          await expect(page.locator(".utility-window-ready").locator(spinner)).toBeVisible();
+          await expect(page.locator("[data-utility-content]").locator(spinner)).toBeVisible();
           await expectCentered(spinner, loadingArea);
           await expect(page.locator("[data-utility-ready]")).toHaveCount(0);
           const during = await geometry(page, utility.plane);
@@ -389,7 +389,7 @@ for (const mode of ["settings", "theme-manager"] as const)
         .poll(() => page.evaluate(() => sessionStorage.getItem("utility-settings-reads")))
         .not.toBeNull();
       if (failure === "hang-once") await page.clock.fastForward(5_100);
-      await expect(page.locator(".utility-window-ready .utility-load-status")).toBeVisible();
+      await expect(page.locator("[data-utility-content] [data-utility-stage]")).toBeVisible();
       await page.clock.fastForward(16_000);
       await expect(
         page.getByRole("alert").filter({ hasText: "could not be loaded" }),

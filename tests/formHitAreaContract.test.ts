@@ -32,7 +32,6 @@ describe("form semantics and control hit-area contract", () => {
   const tokens = read("src/styles/tokens.css");
   const windowFrame = read("src/styles/layout/window-frame.css");
   const forcedColors = read("src/styles/forced-colors.css");
-  const archive = read("src/styles/features/archive.css");
   const windowTitlebar = read("src/components/WindowTitlebar.tsx");
 
   it("retains existing compact and native-window target geometry", () => {
@@ -51,11 +50,5 @@ describe("form semantics and control hit-area contract", () => {
     expect(forcedColors).toContain('[role="group"]');
     expect(forcedColors).toContain('.input-shell:has(input[aria-invalid="true"])');
     expect(forcedColors).toContain("outline: 2px dashed Mark");
-  });
-
-  it("keeps long errors and constrained forms locally reflowable", () => {
-    expect(cssBlock(archive, "@container archive-detail (max-width: 360px)")).toContain(
-      "grid-template-columns: minmax(0, 1fr)",
-    );
   });
 });

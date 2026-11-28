@@ -11,8 +11,9 @@ import "../../../src/styles/index.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Browser fixture root is missing.");
-const stressTheme = new URLSearchParams(window.location.search).get("themeStress");
-if (new URLSearchParams(window.location.search).has("light")) {
+const params = new URLSearchParams(window.location.search);
+const stressTheme = params.get("themeStress");
+if (params.has("light")) {
   applyResolvedAppTheme(document.documentElement, resolveAppTheme("light", {}));
 }
 if (stressTheme !== null) {
@@ -22,7 +23,7 @@ if (stressTheme !== null) {
   if (!validation.ok) throw new Error("Shell stress theme must pass schema-v1 validation.");
   applyResolvedAppTheme(document.documentElement, resolveTheme(validation.manifest).app);
 }
-const view = new URLSearchParams(window.location.search).get("view");
+const view = params.get("view");
 if (
   view === "library" ||
   view === "library-updates" ||
@@ -43,6 +44,9 @@ if (
         document.documentElement.dataset.lastWindowCommand = command;
         return;
       }
+      if (view === "archive-shell" && command === "plugin:dialog|open") {
+        return params.get("archiveParent");
+      }
       if (view === "about-updates" || view === "library-updates") {
         if (command === "plugin:app|version") return APPLICATION_VERSION_FALLBACK;
         if (
@@ -51,6 +55,9 @@ if (
           args !== null &&
           "url" in args
         ) {
+          if (view === "about-updates" && args.url === params.get("failExternalLink")) {
+            throw new Error("Synthetic external opener failure");
+          }
           document.documentElement.dataset.lastExternalUrl = String(args.url);
           return;
         }
