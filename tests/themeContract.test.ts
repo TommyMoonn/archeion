@@ -128,10 +128,7 @@ function normalizeCssColors(value: string): string {
 
 describe("Archeion theme schema v1", () => {
   it("uses defined canonical application tokens for every shell-preview fallback", () => {
-    const previewCss = fs.readFileSync(
-      path.join(projectRoot, "src/styles/features/theme-manager.css"),
-      "utf8",
-    );
+    const previewCss = fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8");
     const hostDeclarations = declarations(
       fs.readFileSync(path.join(projectRoot, "src/styles/built-in-palettes.css"), "utf8"),
     );

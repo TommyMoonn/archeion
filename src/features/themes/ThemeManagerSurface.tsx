@@ -8,6 +8,7 @@ import { ThemeManagerLayoutContext } from "./themeManagerLayoutContext";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { IconButton } from "../../components/IconButton";
+import { Alert } from "../../components/ui/alert";
 import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
 import { ARCHEION_THEME_SCHEMA_URL } from "../../themes/themeTokenRegistry";
 import { ThemeRepository } from "../../themes/ThemeRepository";
@@ -187,9 +188,9 @@ function ThemeManagerContent({ services }: ThemeManagerSurfaceProps) {
             title="Update existing theme?"
           >
             {controller.error ? (
-              <p data-tone="error" role="alert">
+              <Alert className="my-theme-confirmation-error" data-tone="error">
                 {controller.error}
-              </p>
+              </Alert>
             ) : null}
           </Dialog>
         ) : null}

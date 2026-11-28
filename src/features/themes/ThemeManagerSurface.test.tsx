@@ -74,7 +74,7 @@ async function settle() {
 }
 
 function expectShellPreview(container: HTMLElement, app: ResolvedAppTheme) {
-  const graphic = container.querySelector<HTMLElement>('.theme-shell-preview__graphic[role="img"]');
+  const graphic = container.querySelector<HTMLElement>('[role="img"][aria-labelledby]');
   expect(graphic).not.toBeNull();
   expect(document.getElementById(graphic!.getAttribute("aria-labelledby")!)?.textContent).toBe(
     "Application shell preview",
@@ -106,9 +106,15 @@ function expectShellPreview(container: HTMLElement, app: ResolvedAppTheme) {
   );
   expect(compact).not.toBeNull();
   expect(compact!.getAttribute("style")).toBe(graphic!.getAttribute("style"));
-  expect(container.querySelector(".theme-details__swatches")?.textContent).toContain("Main");
-  expect(container.querySelector(".theme-details__swatches")?.textContent).toContain("Accent");
-  expect(container.querySelector(".theme-details__swatches")?.textContent).toContain("Text");
+  expect(
+    container.querySelector('dl[aria-label="Application color preview"]')?.textContent,
+  ).toContain("Main");
+  expect(
+    container.querySelector('dl[aria-label="Application color preview"]')?.textContent,
+  ).toContain("Accent");
+  expect(
+    container.querySelector('dl[aria-label="Application color preview"]')?.textContent,
+  ).toContain("Text");
 }
 
 describe("ThemeManagerSurface preview ownership", () => {
@@ -144,8 +150,8 @@ describe("ThemeManagerSurface preview ownership", () => {
     act(() => button(surfaces[0]!, "Moon Ink").click());
     act(() => button(surfaces[0]!, "Preview").click());
 
-    expect(surfaces[0]?.querySelector(".theme-preview-controls")).not.toBeNull();
-    expect(surfaces[1]?.querySelector(".theme-preview-controls")).toBeNull();
+    expect(surfaces[0]?.querySelector('aside[aria-label="Theme preview controls"]')).not.toBeNull();
+    expect(surfaces[1]?.querySelector('aside[aria-label="Theme preview controls"]')).toBeNull();
   });
 
   it.each(["dark", "light"] as const)(
@@ -158,7 +164,7 @@ describe("ThemeManagerSurface preview ownership", () => {
       act(() => button(container, base === "dark" ? "Archeion Dark" : "Archeion Light").click());
       expectShellPreview(container, themeResolution.resolveBuiltInAppTheme(base));
       expect(document.documentElement.getAttribute("style")).toBe(beforeStyle);
-      expect(container.querySelector(".theme-preview-controls")).toBeNull();
+      expect(container.querySelector('aside[aria-label="Theme preview controls"]')).toBeNull();
       expect(services.runtime.updateAppearanceSettings).not.toHaveBeenCalled();
     },
   );
@@ -173,7 +179,7 @@ describe("ThemeManagerSurface preview ownership", () => {
       act(() => button(container, manifest.name).click());
       expectShellPreview(container, themeResolution.resolveTheme(manifest).app);
       expect(document.documentElement.getAttribute("style")).toBe(beforeStyle);
-      expect(container.querySelector(".theme-preview-controls")).toBeNull();
+      expect(container.querySelector('aside[aria-label="Theme preview controls"]')).toBeNull();
       expect(services.runtime.updateAppearanceSettings).not.toHaveBeenCalled();
     },
   );
@@ -187,9 +193,9 @@ describe("ThemeManagerSurface preview ownership", () => {
     await act(async () => root.render(<ThemeManagerSurface services={services} />));
     await settle();
     act(() => button(container, "moon-ink").click());
-    expect(container.querySelector(".theme-details__diagnostics")).not.toBeNull();
-    expect(container.querySelector(".theme-shell-preview")).toBeNull();
-    expect(container.querySelector(".theme-details__swatches")).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("Theme diagnostics");
+    expect(container.querySelector('[role="img"][aria-labelledby]')).toBeNull();
+    expect(container.querySelector('dl[aria-label="Application color preview"]')).toBeNull();
     expect(resolve).not.toHaveBeenCalled();
   });
 
@@ -207,7 +213,7 @@ describe("ThemeManagerSurface preview ownership", () => {
     packages["moon-ink"] = JSON.stringify({ ...revised, schemaVersion: 2 });
     act(() => container.querySelector<HTMLButtonElement>('[aria-label="Reload themes"]')!.click());
     await settle();
-    expect(container.querySelector(".theme-shell-preview")).toBeNull();
-    expect(container.querySelector(".theme-details__diagnostics")).not.toBeNull();
+    expect(container.querySelector('[role="img"][aria-labelledby]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain("Theme diagnostics");
   });
 });

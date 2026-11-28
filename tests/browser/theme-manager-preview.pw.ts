@@ -57,28 +57,28 @@ async function expectPreviewColors(page: Page, theme: ResolvedAppTheme) {
       return getComputedStyle(probe).color;
     };
     const regions = {
-      chrome: [".theme-shell-preview__chrome", "--theme-shell-frame"],
-      navigation: [".theme-shell-preview__navigation", "--theme-shell-sidebar"],
-      workspace: [".theme-shell-preview__workspace", "--theme-shell-main"],
-      content: [".theme-shell-preview__content", "--theme-shell-surface-raised"],
+      chrome: ['[data-preview-part="chrome"]', "--theme-shell-frame"],
+      navigation: ['[data-preview-part="navigation"]', "--theme-shell-sidebar"],
+      workspace: ['[data-preview-part="workspace"]', "--theme-shell-main"],
+      content: ['[data-preview-part="content"]', "--theme-shell-surface-raised"],
     };
     const backgrounds = Object.values(regions).map(([selector, variable]) => ({
       rendered: getComputedStyle(element.querySelector(selector!)!).backgroundColor,
       resolved: color(variable!),
     }));
     const foregrounds = [
-      [".theme-shell-preview__navigation", "--theme-shell-text", "color"],
-      [".theme-shell-preview__workspace > strong", "--theme-shell-text-strong", "color"],
-      [".theme-shell-preview__secondary", "--theme-shell-muted", "color"],
-      [".theme-shell-preview__accent-mark", "--theme-shell-accent", "backgroundColor"],
+      ['[data-preview-part="navigation"]', "--theme-shell-text", "color"],
+      ['[data-preview-part="title"]', "--theme-shell-text-strong", "color"],
+      ['[data-preview-part="secondary"]', "--theme-shell-muted", "color"],
+      ['[data-preview-part="accent"]', "--theme-shell-accent", "backgroundColor"],
     ].map(([selector, variable, property]) => ({
       rendered: getComputedStyle(element.querySelector(selector!)!)[
         property as "color" | "backgroundColor"
       ],
       resolved: color(variable!),
     }));
-    const navigation = element.querySelector(".theme-shell-preview__navigation")!;
-    const workspace = element.querySelector(".theme-shell-preview__workspace")!;
+    const navigation = element.querySelector('[data-preview-part="navigation"]')!;
+    const workspace = element.querySelector('[data-preview-part="workspace"]')!;
     const divider = getComputedStyle(navigation);
     const rtl = divider.direction === "rtl";
     const result = {
@@ -154,7 +154,18 @@ test("candidate inspection renders resolved built-in and custom colors without a
   }
   await page.getByRole("button", { name: /^invalid-shell/ }).click();
   await expect(page.getByRole("img", { name: "Application shell preview" })).toHaveCount(0);
-  await expect(page.getByRole("alert")).toContainText("Theme diagnostics");
+  const diagnostics = page.getByRole("alert").filter({ hasText: "Theme diagnostics" });
+  await expect(diagnostics).toBeVisible();
+  await page.emulateMedia({ forcedColors: "active" });
+  const systemText = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "CanvasText";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  await expect(diagnostics).toHaveCSS("border-top-color", systemText);
 });
 
 test("static preview reflows at narrow widths and doubled text without adding keyboard stops", async ({
@@ -172,8 +183,11 @@ test("static preview reflows at narrow widths and doubled text without adding ke
     await page.screenshot({ path: testInfo.outputPath(`reflow-${width}.png`) });
   }
   await page.setViewportSize({ width: 320, height: 800 });
-  await page.addStyleTag({ content: ".theme-shell-preview { --type-caption: 24px; }" });
   const preview = page.getByRole("img", { name: "Application shell preview" });
+  await page
+    .locator("figure")
+    .filter({ has: preview })
+    .evaluate((element) => element.style.setProperty("--text-caption", "24px"));
   await preview.scrollIntoViewIfNeeded();
   expect(await preview.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
     true,
@@ -200,8 +214,8 @@ test("RTL and forced colors retain the structural divider and do not create pseu
   const graphic = page.getByRole("img", { name: "Application shell preview" });
   const boundary = async () =>
     graphic.evaluate((element) => {
-      const navigation = element.querySelector(".theme-shell-preview__navigation")!;
-      const workspace = element.querySelector(".theme-shell-preview__workspace")!;
+      const navigation = element.querySelector('[data-preview-part="navigation"]')!;
+      const workspace = element.querySelector('[data-preview-part="workspace"]')!;
       const style = getComputedStyle(navigation);
       return {
         navigationStart: navigation.getBoundingClientRect().left,
@@ -253,11 +267,14 @@ test("warning acknowledgment, revert, keep, and removal remain deliberate workfl
   await expect(
     page.getByRole("heading", { name: "Unreadable navigation", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  const remove = page.getByRole("button", { name: "Remove", exact: true });
+  await remove.click();
   const dialog = page.getByRole("dialog", { name: /Remove/ });
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(remove).toBeFocused();
+  await remove.click();
   await dialog.getByRole("button", { name: "Remove theme" }).click();
   await expect(page.getByRole("button", { name: /^Unreadable navigation/ })).toHaveCount(0);
   // The committed missing ID remains inspectable as unavailable until replaced.
@@ -265,6 +282,46 @@ test("warning acknowledgment, revert, keep, and removal remain deliberate workfl
   await expect(page.getByRole("alert")).toContainText("could not be read");
   await page.getByRole("button", { name: /^Archeion Dark/ }).click();
   await expect(page.getByRole("img", { name: "Application shell preview" })).toBeVisible();
+});
+
+test("narrow live preview actions fit enlarged labels", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/tests/browser/fixtures/?view=theme-manager");
+  await page.addStyleTag({ content: "html { font-size: 160%; }" });
+  await page.getByRole("button", { name: /^Distinct shell planes/ }).click();
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const controls = page.getByRole("complementary", { name: "Theme preview controls" });
+  const useTheme = controls.getByRole("button", { name: "Use theme", exact: true });
+  await expect(useTheme).toBeVisible();
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  const fit = await useTheme.evaluate((button) => ({
+    label: button.scrollWidth <= button.clientWidth,
+    viewport: button.getBoundingClientRect().right <= innerWidth,
+  }));
+  expect(fit).toEqual({ label: true, viewport: true });
+});
+
+test("a failed preview save retains its system colors in dark forced colors", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark", forcedColors: "active" });
+  await page.goto("/tests/browser/fixtures/?view=theme-manager&failSave");
+  await page.getByRole("button", { name: /^Distinct shell planes/ }).click();
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const controls = page.getByRole("complementary", { name: "Theme preview controls" });
+  await controls.getByRole("button", { name: "Use theme", exact: true }).click();
+  const error = controls.getByRole("alert");
+  await expect(error).toHaveText("The theme could not be saved. The preview is still active.");
+  const colors = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    document.body.append(probe);
+    probe.style.color = "CanvasText";
+    const text = getComputedStyle(probe).color;
+    probe.style.color = "Mark";
+    const mark = getComputedStyle(probe).color;
+    probe.remove();
+    return { text, mark };
+  });
+  await expect(error).toHaveCSS("color", colors.text);
+  await expect(error).toHaveCSS("background-color", colors.mark);
 });
 
 test("missing scoped candidate properties fall back to the host's canonical shell tokens", async ({
@@ -275,9 +332,9 @@ test("missing scoped candidate properties fall back to the host's canonical shel
   const graphic = page.getByRole("img", { name: "Application shell preview" });
   const hostStyle = await page.locator("html").getAttribute("style");
   const expectedRoles = [
-    [".theme-shell-preview__chrome", appThemeResolvedTokenRegistry.frame.cssVariable],
-    [".theme-shell-preview__navigation", appThemeResolvedTokenRegistry.sidebar.cssVariable],
-    [".theme-shell-preview__workspace", appThemeResolvedTokenRegistry.main.cssVariable],
+    ['[data-preview-part="chrome"]', appThemeResolvedTokenRegistry.frame.cssVariable],
+    ['[data-preview-part="navigation"]', appThemeResolvedTokenRegistry.sidebar.cssVariable],
+    ['[data-preview-part="workspace"]', appThemeResolvedTokenRegistry.main.cssVariable],
   ];
   const backgrounds = await graphic.evaluate((element, roles) => {
     const style = (element as HTMLElement).style;
@@ -340,7 +397,9 @@ test("details fill the pane, catalog insets stay compact, and swatch parts share
               workspace.getBoundingClientRect().top - header.getBoundingClientRect().bottom,
             insets,
             rowHeight: row.getBoundingClientRect().height,
-            swatches: [...surface.querySelectorAll(".theme-swatch")].map((swatch) => [
+            swatches: [
+              ...surface.querySelectorAll('dl[aria-label="Application color preview"] > div'),
+            ].map((swatch) => [
               center(swatch.querySelector("dt")!),
               center(swatch.querySelector("dd > span")!),
               center(swatch.querySelector("code")!),
@@ -363,8 +422,8 @@ test("details fill the pane, catalog insets stay compact, and swatch parts share
   }
   await page.locator("html").evaluate((element) => element.setAttribute("dir", "ltr"));
   await page.setViewportSize({ width: 320, height: 800 });
-  await page.addStyleTag({ content: ".theme-details__swatches { --type-caption: 24px; }" });
-  const swatches = page.locator(".theme-details__swatches");
+  const swatches = page.locator('dl[aria-label="Application color preview"]');
+  await swatches.evaluate((element) => element.style.setProperty("--text-caption", "24px"));
   await swatches.scrollIntoViewIfNeeded();
   expect(await swatches.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
     true,

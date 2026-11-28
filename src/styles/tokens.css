@@ -423,6 +423,17 @@
   --spacing-theme-catalog-block: 10px;
   --spacing-theme-catalog-gap: 3px;
   --spacing-theme-notice-limit: min(108px, 20dvh);
+  --spacing-theme-details-bottom: 30px;
+  --spacing-theme-details-left: 26px;
+  --spacing-theme-confirmation-error: 1em;
+  --spacing-theme-diagnostics: min(240px, 36dvh);
+  --spacing-theme-swatch-track: 110px;
+  --spacing-theme-preview-nav: 100px;
+  --spacing-theme-preview-thumbnail: 56px;
+  --spacing-theme-preview-mark: 4px;
+  --spacing-theme-preview-stroke: 3px;
+  --container-theme-preview-stacked: 24em;
+  --leading-theme-warning: var(--text-caption--line-height);
   --leading-theme-copy: 1.45;
   --leading-theme-catalog-status: 1.35;
   --opacity-theme-catalog-disabled: 0.68;
@@ -533,6 +544,7 @@
   --breakpoint-window-narrow: 560px;
   --breakpoint-collection-narrow: 620px;
   --breakpoint-panel-narrow: 680px;
+  --breakpoint-theme-preview-controls: 700px;
   --breakpoint-dialog-narrow: 720px;
   --breakpoint-bulk-metadata-stacked: 620px;
   --breakpoint-workspace-narrow: 760px;
@@ -648,6 +660,17 @@
   --color-metadata-success: color-mix(in srgb, var(--success-soft) 76%, var(--surface-raised));
   --color-surface-raised: var(--surface-raised);
   --color-surface-hover: var(--surface-hover);
+  --color-theme-preview-canvas: var(--theme-shell-canvas, var(--canvas));
+  --color-theme-preview-frame: var(--theme-shell-frame, var(--surface-app-frame));
+  --color-theme-preview-sidebar: var(--theme-shell-sidebar, var(--surface-sidebar));
+  --color-theme-preview-main: var(--theme-shell-main, var(--surface-main));
+  --color-theme-preview-raised: var(--theme-shell-surface-raised, var(--surface-raised));
+  --color-theme-preview-divider: var(--theme-shell-line-subtle, var(--line-subtle));
+  --color-theme-preview-text: var(--theme-shell-text, var(--text));
+  --color-theme-preview-strong: var(--theme-shell-text-strong, var(--text-strong));
+  --color-theme-preview-muted: var(--theme-shell-muted, var(--muted));
+  --color-theme-preview-accent: var(--theme-shell-accent, var(--accent));
+  --color-system-canvas-text: CanvasText;
   --color-surface-app-frame: var(--surface-app-frame);
   --color-surface-sidebar: var(--surface-sidebar);
   --color-surface-main: var(--surface-main);
@@ -886,6 +909,56 @@
   @media (max-width: theme(--breakpoint-panel-narrow)) {
     @slot;
   }
+}
+
+@custom-variant theme-details-stacked {
+  @media (max-width: theme(--breakpoint-window-small)) {
+    @slot;
+  }
+}
+
+@custom-variant theme-preview-controls-stacked {
+  @media (max-width: theme(--breakpoint-theme-preview-controls)) {
+    @slot;
+  }
+}
+
+@custom-variant theme-preview-stacked {
+  @container theme-shell-preview (max-width: theme(--container-theme-preview-stacked)) {
+    @slot;
+  }
+}
+
+@utility grid-cols-theme-swatch {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-details-swatches {
+  grid-template-columns: repeat(3, minmax(var(--spacing-theme-swatch-track), 1fr));
+}
+
+@utility grid-cols-theme-preview {
+  grid-template-columns: minmax(var(--spacing-theme-preview-nav), 0.3fr) minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-preview-thumbnail {
+  grid-template-columns: minmax(var(--spacing-control-compact), 0.28fr) minmax(0, 1fr);
+}
+
+@utility grid-cols-theme-preview-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+@utility grid-cols-theme-preview-navigation {
+  grid-template-columns: auto var(--spacing-icon-slot-standard) repeat(2, minmax(0, 1fr));
+}
+
+@utility w-theme-preview-rule {
+  width: 65%;
+}
+
+@utility w-theme-preview-text-line {
+  width: 60%;
 }
 
 @utility grid-rows-theme-manager {

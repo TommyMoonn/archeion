@@ -26,10 +26,6 @@
   background: var(--surface-raised);
 }
 
-[data-utility-slot="details"] .utility-load-status[data-utility-stage="error"] {
-  margin: 22px 24px;
-}
-
 .about-window__body {
   display: grid;
   justify-items: center;

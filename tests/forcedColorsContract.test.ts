@@ -59,16 +59,6 @@ const auditedErrorSources = [
     /className="about-window__error" data-tone="error" role="alert"/,
   ],
   [
-    "theme diagnostics",
-    "src/features/themes/ThemeDetails.tsx",
-    /className="theme-details__diagnostics" data-tone="error" role="alert"/,
-  ],
-  [
-    "theme preview",
-    "src/features/themes/ThemePreviewControls.tsx",
-    /data-tone="error" role="alert"/,
-  ],
-  [
     "Reader external links",
     "src/features/reader/ReaderExternalLinkDialog.tsx",
     /className="reader-external-link-dialog__error" data-tone="error" role="alert"/,

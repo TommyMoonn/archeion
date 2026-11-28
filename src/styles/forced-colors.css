@@ -84,7 +84,6 @@
     .reader-annotation-feedback,
     .reader-highlight-feedback,
     .reader-note-feedback,
-    .theme-preview-controls,
     .page-shell[data-import-drop-active="true"]::after,
     [data-slot="popover-content"],
     .library-feedback__token
@@ -112,7 +111,6 @@
     .reader-annotation-feedback,
     .reader-highlight-feedback,
     .reader-note-feedback,
-    .theme-preview-controls,
     .page-shell[data-import-drop-active="true"]::after,
     [data-slot="popover-content"],
     .library-feedback__token

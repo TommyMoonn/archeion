@@ -155,7 +155,7 @@ test("Archive, Theme Manager, and About retain hierarchy above routine medium la
     page.getByRole("navigation", { name: "Themes" }).locator("button [title]").first(),
     "500",
   );
-  await weight(page.locator(".theme-details__header h2"), "600");
+  await weight(page.getByRole("heading", { level: 2 }), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-themes.png") });
   await page.goto("/tests/browser/fixtures/?view=typography&surface=about");
   await weight(page.locator(".about-window__link-copy strong").first(), "500");

@@ -60,6 +60,8 @@ function createFixtureServices(search: URLSearchParams) {
         return () => listeners.delete(listener);
       },
       update: async (changes) => {
+        if (search.has("failSave"))
+          throw new Error("Fixture theme preferences could not be saved.");
         settings = { ...settings, ...changes };
         listeners.forEach((listener) => listener());
         return settings;

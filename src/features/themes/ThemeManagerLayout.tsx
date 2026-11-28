@@ -59,7 +59,10 @@ export function ThemeManagerLayout({ children }: { children: ReactNode }) {
               ))}
             </div>
           </div>
-          <div className="min-h-0 min-w-0 overflow-hidden" data-utility-slot="details">
+          <div
+            className="min-h-0 min-w-0 overflow-hidden [&_[data-utility-stage=error]]:mx-theme-window [&_[data-utility-stage=error]]:my-theme-header-top"
+            data-utility-slot="details"
+          >
             {children}
           </div>
         </div>

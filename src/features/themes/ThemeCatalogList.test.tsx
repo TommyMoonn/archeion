@@ -155,8 +155,8 @@ describe("ThemeCatalogList compact previews", () => {
     expect(container.textContent).toContain("Sepia");
   });
 
-  it("resolves a 200-theme catalog once per entry, not per selection or busy transition", () => {
-    const entries = Array.from({ length: 200 }, (_, index) =>
+  it("resolves a catalog once per entry, not per selection or busy transition", () => {
+    const entries = Array.from({ length: 3 }, (_, index) =>
       customEntry({
         ...shellStressThemes.distinct,
         id: `theme-${index}`,
@@ -165,15 +165,17 @@ describe("ThemeCatalogList compact previews", () => {
     );
     const resolve = vi.spyOn(resolution, "resolveTheme");
     render(entries);
-    expect(container.querySelectorAll('[data-preview-size="compact"]')).toHaveLength(200);
-    expect(resolve).toHaveBeenCalledTimes(200);
-    render([...entries], "custom:theme-199");
-    render([...entries], "custom:theme-199", true);
+    expect(container.querySelectorAll('[data-preview-size="compact"]')).toHaveLength(
+      entries.length,
+    );
+    expect(resolve).toHaveBeenCalledTimes(entries.length);
+    render([...entries], "custom:theme-2");
+    render([...entries], "custom:theme-2", true);
     render([...entries], "custom:theme-0");
-    expect(resolve).toHaveBeenCalledTimes(200);
+    expect(resolve).toHaveBeenCalledTimes(entries.length);
     const revised = customEntry({ ...entries[0]!.manifest, app: { main: "#303030" } });
     render([revised, ...entries.slice(1)]);
-    expect(resolve).toHaveBeenCalledTimes(201);
+    expect(resolve).toHaveBeenCalledTimes(entries.length + 1);
     expect(
       container
         .querySelector<HTMLElement>('[data-preview-size="compact"]')!

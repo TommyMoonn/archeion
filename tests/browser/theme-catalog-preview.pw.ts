@@ -9,9 +9,15 @@ async function inspectThumbnail(row: Locator) {
     0,
   );
   const metrics = await thumbnail.evaluate((element) => {
-    const navigation = element.querySelector(".theme-shell-preview__navigation")!;
-    const workspace = element.querySelector(".theme-shell-preview__workspace")!;
-    const content = element.querySelector(".theme-shell-preview__content")!;
+    const navigation = element.querySelector('[data-preview-part="navigation"]')!;
+    const workspace = element.querySelector('[data-preview-part="workspace"]')!;
+    const content = element.querySelector('[data-preview-part="content"]')!;
+    const title = element.querySelector('[data-preview-part="title"]')!;
+    const workspaceStyle = getComputedStyle(workspace);
+    const workspaceContentWidth =
+      workspace.getBoundingClientRect().width -
+      parseFloat(workspaceStyle.paddingInlineStart) -
+      parseFloat(workspaceStyle.paddingInlineEnd);
     const probe = document.createElement("span");
     element.append(probe);
     const resolved = (variable: string) => {
@@ -37,6 +43,8 @@ async function inspectThumbnail(row: Locator) {
         ? workspace.getBoundingClientRect().right
         : workspace.getBoundingClientRect().left,
       height: element.getBoundingClientRect().height,
+      titleWidth: title.getBoundingClientRect().width,
+      workspaceContentWidth,
       thumbnailTop: element.getBoundingClientRect().top,
       thumbnailBottom: element.getBoundingClientRect().bottom,
       nameBottom: element.parentElement!.querySelector("[title]")!.getBoundingClientRect().bottom,
@@ -45,6 +53,7 @@ async function inspectThumbnail(row: Locator) {
     probe.remove();
     return result;
   });
+  expect(metrics.titleWidth).toBeCloseTo(metrics.workspaceContentWidth * 0.6, 1);
   expect(metrics.thumbnailTop).toBeGreaterThanOrEqual(metrics.nameBottom);
   expect(metrics.thumbnailBottom).toBeLessThanOrEqual(metrics.rowBottom);
   return metrics;
