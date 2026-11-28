@@ -54,11 +54,6 @@ const auditedErrorSources = [
     /aria-live="assertive"[\s\S]*className="status-page"[\s\S]*data-tone="error"/,
   ],
   [
-    "About external links",
-    "src/features/about/AboutSurface.tsx",
-    /className="about-window__error" data-tone="error" role="alert"/,
-  ],
-  [
     "Reader external links",
     "src/features/reader/ReaderExternalLinkDialog.tsx",
     /className="reader-external-link-dialog__error" data-tone="error" role="alert"/,

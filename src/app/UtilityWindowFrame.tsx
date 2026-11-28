@@ -3,7 +3,11 @@ import {
   UtilityWindowLoading,
   UtilityWindowLoadStatus,
 } from "../components/UtilityWindowLoadStatus";
-import { AboutLayout } from "../features/about/AboutLayout";
+import {
+  AboutLayout,
+  AboutLoading,
+  aboutWindowShellClassName,
+} from "../features/about/AboutLayout";
 import { SettingsWindowLayout } from "../features/settings/SettingsWindowLayout";
 import { ThemeManagerLayout } from "../features/themes/ThemeManagerLayout";
 import {
@@ -43,28 +47,6 @@ export class UtilityWindowContentBoundary extends Component<
   }
 }
 
-function AboutLoading({ failed = false }: { failed?: boolean }) {
-  return (
-    <>
-      {failed ? (
-        <UtilityWindowLoadStatus title="About Archeion" state="error" />
-      ) : (
-        <UtilityWindowLoading title="About Archeion" />
-      )}
-      <div aria-hidden="true" className="about-window__links">
-        {Array.from({ length: 4 }, (_, index) => (
-          <span className="about-window__link utility-placeholder" key={index}>
-            <span className="about-window__link-copy">
-              <strong>&nbsp;</strong>
-              <small>&nbsp;</small>
-            </span>
-          </span>
-        ))}
-      </div>
-    </>
-  );
-}
-
 export function UtilityWindowFrame({
   mode,
   children,
@@ -79,7 +61,11 @@ export function UtilityWindowFrame({
       <WindowTitlebar canMaximize={mode !== "about"} utility />
       <div className="window-app__content">
         <main
-          className={`${mode}-window-shell${mode === "about" ? "" : " size-full min-w-0 min-h-0"}${mode === "theme-manager" ? " flex" : ""}`}
+          className={
+            mode === "about"
+              ? aboutWindowShellClassName
+              : `${mode}-window-shell size-full min-w-0 min-h-0${mode === "theme-manager" ? " flex" : ""}`
+          }
           id={mainId}
           tabIndex={-1}
         >

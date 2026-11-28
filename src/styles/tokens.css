@@ -438,6 +438,18 @@
   --leading-theme-catalog-status: 1.35;
   --opacity-theme-catalog-disabled: 0.68;
 
+  --container-about: 420px;
+  --container-about-copy: 30ch;
+  --spacing-about-inset: 24px;
+  --spacing-about-inline-narrow: 20px;
+  --spacing-about-block: 16px;
+  --spacing-about-identity: 12px;
+  --spacing-about-logo: 64px;
+  --spacing-about-status: 58px;
+  --spacing-about-link: 52px;
+  --spacing-about-link-column: 10px;
+  --spacing-about-link-copy: 3px;
+
   --tracking-details-label: 0.08em;
   --blur-details-cover-action: 8px;
   --color-details-cover-action: rgb(10 11 13 / 78%);
@@ -1470,6 +1482,24 @@ html[data-density="compact"] {
 }
 @utility scrollbar-gutter-stable {
   scrollbar-gutter: stable;
+}
+
+@utility scrollbar-gutter-both-edges {
+  scrollbar-gutter: stable both-edges;
+}
+
+@utility grid-cols-about-link {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+@utility transition-background {
+  transition: background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+@custom-variant about-narrow {
+  @media (max-width: theme(--breakpoint-window-small)) {
+    @slot;
+  }
 }
 
 @utility details-surface-duration {

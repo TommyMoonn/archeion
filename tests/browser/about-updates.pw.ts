@@ -43,15 +43,17 @@ for (const appearance of ["dark", "light"] as const) {
     const status = page.getByRole("region", { name: "Application updates", exact: true });
     const previewWindow = page.locator(".window-app--about");
     const heading = page.getByRole("heading", { name: "Archeion", exact: true });
+    await expect(heading).toBeVisible();
     expect(await heading.evaluate((element) => getComputedStyle(element).fontFamily)).toMatch(
       /serif/,
     );
     expect(await heading.evaluate((element) => getComputedStyle(element).fontSize)).toBe("30px");
-    const logo = await page.locator(".about-window__brand img:visible").boundingBox();
+    const logo = await page.locator("main .brand-logo img:visible").boundingBox();
     expect(logo!.width).toBe(64);
     expect(logo!.height).toBe(64);
     await expect(page.getByRole("button", { name: "Close window", exact: true })).toBeVisible();
-    const links = page.locator(".about-window__link");
+    const links = page.getByRole("navigation", { name: "Archeion links" }).getByRole("link");
+    await expect(links).toHaveCount(4);
     await page.evaluate(
       (candidate) => window.updateToastFixture!.set({ status: "available", available: candidate }),
       candidate,
@@ -92,6 +94,76 @@ for (const appearance of ["dark", "light"] as const) {
     ).toBeGreaterThanOrEqual(2);
   });
 }
+
+test("About links keep keyboard focus and announce opener errors in forced colors", async ({
+  page,
+}) => {
+  const websiteUrl = "https://tommymoonn.github.io/archeion/";
+  await page.setViewportSize({ width: 520, height: 620 });
+  await page.emulateMedia({ colorScheme: "dark", forcedColors: "active" });
+  await page.goto(`${fixture}&failExternalLink=${encodeURIComponent(websiteUrl)}`);
+  const about = page.getByRole("main");
+  const links = about.getByRole("navigation", { name: "Archeion links" });
+  const website = links.getByRole("link", { name: /^Website/ });
+  await about.getByRole("button", { name: "Check for updates" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(website).toBeFocused();
+  await expect(website).toHaveCSS("outline-style", "solid");
+  await expect(website).toHaveCSS("outline-width", "2px");
+  await expect(website).toHaveCSS("outline-offset", "2px");
+  await page.keyboard.press("Enter");
+
+  const error = about.getByRole("alert");
+  await expect(error).toHaveText("Archeion could not open that link.");
+  const systemErrorColors = await error.evaluate((element) => {
+    const reference = document.createElement("span");
+    reference.style.color = "CanvasText";
+    reference.style.backgroundColor = "Mark";
+    element.append(reference);
+    const colors = getComputedStyle(reference);
+    const result = { color: colors.color, background: colors.backgroundColor };
+    reference.remove();
+    return result;
+  });
+  await expect(error).toHaveCSS("color", systemErrorColors.color);
+  await expect(error).toHaveCSS("background-color", systemErrorColors.background);
+  await expect(website).toBeFocused();
+
+  await links.getByRole("link", { name: /^Documentation/ }).click();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-last-external-url",
+    `${websiteUrl}documentation/`,
+  );
+  await expect(error).toHaveCount(0);
+  await expect(links.getByRole("link", { name: /^Documentation/ })).toHaveCSS(
+    "outline-style",
+    "none",
+  );
+});
+
+test.describe("About links on touch-primary devices", () => {
+  test.use({ hasTouch: true });
+
+  test("mouse hover highlights a project link", async ({ page }) => {
+    await page.setViewportSize({ width: 520, height: 620 });
+    await page.goto(fixture);
+    const website = page.getByRole("link", { name: /^Website/ });
+    await expect(website).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    expect(await page.evaluate(() => matchMedia("(hover: hover)").matches)).toBe(false);
+    const hoverFill = await website.evaluate((element) => {
+      const sample = document.createElement("span");
+      sample.style.backgroundColor = "var(--surface-hover)";
+      element.append(sample);
+      const fill = getComputedStyle(sample).backgroundColor;
+      sample.remove();
+      return fill;
+    });
+
+    await website.hover();
+    await expect(website).toHaveCSS("background-color", hoverFill);
+  });
+});
+
 function hex(rgb: string) {
   const channels = rgb
     .match(/[\d.]+/g)
@@ -204,7 +276,7 @@ for (const appearance of ["dark", "light"] as const) {
       await update.focus();
       const colors = await update.evaluate((element) => {
         const button = getComputedStyle(element);
-        const region = getComputedStyle(element.closest(".about-window-shell")!);
+        const region = getComputedStyle(element.closest("main")!);
         return {
           text: button.color,
           fill: button.backgroundColor,

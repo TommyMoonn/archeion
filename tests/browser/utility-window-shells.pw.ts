@@ -11,7 +11,7 @@ const windows = [
     mode: "about",
     module: "AboutWindow",
     slot: "identity",
-    plane: ".about-window-shell",
+    plane: "#about-main-content",
     width: 520,
     height: 620,
   },

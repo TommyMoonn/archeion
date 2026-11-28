@@ -19,27 +19,3 @@
 .utility-load-status p {
   margin: 0;
 }
-
-.utility-placeholder {
-  display: block;
-  border-radius: var(--radius-control);
-  background: var(--surface-raised);
-}
-
-.about-window__body {
-  display: grid;
-  justify-items: center;
-  gap: 24px;
-  width: 100%;
-  min-width: 0;
-}
-
-.about-window__link.utility-placeholder {
-  background: var(--surface-raised);
-}
-
-.about-window__body > .utility-load-status,
-.about-window__body .about-update {
-  justify-items: center;
-  min-height: 58px;
-}

@@ -158,10 +158,8 @@ test("Archive, Theme Manager, and About retain hierarchy above routine medium la
   await weight(page.getByRole("heading", { level: 2 }), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-themes.png") });
   await page.goto("/tests/browser/fixtures/?view=typography&surface=about");
-  await weight(page.locator(".about-window__link-copy strong").first(), "500");
-  await expect(page.locator(".about-window__link .lucide-external-link").first()).toHaveAttribute(
-    "stroke-width",
-    "2",
-  );
+  const website = page.getByRole("link", { name: /^Website/ });
+  await weight(website.getByText("Website", { exact: true }), "500");
+  await expect(website.locator(".lucide-external-link")).toHaveAttribute("stroke-width", "2");
   await page.screenshot({ path: testInfo.outputPath("typography-about.png") });
 });

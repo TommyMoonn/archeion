@@ -10,7 +10,7 @@ for (const mode of ["about", "archive-manager"] as const) {
     await page.goto(
       mode === "archive-manager"
         ? "/tests/browser/fixtures/?view=archive-shell"
-        : `${fixture}?window=${mode}&windowInstance=7`,
+        : "/tests/browser/fixtures/?view=about-updates",
     );
     const brand = page.locator(".brand-logo");
     await expect(brand).toBeVisible();
