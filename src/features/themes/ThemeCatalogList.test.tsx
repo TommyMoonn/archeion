@@ -82,11 +82,16 @@ describe("ThemeCatalogList compact previews", () => {
     render([entry], "custom:long-theme-package");
     const button = container.querySelector<HTMLButtonElement>("button")!;
     expect(button.textContent).toContain(name);
-    expect(button.querySelector(".theme-catalog-list__item-name")?.getAttribute("title")).toBe(
-      name,
-    );
+    expect(button.querySelector("[title]")?.getAttribute("title")).toBe(name);
     act(() => button.click());
     expect(onSelect).toHaveBeenCalledWith("custom:long-theme-package");
+
+    onSelect.mockClear();
+    render([entry], "custom:long-theme-package", true);
+    expect(container.querySelector("nav")?.getAttribute("aria-busy")).toBe("true");
+    expect(button.disabled).toBe(true);
+    act(() => button.click());
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it("renders built-in and custom tokens without adding labels or nested selection targets", () => {

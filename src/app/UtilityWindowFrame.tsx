@@ -79,7 +79,7 @@ export function UtilityWindowFrame({
       <WindowTitlebar canMaximize={mode !== "about"} utility />
       <div className="window-app__content">
         <main
-          className={`${mode}-window-shell${mode === "settings" ? " size-full min-w-0 min-h-0" : ""}`}
+          className={`${mode}-window-shell${mode === "about" ? "" : " size-full min-w-0 min-h-0"}${mode === "theme-manager" ? " flex" : ""}`}
           id={mainId}
           tabIndex={-1}
         >

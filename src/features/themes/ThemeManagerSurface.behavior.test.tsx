@@ -143,17 +143,18 @@ describe("ThemeManagerSurface behavior", () => {
     expect(container.textContent).toContain("Public schema");
     expect(container.textContent).not.toContain("Browse, preview, and manage application themes.");
     expect(container.querySelector('button[aria-label="Close Theme Manager"]')).toBeNull();
-    expect(container.querySelector(".theme-manager-surface h1")?.textContent).toBe("Theme Manager");
+    expect(container.querySelector('section[aria-label="Theme Manager"] h1')?.textContent).toBe(
+      "Theme Manager",
+    );
 
-    const toolbar = container.querySelector(".theme-manager__toolbar")!;
-    const links = toolbar.querySelector(".theme-manager__toolbar-links")!;
-    const actions = toolbar.querySelector(".theme-manager__toolbar-actions")!;
-    expect(toolbar.firstElementChild).toBe(actions);
-    expect(toolbar.lastElementChild).toBe(links);
-    expect(actions.firstElementChild?.textContent).toContain("Import");
-    expect(links.getAttribute("aria-label")).toBe("Theme resources");
-    const catalog = container.querySelector(".theme-catalog-list")!;
-    expect(catalog.getAttribute("aria-label")).toBe("Themes");
+    const header = container.querySelector<HTMLElement>('[data-utility-slot="header"]')!;
+    expect(button(header, "Import").disabled).toBe(false);
+    const resources = header.querySelector('nav[aria-label="Theme resources"]')!;
+    expect([...resources.querySelectorAll("a")].map((link) => link.textContent)).toEqual([
+      "Theme guide",
+      "Public schema",
+    ]);
+    expect(container.querySelector('nav[aria-label="Themes"]')).not.toBeNull();
     expect(container.querySelector(".theme-details h2")?.textContent).toBe("Moon Ink");
     expect(container.textContent).toContain("Archeion Dark");
     expect(container.textContent).toContain("Archeion Light");
@@ -168,7 +169,6 @@ describe("ThemeManagerSurface behavior", () => {
     expect(container.textContent).toContain(
       "A minimal, intuitive light theme designed for clear daytime reading.",
     );
-    expect(button(container, "Use theme").classList).toContain("button--compact");
 
     expect(container.textContent).not.toMatch(
       /Built in|This archive|Sepia|Create starter|Reader colors|capabilit/i,
@@ -220,9 +220,9 @@ describe("ThemeManagerSurface behavior", () => {
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
     expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).toBe(shell);
     const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
-    expect(container.querySelector(".theme-manager-surface")?.contains(controls ?? null)).toBe(
-      true,
-    );
+    expect(
+      container.querySelector('section[aria-label="Theme Manager"]')?.contains(controls ?? null),
+    ).toBe(true);
     expect(document.activeElement?.textContent).toContain("Revert");
     expect(
       [...container.querySelectorAll("button")].filter((candidate) =>
@@ -289,9 +289,9 @@ describe("ThemeManagerSurface behavior", () => {
 
     const dialogs = container.querySelectorAll("dialog");
     expect(dialogs).toHaveLength(1);
-    expect(container.querySelector(".theme-manager-surface")?.contains(dialogs[0] ?? null)).toBe(
-      true,
-    );
+    expect(
+      container.querySelector('section[aria-label="Theme Manager"]')?.contains(dialogs[0] ?? null),
+    ).toBe(true);
     expect(dialogs[0]?.textContent).toContain("Remove “Moon Ink” theme?");
     expect(dialogs[0]?.textContent).toContain("from Archeion");
     expect(container.querySelector('.theme-shell-preview__graphic[role="img"]')).not.toBeNull();

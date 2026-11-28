@@ -151,7 +151,10 @@ test("Archive, Theme Manager, and About retain hierarchy above routine medium la
   await weight(page.getByRole("heading", { name: "Archeion" }), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-archive.png") });
   await page.goto("/tests/browser/fixtures/?view=theme-manager");
-  await weight(page.locator(".theme-catalog-list__item-name").first(), "500");
+  await weight(
+    page.getByRole("navigation", { name: "Themes" }).locator("button [title]").first(),
+    "500",
+  );
   await weight(page.locator(".theme-details__header h2"), "600");
   await page.screenshot({ path: testInfo.outputPath("typography-themes.png") });
   await page.goto("/tests/browser/fixtures/?view=typography&surface=about");

@@ -39,9 +39,7 @@ async function inspectThumbnail(row: Locator) {
       height: element.getBoundingClientRect().height,
       thumbnailTop: element.getBoundingClientRect().top,
       thumbnailBottom: element.getBoundingClientRect().bottom,
-      nameBottom: element
-        .parentElement!.querySelector(".theme-catalog-list__item-name")!
-        .getBoundingClientRect().bottom,
+      nameBottom: element.parentElement!.querySelector("[title]")!.getBoundingClientRect().bottom,
       rowBottom: element.parentElement!.getBoundingClientRect().bottom,
     };
     probe.remove();
@@ -111,7 +109,7 @@ test("keyboard selection, focus, density, narrow and doubled text, and forced co
   await expect(light).toHaveAccessibleName("Archeion Light Selected");
   await page.setViewportSize({ width: 900, height: 660 });
   expect(
-    await navigation.locator(".theme-catalog-list__items").evaluate((list) => {
+    await navigation.locator("[data-theme-catalog-scroll]").evaluate((list) => {
       const bounds = list.getBoundingClientRect();
       return [...list.querySelectorAll("button")].filter((row) => {
         const rect = row.getBoundingClientRect();
@@ -130,7 +128,7 @@ test("keyboard selection, focus, density, narrow and doubled text, and forced co
   }
   await page.setViewportSize({ width: 320, height: 800 });
   await page.addStyleTag({
-    content: ".theme-catalog-list { --type-body: 28px; --type-caption: 24px; }",
+    content: 'nav[aria-label="Themes"] { --text-body: 28px; --text-caption: 24px; }',
   });
   await dark.focus();
   await inspectThumbnail(dark);
@@ -162,8 +160,56 @@ test("a 200-theme catalog scrolls and keyboard-selects the last card without ext
   await expect(last).toHaveAttribute("aria-current", "true");
   await expect(page.getByRole("heading", { name: "Gallery theme 199" })).toBeVisible();
   expect(
-    await navigation.locator(".theme-catalog-list__items").evaluate((list) => list.scrollTop),
+    await navigation.locator("[data-theme-catalog-scroll]").evaluate((list) => list.scrollTop),
   ).toBeGreaterThan(0);
   await expect(navigation.locator("button button, button [tabindex], canvas, img")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("catalog-large.png") });
+});
+
+test("forced colors preserve disabled catalog dimming during a theme operation", async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: "active" });
+  await page.goto("/tests/browser/fixtures/?view=theme-manager&holdFolderReveal");
+  const catalog = page.getByRole("navigation", { name: "Themes" });
+  const row = catalog.getByRole("button", { name: /^Archeion Dark/ });
+  await expect(row).toBeEnabled();
+  await expect(row).toHaveCSS("opacity", "1");
+
+  await page.getByRole("button", { name: "Open themes folder" }).click();
+  await expect(catalog).toHaveAttribute("aria-busy", "true");
+  await expect(row).toBeDisabled();
+  await expect(row).toHaveCSS("opacity", "0.68");
+
+  await page.evaluate(() => window.dispatchEvent(new Event("release-theme-folder")));
+  await expect(row).toBeEnabled();
+  await expect(row).toHaveCSS("opacity", "1");
+});
+
+test.describe("on a touch-primary device", () => {
+  test.use({ hasTouch: true });
+
+  test("mouse hover still highlights catalog rows and resource links", async ({ page }) => {
+    await page.goto("/tests/browser/fixtures/?view=theme-manager");
+    expect(await page.evaluate(() => matchMedia("(hover: none)").matches)).toBe(true);
+    const colors = await page.evaluate(() => {
+      const sample = document.createElement("span");
+      sample.style.backgroundColor = "var(--surface)";
+      sample.style.color = "var(--text-strong)";
+      document.body.append(sample);
+      const style = getComputedStyle(sample);
+      const colors = { row: style.backgroundColor, link: style.color };
+      sample.remove();
+      return colors;
+    });
+    const row = page.getByRole("button", { name: "Archeion Light", exact: true });
+    await expect(row).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await row.hover();
+    await expect(row).toHaveCSS("background-color", colors.row);
+
+    const link = page.getByRole("link", { name: "Theme guide" });
+    await link.hover();
+    await expect(link).toHaveCSS("color", colors.link);
+    await expect(link).toHaveCSS("text-decoration-color", colors.link);
+  });
 });

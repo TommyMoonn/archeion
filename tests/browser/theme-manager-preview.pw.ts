@@ -309,6 +309,10 @@ test("details fill the pane, catalog insets stay compact, and swatch parts share
 }, testInfo) => {
   await page.goto("/tests/browser/fixtures/?view=theme-manager");
   await page.getByRole("button", { name: /^Archeion Dark/ }).click();
+  await expect(page.getByRole("button", { name: "Use theme", exact: true })).toHaveCSS(
+    "height",
+    "32px",
+  );
   for (const direction of ["ltr", "rtl"]) {
     await page
       .locator("html")
@@ -316,27 +320,34 @@ test("details fill the pane, catalog insets stay compact, and swatch parts share
     for (const width of [320, 480, 900, 1280]) {
       await page.setViewportSize({ width, height: 800 });
       await expectPreviewColors(page, resolveBuiltInAppTheme("dark"));
-      const metrics = await page.locator(".theme-manager-surface").evaluate((surface) => {
-        const items = surface.querySelector(".theme-catalog-list__items")!;
-        const row = items.querySelector("button")!;
-        const insets = [items, row].flatMap((element) => {
-          const style = getComputedStyle(element);
-          return [parseFloat(style.paddingInlineStart), parseFloat(style.paddingInlineEnd)];
+      const metrics = await page
+        .getByRole("region", { name: "Theme Manager" })
+        .evaluate((surface) => {
+          const header = surface.querySelector('[data-utility-slot="header"]')!;
+          const workspace = surface.querySelector('[data-utility-slot="workspace"]')!;
+          const items = surface.querySelector("[data-theme-catalog-scroll]")!;
+          const row = items.querySelector("button")!;
+          const insets = [items, row].flatMap((element) => {
+            const style = getComputedStyle(element);
+            return [parseFloat(style.paddingInlineStart), parseFloat(style.paddingInlineEnd)];
+          });
+          const center = (element: Element) => {
+            const rect = element.getBoundingClientRect();
+            return rect.top + rect.height / 2;
+          };
+          return {
+            noticeReservation:
+              workspace.getBoundingClientRect().top - header.getBoundingClientRect().bottom,
+            insets,
+            rowHeight: row.getBoundingClientRect().height,
+            swatches: [...surface.querySelectorAll(".theme-swatch")].map((swatch) => [
+              center(swatch.querySelector("dt")!),
+              center(swatch.querySelector("dd > span")!),
+              center(swatch.querySelector("code")!),
+            ]),
+          };
         });
-        const center = (element: Element) => {
-          const rect = element.getBoundingClientRect();
-          return rect.top + rect.height / 2;
-        };
-        return {
-          insets,
-          rowHeight: row.getBoundingClientRect().height,
-          swatches: [...surface.querySelectorAll(".theme-swatch")].map((swatch) => [
-            center(swatch.querySelector("dt")!),
-            center(swatch.querySelector("dd > span")!),
-            center(swatch.querySelector("code")!),
-          ]),
-        };
-      });
+      expect(metrics.noticeReservation).toBeCloseTo(46.85, 1);
       expect(metrics.insets.every((inset) => inset <= 8)).toBe(true);
       expect(metrics.rowHeight).toBeGreaterThanOrEqual(48);
       for (const [label, chip, value] of metrics.swatches) {

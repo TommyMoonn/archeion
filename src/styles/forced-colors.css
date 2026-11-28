@@ -202,7 +202,6 @@
       > [data-library-folder-primary-action][aria-current="page"],
     .settings-sidebar nav button[aria-current="page"],
     .archive-switcher__current[aria-current="true"],
-    .theme-catalog-list__item[aria-current="true"],
     .app-select__option[aria-selected="true"],
     .app-select__option[data-active],
     .app-select__option[data-highlighted],
@@ -244,6 +243,10 @@
     border-color: GrayText;
     color: GrayText;
     opacity: 1;
+  }
+
+  [data-theme-catalog-scroll] button:disabled {
+    opacity: revert-layer;
   }
 
   :where(input, select, textarea, [role="group"])[aria-invalid="true"],
