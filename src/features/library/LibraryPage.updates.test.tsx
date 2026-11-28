@@ -69,7 +69,7 @@ describe("Library updater integration", () => {
     suite.trackRoot(session.root);
     const notice = session.container.querySelector('[aria-label="Application update"]');
     expect(notice?.textContent).toContain("Updated to Archeion 1.6.1");
-    expect(notice?.querySelector(".update-toast__release-button")?.textContent).toContain(
+    expect(notice?.querySelector('button[aria-label="View release notes"]')?.textContent).toContain(
       "View release notes",
     );
     expect(notice?.querySelector("a")).toBeNull();

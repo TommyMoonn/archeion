@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { openExternalUrl } from "../../app/openExternalUrl";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { Alert } from "../../components/ui/alert";
+import { Progress } from "../../components/ui/progress";
+import { cn } from "../../utils/cn";
 import type { AppUpdateClient } from "./appUpdateClient";
 import { getUpdateToastClient } from "./devUpdateToastPreview";
 import { updateReleaseUrl } from "./updateReleaseUrl";
@@ -18,6 +21,11 @@ const ACTION_ERRORS: Record<Action, string> = {
   check: "Updates could not be checked. Try again.",
   link: "Archeion could not open that link. Try the link again.",
 };
+
+const actionRow =
+  "flex flex-none items-center justify-start gap-control-gap-compact update-notice-narrow:gap-update-notice-row-gap";
+const noticeIndent = "ms-update-notice-indent update-notice-narrow:ms-update-notice-indent-narrow";
+const dismissIcon = "m-0 [&>.icon-slot]:update-notice-compact-icon";
 
 /** Library-only observation UI. Unmounting never cancels a native operation. */
 export function UpdateToast({ client: providedClient }: { client?: AppUpdateClient } = {}) {
@@ -137,17 +145,21 @@ export function UpdateToast({ client: providedClient }: { client?: AppUpdateClie
   const recovery = localError && localError.action !== "link" ? localError.action : view?.recovery;
   const statusIcon =
     view?.kind === "downloading" ? (
-      <Download aria-hidden="true" size={16} strokeWidth={1.8} />
+      <Download aria-hidden="true" className="block size-icon-glyph-standard" strokeWidth={1.8} />
     ) : view?.kind === "installing" ? (
-      <RefreshCw aria-hidden="true" size={16} strokeWidth={1.8} />
+      <RefreshCw aria-hidden="true" className="block size-icon-glyph-standard" strokeWidth={1.8} />
     ) : view?.kind === "error" ? (
-      <AlertCircle aria-hidden="true" size={16} strokeWidth={1.8} />
+      <AlertCircle
+        aria-hidden="true"
+        className="block size-icon-glyph-standard"
+        strokeWidth={1.8}
+      />
     ) : null;
   const primaryIcon =
     recovery === "download" || (!recovery && view?.kind === "available") ? (
-      <Download aria-hidden="true" size={14} strokeWidth={1.8} />
+      <Download aria-hidden="true" strokeWidth={1.8} />
     ) : (
-      <RefreshCw aria-hidden="true" size={14} strokeWidth={1.8} />
+      <RefreshCw aria-hidden="true" strokeWidth={1.8} />
     );
   return (
     <>
@@ -161,31 +173,41 @@ export function UpdateToast({ client: providedClient }: { client?: AppUpdateClie
       {view || completion.version ? (
         <section
           aria-label="Application update"
-          className="update-toast"
+          className="pointer-events-auto box-border grid max-h-update-notice-height max-w-full gap-update-notice-row-gap overflow-y-auto overscroll-contain rounded-menu border-standard border-solid border-line bg-canvas px-update-notice-inline py-update-notice-block text-text shadow-app-popover motion-safe:app-motion:animate-notice-enter forced-colors:border-system-canvas-text update-notice-narrow:max-h-update-notice-height-narrow"
           data-state={view?.kind ?? "completed"}
+          data-update-notice
           ref={toastRef}
           tabIndex={-1}
           {...(!view ? completion.pauseHandlers : {})}
         >
-          <div className="update-toast__header">
+          <div
+            className="flex min-w-0 items-center gap-update-notice-column-gap update-notice-narrow:gap-update-notice-column-gap-narrow"
+            data-update-header
+          >
             {statusIcon ? (
               <span
                 aria-hidden="true"
-                className="update-toast__status-icon"
+                className="grid size-icon-slot-standard flex-none place-items-center text-accent data-[state=error]:text-error"
                 data-state={view?.kind}
+                data-update-status-icon
               >
                 {statusIcon}
               </span>
             ) : null}
-            <div className="update-toast__content">
-              <p className="update-toast__message">{message}</p>
+            <div className="grid min-w-0 flex-auto gap-control-inset">
+              <p
+                className="m-0 min-w-0 wrap-anywhere text-body-only leading-update-message text-text-strong"
+                data-update-message
+              >
+                {message}
+              </p>
               {localError?.action === "link" ? (
-                <p className="update-toast__detail update-toast__link-error">
+                <Alert role={undefined} className="text-meta text-muted tabular-nums">
                   {localError.message}
-                </p>
+                </Alert>
               ) : null}
               {view?.kind === "downloading" ? (
-                <p className="update-toast__detail update-toast__progress-detail">
+                <p className="m-0 wrap-anywhere text-meta whitespace-nowrap text-muted tabular-nums">
                   {view.percent === null ? "Downloading…" : `Downloading… ${view.percent}%`}
                 </p>
               ) : null}
@@ -194,7 +216,7 @@ export function UpdateToast({ client: providedClient }: { client?: AppUpdateClie
               <IconButton
                 label="Dismiss update notice"
                 size="compact"
-                className="update-toast__dismiss"
+                className={dismissIcon}
                 disabled={busy !== null}
                 onClick={() => void actOnUpdate("defer")}
               >
@@ -204,7 +226,7 @@ export function UpdateToast({ client: providedClient }: { client?: AppUpdateClie
               <IconButton
                 label="Dismiss update confirmation"
                 size="compact"
-                className="update-toast__dismiss"
+                className={dismissIcon}
                 onClick={completion.dismiss}
               >
                 <X aria-hidden="true" strokeWidth={1.8} />
@@ -212,14 +234,9 @@ export function UpdateToast({ client: providedClient }: { client?: AppUpdateClie
             ) : null}
           </div>
           {view && view.kind !== "downloading" && view.kind !== "installing" ? (
-            <div
-              className={
-                statusIcon
-                  ? "update-toast__actions update-toast__actions--indented"
-                  : "update-toast__actions"
-              }
-            >
+            <div className={cn(actionRow, statusIcon && noticeIndent)} data-update-actions>
               <Button
+                className="not-forced-colors:text-canvas!"
                 size="compact"
                 disabled={busy !== null}
                 icon={primaryIcon}
@@ -234,35 +251,30 @@ export function UpdateToast({ client: providedClient }: { client?: AppUpdateClie
             </div>
           ) : null}
           {completion.version ? (
-            <div className="update-toast__actions">
+            <div className={actionRow} data-update-actions>
               <Button
-                className="update-toast__release-button"
+                aria-label="View release notes"
+                className="[&>[data-slot=button-label]]:inline-flex [&>[data-slot=button-label]]:items-center [&>[data-slot=button-label]]:gap-control-gap-compact"
                 size="compact"
                 variant="secondary"
                 disabled={busy !== null}
                 onClick={() => void actOnUpdate("link")}
               >
                 View release notes
-                <ExternalLink aria-hidden="true" size={13} strokeWidth={1.8} />
+                <ExternalLink
+                  aria-hidden="true"
+                  className="block size-update-external-icon flex-none text-muted"
+                  strokeWidth={1.8}
+                />
               </Button>
             </div>
           ) : null}
-          {view?.kind === "downloading" ? (
-            <progress
-              aria-label="Update download"
-              className={
-                statusIcon
-                  ? "update-toast__progress update-toast__progress--indented"
-                  : "update-toast__progress"
-              }
-              max={100}
-              {...(view.percent === null ? {} : { value: view.percent })}
-            />
-          ) : null}
-          {view?.kind === "installing" ? (
-            <progress
-              aria-label="Restarting Archeion"
-              className="update-toast__progress update-toast__progress--indented"
+          {view?.kind === "downloading" || view?.kind === "installing" ? (
+            <Progress
+              aria-label={view.kind === "downloading" ? "Update download" : "Restarting Archeion"}
+              className={cn("w-auto justify-self-stretch", noticeIndent)}
+              nativeAppearance
+              value={view.percent}
             />
           ) : null}
         </section>

@@ -146,7 +146,7 @@ describe("About update status", () => {
     expect(container.textContent).toContain("Archeion 1.6.2 is available");
     expect(container.textContent).not.toContain("Not embedded");
     expect(
-      Array.from(container.querySelectorAll(".about-update button")).map(
+      Array.from(container.querySelectorAll('[aria-label="Application updates"] button')).map(
         (button) => button.textContent,
       ),
     ).toEqual(["Update now"]);
@@ -154,7 +154,7 @@ describe("About update status", () => {
   it("replaces the manual check with Update now while an update is available", async () => {
     const { container, change, backend } = await fixture();
     const actions = () =>
-      Array.from(container.querySelectorAll(".about-update button")).map(
+      Array.from(container.querySelectorAll('[aria-label="Application updates"] button')).map(
         (button) => button.textContent,
       );
     expect(actions()).toEqual(["Check for updates"]);
@@ -178,14 +178,15 @@ describe("About update status", () => {
     });
     await click("Check for updates");
     expect(container.textContent).toContain("Checking for updates…");
-    const button = container.querySelector<HTMLButtonElement>(".about-update button")!;
+    const button = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Application updates"] button',
+    )!;
     expect(button.disabled).toBe(true);
     expect(button.textContent).toBe("Check for updates");
     expect(button.getAttribute("aria-busy")).toBe("true");
-    expect(container.querySelectorAll('.about-update [role="status"]')).toHaveLength(1);
-    expect(container.querySelector('.about-update [role="status"]')?.textContent).toBe(
-      "Checking for updates…",
-    );
+    const announcement = '[aria-label="Application updates"] [role="status"]';
+    expect(container.querySelectorAll(announcement)).toHaveLength(1);
+    expect(container.querySelector(announcement)?.textContent).toBe("Checking for updates…");
     await act(async () => {
       button.click();
     });
@@ -228,7 +229,9 @@ describe("About update status", () => {
     const changelog = Array.from(container.querySelectorAll<HTMLAnchorElement>("a")).find((link) =>
       link.textContent?.startsWith("Changelog"),
     )!;
-    const release = container.querySelector<HTMLAnchorElement>(".about-update a")!;
+    const release = container.querySelector<HTMLAnchorElement>(
+      '[aria-label="Application updates"] a',
+    )!;
     expect(release.querySelector("svg")).not.toBeNull();
     await act(async () => {
       changelog.click();
@@ -244,21 +247,23 @@ describe("About update status", () => {
       status: "available",
       available: { version: "1.6.2", notes: null, publishedAt: null },
     });
-    expect(container.querySelector(".about-update")?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Application updates"]')?.textContent).toContain(
       "Archeion 1.6.2 is available",
     );
-    expect(container.querySelector(".update-toast")?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Application update"]')?.textContent).toContain(
       "Archeion 1.6.2 is available",
     );
     await change({ status: "downloading", downloadedBytes: 20, totalBytes: 100 });
     expect(
-      Array.from(container.querySelectorAll("progress")).map((progress) => progress.value),
-    ).toEqual([20, 20]);
+      Array.from(container.querySelectorAll('[role="progressbar"]')).map((progress) =>
+        progress.getAttribute("aria-valuenow"),
+      ),
+    ).toEqual(["20", "20"]);
     await change({ status: "ready" });
-    expect(container.querySelector(".about-update")?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Application updates"]')?.textContent).toContain(
       "Restart Archeion to finish the update.",
     );
-    expect(container.querySelector(".update-toast")?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Application update"]')?.textContent).toContain(
       "Restart Archeion to finish the update.",
     );
     expect(backend.check).not.toHaveBeenCalled();
@@ -269,10 +274,15 @@ describe("About update status", () => {
       const { container } = await fixture(
         state({ status: "downloading", totalBytes, downloadedBytes: 140 }),
       );
-      const progress = container.querySelector("progress")!;
-      expect(progress.hasAttribute("value")).toBe(totalBytes !== null && totalBytes > 0);
-      if (totalBytes) expect(progress.value).toBe(100);
-      expect(container.querySelector(".about-update")?.querySelectorAll("button").length).toBe(0);
+      const progress = container.querySelector(
+        '[role="progressbar"][aria-label="Update download"]',
+      );
+      expect(progress).not.toBeNull();
+      expect(progress?.getAttribute("aria-valuenow")).toBe(totalBytes ? "100" : null);
+      expect(
+        container.querySelector('[aria-label="Application updates"]')?.querySelectorAll("button")
+          .length,
+      ).toBe(0);
     },
   );
   it("offers Restart now even after session deferral and never reinstalls automatically", async () => {
@@ -282,7 +292,7 @@ describe("About update status", () => {
     await click("Later");
     expect(backend.defer).toHaveBeenCalledWith("1.6.2");
     expect(container.textContent).toContain("Restart Archeion to finish the update.");
-    expect(container.querySelector(".about-update a")).toBeNull();
+    expect(container.querySelector('[aria-label="Application updates"] a')).toBeNull();
     expect(backend.install).not.toHaveBeenCalled();
     await click("Restart now");
     expect(backend.install).toHaveBeenCalledOnce();
@@ -343,7 +353,7 @@ describe("About update status", () => {
     const { container, backend } = await fixture(state({ supported: false }));
     expect(container.textContent).toContain("Updates are unavailable in this build.");
     expect(container.textContent).toContain("Changelog");
-    expect(container.querySelector(".about-update button")).toBeNull();
+    expect(container.querySelector('[aria-label="Application updates"] button')).toBeNull();
     expect(backend.check).not.toHaveBeenCalled();
   });
 });
@@ -363,7 +373,7 @@ describe("Updater completion notice", () => {
         state({ prompt: { ...state().prompt, completedVersion } }),
         "library",
       );
-      expect(container.querySelector(".update-toast")).toBeNull();
+      expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
       expect(backend.acknowledgeCompleted).not.toHaveBeenCalled();
     },
   );
@@ -383,7 +393,7 @@ describe("Updater completion notice", () => {
     await act(async () => {
       render("library");
     });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     expect(backend.acknowledgeCompleted).toHaveBeenCalledOnce();
   });
   it("auto-dismisses after eight seconds of unpaused visible time", async () => {
@@ -395,11 +405,11 @@ describe("Updater completion notice", () => {
     await act(async () => {
       vi.advanceTimersByTime(7999);
     });
-    expect(container.querySelector(".update-toast")).not.toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).not.toBeNull();
     await act(async () => {
       vi.advanceTimersByTime(1);
     });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
   });
   it("pauses independently for hover and keyboard focus, then resumes remaining time", async () => {
     vi.useFakeTimers();
@@ -407,8 +417,10 @@ describe("Updater completion notice", () => {
       state({ prompt: { ...state().prompt, completedVersion: "1.6.1" } }),
       "library",
     );
-    const toast = container.querySelector<HTMLElement>(".update-toast")!;
-    const releaseButton = toast.querySelector<HTMLButtonElement>(".update-toast__release-button")!;
+    const toast = container.querySelector<HTMLElement>('[aria-label="Application update"]')!;
+    const releaseButton = toast.querySelector<HTMLButtonElement>(
+      'button[aria-label="View release notes"]',
+    )!;
     await act(async () => {
       vi.advanceTimersByTime(3000);
       toast.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
@@ -439,7 +451,7 @@ describe("Updater completion notice", () => {
       "library",
     );
     const releaseButton = container.querySelector<HTMLButtonElement>(
-      ".update-toast__release-button",
+      'button[aria-label="View release notes"]',
     )!;
     await act(async () => {
       releaseButton.click();
@@ -448,9 +460,9 @@ describe("Updater completion notice", () => {
       "https://tommymoonn.github.io/archeion/documentation/changelog/#release-1-6-1",
     );
     expect(container.querySelector('[aria-label="Dismiss update confirmation"]')).not.toBeNull();
-    expect(container.querySelector(".update-toast__release-button")).not.toBeNull();
-    expect(container.querySelector(".update-toast .button--primary")).toBeNull();
-    expect(container.querySelector(".update-toast a")).toBeNull();
+    expect(container.querySelector('button[aria-label="View release notes"]')).not.toBeNull();
+    expect(container.querySelectorAll('[aria-label="Application update"] button')).toHaveLength(2);
+    expect(container.querySelector('[aria-label="Application update"] a')).toBeNull();
   });
   it("gives actionable updates priority without consuming an unseen completion", async () => {
     const { container, backend, change } = await fixture(
@@ -477,7 +489,7 @@ describe("Updater completion notice", () => {
       available: { version: "1.6.2", notes: null, publishedAt: null },
     });
     await change({ status: "idle", available: null });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
   });
   it("does not duplicate acknowledgement under Strict Mode", async () => {
     const { root, client, backend } = await fixture(
@@ -515,7 +527,7 @@ describe("Updater completion notice", () => {
     await act(async () => {
       render("library");
     });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     expect(backend.acknowledgeCompleted).toHaveBeenCalledOnce();
     await act(async () => {
       finish(emit({ prompt: state().prompt }));

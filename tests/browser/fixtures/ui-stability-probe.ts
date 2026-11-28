@@ -12,8 +12,8 @@ export function installUIStabilityProbe({ limit = 2400 } = {}) {
     icons: "svg.lucide",
     footer: ".dialog__footer",
     status: "[role=status], [role=alert], .dialog__feedback section[aria-live=polite]",
-    actions: "dialog[open] .button, .about-update-status .button",
-    toast: ".page-shell-notice",
+    actions: 'dialog[open] .button, [aria-label="Application updates"] button',
+    toast: "[data-page-notice]",
   };
   const frames: ReturnType<typeof sample>[] = [];
   const events: { time: number; kind: string; instance?: number }[] = [];

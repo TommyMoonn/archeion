@@ -2,7 +2,29 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import { cn } from "@/utils/cn";
 
-export function Progress({ className, ...props }: ProgressPrimitive.Root.Props) {
+type ProgressProps = Omit<ProgressPrimitive.Root.Props, "render"> &
+  ({ nativeAppearance?: false } | { nativeAppearance: true; min?: 0 });
+
+export function Progress({ className, nativeAppearance, ...props }: ProgressProps) {
+  if (nativeAppearance) {
+    return (
+      <ProgressPrimitive.Root
+        data-slot="progress"
+        className={cn("h-control-gap-compact min-w-0 w-full accent-accent", className)}
+        {...props}
+        // Keep the native rendering, with the same value Base UI exposes to assistive technology.
+        render={(elementProps) => (
+          <progress
+            {...elementProps}
+            children={null}
+            max={elementProps["aria-valuemax"]}
+            value={elementProps["aria-valuenow"]}
+          />
+        )}
+      />
+    );
+  }
+
   return (
     <ProgressPrimitive.Root
       data-slot="progress"

@@ -450,6 +450,23 @@
   --spacing-about-link-column: 10px;
   --spacing-about-link-copy: 3px;
 
+  --spacing-update-notice-inset: 16px;
+  --spacing-update-notice-inset-narrow: 12px;
+  --spacing-update-notice-block: 10px;
+  --spacing-update-notice-inline: 12px;
+  --spacing-update-notice-row-gap: 4px;
+  --spacing-update-notice-column-gap: 24px;
+  --spacing-update-notice-column-gap-narrow: 16px;
+  --spacing-update-notice-indent: calc(var(--spacing-icon-slot-standard) + 12px);
+  --spacing-update-notice-indent-narrow: calc(var(--spacing-icon-slot-standard) + 8px);
+  --spacing-update-notice-height: min(40dvh, 360px);
+  --spacing-update-notice-height-narrow: min(42dvh, 320px);
+  --spacing-update-feedback-height: max(0px, calc(60dvh - 92px));
+  --spacing-update-external-icon: 13px;
+  --container-update-notice-min: 360px;
+  --container-update-notice-max: 440px;
+  --leading-update-message: 1.4;
+
   --tracking-details-label: 0.08em;
   --blur-details-cover-action: 8px;
   --color-details-cover-action: rgb(10 11 13 / 78%);
@@ -1180,6 +1197,29 @@
 @custom-variant details-focus-visible (&:focus:focus-visible:not(:disabled):not([aria-disabled="true"]));
 
 @custom-variant app-motion (&:where(html[data-motion="on"] *));
+@custom-variant update-notice-narrow {
+  @media (max-width: 560px) {
+    @slot;
+  }
+}
+
+@utility update-notice-width {
+  --update-notice-available: calc(
+    100% - var(--library-sidebar-current-width, var(--sidebar-width)) - 2 *
+      var(--spacing-update-notice-inset)
+  );
+  min-width: min(var(--container-update-notice-min), var(--update-notice-available));
+  max-width: min(var(--container-update-notice-max), var(--update-notice-available));
+}
+
+@utility update-notice-width-narrow {
+  --update-notice-available: calc(100% - 2 * var(--spacing-update-notice-inset-narrow));
+}
+
+@utility update-notice-compact-icon {
+  --icon-slot-size: var(--spacing-icon-slot-compact) !important;
+  --icon-glyph-size: var(--spacing-icon-glyph-compact) !important;
+}
 
 @custom-variant folder-fine-pointer {
   @media (hover: hover) and (pointer: fine) {

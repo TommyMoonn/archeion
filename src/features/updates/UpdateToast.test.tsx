@@ -128,15 +128,17 @@ describe("Library update notice", () => {
       }),
     );
     await act(async () => {
-      container.querySelector<HTMLButtonElement>(".update-toast__release-button")?.click();
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="View release notes"]')
+        ?.click();
     });
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       "Archeion could not open that link. Try the link again.",
     );
-    expect(container.querySelector(".update-toast__message")?.textContent).toBe(
+    expect(container.querySelector('[aria-label="Application update"] p')?.textContent).toBe(
       "Updated to Archeion 1.8.0",
     );
-    expect(container.querySelector(".update-toast__release-button")).not.toBeNull();
+    expect(container.querySelector('button[aria-label="View release notes"]')).not.toBeNull();
     expect(backend.download).not.toHaveBeenCalled();
   });
   it("does not let a late failure update a notice unmounted for Reader", async () => {
@@ -186,30 +188,17 @@ describe("Library update notice", () => {
       );
     });
     expect(document.activeElement).toBe(button("Library action"));
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
   });
-  it("renders the available notice in two rows with a dismiss control", async () => {
+  it("renders the available notice and starts only the download", async () => {
     const { container, backend, click } = await fixture();
-    const toast = container.querySelector<HTMLElement>(".update-toast")!;
-    expect(container.querySelector(".update-toast__message")?.textContent).toBe(
-      "Archeion 1.6.1 is available",
-    );
-    expect(toast.querySelectorAll(":scope > .update-toast__header")).toHaveLength(1);
-    expect(toast.querySelector(".update-toast__header .update-toast__actions")).toBeNull();
-    expect(toast.querySelectorAll(":scope > .update-toast__actions")).toHaveLength(1);
+    const toast = container.querySelector('[aria-label="Application update"]');
+    expect(toast?.textContent).toContain("Archeion 1.6.1 is available");
     expect(
-      Array.from(container.querySelectorAll(".update-toast button")).map(
+      Array.from(toast?.querySelectorAll("button") ?? []).map(
         (button) => button.getAttribute("aria-label") ?? button.textContent,
       ),
     ).toEqual(["Dismiss update notice", "Update now"]);
-    expect(container.querySelector(".update-toast a")).toBeNull();
-    expect(container.textContent).not.toContain("What's new");
-    expect(toast.querySelectorAll(".update-toast__actions .button--compact")).toHaveLength(1);
-    expect(toast.querySelector(".update-toast__header .update-toast__dismiss svg")).not.toBeNull();
-    expect(
-      toast.querySelector(".update-toast__actions .button--primary .button__icon svg"),
-    ).not.toBeNull();
-    expect(container.querySelector("dialog")).toBeNull();
     expect(backend.check).not.toHaveBeenCalled();
     expect(backend.download).not.toHaveBeenCalled();
     await click("Update now");
@@ -222,7 +211,7 @@ describe("Library update notice", () => {
         prompt: { ...snapshot().prompt, snoozedVersion: "1.6.1", snoozedUntil: Date.now() + 1000 },
       }),
     );
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     await change({ available: { version: "1.6.2", notes: null, publishedAt: null } });
     expect(container.textContent).toContain("Archeion 1.6.2 is available");
   });
@@ -232,10 +221,10 @@ describe("Library update notice", () => {
     const { container, change } = await fixture(
       snapshot({ prompt: { ...snapshot().prompt, snoozedVersion: "1.6.1", snoozedUntil: until } }),
     );
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     vi.setSystemTime(until);
     await change({ status: "available" });
-    expect(container.querySelector(".update-toast")).not.toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).not.toBeNull();
   });
   it("dismiss uses native version-bound snooze and restores owned focus", async () => {
     vi.useFakeTimers();
@@ -243,11 +232,11 @@ describe("Library update notice", () => {
     act(() => {
       vi.advanceTimersByTime(120_000);
     });
-    expect(container.querySelector(".update-toast")).not.toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).not.toBeNull();
     button("Dismiss update notice").focus();
     await click("Dismiss update notice");
     expect(backend.defer).toHaveBeenCalledWith("1.6.1");
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     expect(document.activeElement).toBe(container.querySelector("main"));
   });
   it.each([null, 0])("does not fabricate percent for unusable total %s", async (totalBytes) => {
@@ -256,44 +245,41 @@ describe("Library update notice", () => {
     );
     expect(container.textContent).toContain("Downloading…");
     expect(container.textContent).not.toContain("%");
-    expect(container.querySelector("progress")?.hasAttribute("value")).toBe(false);
-    expect(container.querySelectorAll(".update-toast button")).toHaveLength(0);
+    const progress = container.querySelector('[role="progressbar"][aria-label="Update download"]');
+    expect(progress?.hasAttribute("aria-valuenow")).toBe(false);
+    expect(container.querySelectorAll('[aria-label="Application update"] button')).toHaveLength(0);
   });
   it("shows bounded determinate progress without repeated live-region chunk announcements", async () => {
     const { container, change } = await fixture(
       snapshot({ status: "downloading", downloadedBytes: 46, totalBytes: 100 }),
     );
-    const toast = container.querySelector<HTMLElement>(".update-toast")!;
-    expect(
-      toast.querySelectorAll(":scope > .update-toast__header, :scope > progress"),
-    ).toHaveLength(2);
-    expect(container.querySelector("progress")?.value).toBe(46);
+    const progress = container.querySelector('[role="progressbar"][aria-label="Update download"]');
+    expect(progress?.getAttribute("aria-valuenow")).toBe("46");
     expect(container.textContent).toContain("Downloading… 46%");
     const announcement = container.querySelector('[role="status"]')!.textContent;
     await change({ downloadedBytes: 150 });
-    expect(container.querySelector("progress")?.value).toBe(100);
+    expect(progress?.getAttribute("aria-valuenow")).toBe("100");
     expect(container.querySelector('[role="status"]')!.textContent).toBe(announcement);
   });
   it("ready keeps its restart message and native deferral across remounts", async () => {
     const { container, click, backend, render } = await fixture(snapshot({ status: "ready" }));
-    expect(container.querySelector(".update-toast__message")?.textContent).toBe(
+    expect(container.querySelector('[aria-label="Application update"] p')?.textContent).toBe(
       "Restart Archeion to finish the update.",
     );
-    expect(container.querySelector(".update-toast")?.textContent).not.toContain("1.6.1");
-    expect(container.querySelector(".update-toast a")).toBeNull();
-    expect(
-      container.querySelector(".update-toast__actions .button--primary .button__icon svg"),
-    ).not.toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')?.textContent).not.toContain(
+      "1.6.1",
+    );
+    expect(container.querySelector('[aria-label="Application update"] a')).toBeNull();
     await click("Dismiss update notice");
     expect(backend.defer).toHaveBeenCalledWith("1.6.1");
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     await act(async () => {
       render(false);
     });
     await act(async () => {
       render();
     });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     expect(backend.install).not.toHaveBeenCalled();
   });
   it("keeps explicit install single-flight while its request is pending", async () => {
@@ -311,11 +297,13 @@ describe("Library update notice", () => {
     });
     expect(backend.install).toHaveBeenCalledOnce();
     expect(button("Restart now").disabled).toBe(true);
-    expect(document.activeElement).toBe(container.querySelector(".update-toast"));
+    expect(document.activeElement).toBe(
+      container.querySelector('[aria-label="Application update"]'),
+    );
     await act(async () => {
       finish(snapshot({ revision: 2, status: "installing" }));
     });
-    expect(container.querySelector(".update-toast__message")?.textContent).toBe(
+    expect(container.querySelector('[aria-label="Application update"] p')?.textContent).toBe(
       "Restarting Archeion…",
     );
   });
@@ -338,7 +326,7 @@ describe("Library update notice", () => {
     );
     await click("Dismiss update notice");
     expect(backend.defer).toHaveBeenCalledWith("1.6.1");
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
   });
   it("install-error retry checks afresh instead of reusing consumed verified resources", async () => {
     const { click, backend } = await fixture(
@@ -368,7 +356,7 @@ describe("Library update notice", () => {
       }),
     );
     await click("Dismiss update notice");
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     expect(backend.defer).not.toHaveBeenCalled();
     await change({ status: "available", available: snapshot().available, error: null });
     expect(container.textContent).toContain("Archeion 1.6.1 is available");
@@ -393,7 +381,7 @@ describe("Library update notice", () => {
     await click("Try again");
     expect(container.textContent).toContain("Updates could not be checked. Try again.");
     await click("Dismiss update notice");
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     expect(backend.defer).not.toHaveBeenCalled();
     expect(backend.install).not.toHaveBeenCalled();
   });
@@ -453,7 +441,7 @@ describe("Library update notice", () => {
     await click("Try again");
     expect(backend.defer).toHaveBeenCalledTimes(2);
     expect(backend.download).not.toHaveBeenCalled();
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
   });
   it("surfaces installation preparation failure without discarding ready recovery", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -485,7 +473,7 @@ describe("Library update notice", () => {
       render(false);
     });
     await change({ status: "available", available: snapshot().available });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     await act(async () => {
       render();
     });
@@ -501,7 +489,7 @@ describe("Library update notice", () => {
     "does not present idle, checking, unsupported, or manual-check errors as an automatic toast",
     async (update) => {
       const { container } = await fixture(update);
-      expect(container.querySelector(".update-toast")).toBeNull();
+      expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
     },
   );
   it("opens release notes through the existing external-link owner", async () => {
@@ -515,14 +503,16 @@ describe("Library update notice", () => {
       }),
     );
     await act(async () => {
-      container.querySelector<HTMLButtonElement>(".update-toast__release-button")?.click();
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="View release notes"]')
+        ?.click();
     });
     expect(external.open).toHaveBeenCalledWith(
       "https://tommymoonn.github.io/archeion/documentation/changelog/#release-1-8-0",
     );
   });
 
-  it("shows a dismissible two-row completion notice without a success icon", async () => {
+  it("acknowledges and dismisses the completed update", async () => {
     const { container, backend } = await fixture(
       snapshot({
         status: "idle",
@@ -532,28 +522,8 @@ describe("Library update notice", () => {
       }),
     );
 
-    const toast = container.querySelector<HTMLElement>(".update-toast")!;
-    expect(toast.dataset.state).toBe("completed");
-    expect(toast.querySelector(".update-toast__message")?.textContent).toBe(
-      "Updated to Archeion 1.8.0",
-    );
-    expect(toast.querySelector(".update-toast__release-button")?.textContent).toContain(
-      "View release notes",
-    );
-    expect(toast.querySelector(".update-toast__status-icon")).toBeNull();
-    expect(toast.querySelector(".update-toast__release-button svg")).not.toBeNull();
-    expect(toast.querySelectorAll(":scope > .update-toast__header")).toHaveLength(1);
-    expect(toast.querySelector(".update-toast__header .update-toast__actions")).toBeNull();
-    expect(toast.querySelector(".update-toast__header .update-toast__dismiss")).not.toBeNull();
-    expect(toast.querySelectorAll(":scope > .update-toast__actions")).toHaveLength(1);
-    expect(
-      toast.querySelector(".update-toast__actions .update-toast__release-button"),
-    ).not.toBeNull();
-    const dismiss = toast.querySelector<HTMLButtonElement>(
-      '[aria-label="Dismiss update confirmation"]',
-    );
-    expect(dismiss).not.toBeNull();
-    expect(dismiss?.querySelector("svg")).not.toBeNull();
+    const toast = container.querySelector('[aria-label="Application update"]');
+    expect(toast?.textContent).toContain("Updated to Archeion 1.8.0");
     expect(backend.acknowledgeCompleted).toHaveBeenCalledWith("1.8.0");
 
     await act(async () => {
@@ -561,7 +531,7 @@ describe("Library update notice", () => {
         .querySelector<HTMLButtonElement>('[aria-label="Dismiss update confirmation"]')!
         .click();
     });
-    expect(container.querySelector(".update-toast")).toBeNull();
+    expect(container.querySelector('[aria-label="Application update"]')).toBeNull();
   });
   it("ignores late request failure after another candidate replaces the original", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);

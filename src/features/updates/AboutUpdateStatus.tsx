@@ -1,6 +1,8 @@
 import { ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "../../components/Button";
+import { Alert } from "../../components/ui/alert";
+import { Progress } from "../../components/ui/progress";
 import { openExternalUrl } from "../../app/openExternalUrl";
 import { appUpdateClient, type AppUpdateClient } from "./appUpdateClient";
 import { updateDownloadPercent } from "./updateDownloadProgress";
@@ -124,7 +126,7 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
   return (
     <section
       aria-label="Application updates"
-      className="about-update"
+      className="grid min-h-about-status w-full min-w-0 justify-items-center gap-control-gap"
       data-state={update?.status}
       tabIndex={-1}
       ref={region}
@@ -136,10 +138,13 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
         aria-atomic="true"
         ref={announcement}
       />
-      {message ? <p className="about-update__message">{message}</p> : null}
+      {message ? (
+        <p className="m-0 wrap-anywhere text-body-only leading-update-message text-text-strong in-data-[state=available]:font-semibold">
+          {message}
+        </p>
+      ) : null}
       {supported && update?.available && update.status === "available" ? (
         <a
-          className="update-toast__link"
           href={updateReleaseUrl(update.available.version)}
           target="_blank"
           rel="noreferrer"
@@ -148,26 +153,29 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
             void run("link");
           }}
         >
-          What's new <ExternalLink aria-hidden="true" size={13} strokeWidth={1.8} />
-          <span className="sr-only">
+          What's new{" "}
+          <ExternalLink
+            aria-hidden="true"
+            strokeWidth={1.8}
+            className="size-update-external-icon"
+          />
+          <span className="sr-only m-0!">
             {" "}
             for Archeion {update.available.version} (opens in your browser)
           </span>
         </a>
       ) : null}
       {localError?.action === "link" ? (
-        <p className="about-update__detail">{localError.message}</p>
+        <Alert role={undefined} className="wrap-normal text-meta text-muted tabular-nums">
+          {localError.message}
+        </Alert>
       ) : null}
       {supported && update?.status === "downloading" ? (
         <>
-          <p className="about-update__detail">
+          <p className="m-0 text-meta text-muted tabular-nums">
             {percent === null ? "Downloading…" : `Downloading… ${percent}%`}
           </p>
-          <progress
-            aria-label="Update download"
-            max={100}
-            {...(percent === null ? {} : { value: percent })}
-          />
+          <Progress aria-label="Update download" nativeAppearance value={percent} />
         </>
       ) : null}
       {snapshot.status === "error" ? (
@@ -176,9 +184,10 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
         </Button>
       ) : null}
       {supported && update ? (
-        <div className="about-update__actions">
+        <div className="flex flex-col items-center gap-update-notice-row-gap">
           {!operating && (update?.available || (operationError && update?.status === "ready")) ? (
             <Button
+              className="border-accent-strong! bg-accent-strong!"
               size="standard"
               disabled={busy !== null}
               onClick={() => void run(primaryAction)}
@@ -195,6 +204,7 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
             <Button
               size="standard"
               variant="ghost"
+              className="not-forced-colors:text-muted!"
               busy={busy === "check" || update.status === "checking"}
               disabled={busy !== null || Boolean(operating)}
               onClick={() => void run("check")}
@@ -206,6 +216,7 @@ export function AboutUpdateStatus({ client = appUpdateClient }: { client?: AppUp
             <Button
               size="standard"
               variant="ghost"
+              className="not-forced-colors:text-muted!"
               disabled={busy !== null || update.prompt.restartDeferred}
               onClick={() => void run("defer")}
             >

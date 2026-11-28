@@ -23,7 +23,7 @@ test("checking keeps one visible status, one live owner and the idle action foot
   await page.evaluate(() => window.updateToastFixture!.set({ status: "checking" }));
   await expect(button).toBeDisabled();
   await expect(button).toHaveAttribute("aria-busy", "true");
-  await expect(region.locator(".about-update__message")).toHaveText("Checking for updates…");
+  await expect(region.locator("p")).toHaveText("Checking for updates…");
   await expect(region.getByRole("status")).toHaveCount(1);
   await expect(region.getByRole("status")).toHaveText("Checking for updates…");
   await expect(region.getByRole("button", { name: "Checking…", exact: true })).toHaveCount(0);
@@ -141,6 +141,42 @@ test("About links keep keyboard focus and announce opener errors in forced color
   );
 });
 
+test("update actions retain system hover and pressed colors in forced colors", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark", forcedColors: "active" });
+  await page.goto(fixture);
+  const check = page.getByRole("button", { name: "Check for updates" });
+  await check.hover();
+  const colors = await page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "LinkText";
+    probe.style.borderColor = "Highlight";
+    document.body.append(probe);
+    const { color, borderTopColor } = getComputedStyle(probe);
+    probe.remove();
+    return { hover: color, pressed: borderTopColor };
+  });
+  await expect(check).toHaveCSS("color", colors.hover);
+
+  await page.evaluate((candidate) => {
+    window.updateToastFixture!.set({ status: "available", available: candidate });
+  }, candidate);
+  const aboutUpdate = page.getByRole("button", { name: "Update now" });
+  await aboutUpdate.hover();
+  await page.mouse.down();
+  await expect(aboutUpdate).toHaveCSS("border-top-color", colors.pressed);
+  await page.mouse.move(0, 0);
+  await page.mouse.up();
+
+  await page.goto("/tests/browser/fixtures/index.html?view=library-updates");
+  await page.waitForFunction(() => Boolean(window.updateToastFixture));
+  await page.evaluate((candidate) => {
+    window.updateToastFixture!.set({ status: "available", available: candidate });
+  }, candidate);
+  const libraryUpdate = page.getByRole("button", { name: "Update now" });
+  await libraryUpdate.hover();
+  await expect(libraryUpdate).toHaveCSS("color", colors.hover);
+});
+
 test.describe("About links on touch-primary devices", () => {
   test.use({ hasTouch: true });
 
@@ -225,7 +261,7 @@ test("About supports manual outcomes, snoozed download and deferred restart thro
   await page.getByRole("link", { name: /^Changelog/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-last-external-url", changelog);
   await status.getByRole("button", { name: "Update now" }).click();
-  await expect(status.getByRole("progressbar")).not.toHaveAttribute("value");
+  await expect(status.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
   await page.evaluate(() =>
     window.updateToastFixture!.set({ downloadedBytes: 46, totalBytes: 100 }),
   );
